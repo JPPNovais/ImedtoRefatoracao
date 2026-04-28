@@ -1,0 +1,42 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Imedto.Backend.Domain.Pacientes;
+
+namespace Imedto.Backend.Infrastructure.Database.Configurations;
+
+public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
+{
+    public void Configure(EntityTypeBuilder<Paciente> builder)
+    {
+        builder.ToTable("pacientes");
+
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).HasColumnName("id").ValueGeneratedOnAdd();
+
+        builder.Property(p => p.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
+        builder.Property(p => p.NomeCompleto).HasColumnName("nome_completo").IsRequired().HasMaxLength(200);
+        builder.Property(p => p.Cpf).HasColumnName("cpf").HasMaxLength(11);
+        builder.Property(p => p.DataNascimento).HasColumnName("data_nascimento").HasColumnType("date");
+        builder.Property(p => p.Genero).HasColumnName("genero").HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(p => p.Telefone).HasColumnName("telefone").HasMaxLength(20);
+        builder.Property(p => p.Email).HasColumnName("email").HasMaxLength(320);
+        builder.Property(p => p.Endereco).HasColumnName("endereco").HasMaxLength(500);
+        builder.Property(p => p.Observacoes).HasColumnName("observacoes").HasMaxLength(2000);
+        builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
+        builder.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
+        builder.Property(p => p.DeletadoEm).HasColumnName("deletado_em");
+        builder.Property(p => p.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
+
+        // Listagens ativas sempre filtram por estabelecimento + não-deletado.
+        builder.HasIndex(p => new { p.EstabelecimentoId, p.DeletadoEm }).HasDatabaseName("ix_pacientes_estabelecimento");
+
+        // Unique por (estabelecimento, CPF) — CPF pode repetir em estabelecimentos diferentes.
+        builder.HasIndex(p => new { p.EstabelecimentoId, p.Cpf })
+            .IsUnique()
+            .HasDatabaseName("uq_pacientes_estabelecimento_cpf")
+            .HasFilter("cpf IS NOT NULL AND deletado_em IS NULL");
+
+        builder.Ignore(p => p.DomainEvents);
+        builder.Ignore(p => p.EstaDeletado);
+    }
+}

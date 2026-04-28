@@ -1,0 +1,50 @@
+# Secrets & local config
+.mcp.json
+.env
+.env.local
+.env.*.local
+backend/src/Services/Imedto.Backend.API/appsettings.Development.json
+backend/src/Services/Imedto.Backend.API/appsettings.Production.json
+frontend/.env
+frontend/.env.local
+.claude/settings.local.json
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+[Dd]ebug/
+[Rr]elease/
+out/
+publish/
+TestResults/
+
+# Node / Vite
+node_modules/
+*node_modules/
+dist/
+*dist/
+.vite/
+*.vite/
+*.tsbuildinfo
+coverage/
+
+# Supabase
+supabase/.temp/
+*supabase/.temp/
+supabase/.branches/
+*supabase/.branches/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Logs
+*.log

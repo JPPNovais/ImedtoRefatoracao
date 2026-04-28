@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>disable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- HttpClient para chamadas ao Supabase REST API -->
+        <PackageReference Include="Dapper" Version="2.1.66" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+        <!-- Geração de JWT no MockAuthService -->
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.2" />
+
+        <!--
+            PRODUÇÃO: descomente abaixo e remova o InMemoryStore nos repositórios.
+        -->
+        <!--
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.4" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.4" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.4">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Dapper" Version="2.1.35" />
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+        -->
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\Core\Imedto.Backend.SharedKernel\Imedto.Backend.SharedKernel.csproj" />
+        <ProjectReference Include="..\Imedto.Backend.Contracts\Imedto.Backend.Contracts.csproj" />
+        <ProjectReference Include="..\Imedto.Backend.Domain\Imedto.Backend.Domain.csproj" />
+    </ItemGroup>
+
+</Project>

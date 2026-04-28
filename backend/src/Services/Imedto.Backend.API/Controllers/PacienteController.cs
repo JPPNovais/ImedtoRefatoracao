@@ -1,0 +1,161 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.Contracts.Pacientes.Commands;
+using Imedto.Backend.Contracts.Pacientes.Queries;
+using Imedto.Backend.Contracts.Pacientes.Queries.Results;
+using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Tenancy;
+
+namespace Imedto.Backend.API.Controllers;
+
+/// <summary>
+/// Gerenciamento de pacientes do estabelecimento ativo. Todos os endpoints exigem o
+/// header <c>X-Estabelecimento-Id</c> via <see cref="RequiresEstabelecimentoAttribute"/>.
+/// </summary>
+[Authorize]
+[RequiresEstabelecimento]
+[ApiController]
+[Route("api/paciente")]
+[Produces("application/json")]
+public class PacienteController : ControllerBase
+{
+    private readonly ICommandBus _commandBus;
+    private readonly IRequestBus _requestBus;
+    private readonly ICurrentTenantAccessor _tenant;
+
+    public PacienteController(
+        ICommandBus commandBus,
+        IRequestBus requestBus,
+        ICurrentTenantAccessor tenant)
+    {
+        _commandBus = commandBus;
+        _requestBus = requestBus;
+        _tenant = tenant;
+    }
+
+    /// <summary>Lista paginada de pacientes do estabelecimento atual, com busca por nome ou CPF.</summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PaginaPacientesDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Listar(
+        [FromQuery] string busca = null,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
+    {
+        var pagina1 = await _requestBus.Query<ListarPacientesQuery, PaginaPacientesDto>(
+            new ListarPacientesQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Busca = busca,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
+            });
+
+        return Ok(pagina1);
+    }
+
+    /// <summary>Retorna os dados de um paciente.</summary>
+    [HttpGet("{id:long}")]
+    [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Obter(long id)
+    {
+        var dto = await _requestBus.Query<ObterPacienteQuery, PacienteDto>(
+            new ObterPacienteQuery
+            {
+                PacienteId = id,
+                EstabelecimentoId = _tenant.EstabelecimentoId
+            });
+
+        if (dto is null) return NotFound();
+        return Ok(dto);
+    }
+
+    /// <summary>Cadastra um novo paciente no estabelecimento atual.</summary>
+    [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Criar([FromBody] PacienteRequest request)
+    {
+        await _commandBus.Send(new CadastrarPacienteCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            NomeCompleto = request.NomeCompleto,
+            Cpf = request.Cpf,
+            DataNascimento = request.DataNascimento,
+            Genero = request.Genero,
+            Telefone = request.Telefone,
+            Email = request.Email,
+            Endereco = request.Endereco,
+            Observacoes = request.Observacoes
+        });
+
+        return Created(string.Empty, null);
+    }
+
+    /// <summary>Atualiza os dados de um paciente.</summary>
+    [HttpPut("{id:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Atualizar(long id, [FromBody] PacienteRequest request)
+    {
+        await _commandBus.Send(new AtualizarPacienteCommand
+        {
+            PacienteId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            NomeCompleto = request.NomeCompleto,
+            Cpf = request.Cpf,
+            DataNascimento = request.DataNascimento,
+            Genero = request.Genero,
+            Telefone = request.Telefone,
+            Email = request.Email,
+            Endereco = request.Endereco,
+            Observacoes = request.Observacoes
+        });
+
+        return NoContent();
+    }
+
+    /// <summary>Soft delete (LGPD). Mantém registro marcado por retenção legal. Apenas Profissional ou Dono.</summary>
+    [HttpDelete("{id:long}")]
+    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Deletar(long id)
+    {
+        await _commandBus.Send(new DeletarPacienteCommand
+        {
+            PacienteId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId
+        });
+
+        return NoContent();
+    }
+
+    /// <summary>LGPD Art. 18 — exporta todos os dados pessoais do paciente em JSON.</summary>
+    [HttpGet("{id:long}/exportar-dados")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportarDados(long id)
+    {
+        var dados = await _requestBus.Query<ExportarDadosPacienteQuery, object>(
+            new ExportarDadosPacienteQuery
+            {
+                PacienteId = id,
+                EstabelecimentoId = _tenant.EstabelecimentoId
+            });
+
+        return Ok(dados);
+    }
+}
+
+public record PacienteRequest(
+    string NomeCompleto,
+    string Cpf,
+    DateTime? DataNascimento,
+    string Genero,
+    string Telefone,
+    string Email,
+    string Endereco,
+    string Observacoes);

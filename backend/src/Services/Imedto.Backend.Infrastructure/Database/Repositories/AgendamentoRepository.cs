@@ -1,0 +1,47 @@
+using Imedto.Backend.Domain.Agendamentos;
+using Microsoft.EntityFrameworkCore;
+
+namespace Imedto.Backend.Infrastructure.Database.Repositories;
+
+public class AgendamentoRepository : IAgendamentoRepository
+{
+    private readonly AppDbContext _db;
+
+    public AgendamentoRepository(AppDbContext db) => _db = db;
+
+    public async Task<Agendamento> ObterPorId(long id)
+    {
+        var agendamento = await ObterPorIdOuNulo(id);
+        if (agendamento is null)
+            throw new KeyNotFoundException($"Agendamento {id} não encontrado.");
+        return agendamento;
+    }
+
+    public async Task<Agendamento?> ObterPorIdOuNulo(long id)
+        => await _db.Agendamentos.FindAsync(id);
+
+    public async Task Salvar(Agendamento agendamento)
+    {
+        if (agendamento.Id == 0)
+            _db.Agendamentos.Add(agendamento);
+        else
+            _db.Agendamentos.Update(agendamento);
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<bool> ExisteConflito(
+        Guid profissionalUsuarioId,
+        DateTime inicioPrevisto,
+        DateTime fimPrevisto,
+        long? excluirAgendamentoId = null)
+    {
+        return await _db.Agendamentos
+            .Where(a =>
+                a.ProfissionalUsuarioId == profissionalUsuarioId &&
+                a.Status != AgendamentoStatus.Cancelado &&
+                (excluirAgendamentoId == null || a.Id != excluirAgendamentoId) &&
+                a.InicioPrevisto < fimPrevisto &&
+                a.FimPrevisto > inicioPrevisto)
+            .AnyAsync();
+    }
+}

@@ -1,0 +1,54 @@
+:root {
+  --background: 240 33% 99%;
+  --foreground: 0 0% 24%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 24%;
+  --primary: 254 56% 38%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 240 33% 99%;
+  --primary-dark: 254 56% 21%;
+  --secondary: 0 0% 24%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 254 40% 95%;
+  --accent-foreground: 254 56% 38%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 254 56% 38%;
+  --radius: 0.5rem;
+  --success: 160 79% 39%;
+  --warning: 45 96% 47%;
+  --info: 199 89% 48%;
+  --error: 0 84% 60%;
+  --neutral: 0 0% 100%;
+}
+
+.dark {
+  --background: 240 10% 4%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 6%;
+  --card-foreground: 0 0% 98%;
+  --primary: 254 50% 55%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 240 10% 10%;
+  --primary-dark: 254 50% 75%;
+  --secondary: 0 0% 85%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 240 4% 16%;
+  --muted-foreground: 0 0% 64%;
+  --accent: 254 30% 18%;
+  --accent-foreground: 254 50% 75%;
+  --destructive: 0 63% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 4% 16%;
+  --input: 240 4% 16%;
+  --ring: 254 50% 55%;
+  --success: 160 70% 45%;
+  --warning: 45 90% 50%;
+  --info: 199 85% 55%;
+  --error: 0 63% 50%;
+  --neutral: 240 10% 8%;
+}

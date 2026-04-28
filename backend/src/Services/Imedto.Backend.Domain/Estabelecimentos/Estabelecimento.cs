@@ -1,0 +1,202 @@
+using System.Text.Json;
+using Imedto.Backend.Domain.Estabelecimentos.Events;
+using Imedto.Backend.SharedKernel.Domain;
+
+namespace Imedto.Backend.Domain.Estabelecimentos;
+
+/// <summary>
+/// Aggregate root de Estabelecimento — tenant root da plataforma.
+/// Todo dado de domínio (pacientes, prontuários, agenda, etc.) vai ter FK para este aggregate.
+/// </summary>
+public class Estabelecimento : Entity
+{
+    public virtual Guid DonoUsuarioId { get; protected set; }
+    public virtual string NomeFantasia { get; protected set; }
+    public virtual string RazaoSocial { get; protected set; }
+    public virtual string Cnpj { get; protected set; }
+    public virtual string Telefone { get; protected set; }
+    public virtual string Endereco { get; protected set; }
+    public virtual string FotoUrl { get; protected set; }
+    public virtual EstabelecimentoStatus Status { get; protected set; }
+    public virtual DateTime CriadoEm { get; protected set; }
+    public virtual DateTime? AtualizadoEm { get; protected set; }
+
+    // Funcionamento (configuração da agenda).
+    public virtual TimeOnly HorarioInicio { get; protected set; }
+    public virtual TimeOnly HorarioFim { get; protected set; }
+
+    // JSONB persistido — acesso tipado via propriedades read-only abaixo.
+    public virtual string DiasSemanaFuncionamentoJson { get; protected set; }
+    public virtual string HorariosBloqueadosJson { get; protected set; }
+    public virtual string DatasBloqueadasJson { get; protected set; }
+
+    public IReadOnlyList<int> DiasSemanaFuncionamento =>
+        JsonSerializer.Deserialize<List<int>>(DiasSemanaFuncionamentoJson ?? "[]") ?? new();
+
+    public IReadOnlyList<HorarioBloqueado> HorariosBloqueados =>
+        JsonSerializer.Deserialize<List<HorarioBloqueado>>(HorariosBloqueadosJson ?? "[]", _jsonOpts) ?? new();
+
+    public IReadOnlyList<DataBloqueada> DatasBloqueadas =>
+        JsonSerializer.Deserialize<List<DataBloqueada>>(DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new();
+
+    private static readonly JsonSerializerOptions _jsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    protected Estabelecimento() { }
+
+    public static Estabelecimento Criar(
+        Guid donoUsuarioId,
+        string nomeFantasia,
+        string razaoSocial,
+        string cnpj,
+        string telefone,
+        string endereco)
+    {
+        if (donoUsuarioId == Guid.Empty)
+            throw new BusinessException("Dono do estabelecimento é obrigatório.");
+        if (string.IsNullOrWhiteSpace(nomeFantasia))
+            throw new BusinessException("Nome fantasia é obrigatório.");
+
+        var cnpjDigitos = string.IsNullOrWhiteSpace(cnpj) ? null : SomenteDigitos(cnpj);
+        if (cnpjDigitos is { Length: > 0 and not 14 })
+            throw new BusinessException("CNPJ deve conter 14 dígitos.");
+
+        return new Estabelecimento
+        {
+            DonoUsuarioId = donoUsuarioId,
+            NomeFantasia = nomeFantasia.Trim(),
+            RazaoSocial = string.IsNullOrWhiteSpace(razaoSocial) ? null : razaoSocial.Trim(),
+            Cnpj = cnpjDigitos,
+            Telefone = string.IsNullOrWhiteSpace(telefone) ? null : SomenteDigitos(telefone),
+            Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim(),
+            Status = EstabelecimentoStatus.Ativo,
+            CriadoEm = DateTime.UtcNow,
+            HorarioInicio = new TimeOnly(8, 0),
+            HorarioFim = new TimeOnly(18, 0),
+            DiasSemanaFuncionamentoJson = "[1,2,3,4,5]",
+            HorariosBloqueadosJson = "[]",
+            DatasBloqueadasJson = "[]",
+        };
+    }
+
+    /// <summary>
+    /// Marca o aggregate como recém-criado (anexa <see cref="EstabelecimentoCriadoEvent"/>).
+    /// Deve ser chamado pelo handler APÓS persistir o aggregate (para que o <see cref="Entity{TId}.Id"/>
+    /// já esteja populado pelo EF Core).
+    /// </summary>
+    public virtual void MarcarComoCriado()
+    {
+        if (Id == 0)
+            throw new InvalidOperationException("Estabelecimento ainda não foi persistido — Id é 0.");
+
+        AddDomainEvent(new EstabelecimentoCriadoEvent(Id, DonoUsuarioId, NomeFantasia));
+    }
+
+    public virtual void AtualizarDados(
+        string nomeFantasia,
+        string razaoSocial,
+        string cnpj,
+        string telefone,
+        string endereco)
+    {
+        if (string.IsNullOrWhiteSpace(nomeFantasia))
+            throw new BusinessException("Nome fantasia é obrigatório.");
+
+        var cnpjDigitos = string.IsNullOrWhiteSpace(cnpj) ? null : SomenteDigitos(cnpj);
+        if (cnpjDigitos is { Length: > 0 and not 14 })
+            throw new BusinessException("CNPJ deve conter 14 dígitos.");
+
+        NomeFantasia = nomeFantasia.Trim();
+        RazaoSocial = string.IsNullOrWhiteSpace(razaoSocial) ? null : razaoSocial.Trim();
+        Cnpj = cnpjDigitos;
+        Telefone = string.IsNullOrWhiteSpace(telefone) ? null : SomenteDigitos(telefone);
+        Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim();
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Substitui toda a configuração de funcionamento (horários, dias, bloqueios).
+    /// Itens em <paramref name="horariosBloqueados"/> ou <paramref name="datasBloqueadas"/>
+    /// com <c>Id == Guid.Empty</c> recebem novo Id gerado pelo domínio.
+    /// </summary>
+    public virtual void AtualizarFuncionamento(
+        TimeOnly horarioInicio,
+        TimeOnly horarioFim,
+        IReadOnlyList<int> diasSemana,
+        IReadOnlyList<HorarioBloqueado> horariosBloqueados,
+        IReadOnlyList<DataBloqueada> datasBloqueadas)
+    {
+        if (horarioFim <= horarioInicio)
+            throw new BusinessException("Horário de término deve ser maior que o horário de início.");
+        if (diasSemana == null || diasSemana.Count == 0)
+            throw new BusinessException("Selecione pelo menos um dia de funcionamento.");
+        foreach (var d in diasSemana)
+            if (d < 0 || d > 6)
+                throw new BusinessException("Dia da semana inválido (use 0=Domingo até 6=Sábado).");
+
+        horariosBloqueados ??= Array.Empty<HorarioBloqueado>();
+        datasBloqueadas ??= Array.Empty<DataBloqueada>();
+
+        var bloqueiosNormalizados = new List<HorarioBloqueado>(horariosBloqueados.Count);
+        foreach (var hb in horariosBloqueados)
+        {
+            if (hb.Fim <= hb.Inicio)
+                throw new BusinessException("Em horários bloqueados, o término deve ser maior que o início.");
+            if (hb.Inicio < horarioInicio || hb.Fim > horarioFim)
+                throw new BusinessException("Horário bloqueado deve estar dentro do horário de funcionamento.");
+            var id = hb.Id == Guid.Empty ? Guid.NewGuid() : hb.Id;
+            var desc = string.IsNullOrWhiteSpace(hb.Descricao) ? string.Empty : hb.Descricao.Trim();
+            bloqueiosNormalizados.Add(hb with { Id = id, Descricao = desc });
+        }
+
+        var datasNormalizadas = new List<DataBloqueada>(datasBloqueadas.Count);
+        var datasJaVistas = new HashSet<DateOnly>();
+        foreach (var db in datasBloqueadas)
+        {
+            if (!datasJaVistas.Add(db.Data))
+                throw new BusinessException($"Data bloqueada duplicada: {db.Data:yyyy-MM-dd}.");
+            var id = db.Id == Guid.Empty ? Guid.NewGuid() : db.Id;
+            var desc = string.IsNullOrWhiteSpace(db.Descricao) ? string.Empty : db.Descricao.Trim();
+            datasNormalizadas.Add(db with { Id = id, Descricao = desc });
+        }
+
+        HorarioInicio = horarioInicio;
+        HorarioFim = horarioFim;
+        DiasSemanaFuncionamentoJson = JsonSerializer.Serialize(diasSemana.Distinct().OrderBy(d => d));
+        HorariosBloqueadosJson = JsonSerializer.Serialize(bloqueiosNormalizados, _jsonOpts);
+        DatasBloqueadasJson = JsonSerializer.Serialize(datasNormalizadas, _jsonOpts);
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void AlterarFoto(string fotoUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fotoUrl))
+            throw new BusinessException("URL da foto é obrigatória.");
+
+        FotoUrl = fotoUrl.Trim();
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void Inativar()
+    {
+        if (Status == EstabelecimentoStatus.Inativo)
+            throw new BusinessException("Estabelecimento já está inativo.");
+
+        Status = EstabelecimentoStatus.Inativo;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void Reativar()
+    {
+        if (Status == EstabelecimentoStatus.Ativo)
+            throw new BusinessException("Estabelecimento já está ativo.");
+
+        Status = EstabelecimentoStatus.Ativo;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    private static string SomenteDigitos(string valor) =>
+        new(valor.Where(char.IsDigit).ToArray());
+}
