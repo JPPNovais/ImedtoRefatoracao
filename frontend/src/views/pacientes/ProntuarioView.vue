@@ -9,7 +9,6 @@ import {
 } from "@/services/prontuarioService"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
-import { sugerirSecaoProntuario } from "@/services/iaService"
 import { useProntuarioPdf } from "@/composables/useProntuarioPdf"
 import { useTenantStore } from "@/stores/tenantStore"
 import { AppButton, AppField, AppSelect } from "@/components/ui"
@@ -19,7 +18,6 @@ import ConsultaAtualTab            from "@/components/prontuario/tabs/ConsultaAt
 import ConsultasAnterioresTab      from "@/components/prontuario/tabs/ConsultasAnterioresTab.vue"
 import ExameFisicoTab              from "@/components/prontuario/tabs/ExameFisicoTab.vue"
 import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTab.vue"
-import AssistenteTab               from "@/components/prontuario/tabs/AssistenteTab.vue"
 
 const { gerarPdf: gerarPdfProntuario } = useProntuarioPdf()
 
@@ -61,23 +59,17 @@ const novaEvolucao = reactive<Record<string, any>>({})
 const salvandoEvolucao = ref(false)
 
 const SECOES_ESTRUTURADAS = new Set([
-    "historia_pregressa",
-    "historia_familiar",
-    "historia_social",
-    "exame_fisico",
-    "exames_realizados",
-    "procedimentos_indicados",
+    "hpp",
+    "h-familiar",
+    "h-social",
+    "exame-fisico",
+    "exames-realizados",
+    "procedimentos-indicados",
 ])
 
 // ─── Anexos ───────────────────────────────────────────────────────────────────
 const uploadPendente = ref<File | null>(null)
 const uploadando     = ref(false)
-
-// ─── IA ──────────────────────────────────────────────────────────────────────
-const gerandoIa = ref<Record<string, boolean>>({})
-const erroIa    = ref<Record<string, string | null>>({})
-const resumoIaGerando = ref(false)
-const resumoIa        = ref<string>("")
 
 onMounted(carregar)
 
@@ -194,58 +186,6 @@ function voltar() {
     router.push({ name: "PacienteDetalhe", params: { id: pacienteId.value } })
 }
 
-// ─── IA — sugestão de seção ───────────────────────────────────────────────────
-async function gerarSugestaoIa(secaoChave: string, secaoTitulo: string) {
-    gerandoIa.value[secaoChave] = true
-    erroIa.value[secaoChave] = null
-    novaEvolucao[secaoChave] = ""
-    const contexto: Record<string, string> = {}
-    for (const s of secoesConsultaAtual.value) {
-        if (s.chave !== secaoChave && novaEvolucao[s.chave]?.trim()) {
-            contexto[s.titulo] = novaEvolucao[s.chave]
-        }
-    }
-    try {
-        for await (const chunk of sugerirSecaoProntuario({
-            secaoAlvoTitulo: secaoTitulo,
-            secoesContexto: contexto,
-        })) {
-            novaEvolucao[secaoChave] += chunk
-        }
-    } catch (e: any) {
-        erroIa.value[secaoChave] = e?.message ?? "Erro ao gerar sugestão."
-        novaEvolucao[secaoChave] = ""
-    } finally {
-        gerandoIa.value[secaoChave] = false
-    }
-}
-
-async function gerarResumoIa() {
-    resumoIaGerando.value = true
-    resumoIa.value = ""
-    try {
-        const contexto: Record<string, string> = {}
-        for (const s of secoesConsultaAtual.value) {
-            if (novaEvolucao[s.chave]?.trim()) {
-                contexto[s.titulo] = novaEvolucao[s.chave]
-            }
-        }
-        if (Object.keys(contexto).length === 0) {
-            resumoIa.value = "Preencha alguma seção da consulta atual para que o assistente gere um resumo."
-            return
-        }
-        for await (const chunk of sugerirSecaoProntuario({
-            secaoAlvoTitulo: "Resumo clínico e insights",
-            secoesContexto: contexto,
-        })) {
-            resumoIa.value += chunk
-        }
-    } catch (e: any) {
-        resumoIa.value = `Erro: ${e?.message ?? "falha ao gerar resumo."}`
-    } finally {
-        resumoIaGerando.value = false
-    }
-}
 </script>
 
 <template>
@@ -301,10 +241,7 @@ async function gerarResumoIa() {
                 :secoes="secoesConsultaAtual"
                 :nova-evolucao="novaEvolucao"
                 :salvando="salvandoEvolucao"
-                :gerando-ia="gerandoIa"
-                :erro-ia="erroIa"
                 @salvar="salvarEvolucao"
-                @gerar-ia="(chave, titulo) => gerarSugestaoIa(chave, titulo)"
             />
 
             <!-- TAB: Consultas anteriores -->
@@ -334,14 +271,6 @@ async function gerarResumoIa() {
                 :paciente-nome="paciente.nomeCompleto"
             />
 
-            <!-- TAB: Assistente -->
-            <AssistenteTab
-                v-else-if="abaAtiva === 'assistente'"
-                :resumo-ia="resumoIa"
-                :gerando-resumo="resumoIaGerando"
-                :nova-evolucao="novaEvolucao"
-                @gerar-resumo="gerarResumoIa"
-            />
         </template>
     </main>
 </template>

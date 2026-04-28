@@ -9,7 +9,6 @@ export type AbaProntuario =
     | "anteriores"
     | "exame"
     | "receitas"
-    | "assistente"
 
 defineProps<{
     modelValue: AbaProntuario
@@ -66,24 +65,6 @@ defineEmits<{
         >
             <span class="tab-icone-rx">Rx</span>
             <span class="tab-label">Receitas</span>
-        </button>
-
-        <button
-            type="button"
-            class="tab"
-            :class="{ ativa: modelValue === 'assistente' }"
-            @click="$emit('update:modelValue', 'assistente')"
-        >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tab-icone">
-                <rect x="3" y="7" width="18" height="14" rx="2" />
-                <path d="M8 7V3h8v4" />
-                <circle cx="9" cy="13" r="1" />
-                <circle cx="15" cy="13" r="1" />
-                <path d="M9 17h6" />
-            </svg>
-            <span class="tab-label">Assistente</span>
-            <span class="badge-ia">IA</span>
         </button>
     </nav>
 </template>

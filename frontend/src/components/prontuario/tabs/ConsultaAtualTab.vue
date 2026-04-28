@@ -9,13 +9,10 @@ const props = defineProps<{
     secoes: SecaoModelo[]
     novaEvolucao: Record<string, any>
     salvando: boolean
-    gerandoIa: Record<string, boolean>
-    erroIa: Record<string, string | null>
 }>()
 
 const emit = defineEmits<{
     salvar: []
-    gerarIa: [chave: string, titulo: string]
     "update:modeloId": [id: number]
 }>()
 
@@ -79,21 +76,7 @@ function scrollToTop() {
                 >
                     <div class="secao-header">
                         <h3 class="secao-titulo">{{ secao.titulo }}</h3>
-                        <button
-                            v-if="secao.tipo !== 'estruturado'"
-                            type="button"
-                            class="btn-ia"
-                            :disabled="gerandoIa[secao.chave] || salvando"
-                            @click="emit('gerarIa', secao.chave, secao.titulo)"
-                            title="Gerar sugestão com IA"
-                        >
-                            {{ gerandoIa[secao.chave] ? "Gerando..." : "✨ IA" }}
-                        </button>
                     </div>
-
-                    <span v-if="erroIa[secao.chave]" class="erro-ia">
-                        {{ erroIa[secao.chave] }}
-                    </span>
 
                     <SecaoProntuario
                         v-model="novaEvolucao[secao.chave]"
@@ -235,30 +218,6 @@ function scrollToTop() {
     font-weight: 700;
     margin: 0;
     color: hsl(var(--primary));
-}
-
-/* Botão IA */
-.btn-ia {
-    font-size: 0.75em;
-    padding: 0.25rem 0.6rem;
-    background: hsl(var(--primary-light));
-    color: hsl(var(--primary));
-    border: 1px solid hsl(var(--primary) / 0.25);
-    border-radius: 6px;
-    cursor: pointer;
-    font-family: inherit;
-    white-space: nowrap;
-    font-weight: 600;
-    transition: background 0.12s;
-}
-.btn-ia:hover:not(:disabled) { background: hsl(var(--primary) / 0.15); }
-.btn-ia:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.erro-ia {
-    font-size: 0.78em;
-    color: hsl(var(--error));
-    display: block;
-    margin-bottom: 0.4rem;
 }
 
 /* Rodapé */

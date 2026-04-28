@@ -66,8 +66,8 @@ function scrollTo(id: string) {
             <!-- Componente de exame físico estruturado -->
             <div class="exame-card">
                 <SecaoProntuario
-                    v-model="novaEvolucao['exame_fisico']"
-                    chave="exame_fisico"
+                    v-model="novaEvolucao['exame-fisico']"
+                    chave="exame-fisico"
                     titulo="Exame físico"
                     tipo="estruturado"
                 />
