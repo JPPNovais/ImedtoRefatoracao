@@ -28,6 +28,7 @@ public class InventarioQueryRepository
                 i.unidade_medida                            AS UnidadeMedida,
                 i.quantidade_atual                          AS QuantidadeAtual,
                 i.quantidade_minima                         AS QuantidadeMinima,
+                i.custo_medio                               AS CustoMedio,
                 (i.quantidade_atual < i.quantidade_minima)  AS EstoqueAbaixoMinimo,
                 i.ativo                                     AS Ativo,
                 i.criado_em                                 AS CriadoEm,
@@ -67,6 +68,8 @@ public class InventarioQueryRepository
                 m.quantidade            AS Quantidade,
                 m.quantidade_anterior   AS QuantidadeAnterior,
                 m.quantidade_apos       AS QuantidadeApos,
+                m.custo_unitario        AS CustoUnitario,
+                m.custo_total           AS CustoTotal,
                 m.observacao            AS Observacao,
                 COALESCE(u.nome_completo, u.email) AS UsuarioNome,
                 m.criado_em             AS CriadoEm
@@ -74,6 +77,7 @@ public class InventarioQueryRepository
             JOIN itens_inventario i ON i.id = m.item_inventario_id
             JOIN usuarios         u ON u.id = m.criado_por_usuario_id
             WHERE m.estabelecimento_id = @EstabelecimentoId
+              AND m.deletado_em IS NULL
               AND (@ItemInventarioId::bigint IS NULL OR m.item_inventario_id = @ItemInventarioId::bigint)
               AND (@DataInicio::timestamptz  IS NULL OR m.criado_em >= @DataInicio::timestamptz)
               AND (@DataFim::timestamptz     IS NULL OR m.criado_em <= @DataFim::timestamptz)

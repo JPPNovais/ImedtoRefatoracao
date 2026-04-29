@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using Imedto.Backend.Application.Automacoes.Commands;
 using Imedto.Backend.Application.Automacoes.Queries;
 using Imedto.Backend.Application.Agendamentos.Commands;
@@ -115,9 +116,37 @@ public static class Container
     {
         services.AddHttpContextAccessor();
         services.AddInfrastructure(configuration);
+        RegistrarIa(services, configuration);
         RegistrarHandlers(services);
         RegistrarBuses(services);
         return services;
+    }
+
+    /// <summary>
+    /// Registra o pipeline de IA: serviço concreto Anthropic, decorator com rate
+    /// limit/cache/audit e seus repositórios. <see cref="IIaService"/> resolve
+    /// sempre para o decorator — quem injeta a interface ganha as proteções de graça.
+    /// </summary>
+    private static void RegistrarIa(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<IaOptions>(configuration.GetSection(IaOptions.Section));
+
+        // Repositórios de apoio
+        services.AddScoped<IAiAuditRepository, AiAuditRepository>();
+        services.AddScoped<IAiCacheRepository, AiCacheRepository>();
+        services.AddScoped<IAiRateLimitRepository, AiRateLimitRepository>();
+
+        // Concreto + decorator (decorator é a única coisa exposta como IIaService)
+        services.AddScoped<AnthropicIaService>();
+        services.AddScoped<IIaService>(sp => new RateLimitedIaService(
+            sp.GetRequiredService<AnthropicIaService>(),
+            sp.GetRequiredService<IAiAuditRepository>(),
+            sp.GetRequiredService<IAiCacheRepository>(),
+            sp.GetRequiredService<IAiRateLimitRepository>(),
+            sp.GetRequiredService<Domain.Vinculos.IVinculoRepository>(),
+            sp.GetRequiredService<IHttpContextAccessor>(),
+            sp.GetRequiredService<IOptions<IaOptions>>(),
+            configuration));
     }
 
     private static void RegistrarHandlers(IServiceCollection services)
@@ -269,7 +298,7 @@ public static class Container
         services.AddSingleton<ObterConfiguracaoAutomacaoQueryHandlers>();
         services.AddScoped<IConfiguracaoAutomacaoRepository, ConfiguracaoAutomacaoRepository>();
         services.AddSingleton<IEmailService, ResendEmailService>();
-        services.AddScoped<IIaService, AnthropicIaService>();
+        // IIaService registrado via RegistrarIa (decorator com rate limit + cache + audit).
 
         // Dashboard & Relatórios
         services.AddSingleton<DashboardQueryHandlers>();

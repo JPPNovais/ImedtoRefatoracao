@@ -19,9 +19,13 @@ public class MovimentacaoEstoqueConfiguration : IEntityTypeConfiguration<Movimen
         builder.Property(m => m.Quantidade).HasColumnName("quantidade").HasPrecision(12, 3).IsRequired();
         builder.Property(m => m.QuantidadeAnterior).HasColumnName("quantidade_anterior").HasPrecision(12, 3).IsRequired();
         builder.Property(m => m.QuantidadeApos).HasColumnName("quantidade_apos").HasPrecision(12, 3).IsRequired();
+        builder.Property(m => m.CustoUnitario).HasColumnName("custo_unitario").HasPrecision(18, 4).IsRequired();
+        builder.Property(m => m.CustoTotal).HasColumnName("custo_total").HasPrecision(18, 4).IsRequired();
         builder.Property(m => m.Observacao).HasColumnName("observacao").HasMaxLength(500);
         builder.Property(m => m.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
         builder.Property(m => m.CriadoEm).HasColumnName("criado_em").IsRequired();
+        builder.Property(m => m.DeletadoEm).HasColumnName("deletado_em");
+        builder.Property(m => m.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
         builder.HasIndex(m => new { m.ItemInventarioId, m.CriadoEm })
             .HasDatabaseName("ix_movimentacao_item_data");

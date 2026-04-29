@@ -1,6 +1,7 @@
 using Imedto.Backend.Contracts.Inventario.Commands;
 using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Application.Inventario.Commands;
 
@@ -35,7 +36,10 @@ public class CriarItemInventarioCommandHandler : ICommandHandler<CriarItemInvent
 
         if (cmd.QuantidadeInicial > 0)
         {
-            var mov = item.RegistrarEntrada(cmd.QuantidadeInicial, cmd.CriadoPorUsuarioId, "Estoque inicial");
+            if (cmd.CustoUnitarioInicial <= 0)
+                throw new BusinessException("Custo unitário inicial é obrigatório quando há quantidade inicial.");
+
+            var mov = item.RegistrarEntrada(cmd.QuantidadeInicial, cmd.CriadoPorUsuarioId, cmd.CustoUnitarioInicial, "Estoque inicial");
             await _repo.Salvar(item);
             await _movRepo.Salvar(mov);
         }

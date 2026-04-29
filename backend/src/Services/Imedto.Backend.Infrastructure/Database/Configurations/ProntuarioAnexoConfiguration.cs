@@ -24,6 +24,8 @@ public class ProntuarioAnexoConfiguration : IEntityTypeConfiguration<ProntuarioA
         builder.Property(a => a.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(a => a.ArquivadoEm).HasColumnName("arquivado_em");
         builder.Property(a => a.ArquivadoPorUsuarioId).HasColumnName("arquivado_por_usuario_id");
+        builder.Property(a => a.DeletadoEm).HasColumnName("deletado_em");
+        builder.Property(a => a.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
         builder.HasIndex(a => new { a.ProntuarioId, a.ArquivadoEm })
             .HasDatabaseName("ix_anexos_prontuario");

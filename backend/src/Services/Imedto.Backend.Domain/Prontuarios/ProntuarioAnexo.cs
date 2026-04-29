@@ -10,7 +10,7 @@ namespace Imedto.Backend.Domain.Prontuarios;
 /// (<see cref="EvolucaoId"/>) que gerou o anexo. Append-only — para "remover" um anexo,
 /// ele é marcado com <see cref="ArquivadoEm"/> mas o blob fica retido (LGPD).
 /// </summary>
-public class ProntuarioAnexo : Entity
+public class ProntuarioAnexo : Entity, ISoftDeletable
 {
     public virtual long ProntuarioId { get; protected set; }
     public virtual long? EvolucaoId { get; protected set; }
@@ -23,6 +23,11 @@ public class ProntuarioAnexo : Entity
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? ArquivadoEm { get; protected set; }
     public virtual Guid? ArquivadoPorUsuarioId { get; protected set; }
+
+    // Soft delete — separado de "arquivar". Arquivar é estado UX (anexo oculto, blob mantido);
+    // deletado é estado LGPD (acionado por exclusão de prontuário/paciente, audit trail obrigatório).
+    public virtual DateTime? DeletadoEm { get; protected set; }
+    public virtual Guid? DeletadoPorUsuarioId { get; protected set; }
 
     public virtual bool EstaArquivado => ArquivadoEm.HasValue;
 
@@ -69,5 +74,15 @@ public class ProntuarioAnexo : Entity
             throw new BusinessException("Anexo já está arquivado.");
         ArquivadoEm = DateTime.UtcNow;
         ArquivadoPorUsuarioId = porUsuarioId;
+    }
+
+    public virtual void MarcarComoDeletado(Guid usuarioId)
+    {
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela exclusão é obrigatório.");
+        if (DeletadoEm is not null)
+            throw new BusinessException("Anexo já está deletado.");
+        DeletadoEm = DateTime.UtcNow;
+        DeletadoPorUsuarioId = usuarioId;
     }
 }

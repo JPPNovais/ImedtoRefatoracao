@@ -32,6 +32,7 @@ public class ProntuarioQueryRepository
             JOIN    public.modelo_de_prontuario m ON m.id = p.modelo_de_prontuario_id
             WHERE   p.paciente_id = @PacienteId
               AND   p.estabelecimento_id = @EstabelecimentoId
+              AND   p.deletado_em IS NULL
             """;
 
         const string sqlEvo = """
@@ -48,6 +49,7 @@ public class ProntuarioQueryRepository
             LEFT JOIN public.usuarios u ON u.id = e.autor_usuario_id
             LEFT JOIN public.modelo_de_prontuario mdp ON mdp.id = e.modelo_de_prontuario_id_origem
             WHERE   e.prontuario_id = @ProntuarioId
+              AND   e.deletado_em IS NULL
             ORDER BY e.criada_em DESC
             LIMIT   @Tamanho
             """;

@@ -11,6 +11,8 @@ public class CriarItemInventarioCommand : ICommand
     public string UnidadeMedida { get; set; } = string.Empty;
     public decimal QuantidadeInicial { get; set; }
     public decimal QuantidadeMinima { get; set; }
+    /// <summary>Custo unitário do estoque inicial. Obrigatório (>0) se <see cref="QuantidadeInicial"/> > 0.</summary>
+    public decimal CustoUnitarioInicial { get; set; }
     public Guid CriadoPorUsuarioId { get; set; }
 
     public long ItemIdCriado { get; set; }

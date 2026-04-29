@@ -9,6 +9,7 @@ export interface ItemInventario {
     unidadeMedida: string
     quantidadeAtual: number
     quantidadeMinima: number
+    custoMedio: number
     estoqueAbaixoMinimo: boolean
     ativo: boolean
     criadoEm: string
@@ -23,6 +24,8 @@ export interface MovimentacaoEstoque {
     quantidade: number
     quantidadeAnterior: number
     quantidadeApos: number
+    custoUnitario: number
+    custoTotal: number
     observacao: string | null
     usuarioNome: string
     criadoEm: string
@@ -45,6 +48,7 @@ export const inventarioService = {
         unidadeMedida: string
         quantidadeInicial: number
         quantidadeMinima: number
+        custoUnitarioInicial?: number
     }): Promise<{ itemId: number }> {
         const { data } = await httpClient.post<{ itemId: number }>("/inventario/itens", payload)
         return data
@@ -77,6 +81,7 @@ export const inventarioService = {
         itemInventarioId: number
         tipo: "Entrada" | "Saida"
         quantidade: number
+        custoUnitario?: number
         observacao?: string | null
     }): Promise<void> {
         await httpClient.post("/inventario/movimentacoes", payload)

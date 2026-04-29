@@ -10,6 +10,7 @@ public class ItemInventarioDto
     public string UnidadeMedida { get; set; } = string.Empty;
     public decimal QuantidadeAtual { get; set; }
     public decimal QuantidadeMinima { get; set; }
+    public decimal CustoMedio { get; set; }
     public bool EstoqueAbaixoMinimo { get; set; }
     public bool Ativo { get; set; }
     public DateTime CriadoEm { get; set; }
@@ -25,6 +26,8 @@ public class MovimentacaoEstoqueDto
     public decimal Quantidade { get; set; }
     public decimal QuantidadeAnterior { get; set; }
     public decimal QuantidadeApos { get; set; }
+    public decimal CustoUnitario { get; set; }
+    public decimal CustoTotal { get; set; }
     public string? Observacao { get; set; }
     public string UsuarioNome { get; set; } = string.Empty;
     public DateTime CriadoEm { get; set; }

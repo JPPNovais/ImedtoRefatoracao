@@ -8,7 +8,7 @@ namespace Imedto.Backend.Domain.Pacientes;
 /// pode aparecer em estabelecimentos diferentes (registros independentes) mas nunca
 /// duas vezes no mesmo. Dados sensíveis de saúde → LGPD Art. 5º II.
 /// </summary>
-public class Paciente : Entity
+public class Paciente : Entity, ISoftDeletable
 {
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual string NomeCompleto { get; protected set; }
@@ -110,13 +110,15 @@ public class Paciente : Entity
     }
 
     /// <summary>Soft delete. Não remove do banco — marca com <see cref="DeletadoEm"/>.</summary>
-    public virtual void Deletar(Guid deletadoPorUsuarioId)
+    public virtual void MarcarComoDeletado(Guid usuarioId)
     {
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela exclusão é obrigatório.");
         if (EstaDeletado)
             throw new BusinessException("Paciente já está deletado.");
 
         DeletadoEm = DateTime.UtcNow;
-        DeletadoPorUsuarioId = deletadoPorUsuarioId;
+        DeletadoPorUsuarioId = usuarioId;
     }
 
     private static string SomenteDigitos(string valor) =>

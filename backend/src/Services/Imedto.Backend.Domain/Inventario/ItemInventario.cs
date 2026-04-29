@@ -12,6 +12,8 @@ public class ItemInventario : Entity
     public virtual string UnidadeMedida { get; protected set; } = string.Empty;
     public virtual decimal QuantidadeAtual { get; protected set; }
     public virtual decimal QuantidadeMinima { get; protected set; }
+    /// <summary>Custo médio ponderado atual (R$/unidade). Recalculado a cada entrada.</summary>
+    public virtual decimal CustoMedio { get; protected set; }
     public virtual bool Ativo { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
@@ -48,6 +50,7 @@ public class ItemInventario : Entity
             UnidadeMedida = unidadeMedida.Trim(),
             QuantidadeAtual = 0,            // a entrada inicial é registrada pelo handler
             QuantidadeMinima = quantidadeMinima,
+            CustoMedio = 0m,                // primeira entrada redefine
             Ativo = true,
             CriadoEm = DateTime.UtcNow
         };
@@ -76,25 +79,37 @@ public class ItemInventario : Entity
     }
 
     /// <summary>
-    /// Registra entrada de estoque. Retorna a movimentação criada para ser salva separadamente.
+    /// Registra entrada de estoque. Recalcula <see cref="CustoMedio"/> ponderado.
+    /// Retorna a movimentação criada para ser salva separadamente.
     /// </summary>
-    public virtual MovimentacaoEstoque RegistrarEntrada(decimal quantidade, Guid usuarioId, string? observacao)
+    public virtual MovimentacaoEstoque RegistrarEntrada(decimal quantidade, Guid usuarioId, decimal custoUnitario, string? observacao)
     {
         if (!Ativo)
             throw new BusinessException("Não é possível movimentar um item inativo.");
         if (quantidade <= 0)
             throw new BusinessException("Quantidade de entrada deve ser maior que zero.");
+        if (custoUnitario < 0)
+            throw new BusinessException("Custo unitário não pode ser negativo.");
 
         var anterior = QuantidadeAtual;
+
+        // Custo médio ponderado: se não havia estoque, redefine; senão, ponderação clássica.
+        if (anterior <= 0)
+            CustoMedio = custoUnitario;
+        else
+            CustoMedio = ((anterior * CustoMedio) + (quantidade * custoUnitario)) / (anterior + quantidade);
+
         QuantidadeAtual += quantidade;
         AtualizadoEm = DateTime.UtcNow;
 
         return MovimentacaoEstoque.Criar(Id, EstabelecimentoId,
-            TipoMovimentacaoEstoque.Entrada, quantidade, anterior, QuantidadeAtual, usuarioId, observacao);
+            TipoMovimentacaoEstoque.Entrada, quantidade, anterior, QuantidadeAtual, usuarioId, custoUnitario, observacao);
     }
 
     /// <summary>
-    /// Registra saída de estoque. Dispara <see cref="EstoqueAbaixoMinimoEvent"/> se necessário.
+    /// Registra saída de estoque. O custo unitário da movimentação é snapshot do
+    /// <see cref="CustoMedio"/> atual — saída não altera o custo médio do item.
+    /// Dispara <see cref="EstoqueAbaixoMinimoEvent"/> se necessário.
     /// Retorna a movimentação criada para ser salva separadamente.
     /// </summary>
     public virtual MovimentacaoEstoque RegistrarSaida(decimal quantidade, Guid usuarioId, string? observacao)
@@ -107,6 +122,7 @@ public class ItemInventario : Entity
             throw new BusinessException($"Estoque insuficiente. Disponível: {QuantidadeAtual} {UnidadeMedida}.");
 
         var anterior = QuantidadeAtual;
+        var custoUnitarioSnapshot = CustoMedio;
         QuantidadeAtual -= quantidade;
         AtualizadoEm = DateTime.UtcNow;
 
@@ -114,7 +130,7 @@ public class ItemInventario : Entity
             AddDomainEvent(new EstoqueAbaixoMinimoEvent(Id, EstabelecimentoId, Nome, QuantidadeAtual, QuantidadeMinima));
 
         return MovimentacaoEstoque.Criar(Id, EstabelecimentoId,
-            TipoMovimentacaoEstoque.Saida, quantidade, anterior, QuantidadeAtual, usuarioId, observacao);
+            TipoMovimentacaoEstoque.Saida, quantidade, anterior, QuantidadeAtual, usuarioId, custoUnitarioSnapshot, observacao);
     }
 
     public virtual void Inativar()

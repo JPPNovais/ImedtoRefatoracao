@@ -26,7 +26,7 @@ public class DeletarPacienteCommandHandler : ICommandHandler<DeletarPacienteComm
         if (paciente.EstabelecimentoId != command.EstabelecimentoId)
             throw new BusinessException("Paciente não pertence a este estabelecimento.");
 
-        paciente.Deletar(command.SolicitanteUsuarioId);
+        paciente.MarcarComoDeletado(command.SolicitanteUsuarioId);
         await _repository.Salvar(paciente);
 
         // Audit trail mínima (sem PII no log — só IDs).

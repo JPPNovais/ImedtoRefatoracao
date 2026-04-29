@@ -29,9 +29,16 @@ public class RegistrarMovimentacaoEstoqueCommandHandler : ICommandHandler<Regist
 
         MovimentacaoEstoque mov;
         if (cmd.Tipo == nameof(TipoMovimentacaoEstoque.Entrada))
-            mov = item.RegistrarEntrada(cmd.Quantidade, cmd.UsuarioId, cmd.Observacao);
+        {
+            if (cmd.CustoUnitario <= 0)
+                throw new BusinessException("Custo unitário é obrigatório e deve ser maior que zero em entradas.");
+            mov = item.RegistrarEntrada(cmd.Quantidade, cmd.UsuarioId, cmd.CustoUnitario, cmd.Observacao);
+        }
         else if (cmd.Tipo == nameof(TipoMovimentacaoEstoque.Saida))
+        {
+            // Saída: custo unitário do command é ignorado — agregado usa CustoMedio como snapshot.
             mov = item.RegistrarSaida(cmd.Quantidade, cmd.UsuarioId, cmd.Observacao);
+        }
         else
             throw new BusinessException($"Tipo de movimentação inválido: '{cmd.Tipo}'.");
 

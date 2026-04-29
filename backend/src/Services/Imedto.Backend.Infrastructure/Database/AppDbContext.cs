@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Auditoria;
 using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Financeiro;
+using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Orcamentos;
 using Imedto.Backend.Domain.ModelosPermissao;
@@ -46,6 +48,8 @@ public class AppDbContext : DbContext
     public DbSet<ItemOrcamento> ItensOrcamento => Set<ItemOrcamento>();
     public DbSet<Lancamento> Lancamentos => Set<Lancamento>();
     public DbSet<ConfiguracaoAutomacao> ConfiguracoesAutomacao => Set<ConfiguracaoAutomacao>();
+    public DbSet<AuditDeleteAttempt> AuditDeleteAttempts => Set<AuditDeleteAttempt>();
+    public DbSet<AiAuditLog> AiAuditLogs => Set<AiAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

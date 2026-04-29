@@ -34,6 +34,15 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
                 throw new BusinessException("Profissional não pode atuar neste estabelecimento.");
         }
 
+        if (await _agendamentoRepo.ExisteConflito(
+                cmd.ProfissionalUsuarioId,
+                cmd.InicioPrevisto,
+                cmd.FimPrevisto,
+                excluirAgendamentoId: cmd.AgendamentoId))
+        {
+            throw new BusinessException("Já existe um agendamento neste horário para este profissional.");
+        }
+
         agendamento.Atualizar(
             cmd.ProfissionalUsuarioId,
             cmd.InicioPrevisto,

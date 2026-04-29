@@ -87,4 +87,29 @@ public class VinculoProfissionalEstabelecimento : Entity
 
         ModeloPermissaoId = novoModeloPermissaoId;
     }
+
+    /// <summary>
+    /// Reativa um vínculo previamente inativado, transformando-o em novo Convite.
+    /// O profissional precisará aceitar de novo, mas o histórico (datas anteriores) é preservado
+    /// na linha — apenas <see cref="AceitoEm"/>/<see cref="InativadoEm"/> são zerados.
+    /// </summary>
+    public virtual void ReativarComoConvite(long novoModeloPermissaoId, Guid convidadoPorUsuarioId)
+    {
+        if (Status != VinculoStatus.Inativo)
+            throw new BusinessException("Apenas vínculos inativos podem ser reativados.");
+        if (novoModeloPermissaoId <= 0)
+            throw new BusinessException("Modelo de permissão é obrigatório.");
+        if (convidadoPorUsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário que convida é obrigatório.");
+
+        Status = VinculoStatus.Convidado;
+        ModeloPermissaoId = novoModeloPermissaoId;
+        ConvidadoPorUsuarioId = convidadoPorUsuarioId;
+        ConvidadoEm = DateTime.UtcNow;
+        AceitoEm = null;
+        InativadoEm = null;
+
+        AddDomainEvent(new ProfissionalConvidadoEvent(
+            Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId));
+    }
 }

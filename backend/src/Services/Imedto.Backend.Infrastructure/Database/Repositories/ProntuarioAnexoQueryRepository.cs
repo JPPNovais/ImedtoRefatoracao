@@ -28,6 +28,7 @@ public class ProntuarioAnexoQueryRepository
             LEFT JOIN public.usuarios u ON u.id = a.criado_por_usuario_id
             WHERE   a.prontuario_id = @ProntuarioId
               AND   a.arquivado_em IS NULL
+              AND   a.deletado_em IS NULL
               AND   (@EvolucaoId IS NULL OR a.evolucao_id = @EvolucaoId)
             ORDER BY a.criado_em DESC
             """;
@@ -46,7 +47,9 @@ public class ProntuarioAnexoQueryRepository
         const string sql = """
             SELECT prontuario_id, estabelecimento_id, storage_path, nome_original, mime_type
             FROM   public.prontuario_anexos
-            WHERE  id = @AnexoId AND arquivado_em IS NULL
+            WHERE  id = @AnexoId
+              AND  arquivado_em IS NULL
+              AND  deletado_em IS NULL
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);

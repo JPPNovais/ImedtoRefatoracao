@@ -9,13 +9,17 @@ namespace Imedto.Backend.Domain.Prontuarios;
 /// usado na próxima evolução. Evoluções antigas já guardam snapshot do modelo — se o dono trocar
 /// o template, as evoluções antigas continuam rendering com o schema original.
 /// </summary>
-public class Prontuario : Entity
+public class Prontuario : Entity, ISoftDeletable
 {
     public virtual long PacienteId { get; protected set; }
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual long ModeloDeProntuarioId { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
+
+    // Soft delete — LGPD: histórico clínico não pode ser apagado fisicamente.
+    public virtual DateTime? DeletadoEm { get; protected set; }
+    public virtual Guid? DeletadoPorUsuarioId { get; protected set; }
 
     protected Prontuario() { }
 
@@ -51,5 +55,15 @@ public class Prontuario : Entity
             throw new BusinessException("Modelo de prontuário é obrigatório.");
         ModeloDeProntuarioId = novoModeloId;
         AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void MarcarComoDeletado(Guid usuarioId)
+    {
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela exclusão é obrigatório.");
+        if (DeletadoEm is not null)
+            throw new BusinessException("Prontuário já está deletado.");
+        DeletadoEm = DateTime.UtcNow;
+        DeletadoPorUsuarioId = usuarioId;
     }
 }

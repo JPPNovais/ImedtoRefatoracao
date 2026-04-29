@@ -18,6 +18,8 @@ public class ProntuarioConfiguration : IEntityTypeConfiguration<Prontuario>
         builder.Property(p => p.ModeloDeProntuarioId).HasColumnName("modelo_de_prontuario_id").IsRequired();
         builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
+        builder.Property(p => p.DeletadoEm).HasColumnName("deletado_em");
+        builder.Property(p => p.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
         // 1 prontuário por paciente × estabelecimento (invariante forte).
         builder.HasIndex(p => new { p.PacienteId, p.EstabelecimentoId })
@@ -43,6 +45,8 @@ public class ProntuarioEvolucaoConfiguration : IEntityTypeConfiguration<Prontuar
         builder.Property(e => e.ModeloSnapshotJson).HasColumnName("modelo_snapshot").HasColumnType("jsonb").IsRequired();
         builder.Property(e => e.ModeloDeProntuarioIdOrigem).HasColumnName("modelo_de_prontuario_id_origem").IsRequired();
         builder.Property(e => e.CriadaEm).HasColumnName("criada_em").IsRequired();
+        builder.Property(e => e.DeletadoEm).HasColumnName("deletado_em");
+        builder.Property(e => e.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
         builder.HasIndex(e => new { e.ProntuarioId, e.CriadaEm })
             .HasDatabaseName("ix_evolucoes_prontuario_data");

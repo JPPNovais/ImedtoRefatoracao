@@ -55,6 +55,7 @@ public class InventarioController : ControllerBase
             UnidadeMedida = dto.UnidadeMedida,
             QuantidadeInicial = dto.QuantidadeInicial,
             QuantidadeMinima = dto.QuantidadeMinima,
+            CustoUnitarioInicial = dto.CustoUnitarioInicial,
             CriadoPorUsuarioId = _tenant.UsuarioId
         };
 
@@ -116,6 +117,7 @@ public class InventarioController : ControllerBase
             EstabelecimentoId = _tenant.EstabelecimentoId,
             Tipo = dto.Tipo,
             Quantidade = dto.Quantidade,
+            CustoUnitario = dto.CustoUnitario,
             Observacao = dto.Observacao,
             UsuarioId = _tenant.UsuarioId
         });
@@ -129,7 +131,8 @@ public record CriarItemInventarioDto(
     string Categoria,
     string UnidadeMedida,
     decimal QuantidadeInicial,
-    decimal QuantidadeMinima);
+    decimal QuantidadeMinima,
+    decimal CustoUnitarioInicial);
 
 public record AtualizarItemInventarioDto(
     string Nome,
@@ -141,4 +144,5 @@ public record RegistrarMovimentacaoDto(
     long ItemInventarioId,
     string Tipo,
     decimal Quantidade,
+    decimal CustoUnitario,
     string? Observacao);

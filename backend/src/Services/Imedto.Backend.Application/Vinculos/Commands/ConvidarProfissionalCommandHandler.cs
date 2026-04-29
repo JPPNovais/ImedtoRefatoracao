@@ -64,20 +64,33 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
             await _usuarioRepo.Salvar(novo);
         }
 
-        // Um mesmo profissional não pode ter dois vínculos não-inativos com o mesmo estabelecimento.
-        var vinculoExistente = await _vinculoRepo.ObterVinculoAtivoOuPendente(
+        // Re-convite: se já existir vínculo (qualquer status), trata conforme o estado.
+        // - Ativo/Convidado → bloqueia (não duplica).
+        // - Inativo → reativa o registro como novo convite (preserva linha + histórico).
+        var existente = await _vinculoRepo.ObterPorProfissionalEEstabelecimentoOuNulo(
             command.ProfissionalUsuarioId, command.EstabelecimentoId);
-        if (vinculoExistente is not null)
+
+        if (existente is { Status: VinculoStatus.Ativo or VinculoStatus.Convidado })
             throw new BusinessException("Este profissional já tem um vínculo ativo ou convite pendente para este estabelecimento.");
 
-        var vinculo = VinculoProfissionalEstabelecimento.Convidar(
-            command.ProfissionalUsuarioId,
-            command.EstabelecimentoId,
-            modeloId,
-            command.ConvidadoPorUsuarioId);
+        VinculoProfissionalEstabelecimento vinculo;
+        if (existente is { Status: VinculoStatus.Inativo })
+        {
+            existente.ReativarComoConvite(modeloId, command.ConvidadoPorUsuarioId);
+            vinculo = existente;
+            await _vinculoRepo.Salvar(vinculo);
+        }
+        else
+        {
+            vinculo = VinculoProfissionalEstabelecimento.Convidar(
+                command.ProfissionalUsuarioId,
+                command.EstabelecimentoId,
+                modeloId,
+                command.ConvidadoPorUsuarioId);
 
-        await _vinculoRepo.Salvar(vinculo);    // popula Id
-        vinculo.MarcarComoConvidado();          // anexa event com Id correto
+            await _vinculoRepo.Salvar(vinculo);    // popula Id
+            vinculo.MarcarComoConvidado();          // anexa event com Id correto
+        }
 
         foreach (var evt in vinculo.DomainEvents)
             await _eventBus.Publish(evt);

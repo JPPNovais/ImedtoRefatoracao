@@ -1,7 +1,12 @@
 using System.Globalization;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Imedto.Backend.API;
@@ -148,6 +153,72 @@ builder.Services.AddCors(options =>
             .WithExposedHeaders("Content-Disposition"));
 });
 
+// --- Rate limiting (proteção a /auth contra brute force + envenenamento de cache) ---
+// Policies por janela deslizante de 60s, particionadas por IP do cliente.
+// Em ambientes atrás de proxy reverso, X-Forwarded-For tem prioridade sobre RemoteIpAddress.
+// Resposta 429 é genérica (sem PII) e o log estrutura apenas hash truncado do IP.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    static string ResolverIp(HttpContext ctx)
+    {
+        var fwd = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(fwd))
+        {
+            // X-Forwarded-For pode vir com vários IPs separados por vírgula — usar o primeiro.
+            var primeiro = fwd.Split(',')[0].Trim();
+            if (!string.IsNullOrEmpty(primeiro)) return primeiro;
+        }
+        return ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+
+    static RateLimitPartition<string> CriarParticao(HttpContext ctx, int permitido)
+        => RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: ResolverIp(ctx),
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = permitido,
+                Window = TimeSpan.FromSeconds(60),
+                SegmentsPerWindow = 6,
+                QueueLimit = 0,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                AutoReplenishment = true
+            });
+
+    options.AddPolicy("auth-login", ctx => CriarParticao(ctx, 5));
+    options.AddPolicy("auth-refresh", ctx => CriarParticao(ctx, 10));
+    options.AddPolicy("auth-sensitive", ctx => CriarParticao(ctx, 3));
+
+    options.OnRejected = async (context, ct) =>
+    {
+        // Janela de 60s — o caller pode tentar novamente após esse intervalo na pior das hipóteses.
+        context.HttpContext.Response.Headers["Retry-After"] = "60";
+        context.HttpContext.Response.ContentType = "application/json";
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+
+        // Log: nunca o IP cru — apenas hash SHA256 truncado para correlacionar sem expor PII.
+        var ipBruto = context.HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault()
+                      ?? context.HttpContext.Connection.RemoteIpAddress?.ToString()
+                      ?? "unknown";
+        var hashIp = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ipBruto)))[..16];
+
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimit");
+        logger.LogWarning(
+            "Rate limit excedido. Endpoint={Endpoint} HashIp={HashIp}",
+            context.HttpContext.Request.Path,
+            hashIp);
+
+        var payload = JsonSerializer.Serialize(new
+        {
+            mensagem = "Muitas tentativas. Tente novamente em alguns instantes."
+        });
+        await context.HttpContext.Response.WriteAsync(payload, ct);
+    };
+});
+
 // --- Composition Root ---
 builder.Services.Install(builder.Configuration);
 builder.Services.AddHostedService<AutomacaoJob>();
@@ -233,6 +304,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("CorsPolicy");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

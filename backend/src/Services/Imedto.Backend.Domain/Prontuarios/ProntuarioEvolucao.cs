@@ -11,7 +11,7 @@ namespace Imedto.Backend.Domain.Prontuarios;
 /// para que a renderização futura respeite o template original, mesmo que o dono troque
 /// o modelo ativo depois.
 /// </summary>
-public class ProntuarioEvolucao : Entity
+public class ProntuarioEvolucao : Entity, ISoftDeletable
 {
     public virtual long ProntuarioId { get; protected set; }
     public virtual Guid AutorUsuarioId { get; protected set; }
@@ -19,6 +19,10 @@ public class ProntuarioEvolucao : Entity
     public virtual string ModeloSnapshotJson { get; protected set; }
     public virtual long ModeloDeProntuarioIdOrigem { get; protected set; }
     public virtual DateTime CriadaEm { get; protected set; }
+
+    // Soft delete — LGPD: evoluções clínicas são append-only para fim de auditoria/legais.
+    public virtual DateTime? DeletadoEm { get; protected set; }
+    public virtual Guid? DeletadoPorUsuarioId { get; protected set; }
 
     protected ProntuarioEvolucao() { }
 
@@ -56,5 +60,15 @@ public class ProntuarioEvolucao : Entity
         if (Id == 0)
             throw new InvalidOperationException("Evolução ainda não foi persistida — Id é 0.");
         AddDomainEvent(new EvolucaoRegistradaEvent(Id, ProntuarioId, AutorUsuarioId));
+    }
+
+    public virtual void MarcarComoDeletado(Guid usuarioId)
+    {
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela exclusão é obrigatório.");
+        if (DeletadoEm is not null)
+            throw new BusinessException("Evolução já está deletada.");
+        DeletadoEm = DateTime.UtcNow;
+        DeletadoPorUsuarioId = usuarioId;
     }
 }

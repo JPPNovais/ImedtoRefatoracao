@@ -32,7 +32,14 @@ public static class InfrastructureExtensions
         // Type handlers globais do Dapper — registra uma vez no startup.
         DapperTypeHandlers.Registrar();
 
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        // Interceptor que bloqueia hard delete em ISoftDeletable e registra audit.
+        services.AddScoped<SoftDeleteInterceptor>();
+
+        services.AddDbContext<AppDbContext>((sp, options) =>
+        {
+            options.UseNpgsql(connectionString);
+            options.AddInterceptors(sp.GetRequiredService<SoftDeleteInterceptor>());
+        });
         services.AddScoped<IUnitOfWorkFactory, UnitOfWorkFactory>();
 
         // Connection string disponível para query repositories (Dapper).
@@ -83,6 +90,9 @@ public static class InfrastructureExtensions
 
         // Dashboard & Relatórios (query-only, singleton)
         // — repositórios registrados no Container da API junto com os handlers
+
+        // Auditoria (registro independente — usado pelo SoftDeleteInterceptor)
+        services.AddScoped<Domain.Auditoria.IAuditDeleteAttemptRepository, Database.Repositories.AuditDeleteAttemptRepository>();
 
         // Tenancy (multi-tenant por estabelecimento)
         services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();

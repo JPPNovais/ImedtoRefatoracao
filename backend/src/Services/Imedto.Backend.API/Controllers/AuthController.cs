@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Usuarios;
@@ -44,6 +45,7 @@ public class AuthController : ControllerBase
     /// <response code="422">Dados inválidos (e-mail já existe, senha fraca, etc.).</response>
     [HttpPost("signup")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Signup([FromBody] SignupRequest request)
@@ -84,6 +86,7 @@ public class AuthController : ControllerBase
     /// <response code="422">Credenciais inválidas.</response>
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth-login")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -109,6 +112,7 @@ public class AuthController : ControllerBase
     /// <response code="401">Sessão não encontrada ou refresh token expirado.</response>
     [HttpPost("refresh")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth-refresh")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh()
@@ -201,6 +205,7 @@ public class AuthController : ControllerBase
     /// <response code="204">E-mail enviado (ou silenciado).</response>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {

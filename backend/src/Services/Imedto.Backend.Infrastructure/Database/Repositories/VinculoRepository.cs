@@ -27,6 +27,13 @@ public class VinculoRepository : IVinculoRepository
                 v.EstabelecimentoId == estabelecimentoId &&
                 v.Status != VinculoStatus.Inativo);
 
+    public async Task<VinculoProfissionalEstabelecimento?> ObterPorProfissionalEEstabelecimentoOuNulo(
+        Guid profissionalUsuarioId, long estabelecimentoId) =>
+        await _context.Vinculos
+            .FirstOrDefaultAsync(v =>
+                v.ProfissionalUsuarioId == profissionalUsuarioId &&
+                v.EstabelecimentoId == estabelecimentoId);
+
     public async Task<bool> PodeAtuarComoProfissional(Guid usuarioId, long estabelecimentoId)
     {
         // Regra unificada: vínculo não-inativo OU é o dono. Manter sincronizada com o

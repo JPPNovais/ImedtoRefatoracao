@@ -19,6 +19,7 @@ public class ItemInventarioConfiguration : IEntityTypeConfiguration<ItemInventar
         builder.Property(i => i.UnidadeMedida).HasColumnName("unidade_medida").HasMaxLength(30).IsRequired();
         builder.Property(i => i.QuantidadeAtual).HasColumnName("quantidade_atual").HasPrecision(12, 3).IsRequired();
         builder.Property(i => i.QuantidadeMinima).HasColumnName("quantidade_minima").HasPrecision(12, 3).IsRequired();
+        builder.Property(i => i.CustoMedio).HasColumnName("custo_medio").HasPrecision(18, 4).IsRequired();
         builder.Property(i => i.Ativo).HasColumnName("ativo").IsRequired();
         builder.Property(i => i.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(i => i.AtualizadoEm).HasColumnName("atualizado_em");

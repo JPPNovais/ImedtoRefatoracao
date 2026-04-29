@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import { inventarioService, type ItemInventario, type MovimentacaoEstoque } from "@/services/inventarioService"
-import { AppButton, AppField, AppInput, AppModal, AppSelect } from "@/components/ui"
+import { AppButton, AppField, AppInput, AppModal, AppPageHeader, AppSelect } from "@/components/ui"
+import { formatarMoedaBrl } from "@/utils/format"
 
 const itens = ref<ItemInventario[]>([])
 const movimentacoes = ref<MovimentacaoEstoque[]>([])
@@ -20,6 +21,7 @@ const formCriar = ref({
     unidadeMedida: "",
     quantidadeInicial: 0,
     quantidadeMinima: 0,
+    custoUnitarioInicial: 0,
 })
 const erroCriar = ref<string | null>(null)
 const salvando = ref(false)
@@ -29,7 +31,7 @@ const formEditar = ref({ nome: "", categoria: "", unidadeMedida: "", quantidadeM
 const erroEditar = ref<string | null>(null)
 
 const itemMovimentando = ref<ItemInventario | null>(null)
-const formMov = ref({ tipo: "Entrada" as "Entrada" | "Saida", quantidade: 0, observacao: "" })
+const formMov = ref({ tipo: "Entrada" as "Entrada" | "Saida", quantidade: 0, custoUnitario: 0, observacao: "" })
 const erroMov = ref<string | null>(null)
 
 const itemHistorico = ref<ItemInventario | null>(null)
@@ -61,16 +63,24 @@ async function carregar() {
 onMounted(carregar)
 
 function abrirModalCriar() {
-    formCriar.value = { codigo: "", nome: "", categoria: "", unidadeMedida: "", quantidadeInicial: 0, quantidadeMinima: 0 }
+    formCriar.value = { codigo: "", nome: "", categoria: "", unidadeMedida: "", quantidadeInicial: 0, quantidadeMinima: 0, custoUnitarioInicial: 0 }
     erroCriar.value = null
     modalCriar.value = true
 }
 
 async function salvarCriar() {
-    salvando.value = true
     erroCriar.value = null
+    if (formCriar.value.quantidadeInicial > 0 && formCriar.value.custoUnitarioInicial <= 0) {
+        erroCriar.value = "Custo unitário deve ser maior que zero."
+        return
+    }
+    salvando.value = true
     try {
-        await inventarioService.criarItem(formCriar.value)
+        const payload: Parameters<typeof inventarioService.criarItem>[0] = { ...formCriar.value }
+        if (formCriar.value.quantidadeInicial <= 0) {
+            delete payload.custoUnitarioInicial
+        }
+        await inventarioService.criarItem(payload)
         modalCriar.value = false
         await carregar()
     } catch (e: any) {
@@ -113,19 +123,24 @@ async function inativar(item: ItemInventario) {
 
 function abrirMovimentacao(item: ItemInventario) {
     itemMovimentando.value = item
-    formMov.value = { tipo: "Entrada", quantidade: 0, observacao: "" }
+    formMov.value = { tipo: "Entrada", quantidade: 0, custoUnitario: 0, observacao: "" }
     erroMov.value = null
 }
 
 async function salvarMovimentacao() {
     if (!itemMovimentando.value) return
-    salvando.value = true
     erroMov.value = null
+    if (formMov.value.tipo === "Entrada" && formMov.value.custoUnitario <= 0) {
+        erroMov.value = "Custo unitário deve ser maior que zero."
+        return
+    }
+    salvando.value = true
     try {
         await inventarioService.registrarMovimentacao({
             itemInventarioId: itemMovimentando.value.id,
             tipo: formMov.value.tipo,
             quantidade: formMov.value.quantidade,
+            custoUnitario: formMov.value.tipo === "Entrada" ? formMov.value.custoUnitario : undefined,
             observacao: formMov.value.observacao || null,
         })
         itemMovimentando.value = null
@@ -161,13 +176,11 @@ function formatarData(s: string) {
 
 <template>
     <main class="app-page inventario">
-        <header class="page-header">
-            <div>
-                <h1 class="page-titulo">Estoque</h1>
-                <p class="page-sub">Cadastre e acompanhe os produtos utilizados na clínica ou consultório.</p>
-            </div>
-            <AppButton icon="fa-solid fa-plus" @click="abrirModalCriar">Novo item</AppButton>
-        </header>
+        <AppPageHeader titulo="Estoque" subtitulo="Cadastre e acompanhe os produtos utilizados na clínica ou consultório.">
+            <template #acoes>
+                <AppButton icon="fa-solid fa-plus" @click="abrirModalCriar">Novo item</AppButton>
+            </template>
+        </AppPageHeader>
 
         <section class="kpis">
             <div class="kpi">
@@ -213,6 +226,7 @@ function formatarData(s: string) {
                     <th>Unidade</th>
                     <th>Qtd. atual</th>
                     <th>Qtd. mín.</th>
+                    <th>Custo médio</th>
                     <th>Status</th>
                     <th>Ações</th>
                 </tr>
@@ -232,6 +246,7 @@ function formatarData(s: string) {
                         <span v-if="item.estoqueAbaixoMinimo" class="badge-alerta">⚠</span>
                     </td>
                     <td>{{ formatarQtd(item.quantidadeMinima) }}</td>
+                    <td>{{ formatarMoedaBrl(item.custoMedio) }}</td>
                     <td>
                         <span :class="item.ativo ? 'badge-ativo' : 'badge-inativo'">
                             {{ item.ativo ? "Ativo" : "Inativo" }}
@@ -268,10 +283,19 @@ function formatarData(s: string) {
             <AppField label="Quantidade inicial">
                 <AppInput v-model="formCriar.quantidadeInicial" type="number" :min="0" :step="0.001" />
             </AppField>
+            <AppField
+                v-if="formCriar.quantidadeInicial > 0"
+                label="Custo unitário inicial (R$)"
+                required
+                :erro="erroCriar && erroCriar.includes('Custo') ? erroCriar : null"
+                hint="Necessário para calcular o custo médio ponderado inicial."
+            >
+                <AppInput v-model="formCriar.custoUnitarioInicial" type="number" :min="0.01" :step="0.01" />
+            </AppField>
             <AppField label="Quantidade mínima" required>
                 <AppInput v-model="formCriar.quantidadeMinima" type="number" :min="0" :step="0.001" />
             </AppField>
-            <p v-if="erroCriar" class="msg-erro">{{ erroCriar }}</p>
+            <p v-if="erroCriar && !erroCriar.includes('Custo')" class="msg-erro">{{ erroCriar }}</p>
 
             <template #rodape>
                 <AppButton variant="secondary" @click="modalCriar = false">Cancelar</AppButton>
@@ -308,6 +332,7 @@ function formatarData(s: string) {
         <AppModal :aberto="!!itemMovimentando" :titulo="`Movimentação — ${itemMovimentando?.nome ?? ''}`" @fechar="itemMovimentando = null">
             <p v-if="itemMovimentando" class="info-estoque">
                 Estoque atual: <strong>{{ formatarQtd(itemMovimentando.quantidadeAtual) }} {{ itemMovimentando.unidadeMedida }}</strong>
+                &nbsp;|&nbsp; Custo médio: <strong>{{ formatarMoedaBrl(itemMovimentando.custoMedio) }}</strong>
             </p>
             <AppField label="Tipo" required>
                 <AppSelect v-model="formMov.tipo">
@@ -318,10 +343,21 @@ function formatarData(s: string) {
             <AppField label="Quantidade" required>
                 <AppInput v-model="formMov.quantidade" type="number" :min="0.001" :step="0.001" />
             </AppField>
+            <AppField
+                v-if="formMov.tipo === 'Entrada'"
+                label="Custo unitário (R$)"
+                required
+                :erro="erroMov && erroMov.includes('Custo') ? erroMov : null"
+            >
+                <AppInput v-model="formMov.custoUnitario" type="number" :min="0.01" :step="0.01" />
+            </AppField>
+            <p v-else class="hint-custo">
+                O custo unitário será registrado automaticamente como o custo médio atual do item.
+            </p>
             <AppField label="Observação">
                 <AppInput v-model="formMov.observacao" placeholder="Opcional" />
             </AppField>
-            <p v-if="erroMov" class="msg-erro">{{ erroMov }}</p>
+            <p v-if="erroMov && !erroMov.includes('Custo')" class="msg-erro">{{ erroMov }}</p>
 
             <template #rodape>
                 <AppButton variant="secondary" @click="itemMovimentando = null">Cancelar</AppButton>
@@ -340,6 +376,8 @@ function formatarData(s: string) {
                         <th>Qtd.</th>
                         <th>Antes</th>
                         <th>Depois</th>
+                        <th>Custo unitário</th>
+                        <th>Custo total</th>
                         <th>Observação</th>
                         <th>Usuário</th>
                     </tr>
@@ -351,6 +389,8 @@ function formatarData(s: string) {
                         <td>{{ formatarQtd(m.quantidade) }}</td>
                         <td>{{ formatarQtd(m.quantidadeAnterior) }}</td>
                         <td>{{ formatarQtd(m.quantidadeApos) }}</td>
+                        <td>{{ formatarMoedaBrl(m.custoUnitario) }}</td>
+                        <td>{{ formatarMoedaBrl(m.custoTotal) }}</td>
                         <td>{{ m.observacao ?? "—" }}</td>
                         <td>{{ m.usuarioNome }}</td>
                     </tr>
@@ -366,12 +406,7 @@ function formatarData(s: string) {
 </template>
 
 <style scoped>
-.page-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 1.25rem;
-}
-.page-titulo { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.2rem; }
-.page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
+.hint-custo { margin: 0 0 0.5rem; font-size: 0.8125em; color: var(--text-muted); }
 
 .kpis { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .kpi {

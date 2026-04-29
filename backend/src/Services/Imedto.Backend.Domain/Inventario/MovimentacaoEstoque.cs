@@ -6,7 +6,7 @@ namespace Imedto.Backend.Domain.Inventario;
 /// Registro imutável de movimentação de estoque.
 /// Criado sempre pelo aggregate ItemInventario.
 /// </summary>
-public class MovimentacaoEstoque : Entity
+public class MovimentacaoEstoque : Entity, ISoftDeletable
 {
     public virtual long ItemInventarioId { get; protected set; }
     public virtual long EstabelecimentoId { get; protected set; }
@@ -14,9 +14,17 @@ public class MovimentacaoEstoque : Entity
     public virtual decimal Quantidade { get; protected set; }
     public virtual decimal QuantidadeAnterior { get; protected set; }
     public virtual decimal QuantidadeApos { get; protected set; }
+    /// <summary>Custo unitário no momento da movimentação (snapshot — em saída, é o CustoMedio do item).</summary>
+    public virtual decimal CustoUnitario { get; protected set; }
+    /// <summary>Total monetário da movimentação = <see cref="Quantidade"/> × <see cref="CustoUnitario"/>.</summary>
+    public virtual decimal CustoTotal { get; protected set; }
     public virtual string? Observacao { get; protected set; }
     public virtual Guid CriadoPorUsuarioId { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
+
+    // Soft delete — protege histórico contábil (LGPD + integridade financeira).
+    public virtual DateTime? DeletadoEm { get; protected set; }
+    public virtual Guid? DeletadoPorUsuarioId { get; protected set; }
 
     protected MovimentacaoEstoque() { }
 
@@ -28,6 +36,7 @@ public class MovimentacaoEstoque : Entity
         decimal quantidadeAnterior,
         decimal quantidadeApos,
         Guid criadoPorUsuarioId,
+        decimal custoUnitario,
         string? observacao)
     {
         return new MovimentacaoEstoque
@@ -38,9 +47,21 @@ public class MovimentacaoEstoque : Entity
             Quantidade = quantidade,
             QuantidadeAnterior = quantidadeAnterior,
             QuantidadeApos = quantidadeApos,
+            CustoUnitario = custoUnitario,
+            CustoTotal = quantidade * custoUnitario,
             CriadoPorUsuarioId = criadoPorUsuarioId,
             Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim(),
             CriadoEm = DateTime.UtcNow
         };
+    }
+
+    public virtual void MarcarComoDeletado(Guid usuarioId)
+    {
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela exclusão é obrigatório.");
+        if (DeletadoEm is not null)
+            throw new BusinessException("Movimentação já está deletada.");
+        DeletadoEm = DateTime.UtcNow;
+        DeletadoPorUsuarioId = usuarioId;
     }
 }
