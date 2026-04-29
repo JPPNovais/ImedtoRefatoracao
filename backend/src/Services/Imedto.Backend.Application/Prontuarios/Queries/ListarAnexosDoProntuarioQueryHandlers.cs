@@ -1,7 +1,9 @@
+using Microsoft.Extensions.Options;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
 using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Infrastructure.Database.Repositories;
+using Imedto.Backend.Infrastructure.Storage;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -35,15 +37,18 @@ public class ObterUrlAnexoQueryHandlers : IRequestHandler<ObterUrlAnexoQuery, An
     private readonly ProntuarioAnexoQueryRepository _queryRepository;
     private readonly IAnexoStorageService _storage;
     private readonly IProntuarioAcessoLogService _acessoLog;
+    private readonly StorageOptions _storageOptions;
 
     public ObterUrlAnexoQueryHandlers(
         ProntuarioAnexoQueryRepository queryRepository,
         IAnexoStorageService storage,
-        IProntuarioAcessoLogService acessoLog)
+        IProntuarioAcessoLogService acessoLog,
+        IOptions<StorageOptions> storageOptions)
     {
         _queryRepository = queryRepository;
         _storage = storage;
         _acessoLog = acessoLog;
+        _storageOptions = storageOptions.Value;
     }
 
     public async Task<AnexoUrlDto> Handle(ObterUrlAnexoQuery query)
@@ -57,8 +62,16 @@ public class ObterUrlAnexoQueryHandlers : IRequestHandler<ObterUrlAnexoQuery, An
         if (estabelecimentoId != query.EstabelecimentoId)
             throw new BusinessException("Anexo não pertence a este estabelecimento.");
 
-        var url = await _storage.GerarUrlAssinadaLeituraAsync(storagePath, query.TtlSegundos);
+        // TTL vem de StorageOptions (default 5 min). Mantém compatibilidade caso o caller
+        // queira sobrescrever via TtlSegundos > 0 (ex.: testes ou caso de uso pontual).
+        var ttlSegundos = query.TtlSegundos > 0
+            ? query.TtlSegundos
+            : _storageOptions.TtlSignedUrlMinutos * 60;
 
+        var url = await _storage.GerarUrlAssinadaLeituraAsync(storagePath, ttlSegundos);
+
+        // Audit LGPD: cada emissão de URL assinada para anexo de prontuário é acesso de leitura.
+        // Registrado APÓS gerar a URL para não logar tentativas que falharam no storage.
         await _acessoLog.RegistrarAsync(prontuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
 
         return new AnexoUrlDto
@@ -67,7 +80,7 @@ public class ObterUrlAnexoQueryHandlers : IRequestHandler<ObterUrlAnexoQuery, An
             NomeOriginal = nome,
             MimeType = mime,
             Url = url,
-            ExpiraEm = DateTime.UtcNow.AddSeconds(query.TtlSegundos)
+            ExpiraEm = DateTime.UtcNow.AddSeconds(ttlSegundos)
         };
     }
 }

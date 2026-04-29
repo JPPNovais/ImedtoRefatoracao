@@ -2,10 +2,57 @@
 
 > **Documento mestre.** Esse arquivo é a fonte da verdade do estado da migração e da ordem das fases. **Cada fase concluída deve gerar o próximo documento** (`01_FASE_1_HARDENING.md`, `02_FASE_2_PLATAFORMA.md`, etc.) com o detalhamento técnico de execução, para que a migração possa ser pausada e retomada sem perder contexto.
 >
-> **Última atualização:** 2026-04-28
-> **Status:** Fase 1 ✅ concluída (com 9 pendências documentadas em [01_FASE_1_HARDENING.md](01_FASE_1_HARDENING.md)). Próxima ação: aplicar migrations (`supabase db push`) e gerar `02_FASE_2_PLATAFORMA.md` quando iniciar Fase 2 — escopo deve incluir as pendências desta fase.
+> **Última atualização:** 2026-04-29
+> **Status:** Fases 1-3 ✅ concluídas (incluindo sub-iteração de paridade dos 8 bloqueadores). Fase 4 🚧 em progresso (Wave 1 ✅ entregue: testes integração interceptor + load test rate limit + PDF receita + permissões finas em 5 controllers + admin-reset bypass).
+> **Banco:** 30+ tabelas, RLS habilitada, 144 regiões anatômicas + 31 profissões + 196 especialidades + planos seedados, paridade Receitas (TipoNotificacao + 3 cols clínicas + Rascunho), paridade Orçamento (cirurgias/internação/anestesia + acrescimo/entrada por forma), backfill permissões finas Admin/Médico/Recepção.
+> **Backend:** 205 testes unitários + 11 testes integração verdes, 0 erros.
+> **Frontend (Fase 2 + Fase 3):** ✅ entregue (8 views: MinhaAssinatura, Planos, MinhaIaSettings, Automacoes, CategoriasFinanceiras, FormasPagamento, Notificacoes, CirurgiaView; ReceitaDrawer + ReceitasPacienteTab; 10 services novos; stores de notificações + upsell modal 402; composable useConfirm; build limpo).
+> **Próxima ação:** Wave 2 da Fase 4 (relatórios consolidados + solicitação de vínculo inversa + retenção LGPD + ANVISA + TUSS).
 
 ---
+
+## Plano de agentes por fase
+
+A migração usa agentes especialistas distribuídos por escopo. **Cada fase replica esse padrão** — mantém a mesma divisão de responsabilidade, ajustando o agente conforme a natureza dominante do trabalho:
+
+### Mapa fixo de responsabilidades (válido para todas as fases)
+
+| Agente | Modelo | Quando usar |
+|--------|--------|-------------|
+| `senior-software-engineer` | Opus | Aggregates DDD, invariantes, decisões arquiteturais, handlers de comando complexos, event handlers cross-domain. |
+| `software-engineer` | Sonnet | Tarefas cirúrgicas (1-3 arquivos), bug fixes, ajustes em handlers existentes, ref data. |
+| `database-architect` | Opus | Schema novo, migrations EF + supabase SQL, RLS policies, índices, partitioning, escolhas de tipo. |
+| `db-engineer` | Sonnet | Queries Dapper, migrations triviais, ajustes de índice. |
+| `security-engineer` | Opus | Threat model, auth flow, rate limit, audit, sanitização PII, signed URLs, RLS junto com DBA. |
+| `security-reviewer` | Sonnet | Revisão rápida de código sensível, validação de input, headers. |
+| `devops-cloud-engineer` | Opus | Decisões de scheduler, observabilidade, multi-instância, infra de deploy, CI/CD. |
+| `cloud-engineer` | Sonnet | Implementação concreta de Dockerfile, GitHub Actions, scripts. |
+| `ui-implementer` | Sonnet | Componentes Vue, telas, formulários, integração com API, consumo do design system. |
+| `ux-designer` | Opus | Design de fluxos novos, ADRs de UX, heurísticas de acessibilidade. |
+| `qa-engineer` | Sonnet | Testes unitários NUnit/Moq, fixtures, testes de API. |
+| `senior-qa-engineer` | Opus | Estratégia de testes, plano de carga, chaos. |
+| `migration-engineer` | Opus | Coordenador da paridade comportamental legado→novo. Sempre na revisão final de cada fase. |
+| `data-analyst`, `commercial-analyst`, etc. | — | Apenas se a fase tocar análise de dados ou modelagem comercial específica. |
+
+### Atribuição por fase
+
+| Fase | Agentes principais | Observações |
+|------|-------------------|-------------|
+| **1 — Hardening** ✅ | senior-eng, sw-eng, dba, security-eng, ui-impl, qa-eng, migration-eng | Concluída. |
+| **2 — Plataforma transversal** 🚧 | senior-eng, sw-eng, dba, security-eng, devops-eng, ui-impl, qa-eng, migration-eng | Detalhamento em [02_FASE_2_PLATAFORMA.md](02_FASE_2_PLATAFORMA.md). |
+| **3 — Domínios clínicos pesados** ⏳ | **senior-eng** (Receitas, ExameFísico, ProcedimentoCirúrgico, OrcamentoCompleto), **dba** (migrations + RLS clínico), **security-eng** (LGPD log + permissão fina `assistente_clinico` + sanitização específica), **ui-impl** (BodyMapSvg, ReceitaEditor, formulários), **ux-designer** (revisão dos fluxos clínicos antes de codar), **qa-eng** (cobertura), **migration-eng** (paridade — porte fiel das tabelas legadas). | **ux-designer entra antes da implementação** porque os fluxos clínicos do legado têm UX consolidada que precisa ser portada com fidelidade. |
+| **4 — Gaps secundários** ⏳ | **senior-eng** (consolidação de query handlers parametrizados de relatórios), **sw-eng** (solicitação de vínculo inversa), **data-analyst** (definição dos KPIs e DTOs dos relatórios antes de codar), **dba** (otimização das queries pesadas — ver `supabase-postgres-best-practices`), **security-eng** (política de retenção/anonimização LGPD, job de anonimização), **ui-impl** (telas de relatório), **qa-eng**, **migration-eng**. | **data-analyst entra para decidir granularidade dos relatórios.** |
+| **5 — Migração de dados** ⏳ | **migration-eng** (lidera — escolha entre strangler/big-bang/dual-write), **dba** (ETL queries, índices temporários, validação de integridade), **devops-eng** (janela de manutenção, rollback plan, observabilidade do ETL), **security-eng** (anonimização durante migração se aplicável), **senior-eng** (validação de paridade de dados pós-migração). | **migration-eng lidera a fase inteira** — não é mais só revisor; é o agente principal. |
+
+### Padrão de execução em ondas (válido para todas as fases)
+
+1. **Wave 1 — paralela, sem dependências**: itens isolados (refdata, configs, schema-only changes, observabilidade).
+2. **Wave 2 — depende de Wave 1**: blocos de plataforma (scheduler, storage, etc).
+3. **Wave 3 — depende de Wave 2**: features que consomem os blocos.
+4. **Wave 4 — features que dependem de tudo acima**.
+5. **Wave 5 — fechamento**: migrations consolidadas, frontend integrado, testes, revisão de paridade pelo `migration-eng`, build/test final, atualização de docs.
+
+> **Sempre preserve essa cadência**. Cada fase deve gerar o documento da próxima ANTES de iniciá-la, com escopo + plano de agentes + waves já definidos.
 
 ## Como usar esse documento
 

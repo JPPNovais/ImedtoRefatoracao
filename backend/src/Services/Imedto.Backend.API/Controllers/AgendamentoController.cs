@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Contracts.Agendamentos.Queries;
 using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
@@ -83,6 +84,7 @@ public class AgendamentoController : ControllerBase
     }
 
     [HttpPost]
+    [Idempotent]
     public async Task<ActionResult> Criar([FromBody] CriarAgendamentoDto dto)
     {
         var cmd = new CriarAgendamentoCommand

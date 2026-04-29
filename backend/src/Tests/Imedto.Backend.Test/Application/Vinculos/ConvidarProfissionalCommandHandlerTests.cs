@@ -1,5 +1,6 @@
 using Imedto.Backend.Application.Vinculos.Commands;
 using Imedto.Backend.Contracts.Vinculos.Commands;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Usuarios;
@@ -20,6 +21,7 @@ public class ConvidarProfissionalCommandHandlerTests
     private Mock<IUsuarioRepository> _usuarioRepo;
     private Mock<IVinculoRepository> _vinculoRepo;
     private Mock<IEventBus> _eventBus;
+    private Mock<IAssinaturaService> _assinaturaService;
     private ConvidarProfissionalCommandHandler _sut;
 
     private readonly Guid _donoId = Guid.NewGuid();
@@ -35,13 +37,20 @@ public class ConvidarProfissionalCommandHandlerTests
         _usuarioRepo = new Mock<IUsuarioRepository>();
         _vinculoRepo = new Mock<IVinculoRepository>();
         _eventBus = new Mock<IEventBus>();
+        _assinaturaService = new Mock<IAssinaturaService>();
+
+        // Padrão: plano sem limite atingido (não bloqueia).
+        _assinaturaService
+            .Setup(s => s.LimiteAtingidoAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
         _sut = new ConvidarProfissionalCommandHandler(
             _estabelecimentoRepo.Object,
             _modeloRepo.Object,
             _usuarioRepo.Object,
             _vinculoRepo.Object,
-            _eventBus.Object);
+            _eventBus.Object,
+            _assinaturaService.Object);
     }
 
     private Estabelecimento CriarEstabelecimento() =>

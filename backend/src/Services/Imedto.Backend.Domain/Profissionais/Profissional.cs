@@ -7,7 +7,7 @@ namespace Imedto.Backend.Domain.Profissionais;
 /// Aggregate root de Profissional. Relação 1:1 com <c>Usuario</c> — o Id é o mesmo UUID
 /// do usuário (e, por consequência, do <c>auth.users</c> do Supabase).
 /// </summary>
-public class Profissional : Entity<Guid>
+public class Profissional : Entity<Guid>, ISoftDeletable
 {
     public virtual string Conselho { get; protected set; }
     public virtual string Uf { get; protected set; }
@@ -17,6 +17,12 @@ public class Profissional : Entity<Guid>
     public virtual string FotoUrl { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
+
+    // Soft delete — histórico retido por integridade dos vínculos e auditoria.
+    public virtual DateTime? DeletadoEm { get; protected set; }
+    public virtual Guid? DeletadoPorUsuarioId { get; protected set; }
+
+    public virtual bool EstaDeletado => DeletadoEm.HasValue;
 
     protected Profissional() { }
 
@@ -74,6 +80,18 @@ public class Profissional : Entity<Guid>
         Especialidade = string.IsNullOrWhiteSpace(especialidade) ? null : especialidade.Trim();
         Bio = string.IsNullOrWhiteSpace(bio) ? null : bio.Trim();
         AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>Soft delete. Não remove do banco — marca com <see cref="DeletadoEm"/>.</summary>
+    public virtual void MarcarComoDeletado(Guid usuarioId)
+    {
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela exclusão é obrigatório.");
+        if (EstaDeletado)
+            throw new BusinessException("Profissional já está deletado.");
+
+        DeletadoEm = DateTime.UtcNow;
+        DeletadoPorUsuarioId = usuarioId;
     }
 
     private static void ValidarCamposConselho(string conselho, string uf, string numeroRegistro)

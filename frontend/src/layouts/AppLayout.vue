@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
+import AppHeaderNotifications from "@/components/notifications/AppHeaderNotifications.vue"
 import logoBranco from "@/assets/imedto-logo-branco.png"
 
 const route = useRoute()
@@ -40,10 +41,13 @@ const activeNavMap: Record<string, string> = {
     Prontuario: "Pacientes",
     Profissionais: "Profissionais",
     Financeiro: "Financeiro",
+    CategoriasFinanceiras: "Financeiro",
+    FormasPagamento: "Financeiro",
     Orcamentos: "Orcamentos",
     Inventario: "Inventario",
     Relatorios: "Relatorios",
     Automacoes: "Automacoes",
+    Notificacoes: "Notificacoes",
 }
 
 const activeNav = computed(() => activeNavMap[route.name as string] ?? null)
@@ -128,6 +132,27 @@ async function sair() {
                 </router-link>
 
                 <router-link
+                    v-if="tenant.ativo?.papel === 'Dono'"
+                    :to="{ name: 'IaSettings' }"
+                    class="nav-item"
+                    :class="{ 'nav-item--ativo': route.name === 'IaSettings' }"
+                    @click="fecharSidebar"
+                >
+                    <span class="nav-icon"><i class="fa-solid fa-robot" aria-hidden="true"></i></span>
+                    <span>Config. IA</span>
+                </router-link>
+
+                <router-link
+                    :to="{ name: 'MinhaAssinatura' }"
+                    class="nav-item"
+                    :class="{ 'nav-item--ativo': route.name === 'MinhaAssinatura' || route.name === 'Planos' }"
+                    @click="fecharSidebar"
+                >
+                    <span class="nav-icon"><i class="fa-solid fa-star" aria-hidden="true"></i></span>
+                    <span>Assinatura</span>
+                </router-link>
+
+                <router-link
                     :to="{ name: 'MeusConvites' }"
                     class="nav-item"
                     :class="{ 'nav-item--ativo': route.name === 'MeusConvites' }"
@@ -155,6 +180,9 @@ async function sair() {
                     <span></span><span></span><span></span>
                 </button>
                 <span class="topbar-titulo">{{ tenant.ativo?.nomeFantasia ?? "Imedto" }}</span>
+                <div class="topbar-acoes">
+                    <AppHeaderNotifications />
+                </div>
             </header>
 
             <main class="pagina">
@@ -320,10 +348,10 @@ async function sair() {
 }
 
 .topbar {
-    display: none;
+    display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
     position: sticky;
@@ -331,9 +359,15 @@ async function sair() {
     z-index: 50;
 }
 .topbar-titulo { font-size: 0.9em; font-weight: 600; color: var(--text); }
+.topbar-acoes {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
 .btn-menu {
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 4px;
     background: none;
@@ -366,7 +400,7 @@ async function sair() {
     }
     .sidebar.aberta { transform: translateX(0); }
     .conteudo { margin-left: 0; }
-    .topbar { display: flex; }
+    .btn-menu { display: flex; }
     .overlay { display: block; }
 }
 </style>

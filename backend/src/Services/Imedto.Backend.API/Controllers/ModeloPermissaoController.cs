@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.ModelosPermissao.Commands;
 using Imedto.Backend.Contracts.ModelosPermissao.Queries;
 using Imedto.Backend.Contracts.ModelosPermissao.Queries.Results;
 using Imedto.Backend.Contracts.Vinculos.Commands;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Filters;
 using Imedto.Backend.SharedKernel.Tenancy;
@@ -36,7 +38,7 @@ public class ModeloPermissaoController : ControllerBase
     }
 
     [HttpPost]
-    [RequiresPapel(TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.GerirPermissoes)]
     public async Task<ActionResult> Criar([FromBody] CriarModeloPermissaoDto dto)
     {
         var cmd = new CriarModeloPermissaoCommand
@@ -51,7 +53,7 @@ public class ModeloPermissaoController : ControllerBase
     }
 
     [HttpPut("{id:long}")]
-    [RequiresPapel(TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.GerirPermissoes)]
     public async Task<ActionResult> Atualizar(long id, [FromBody] AtualizarModeloPermissaoDto dto)
     {
         await _cmd.Send(new AtualizarModeloPermissaoCommand

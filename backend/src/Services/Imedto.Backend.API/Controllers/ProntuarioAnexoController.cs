@@ -10,7 +10,8 @@ namespace Imedto.Backend.API.Controllers;
 
 /// <summary>
 /// Anexos do prontuário — upload via multipart (proxy pelo backend) e download via URL
-/// assinada temporária (300s por padrão). Limite de upload: 25 MB.
+/// assinada temporária (300s por padrão). Limite de upload: 50 MB (validação real fica no
+/// command handler + storage; o RequestSizeLimit aqui é o teto do pipeline ASP.NET).
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
@@ -18,7 +19,7 @@ namespace Imedto.Backend.API.Controllers;
 [ApiController]
 [Route("api/paciente/{pacienteId:long}/prontuario/anexos")]
 [Produces("application/json")]
-[RequestSizeLimit(30 * 1024 * 1024)]
+[RequestSizeLimit(60 * 1024 * 1024)]
 public class ProntuarioAnexoController : ControllerBase
 {
     private readonly ICommandBus _commandBus;

@@ -6,13 +6,24 @@ using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Imedto.Backend.API;
+using Imedto.Backend.API.Filters;
+using Imedto.Backend.API.Hubs;
 using Imedto.Backend.API.Jobs;
+using Imedto.Backend.API.Logging;
 using Imedto.Backend.SharedKernel.Domain;
 using Imedto.Backend.SharedKernel.Filters;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +31,32 @@ var builder = WebApplication.CreateBuilder(args);
 var culture = new CultureInfo("pt-BR");
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+// --- Logging estruturado (Serilog) ---
+// Dev: console legível (formatação default).
+// Prod: console com JSON compacto (CompactJsonFormatter) — ideal para coletores (Loki/CloudWatch/etc).
+// Enrichers: ambiente, machine name, e RemovePIIEnricher (LGPD — mascara cpf/email/telefone/etc).
+// O template padrão do UseSerilogRequestLogging não loga body/query/headers — seguro por padrão.
+builder.Host.UseSerilog((ctx, services, cfg) =>
+{
+    cfg.ReadFrom.Configuration(ctx.Configuration)
+       .ReadFrom.Services(services)
+       .Enrich.FromLogContext()
+       .Enrich.WithEnvironmentName()
+       .Enrich.WithMachineName()
+       .Enrich.With<RemovePIIEnricher>()
+       .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+       .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning);
+
+    if (ctx.HostingEnvironment.IsDevelopment())
+    {
+        cfg.WriteTo.Console();
+    }
+    else
+    {
+        cfg.WriteTo.Console(new CompactJsonFormatter());
+    }
+});
 
 // --- Autenticação JWT (BFF pattern) ---
 // O Supabase expõe discovery em {Authority}/.well-known/openid-configuration e assina com ES256 (JWKS).
@@ -63,10 +100,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     return Task.CompletedTask;
                 }
 
-                // Fallback: Authorization header (Swagger / testes / integrações)
+                // Fallback 1: Authorization header (Swagger / testes / integrações)
                 var header = ctx.Request.Headers.Authorization.ToString();
                 if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
                     ctx.Token = header["Bearer ".Length..].Trim();
+                    return Task.CompletedTask;
+                }
+
+                // Fallback 2: query string em conexões SignalR/WebSocket — padrão oficial
+                // do framework, já que alguns clientes WS não propagam cookie/header de auth no
+                // handshake. Restrito a /hubs/* para evitar expor tokens em URL de endpoints REST.
+                var path = ctx.HttpContext.Request.Path;
+                if (path.StartsWithSegments("/hubs"))
+                {
+                    var qs = ctx.Request.Query["access_token"].ToString();
+                    if (!string.IsNullOrEmpty(qs))
+                        ctx.Token = qs;
+                }
 
                 return Task.CompletedTask;
             },
@@ -91,6 +142,7 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<GlobalExceptionFilter>();
     options.Filters.Add<UnitOfWorkFilter>();
+    options.Filters.Add<IdempotencyFilter>();
 });
 
 // --- Swagger ---
@@ -219,9 +271,55 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+// --- SignalR (item 2.4 — realtime) ---
+// Hub único `EstabelecimentoHub` em /hubs/estabelecimento. Sem backplane (Redis) —
+// funciona apenas em single-instance. TODO: trocar por AddStackExchangeRedis quando escalar
+// horizontalmente. Em dev (1 processo) o broadcast cobre todas as conexões.
+builder.Services.AddSignalR();
+
 // --- Composition Root ---
 builder.Services.Install(builder.Configuration);
 builder.Services.AddHostedService<AutomacaoJob>();
+
+// --- OpenTelemetry (traces + metrics) ---
+// ServiceName configurável; Endpoint vazio => não registra exporter (útil em Dev/Test).
+// Instrumentação automática para AspNetCore, EF Core, HttpClient e runtime (.NET GC/threads).
+var otelServiceName = builder.Configuration["Otel:ServiceName"] ?? "imedto-backend";
+var otelEndpoint    = builder.Configuration["Otel:Endpoint"];
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService(serviceName: otelServiceName))
+    .WithTracing(t =>
+    {
+        t.AddAspNetCoreInstrumentation()
+         .AddEntityFrameworkCoreInstrumentation()
+         .AddHttpClientInstrumentation();
+
+        if (!string.IsNullOrWhiteSpace(otelEndpoint))
+            t.AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint));
+    })
+    .WithMetrics(m =>
+    {
+        m.AddAspNetCoreInstrumentation()
+         .AddHttpClientInstrumentation()
+         .AddRuntimeInstrumentation();
+
+        if (!string.IsNullOrWhiteSpace(otelEndpoint))
+            m.AddOtlpExporter(o => o.Endpoint = new Uri(otelEndpoint));
+    });
+
+// --- Health Checks ---
+// /health (liveness) — 200 se app vivo, sem dependências externas.
+// /health/ready (readiness) — checa Postgres (tag "ready").
+var healthChecksBuilder = builder.Services.AddHealthChecks();
+var healthDbConn = builder.Configuration.GetConnectionString("Default");
+if (!string.IsNullOrWhiteSpace(healthDbConn))
+{
+    healthChecksBuilder.AddNpgSql(
+        connectionString: healthDbConn,
+        name: "postgres",
+        tags: new[] { "ready" });
+}
 
 // --- HTTP client para Anthropic IA ---
 builder.Services.AddHttpClient("Anthropic", client =>
@@ -303,10 +401,31 @@ if (!app.Environment.IsDevelopment())
     });
 }
 
+// Log estruturado de requisições — template default não inclui body/query/headers (seguro p/ LGPD).
+app.UseSerilogRequestLogging();
+
 app.UseCors("CorsPolicy");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// --- SignalR hub ---
+// Path /hubs/estabelecimento. Auth via [Authorize] no hub + OnMessageReceived que aceita
+// cookie HttpOnly (HTTP negotiate) ou ?access_token= (handshake WebSocket).
+app.MapHub<EstabelecimentoHub>("/hubs/estabelecimento");
+
+// --- Health endpoints ---
+// Liveness: sempre 200 se o processo responde — não checa dependências.
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => false
+}).AllowAnonymous();
+
+// Readiness: só checks com tag "ready" (Postgres). 503 se falhar.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+}).AllowAnonymous();
 
 app.Run();

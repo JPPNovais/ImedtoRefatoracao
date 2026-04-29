@@ -28,6 +28,25 @@ public class OrcamentoRepository : IOrcamentoRepository
         return orc;
     }
 
+    public async Task<Orcamento> ObterPorIdCompleto(long id)
+    {
+        // AsSplitQuery evita explosão cartesiana — Postgres faz uma SELECT por collection
+        // (1 root + 5 collections + 2 relações 1:1) em vez de uma só com produto cartesiano.
+        var orc = await _db.Orcamentos
+            .Include(o => o.Itens)
+            .Include(o => o.Equipe)
+            .Include(o => o.Implantes)
+            .Include(o => o.FormasPagamento)
+            .Include(o => o.Cirurgias)
+            .Include(o => o.Internacao)
+            .Include(o => o.Anestesia)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(o => o.Id == id);
+        if (orc is null)
+            throw new BusinessException("Orçamento não encontrado.");
+        return orc;
+    }
+
     public async Task Salvar(Orcamento orcamento)
     {
         if (orcamento.Id == 0)

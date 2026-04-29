@@ -21,11 +21,14 @@ public class ProfissionalConfiguration : IEntityTypeConfiguration<Profissional>
         builder.Property(p => p.FotoUrl).HasColumnName("foto_url").HasMaxLength(500);
         builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
+        builder.Property(p => p.DeletadoEm).HasColumnName("deletado_em");
+        builder.Property(p => p.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
         builder.HasIndex(p => new { p.Conselho, p.Uf, p.NumeroRegistro })
             .IsUnique()
             .HasDatabaseName("uq_profissionais_conselho_uf_numero");
 
         builder.Ignore(p => p.DomainEvents);
+        builder.Ignore(p => p.EstaDeletado);
     }
 }

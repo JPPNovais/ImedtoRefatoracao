@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
 
@@ -64,9 +66,9 @@ public class ProntuarioTemplateController : ControllerBase
         return Ok(dto);
     }
 
-    /// <summary>Cria um novo modelo próprio do estabelecimento.</summary>
+    /// <summary>Cria um novo modelo próprio do estabelecimento. Dono ou usuário com permissão de modelos.</summary>
     [HttpPost("modelos")]
-    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> CriarModelo([FromBody] ModeloRequest request)
@@ -81,9 +83,9 @@ public class ProntuarioTemplateController : ControllerBase
         return Created(string.Empty, null);
     }
 
-    /// <summary>Atualiza modelo próprio (não pode editar padrão-sistema).</summary>
+    /// <summary>Atualiza modelo próprio (não pode editar padrão-sistema). Dono ou usuário com permissão de modelos.</summary>
     [HttpPut("modelos/{id:long}")]
-    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AtualizarModelo(long id, [FromBody] ModeloRequest request)
@@ -99,9 +101,9 @@ public class ProntuarioTemplateController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Exclui modelo próprio do estabelecimento (não pode excluir padrão-sistema). Apenas Dono.</summary>
+    /// <summary>Exclui modelo próprio do estabelecimento (não pode excluir padrão-sistema). Dono ou usuário com permissão de modelos.</summary>
     [HttpDelete("modelos/{id:long}")]
-    [RequiresPapel(TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ExcluirModelo(long id)
@@ -131,9 +133,9 @@ public class ProntuarioTemplateController : ControllerBase
         return Ok(lista);
     }
 
-    /// <summary>Adiciona um item ao pool (escopo do estabelecimento). Apenas Dono.</summary>
+    /// <summary>Adiciona um item ao pool (escopo do estabelecimento). Dono ou usuário com permissão de modelos.</summary>
     [HttpPost("pool")]
-    [RequiresPapel(TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AdicionarPool([FromBody] AdicionarPoolRequest request)
@@ -147,9 +149,9 @@ public class ProntuarioTemplateController : ControllerBase
         return Created(string.Empty, null);
     }
 
-    /// <summary>Renomeia um item customizado do pool (não permite editar padrão-sistema). Apenas Dono.</summary>
+    /// <summary>Renomeia um item customizado do pool (não permite editar padrão-sistema). Dono ou usuário com permissão de modelos.</summary>
     [HttpPut("pool/{id:long}")]
-    [RequiresPapel(TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AtualizarPool(long id, [FromBody] AtualizarPoolRequest request)
@@ -163,9 +165,9 @@ public class ProntuarioTemplateController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Exclui um item customizado do pool (não permite excluir padrão-sistema). Apenas Dono.</summary>
+    /// <summary>Exclui um item customizado do pool (não permite excluir padrão-sistema). Dono ou usuário com permissão de modelos.</summary>
     [HttpDelete("pool/{id:long}")]
-    [RequiresPapel(TenantPapel.Dono)]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]

@@ -13,6 +13,7 @@ using Imedto.Backend.Application.Financeiro.Commands;
 using Imedto.Backend.Application.Financeiro.Events;
 using Imedto.Backend.Application.Financeiro.Queries;
 using Imedto.Backend.Application.Relatorios;
+using Imedto.Backend.Application.Relatorios.Queries;
 using Imedto.Backend.Application.Orcamentos.Commands;
 using Imedto.Backend.Application.Orcamentos.Events;
 using Imedto.Backend.Application.Orcamentos.Queries;
@@ -36,15 +37,25 @@ using Imedto.Backend.Application.Pacientes.Queries;
 using Imedto.Backend.Application.Prontuarios.Commands;
 using Imedto.Backend.Application.Prontuarios.Events;
 using Imedto.Backend.Application.Prontuarios.Queries;
+using Imedto.Backend.Application.Receitas.Commands;
+using Imedto.Backend.Application.Receitas.Queries;
 using Imedto.Backend.Application.Vinculos.Commands;
 using Imedto.Backend.Application.Vinculos.Events;
+using Imedto.Backend.Application.Notificacoes.Commands;
+using Imedto.Backend.Application.Notificacoes.Queries;
+using Imedto.Backend.Application.Automacoes.Events;
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
+using Imedto.Backend.Contracts.Notificacoes.Commands;
+using Imedto.Backend.Contracts.Notificacoes.Queries;
 using Imedto.Backend.Contracts.Pacientes.Commands;
 using Imedto.Backend.Contracts.Pacientes.Queries;
 using Imedto.Backend.Contracts.Pacientes.Queries.Results;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
+using Imedto.Backend.Contracts.Receitas.Commands;
+using Imedto.Backend.Contracts.Receitas.Queries;
+using Imedto.Backend.Contracts.Receitas.Queries.Results;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
 using Imedto.Backend.Contracts.Unidades.Commands;
@@ -79,25 +90,58 @@ using Imedto.Backend.Contracts.Financeiro.Commands;
 using Imedto.Backend.Contracts.Financeiro.Queries;
 using Imedto.Backend.Contracts.Financeiro.Queries.Results;
 using Imedto.Backend.Contracts.Relatorios;
+using Imedto.Backend.Contracts.Relatorios.Queries;
+using Imedto.Backend.Contracts.Relatorios.Queries.Results;
 using Imedto.Backend.Contracts.Orcamentos.Commands;
 using Imedto.Backend.Contracts.Orcamentos.Queries;
 using Imedto.Backend.Contracts.Orcamentos.Queries.Results;
+using Imedto.Backend.Contracts.Cirurgias.Commands;
+using Imedto.Backend.Contracts.Cirurgias.Queries;
+using Imedto.Backend.Contracts.Cirurgias.Queries.Results;
+using Imedto.Backend.Application.Cirurgias.Commands;
+using Imedto.Backend.Application.Cirurgias.Events;
+using Imedto.Backend.Application.Cirurgias.Queries;
+using Imedto.Backend.Domain.Cirurgias;
+using Imedto.Backend.Domain.Cirurgias.Events;
+using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Financeiro.Events;
 using Imedto.Backend.Domain.Inventario.Events;
 using Imedto.Backend.Domain.Orcamentos.Events;
+using Imedto.Backend.Application.Catalogo.Queries;
+using Imedto.Backend.Contracts.Catalogo.Queries;
+using Imedto.Backend.Contracts.Catalogo.Queries.Results;
 using Imedto.Backend.Contracts.Automacoes.Commands;
 using Imedto.Backend.Contracts.Automacoes.Queries;
 using Imedto.Backend.Contracts.ModelosPermissao.Commands;
 using Imedto.Backend.Contracts.ModelosPermissao.Queries;
 using Imedto.Backend.Contracts.ModelosPermissao.Queries.Results;
 using Imedto.Backend.Infrastructure;
+using Imedto.Backend.Infrastructure.Assinaturas;
+using Imedto.Backend.Infrastructure.Assinaturas.Handlers;
 using Imedto.Backend.Infrastructure.Bus;
 using Imedto.Backend.Infrastructure.Database.Repositories;
+using Imedto.Backend.Application.Assinaturas.Queries;
+using Imedto.Backend.Contracts.Assinaturas.Queries;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Automacoes;
+using Imedto.Backend.Domain.Notificacoes;
+using Imedto.Backend.Domain.Notificacoes.Events;
+using Imedto.Backend.Domain.Receitas;
+using Imedto.Backend.Domain.Receitas.Events;
 using Imedto.Backend.Domain.Ia;
+using Imedto.Backend.Domain.Idempotency;
+using Imedto.Backend.Domain.Jobs;
 using Imedto.Backend.Infrastructure.Email;
 using Imedto.Backend.Infrastructure.Ia;
+using Imedto.Backend.Infrastructure.Jobs;
+using Imedto.Backend.Infrastructure.Jobs.Handlers;
+using Imedto.Backend.Infrastructure.Automacoes;
+using Imedto.Backend.Infrastructure.Notificacoes;
+using Imedto.Backend.Infrastructure.Admin;
+using Imedto.Backend.Infrastructure.Receitas;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.API.Filters;
+using Imedto.Backend.API.Realtime;
 
 namespace Imedto.Backend.API;
 
@@ -115,10 +159,32 @@ public static class Container
     public static IServiceCollection Install(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
+        services.AddMemoryCache(); // usado pelo AssinaturaService (gating de feature).
         services.AddInfrastructure(configuration);
         RegistrarIa(services, configuration);
         RegistrarHandlers(services);
         RegistrarBuses(services);
+
+        // Admin
+        services.AddScoped<Domain.Admin.IAdminResetService, AdminResetService>();
+
+        // Idempotência
+        services.AddScoped<IIdempotencyRepository, IdempotencyRepository>();
+        services.AddScoped<IdempotencyFilter>();
+
+        // Scheduler de jobs (item 2.1) — BackgroundService nativo + advisory lock para single-leader.
+        // Repositório é Scoped (usa AppDbContext); handlers IJobHandler também Scoped — o scheduler
+        // resolve via IServiceScopeFactory para obter um DbContext fresco por execução de job.
+        services.AddScoped<IJobAgendadoRepository, JobAgendadoRepository>();
+        services.AddScoped<IJobHandler, LimparAuditAntigoJob>();
+        services.AddScoped<IJobHandler, ExpirarTrialsJob>(); // item 2.7
+        services.AddScoped<IJobHandler, LimparCacheIaJob>(); // item 3.8
+        services.AddSingleton<JobScheduler>();
+        services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
+
+        // Item 2.7 — Seed do catálogo de planos (roda uma vez na startup, idempotente).
+        services.AddHostedService<SeedPlanosHostedService>();
+
         return services;
     }
 
@@ -135,6 +201,7 @@ public static class Container
         services.AddScoped<IAiAuditRepository, AiAuditRepository>();
         services.AddScoped<IAiCacheRepository, AiCacheRepository>();
         services.AddScoped<IAiRateLimitRepository, AiRateLimitRepository>();
+        services.AddScoped<IEstabelecimentoIaSettingsRepository, EstabelecimentoIaSettingsRepository>();
 
         // Concreto + decorator (decorator é a única coisa exposta como IIaService)
         services.AddScoped<AnthropicIaService>();
@@ -143,7 +210,9 @@ public static class Container
             sp.GetRequiredService<IAiAuditRepository>(),
             sp.GetRequiredService<IAiCacheRepository>(),
             sp.GetRequiredService<IAiRateLimitRepository>(),
+            sp.GetRequiredService<IEstabelecimentoIaSettingsRepository>(),
             sp.GetRequiredService<Domain.Vinculos.IVinculoRepository>(),
+            sp.GetRequiredService<Domain.ModelosPermissao.IModeloPermissaoRepository>(),
             sp.GetRequiredService<IHttpContextAccessor>(),
             sp.GetRequiredService<IOptions<IaOptions>>(),
             configuration));
@@ -166,7 +235,17 @@ public static class Container
         services.AddScoped<EstabelecimentoCriadoEventHandler>();
         services.AddScoped<CriarModeloPadraoAoCriarEstabelecimentoHandler>();
         services.AddScoped<CriarUnidadePadraoAoCriarEstabelecimentoHandler>();
+        services.AddScoped<IniciarTrialAoCriarEstabelecimentoHandler>(); // item 2.7
         services.AddSingleton<EstabelecimentoQueryRepository>();
+
+        // Assinaturas (item 2.7) — Plano, Assinatura, gating de feature.
+        services.AddScoped<IPlanoRepository, PlanoRepository>();
+        services.AddScoped<IAssinaturaRepository, AssinaturaRepository>();
+        services.AddScoped<IAssinaturaService, AssinaturaService>();
+        services.AddSingleton<PlanoQueryRepository>();
+        services.AddSingleton<AssinaturaQueryRepository>();
+        services.AddSingleton<ListarPlanosQueryHandlers>();
+        services.AddSingleton<ObterMinhaAssinaturaQueryHandlers>();
 
         // Unidades do estabelecimento
         services.AddScoped<CriarUnidadeCommandHandler>();
@@ -201,6 +280,17 @@ public static class Container
         services.AddScoped<ProfissionalConvidadoEventHandler>();
         services.AddScoped<VinculoAceitoEventHandler>();
         services.AddSingleton<VinculoQueryRepository>();
+        // Item 4.2 — Solicitação de vínculo inversa (profissional → estabelecimento).
+        services.AddScoped<SolicitarVinculoCommandHandler>();
+        services.AddScoped<AprovarSolicitacaoVinculoCommandHandler>();
+        services.AddScoped<RecusarSolicitacaoVinculoCommandHandler>();
+        services.AddScoped<CancelarSolicitacaoVinculoCommandHandler>();
+        services.AddSingleton<ListarMinhasSolicitacoesVinculoQueryHandlers>();
+        services.AddScoped<ListarSolicitacoesVinculoRecebidasQueryHandlers>();
+        services.AddScoped<AoAprovarSolicitacaoCriarVinculoHandler>();
+        services.AddScoped<NotificarSolicitacaoCriadaHandler>();
+        services.AddScoped<NotificarSolicitacaoRespondidaHandler>();
+        services.AddSingleton<SolicitacaoVinculoQueryRepository>();
 
         // Pacientes
         services.AddScoped<CadastrarPacienteCommandHandler>();
@@ -233,6 +323,25 @@ public static class Container
         services.AddScoped<ProntuarioIniciadoEventHandler>();
         services.AddScoped<EvolucaoRegistradaEventHandler>();
 
+        // Receitas (item 3.1)
+        services.AddScoped<IReceitaRepository, ReceitaRepository>();
+        services.AddScoped<IConfiguracaoReceitaRepository, ConfiguracaoReceitaRepository>();
+        services.AddScoped<IMedicamentoFavoritoRepository, MedicamentoFavoritoRepository>();
+        services.AddScoped<IReceitaQueryRepository, ReceitaQueryRepository>();
+        services.AddScoped<IReceitaPdfService, QuestPdfReceitaService>(); // placeholder — Wave 4
+        services.AddScoped<EmitirReceitaCommandHandler>();
+        services.AddScoped<CancelarReceitaCommandHandler>();
+        services.AddScoped<DuplicarReceitaCommandHandler>();
+        services.AddScoped<IniciarRascunhoReceitaCommandHandler>();
+        services.AddScoped<AtualizarRascunhoReceitaCommandHandler>();
+        services.AddScoped<FinalizarReceitaCommandHandler>();
+        services.AddScoped<AtualizarConfiguracaoReceitaCommandHandler>();
+        // Query handlers de receita são SCOPED — dependem de IProntuarioAcessoLogService (audit LGPD).
+        services.AddScoped<ListarReceitasDoPacienteQueryHandlers>();
+        services.AddScoped<ObterReceitaQueryHandlers>();
+        services.AddScoped<ObterConfiguracaoReceitaQueryHandlers>();
+        services.AddScoped<ListarMedicamentosFavoritosQueryHandlers>();
+
         // Modelos de Permissão
         services.AddScoped<CriarModeloPermissaoCommandHandler>();
         services.AddScoped<AtualizarModeloPermissaoCommandHandler>();
@@ -259,6 +368,12 @@ public static class Container
         services.AddScoped<ObterUrlAnexoQueryHandlers>();
         services.AddSingleton<ProntuarioAnexoQueryRepository>();
 
+        // Exame físico (item 3.2)
+        services.AddScoped<RegistrarExameFisicoCommandHandler>();
+        services.AddScoped<AtualizarExameFisicoCommandHandler>();
+        // Query handlers de exame físico são SCOPED — auditam acesso via IProntuarioAcessoLogService.
+        services.AddScoped<ObterExameFisicoQueryHandlers>();
+
         // Inventário
         services.AddScoped<CriarItemInventarioCommandHandler>();
         services.AddScoped<AtualizarItemInventarioCommandHandler>();
@@ -274,13 +389,31 @@ public static class Container
         services.AddScoped<AtualizarOrcamentoCommandHandler>();
         services.AddScoped<AprovarOrcamentoCommandHandler>();
         services.AddScoped<RecusarOrcamentoCommandHandler>();
+        // Item 3.3.B — orçamento completo (cirúrgico/extendido).
+        services.AddScoped<CriarOrcamentoCompletoCommandHandler>();
+        services.AddScoped<AtualizarOrcamentoCompletoCommandHandler>();
         services.AddSingleton<ListarOrcamentosQueryHandlers>();
         services.AddSingleton<ObterOrcamentoQueryHandlers>();
+        services.AddSingleton<ObterOrcamentoCompletoQueryHandlers>();
         services.AddSingleton<OrcamentoQueryRepository>();
         services.AddScoped<OrcamentoCriadoEventHandler>();
         services.AddScoped<OrcamentoAprovadoEventHandler>();
 
-        // Financeiro
+        // Item 3.3.A — Procedimentos cirúrgicos. Repositório de escrita registrado em
+        // Infrastructure.Container (junto com os outros do domínio).
+        services.AddScoped<PlanejarProcedimentoCommandHandler>();
+        services.AddScoped<ConfirmarProcedimentoCommandHandler>();
+        services.AddScoped<RegistrarRealizacaoCommandHandler>();
+        services.AddScoped<CancelarProcedimentoCommandHandler>();
+        services.AddScoped<AtualizarEquipeCommandHandler>();
+        // Query handlers de procedimento são SCOPED — auditam acesso de leitura via IProntuarioAcessoLogService.
+        services.AddScoped<ObterProcedimentoQueryHandlers>();
+        services.AddSingleton<ListarProcedimentosPlanejadosQueryHandlers>();
+        services.AddSingleton<ProcedimentoCirurgicoQueryRepository>();
+        // Handler de evento — notifica equipe ao confirmar procedimento.
+        services.AddScoped<NotificarEquipeAoConfirmarHandler>();
+
+        // Financeiro — lançamentos
         services.AddScoped<CriarLancamentoCommandHandler>();
         services.AddScoped<AtualizarLancamentoCommandHandler>();
         services.AddScoped<PagarLancamentoCommandHandler>();
@@ -291,20 +424,76 @@ public static class Container
         services.AddScoped<LancamentoCriadoEventHandler>();
         services.AddScoped<LancamentoPagoEventHandler>();
 
-        // Automações
+        // Financeiro — categorias e formas de pagamento (item 2.10)
+        services.AddScoped<ICategoriaFinanceiraRepository, CategoriaFinanceiraRepository>();
+        services.AddScoped<IFormaPagamentoRepository, FormaPagamentoRepository>();
+        services.AddScoped<CriarCategoriaFinanceiraCommandHandler>();
+        services.AddScoped<AtualizarCategoriaFinanceiraCommandHandler>();
+        services.AddScoped<InativarCategoriaFinanceiraCommandHandler>();
+        services.AddScoped<CriarFormaPagamentoCommandHandler>();
+        services.AddScoped<AtualizarFormaPagamentoCommandHandler>();
+        services.AddScoped<InativarFormaPagamentoCommandHandler>();
+        services.AddSingleton<ListarCategoriasFinanceirasQueryHandlers>();
+        services.AddSingleton<ListarFormasPagamentoQueryHandlers>();
+        services.AddSingleton<CategoriaFinanceiraQueryRepository>();
+        services.AddSingleton<FormaPagamentoQueryRepository>();
+        services.AddScoped<CriarSeedFinanceiroAoCriarEstabelecimentoHandler>();
+
+        // Automações — configurações legadas (lembretes/orçamentos vencidos)
         services.AddScoped<ExpirarOrcamentosVencidosCommandHandler>();
         services.AddScoped<EnviarLembretesAgendamentosCommandHandler>();
         services.AddScoped<SalvarConfiguracaoAutomacaoCommandHandler>();
         services.AddSingleton<ObterConfiguracaoAutomacaoQueryHandlers>();
         services.AddScoped<IConfiguracaoAutomacaoRepository, ConfiguracaoAutomacaoRepository>();
         services.AddSingleton<IEmailService, ResendEmailService>();
+
+        // Item 2.2 — Engine de automações (regras + worker + executor)
+        services.AddScoped<IRegraAutomacaoRepository, RegraAutomacaoRepository>();
+        services.AddScoped<IEventoAutomacaoRepository, EventoAutomacaoRepository>();
+        services.AddScoped<IExecutorAcao, ExecutorAcao>();
+        services.AddScoped<CriarRegraAutomacaoCommandHandler>();
+        services.AddScoped<AtualizarRegraAutomacaoCommandHandler>();
+        services.AddScoped<AtivarRegraAutomacaoCommandHandler>();
+        services.AddScoped<DesativarRegraAutomacaoCommandHandler>();
+        services.AddScoped<ListarRegrasAutomacaoQueryHandlers>();
+        services.AddScoped<ListarEventosAutomacaoQueryHandlers>();
+        // Handlers de enfileiramento (ouvem eventos de domínio e criam EventoAutomacao)
+        services.AddScoped<EnfileirarAutomacaoAgendamentoCriadoHandler>();
+        services.AddScoped<EnfileirarAutomacaoOrcamentoAprovadoHandler>();
+        services.AddScoped<EnfileirarAutomacaoLancamentoCriadoHandler>();
+        // Worker registrado como IJobHandler — scheduler resolve por Nome.
+        services.AddScoped<IJobHandler, ProcessadorAutomacoesJob>();
+
+        // Item 2.3 — Notificações in-app
+        services.AddScoped<INotificacaoRepository, NotificacaoRepository>();
+        services.AddScoped<INotificacaoService, NotificacaoService>();
+        services.AddSingleton<NotificacaoQueryRepository>();
+        services.AddScoped<MarcarNotificacaoLidaCommandHandler>();
+        services.AddScoped<MarcarTodasNotificacoesLidasCommandHandler>();
+        services.AddScoped<ListarNotificacoesQueryHandlers>();
+        services.AddScoped<ContadorNaoLidasQueryHandlers>();
+        // Handler de domínio: converte ProfissionalConvidadoEvent em notificação in-app.
+        services.AddScoped<NotificarConviteAoConvidarProfissionalHandler>();
+        // Item 2.4 — Bridge SignalR: empurra NotificacaoCriadaEvent para o cliente conectado.
+        services.AddScoped<NotificacaoCriadaSignalRBridge>();
         // IIaService registrado via RegistrarIa (decorator com rate limit + cache + audit).
+
+        // Catálogo (Profissões, Especialidades e Regiões Anatômicas)
+        services.AddSingleton<ListarProfissoesQueryHandlers>();
+        services.AddSingleton<ListarEspecialidadesQueryHandlers>();
+        services.AddSingleton<ListarRegioesCatalogoQueryHandlers>();
+        services.AddSingleton<CatalogoQueryRepository>();
 
         // Dashboard & Relatórios
         services.AddSingleton<DashboardQueryHandlers>();
         services.AddSingleton<DashboardQueryRepository>();
         services.AddSingleton<RelatorioFaturamentoQueryHandlers>();
         services.AddSingleton<RelatorioAgendamentosQueryHandlers>();
+        // Item 4.1 — relatórios consolidados (4 handlers cobrem 9 RPCs legados).
+        services.AddSingleton<RelatorioFinanceiroQueryHandler>();
+        services.AddSingleton<RelatorioOperacionalQueryHandler>();
+        services.AddSingleton<RelatorioPessoasQueryHandler>();
+        services.AddSingleton<RelatorioOrcamentosQueryHandler>();
         services.AddSingleton<RelatorioQueryRepository>();
     }
 
@@ -333,6 +522,11 @@ public static class Container
             bus.Register<AceitarConviteCommand, AceitarConviteCommandHandler>();
             bus.Register<InativarVinculoCommand, InativarVinculoCommandHandler>();
             bus.Register<AlterarModeloPermissaoDoVinculoCommand, AlterarModeloPermissaoDoVinculoCommandHandler>();
+            // Item 4.2 — Solicitação inversa.
+            bus.Register<SolicitarVinculoCommand, SolicitarVinculoCommandHandler>();
+            bus.Register<AprovarSolicitacaoVinculoCommand, AprovarSolicitacaoVinculoCommandHandler>();
+            bus.Register<RecusarSolicitacaoVinculoCommand, RecusarSolicitacaoVinculoCommandHandler>();
+            bus.Register<CancelarSolicitacaoVinculoCommand, CancelarSolicitacaoVinculoCommandHandler>();
             bus.Register<CadastrarPacienteCommand, CadastrarPacienteCommandHandler>();
             bus.Register<AtualizarPacienteCommand, AtualizarPacienteCommandHandler>();
             bus.Register<DeletarPacienteCommand, DeletarPacienteCommandHandler>();
@@ -361,13 +555,44 @@ public static class Container
             bus.Register<AtualizarOrcamentoCommand, AtualizarOrcamentoCommandHandler>();
             bus.Register<AprovarOrcamentoCommand, AprovarOrcamentoCommandHandler>();
             bus.Register<RecusarOrcamentoCommand, RecusarOrcamentoCommandHandler>();
+            // Item 3.3.B — orçamento completo.
+            bus.Register<CriarOrcamentoCompletoCommand, CriarOrcamentoCompletoCommandHandler>();
+            bus.Register<AtualizarOrcamentoCompletoCommand, AtualizarOrcamentoCompletoCommandHandler>();
+            // Item 3.3.A — procedimentos cirúrgicos.
+            bus.Register<PlanejarProcedimentoCommand, PlanejarProcedimentoCommandHandler>();
+            bus.Register<ConfirmarProcedimentoCommand, ConfirmarProcedimentoCommandHandler>();
+            bus.Register<RegistrarRealizacaoCommand, RegistrarRealizacaoCommandHandler>();
+            bus.Register<CancelarProcedimentoCommand, CancelarProcedimentoCommandHandler>();
+            bus.Register<AtualizarEquipeCommand, AtualizarEquipeCommandHandler>();
             bus.Register<CriarLancamentoCommand, CriarLancamentoCommandHandler>();
             bus.Register<AtualizarLancamentoCommand, AtualizarLancamentoCommandHandler>();
             bus.Register<PagarLancamentoCommand, PagarLancamentoCommandHandler>();
             bus.Register<CancelarLancamentoCommand, CancelarLancamentoCommandHandler>();
+            bus.Register<CriarCategoriaFinanceiraCommand, CriarCategoriaFinanceiraCommandHandler>();
+            bus.Register<AtualizarCategoriaFinanceiraCommand, AtualizarCategoriaFinanceiraCommandHandler>();
+            bus.Register<InativarCategoriaFinanceiraCommand, InativarCategoriaFinanceiraCommandHandler>();
+            bus.Register<CriarFormaPagamentoCommand, CriarFormaPagamentoCommandHandler>();
+            bus.Register<AtualizarFormaPagamentoCommand, AtualizarFormaPagamentoCommandHandler>();
+            bus.Register<InativarFormaPagamentoCommand, InativarFormaPagamentoCommandHandler>();
             bus.Register<ExpirarOrcamentosVencidosCommand, ExpirarOrcamentosVencidosCommandHandler>();
             bus.Register<EnviarLembretesAgendamentosCommand, EnviarLembretesAgendamentosCommandHandler>();
             bus.Register<SalvarConfiguracaoAutomacaoCommand, SalvarConfiguracaoAutomacaoCommandHandler>();
+            bus.Register<CriarRegraAutomacaoCommand, CriarRegraAutomacaoCommandHandler>();
+            bus.Register<AtualizarRegraAutomacaoCommand, AtualizarRegraAutomacaoCommandHandler>();
+            bus.Register<AtivarRegraAutomacaoCommand, AtivarRegraAutomacaoCommandHandler>();
+            bus.Register<DesativarRegraAutomacaoCommand, DesativarRegraAutomacaoCommandHandler>();
+            bus.Register<MarcarNotificacaoLidaCommand, MarcarNotificacaoLidaCommandHandler>();
+            bus.Register<MarcarTodasNotificacoesLidasCommand, MarcarTodasNotificacoesLidasCommandHandler>();
+            bus.Register<EmitirReceitaCommand, EmitirReceitaCommandHandler>();
+            bus.Register<CancelarReceitaCommand, CancelarReceitaCommandHandler>();
+            bus.Register<DuplicarReceitaCommand, DuplicarReceitaCommandHandler>();
+            bus.Register<IniciarRascunhoReceitaCommand, IniciarRascunhoReceitaCommandHandler>();
+            bus.Register<AtualizarRascunhoReceitaCommand, AtualizarRascunhoReceitaCommandHandler>();
+            bus.Register<FinalizarReceitaCommand, FinalizarReceitaCommandHandler>();
+            bus.Register<AtualizarConfiguracaoReceitaCommand, AtualizarConfiguracaoReceitaCommandHandler>();
+            // Item 3.2 — Exame físico.
+            bus.Register<RegistrarExameFisicoCommand, RegistrarExameFisicoCommandHandler>();
+            bus.Register<AtualizarExameFisicoCommand, AtualizarExameFisicoCommandHandler>();
             return bus;
         });
 
@@ -381,6 +606,9 @@ public static class Container
             bus.Register<ObterProfissionalMeQuery, ProfissionalDto, ObterProfissionalMeQueryHandlers>();
             bus.Register<ListarProfissionaisEstabelecimentoQuery, IEnumerable<ProfissionalVinculadoDto>, ListarProfissionaisEstabelecimentoQueryHandlers>();
             bus.Register<ListarMeusConvitesQuery, IEnumerable<ConviteDto>, ListarMeusConvitesQueryHandlers>();
+            // Item 4.2 — Solicitação inversa.
+            bus.Register<ListarMinhasSolicitacoesVinculoQuery, IEnumerable<SolicitacaoVinculoDto>, ListarMinhasSolicitacoesVinculoQueryHandlers>();
+            bus.Register<ListarSolicitacoesVinculoRecebidasQuery, IEnumerable<SolicitacaoVinculoDto>, ListarSolicitacoesVinculoRecebidasQueryHandlers>();
             bus.Register<ListarPacientesQuery, PaginaPacientesDto, ListarPacientesQueryHandlers>();
             bus.Register<ObterPacienteQuery, PacienteDto, ObterPacienteQueryHandlers>();
             bus.Register<ExportarDadosPacienteQuery, object, ExportarDadosPacienteQueryHandlers>();
@@ -398,12 +626,45 @@ public static class Container
             bus.Register<ListarMovimentacoesQuery, IEnumerable<MovimentacaoEstoqueDto>, ListarMovimentacoesQueryHandlers>();
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();
             bus.Register<ObterOrcamentoQuery, OrcamentoDto, ObterOrcamentoQueryHandlers>();
+            // Item 3.3.B — orçamento completo.
+            bus.Register<ObterOrcamentoCompletoQuery, OrcamentoCompletoDto, ObterOrcamentoCompletoQueryHandlers>();
+            // Item 3.3.A — procedimentos cirúrgicos.
+            bus.Register<ObterProcedimentoQuery, ProcedimentoCirurgicoDto, ObterProcedimentoQueryHandlers>();
+            bus.Register<ListarProcedimentosDoPacienteQuery, IEnumerable<ProcedimentoCirurgicoResumoDto>, ObterProcedimentoQueryHandlers>();
+            bus.Register<ListarProcedimentosPlanejadosQuery, IEnumerable<ProcedimentoCirurgicoResumoDto>, ListarProcedimentosPlanejadosQueryHandlers>();
             bus.Register<ListarLancamentosQuery, IEnumerable<LancamentoDto>, ListarLancamentosQueryHandlers>();
             bus.Register<ObterResumoFinanceiroQuery, ResumoFinanceiroDto, ObterResumoFinanceiroQueryHandlers>();
+            bus.Register<ListarCategoriasFinanceirasQuery, IEnumerable<CategoriaFinanceiraDto>, ListarCategoriasFinanceirasQueryHandlers>();
+            bus.Register<ListarFormasPagamentoQuery, IEnumerable<FormaPagamentoDto>, ListarFormasPagamentoQueryHandlers>();
             bus.Register<DashboardQuery, DashboardDto, DashboardQueryHandlers>();
             bus.Register<RelatorioFaturamentoQuery, IEnumerable<FaturamentoCategoriaDto>, RelatorioFaturamentoQueryHandlers>();
             bus.Register<RelatorioAgendamentosQuery, RelatorioAgendamentosDto, RelatorioAgendamentosQueryHandlers>();
+            // Item 4.1 — relatórios consolidados.
+            bus.Register<RelatorioFinanceiroQuery, RelatorioFinanceiroDto, RelatorioFinanceiroQueryHandler>();
+            bus.Register<RelatorioOperacionalQuery, RelatorioOperacionalDto, RelatorioOperacionalQueryHandler>();
+            bus.Register<RelatorioPessoasQuery, RelatorioPessoasDto, RelatorioPessoasQueryHandler>();
+            bus.Register<RelatorioOrcamentosQuery, RelatorioOrcamentosDto, RelatorioOrcamentosQueryHandler>();
             bus.Register<ObterConfiguracaoAutomacaoQuery, ConfiguracaoAutomacaoDto, ObterConfiguracaoAutomacaoQueryHandlers>();
+            bus.Register<ListarProfissoesQuery, IEnumerable<ProfissaoListadaDto>, ListarProfissoesQueryHandlers>();
+            bus.Register<ListarEspecialidadesQuery, IEnumerable<EspecialidadeListadaDto>, ListarEspecialidadesQueryHandlers>();
+            bus.Register<ListarRegioesCatalogoQuery, IEnumerable<RegiaoCatalogoDto>, ListarRegioesCatalogoQueryHandlers>();
+            bus.Register<ListarRegrasAutomacaoQuery, IEnumerable<RegraAutomacaoDto>, ListarRegrasAutomacaoQueryHandlers>();
+            bus.Register<ListarEventosAutomacaoQuery, IEnumerable<EventoAutomacaoDto>, ListarEventosAutomacaoQueryHandlers>();
+            bus.Register<ListarNotificacoesQuery, PaginaNotificacoesDto, ListarNotificacoesQueryHandlers>();
+            bus.Register<ContadorNaoLidasQuery, ContadorNaoLidasDto, ContadorNaoLidasQueryHandlers>();
+            // Item 2.7 — Assinatura/Planos.
+            bus.Register<ListarPlanosQuery, IEnumerable<PlanoDto>, ListarPlanosQueryHandlers>();
+            bus.Register<ObterMinhaAssinaturaQuery, AssinaturaDto?, ObterMinhaAssinaturaQueryHandlers>();
+            // Item 3.1 — Receitas.
+            bus.Register<ListarReceitasDoPacienteQuery, PaginaReceitasDto, ListarReceitasDoPacienteQueryHandlers>();
+            bus.Register<ObterReceitaQuery, ReceitaDto, ObterReceitaQueryHandlers>();
+            bus.Register<ObterConfiguracaoReceitaQuery, ConfiguracaoReceitaDto, ObterConfiguracaoReceitaQueryHandlers>();
+            bus.Register<ListarMedicamentosFavoritosQuery, IEnumerable<MedicamentoFavoritoDto>, ListarMedicamentosFavoritosQueryHandlers>();
+            // Item 3.2 — Exame físico (uma classe ObterExameFisicoQueryHandlers implementa as 4 queries; auditam acesso → scoped).
+            bus.Register<ObterExameFisicoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();
+            bus.Register<ObterExameFisicoPorEvolucaoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();
+            bus.Register<ListarExamesFisicosDoPacienteQuery, PaginaExamesFisicosDto, ObterExameFisicoQueryHandlers>();
+            bus.Register<TimelineExamesFisicosQuery, IEnumerable<ExameFisicoResumoDto>, ObterExameFisicoQueryHandlers>();
             return bus;
         });
 
@@ -414,9 +675,17 @@ public static class Container
             bus.Register<EstabelecimentoCriadoEvent, EstabelecimentoCriadoEventHandler>();
             bus.Register<EstabelecimentoCriadoEvent, CriarModeloPadraoAoCriarEstabelecimentoHandler>();
             bus.Register<EstabelecimentoCriadoEvent, CriarUnidadePadraoAoCriarEstabelecimentoHandler>();
+            bus.Register<EstabelecimentoCriadoEvent, CriarSeedFinanceiroAoCriarEstabelecimentoHandler>();
+            // Item 2.7 — inicia trial automático de 14 dias ao criar estabelecimento.
+            bus.Register<EstabelecimentoCriadoEvent, IniciarTrialAoCriarEstabelecimentoHandler>();
             bus.Register<ProfissionalCadastradoEvent, ProfissionalCadastradoEventHandler>();
             bus.Register<ProfissionalConvidadoEvent, ProfissionalConvidadoEventHandler>();
             bus.Register<VinculoAceitoEvent, VinculoAceitoEventHandler>();
+            // Item 4.2 — Solicitação inversa: 1 handler que cria o vínculo + 2 de notificação.
+            bus.Register<SolicitacaoVinculoAprovadaEvent, AoAprovarSolicitacaoCriarVinculoHandler>();
+            bus.Register<SolicitacaoVinculoCriadaEvent, NotificarSolicitacaoCriadaHandler>();
+            bus.Register<SolicitacaoVinculoAprovadaEvent, NotificarSolicitacaoRespondidaHandler>();
+            bus.Register<SolicitacaoVinculoRecusadaEvent, NotificarSolicitacaoRespondidaHandler>();
             bus.Register<PacienteCadastradoEvent, PacienteCadastradoEventHandler>();
             bus.Register<ProntuarioIniciadoEvent, ProntuarioIniciadoEventHandler>();
             bus.Register<EvolucaoRegistradaEvent, EvolucaoRegistradaEventHandler>();
@@ -425,8 +694,19 @@ public static class Container
             bus.Register<EstoqueAbaixoMinimoEvent, EstoqueAbaixoMinimoEventHandler>();
             bus.Register<OrcamentoCriadoEvent, OrcamentoCriadoEventHandler>();
             bus.Register<OrcamentoAprovadoEvent, OrcamentoAprovadoEventHandler>();
+            // Item 3.3.A — confirmação de procedimento → notificação à equipe operacional.
+            bus.Register<ProcedimentoConfirmadoEvent, NotificarEquipeAoConfirmarHandler>();
             bus.Register<LancamentoCriadoEvent, LancamentoCriadoEventHandler>();
             bus.Register<LancamentoPagoEvent, LancamentoPagoEventHandler>();
+            // Item 2.3: convite de profissional → notificação in-app.
+            bus.Register<ProfissionalConvidadoEvent, NotificarConviteAoConvidarProfissionalHandler>();
+            // Item 2.4: notificação criada → push em tempo real para o usuário via SignalR.
+            bus.Register<NotificacaoCriadaEvent, NotificacaoCriadaSignalRBridge>();
+            // Item 2.2: gatilhos de regras de automação. NÃO escutar NotificacaoCriadaEvent
+            // — caso contrário regras que enviam notificação criariam loop infinito.
+            bus.Register<AgendamentoCriadoEvent, EnfileirarAutomacaoAgendamentoCriadoHandler>();
+            bus.Register<OrcamentoAprovadoEvent, EnfileirarAutomacaoOrcamentoAprovadoHandler>();
+            bus.Register<LancamentoCriadoEvent, EnfileirarAutomacaoLancamentoCriadoHandler>();
             return bus;
         });
     }

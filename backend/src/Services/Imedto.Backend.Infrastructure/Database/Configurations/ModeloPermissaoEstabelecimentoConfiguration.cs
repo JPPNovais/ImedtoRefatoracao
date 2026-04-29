@@ -21,8 +21,14 @@ public class ModeloPermissaoEstabelecimentoConfiguration : IEntityTypeConfigurat
             .HasMaxLength(20)
             .IsRequired();
         builder.Property(m => m.PermissoesJson).HasColumnName("permissoes").HasColumnType("jsonb").IsRequired();
-        // Read-only typed accessor — não é coluna.
+        builder.Property(m => m.PermissoesExtrasJson)
+            .HasColumnName("permissoes_extras")
+            .HasColumnType("jsonb")
+            .IsRequired()
+            .HasDefaultValueSql("'[]'::jsonb");
+        // Read-only typed accessors — não são colunas.
         builder.Ignore(m => m.Permissoes);
+        builder.Ignore(m => m.PermissoesExtrasLista);
         builder.Property(m => m.EhPadrao).HasColumnName("eh_padrao").IsRequired();
         builder.Property(m => m.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(m => m.AtualizadoEm).HasColumnName("atualizado_em");

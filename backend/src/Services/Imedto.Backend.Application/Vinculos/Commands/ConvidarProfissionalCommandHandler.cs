@@ -1,4 +1,5 @@
 using Imedto.Backend.Contracts.Vinculos.Commands;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Usuarios;
@@ -15,19 +16,22 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
     private readonly IUsuarioRepository _usuarioRepo;
     private readonly IVinculoRepository _vinculoRepo;
     private readonly IEventBus _eventBus;
+    private readonly IAssinaturaService _assinaturaService;
 
     public ConvidarProfissionalCommandHandler(
         IEstabelecimentoRepository estabelecimentoRepo,
         IModeloPermissaoRepository modeloRepo,
         IUsuarioRepository usuarioRepo,
         IVinculoRepository vinculoRepo,
-        IEventBus eventBus)
+        IEventBus eventBus,
+        IAssinaturaService assinaturaService)
     {
         _estabelecimentoRepo = estabelecimentoRepo;
         _modeloRepo = modeloRepo;
         _usuarioRepo = usuarioRepo;
         _vinculoRepo = vinculoRepo;
         _eventBus = eventBus;
+        _assinaturaService = assinaturaService;
     }
 
     public async Task Handle(ConvidarProfissionalCommand command)
@@ -39,6 +43,9 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
 
         if (command.ProfissionalUsuarioId == estab.DonoUsuarioId)
             throw new BusinessException("O dono do estabelecimento não precisa de convite.");
+
+        if (await _assinaturaService.LimiteAtingidoAsync(command.EstabelecimentoId, "profissionais"))
+            throw new BusinessException("Plano não permite mais profissionais. Faça upgrade.");
 
         // Resolve o modelo de permissão (explícito ou padrão do estabelecimento).
         long modeloId;

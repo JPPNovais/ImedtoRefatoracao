@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Financeiro.Commands;
 using Imedto.Backend.Contracts.Financeiro.Queries;
 using Imedto.Backend.Contracts.Financeiro.Queries.Results;
@@ -63,6 +64,7 @@ public class FinanceiroController : ControllerBase
     }
 
     [HttpPost("lancamentos")]
+    [Idempotent]
     public async Task<ActionResult> Criar([FromBody] CriarLancamentoDto dto)
     {
         await _cmd.Send(new CriarLancamentoCommand
@@ -116,6 +118,112 @@ public class FinanceiroController : ControllerBase
         });
         return NoContent();
     }
+
+    // -------------------- Categorias financeiras --------------------
+
+    [HttpGet("categorias")]
+    public async Task<ActionResult<IEnumerable<CategoriaFinanceiraDto>>> ListarCategorias(
+        [FromQuery] string? tipo,
+        [FromQuery] bool? ativas,
+        [FromQuery] bool? padrao)
+    {
+        var result = await _query.Query<ListarCategoriasFinanceirasQuery, IEnumerable<CategoriaFinanceiraDto>>(
+            new ListarCategoriasFinanceirasQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Tipo = tipo,
+                Ativas = ativas,
+                Padrao = padrao
+            });
+        return Ok(result);
+    }
+
+    [HttpPost("categorias")]
+    public async Task<ActionResult> CriarCategoria([FromBody] CriarCategoriaFinanceiraDto dto)
+    {
+        await _cmd.Send(new CriarCategoriaFinanceiraCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Nome = dto.Nome,
+            Tipo = dto.Tipo
+        });
+        return NoContent();
+    }
+
+    [HttpPut("categorias/{id:long}")]
+    public async Task<ActionResult> AtualizarCategoria(long id, [FromBody] AtualizarCategoriaFinanceiraDto dto)
+    {
+        await _cmd.Send(new AtualizarCategoriaFinanceiraCommand
+        {
+            CategoriaId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Nome = dto.Nome,
+            Tipo = dto.Tipo
+        });
+        return NoContent();
+    }
+
+    [HttpPost("categorias/{id:long}/inativar")]
+    public async Task<ActionResult> InativarCategoria(long id)
+    {
+        await _cmd.Send(new InativarCategoriaFinanceiraCommand
+        {
+            CategoriaId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId
+        });
+        return NoContent();
+    }
+
+    // -------------------- Formas de pagamento --------------------
+
+    [HttpGet("formas-pagamento")]
+    public async Task<ActionResult<IEnumerable<FormaPagamentoDto>>> ListarFormasPagamento(
+        [FromQuery] bool? ativas,
+        [FromQuery] bool? padrao)
+    {
+        var result = await _query.Query<ListarFormasPagamentoQuery, IEnumerable<FormaPagamentoDto>>(
+            new ListarFormasPagamentoQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Ativas = ativas,
+                Padrao = padrao
+            });
+        return Ok(result);
+    }
+
+    [HttpPost("formas-pagamento")]
+    public async Task<ActionResult> CriarFormaPagamento([FromBody] CriarFormaPagamentoDto dto)
+    {
+        await _cmd.Send(new CriarFormaPagamentoCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Nome = dto.Nome
+        });
+        return NoContent();
+    }
+
+    [HttpPut("formas-pagamento/{id:long}")]
+    public async Task<ActionResult> AtualizarFormaPagamento(long id, [FromBody] AtualizarFormaPagamentoDto dto)
+    {
+        await _cmd.Send(new AtualizarFormaPagamentoCommand
+        {
+            FormaPagamentoId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Nome = dto.Nome
+        });
+        return NoContent();
+    }
+
+    [HttpPost("formas-pagamento/{id:long}/inativar")]
+    public async Task<ActionResult> InativarFormaPagamento(long id)
+    {
+        await _cmd.Send(new InativarFormaPagamentoCommand
+        {
+            FormaPagamentoId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId
+        });
+        return NoContent();
+    }
 }
 
 public record CriarLancamentoDto(
@@ -133,3 +241,8 @@ public record AtualizarLancamentoDto(
     string Categoria);
 
 public record PagarLancamentoDto(DateOnly? DataPagamento);
+
+public record CriarCategoriaFinanceiraDto(string Nome, string Tipo);
+public record AtualizarCategoriaFinanceiraDto(string Nome, string Tipo);
+public record CriarFormaPagamentoDto(string Nome);
+public record AtualizarFormaPagamentoDto(string Nome);

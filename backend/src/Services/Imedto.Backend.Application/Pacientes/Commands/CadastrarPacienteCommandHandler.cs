@@ -1,4 +1,5 @@
 using Imedto.Backend.Contracts.Pacientes.Commands;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -9,15 +10,23 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
 {
     private readonly IPacienteRepository _repository;
     private readonly IEventBus _eventBus;
+    private readonly IAssinaturaService _assinaturaService;
 
-    public CadastrarPacienteCommandHandler(IPacienteRepository repository, IEventBus eventBus)
+    public CadastrarPacienteCommandHandler(
+        IPacienteRepository repository,
+        IEventBus eventBus,
+        IAssinaturaService assinaturaService)
     {
         _repository = repository;
         _eventBus = eventBus;
+        _assinaturaService = assinaturaService;
     }
 
     public async Task Handle(CadastrarPacienteCommand command)
     {
+        if (await _assinaturaService.LimiteAtingidoAsync(command.EstabelecimentoId, "pacientes"))
+            throw new BusinessException("Plano não permite mais pacientes. Faça upgrade.");
+
         var cpfDigitos = new string((command.Cpf ?? "").Where(char.IsDigit).ToArray());
         if (!string.IsNullOrEmpty(cpfDigitos) &&
             await _repository.ExisteCpfNoEstabelecimento(cpfDigitos, command.EstabelecimentoId, ignorarPacienteId: 0))

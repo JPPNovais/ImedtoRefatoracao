@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Imedto.Backend.Domain.Ia;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -13,9 +14,10 @@ namespace Imedto.Backend.Infrastructure.Ia;
 
 /// <summary>
 /// Decorator de <see cref="IIaService"/> que adiciona, antes de chamar a IA real:
-///   1. Rate limit por usuário (janela de 1 min, configurável em <c>Ia:LimitePorMinuto</c>).
-///   2. Cache de outputs por hash SHA256 do prompt (TTL em <c>Ia:CacheTtlHoras</c>).
-///   3. Audit log com hashes de prompt/resposta (NUNCA conteúdo cru — LGPD).
+///   1. Settings por estabelecimento (item 2.12) — toggle <c>ai_enabled</c> e limites custom.
+///   2. Rate limit por (usuário, estabelecimento) — janela de 1 min, item 2.14.
+///   3. Cache de outputs por hash SHA256 do prompt (TTL em <c>Ia:CacheTtlHoras</c>).
+///   4. Audit log com hashes de prompt/resposta + FKs opcionais (item 2.13) — NUNCA conteúdo cru.
 ///
 /// O streaming preserva o comportamento original: cada chunk recebido do inner é
 /// imediatamente entregue ao caller via <c>yield return</c>, e em paralelo
@@ -27,17 +29,21 @@ public class RateLimitedIaService : IIaService
     private readonly IAiAuditRepository _audit;
     private readonly IAiCacheRepository _cache;
     private readonly IAiRateLimitRepository _rate;
+    private readonly IEstabelecimentoIaSettingsRepository _settings;
     private readonly IVinculoRepository _vinculos;
+    private readonly IModeloPermissaoRepository _modelosPermissao;
     private readonly IHttpContextAccessor _http;
     private readonly IOptions<IaOptions> _opts;
-    private readonly string _modelo;
+    private readonly string _modeloPadrao;
 
     public RateLimitedIaService(
         IIaService inner,
         IAiAuditRepository audit,
         IAiCacheRepository cache,
         IAiRateLimitRepository rate,
+        IEstabelecimentoIaSettingsRepository settings,
         IVinculoRepository vinculos,
+        IModeloPermissaoRepository modelosPermissao,
         IHttpContextAccessor http,
         IOptions<IaOptions> opts,
         IConfiguration config)
@@ -46,10 +52,12 @@ public class RateLimitedIaService : IIaService
         _audit = audit;
         _cache = cache;
         _rate  = rate;
+        _settings = settings;
         _vinculos = vinculos;
+        _modelosPermissao = modelosPermissao;
         _http  = http;
         _opts  = opts;
-        _modelo = config["Ia:Modelo"] ?? "claude-haiku-4-5-20251001";
+        _modeloPadrao = config["Ia:Modelo"] ?? "claude-haiku-4-5-20251001";
     }
 
     public async IAsyncEnumerable<string> SugerirSecaoProntuarioAsync(
@@ -58,19 +66,41 @@ public class RateLimitedIaService : IIaService
     {
         var (usuarioId, estabelecimentoId) = ResolverContexto();
 
-        // TODO Fase 3: substituir por validação de permissão fina ModeloPermissao.AssistenteClinico.
-        // Trava mínima: só pode chamar IA quem tem vínculo ativo no estabelecimento OU é o dono.
-        // Reusa a regra unificada do IVinculoRepository (mesma usada nos handlers de agendamento)
-        // — fonte da verdade única para "este usuário pode atuar neste estabelecimento".
+        // 0a) Pré-check de tenancy: só pode chamar IA quem pode atuar neste estabelecimento
+        // (vínculo não-inativo OU é o dono). Reusa a regra unificada do IVinculoRepository —
+        // mesma usada nos handlers de agendamento — para que toda barreira de acesso parta
+        // da mesma fonte da verdade.
         var podeAtuar = await _vinculos.PodeAtuarComoProfissional(usuarioId, estabelecimentoId);
         if (!podeAtuar)
             throw new BusinessException("Você não tem permissão para usar o assistente de IA neste estabelecimento.");
 
-        // 1) Rate limit
+        // 0b) Permissão fina (item 3.4): além de poder atuar, o modelo de permissão do vínculo
+        // precisa conceder explicitamente o assistente clínico de IA. Dono passa por padrão
+        // (a query trata isso). Mensagem genérica — não revela o modelo nem expõe se é o
+        // assistente que está bloqueado vs. outra trava (defesa em profundidade contra enumeration).
+        var temPermissaoIa = await _modelosPermissao.UsuarioTemPermissaoExtra(
+            usuarioId, estabelecimentoId, PermissoesExtras.AssistenteClinicoIa, ct);
+        if (!temPermissaoIa)
+            throw new BusinessException("Você não tem permissão para usar o assistente de IA neste estabelecimento.");
+
+        // Item 2.12: settings por estabelecimento. Falta de linha = defaults globais.
+        var settings = await _settings.ObterPorEstabelecimentoOuNulo(estabelecimentoId, ct);
+        if (settings is { AiEnabled: false })
+            throw new BusinessException("IA desabilitada para este estabelecimento.");
+
+        var limitePorMinuto = settings?.RateLimitPerMinute ?? _opts.Value.LimitePorMinuto;
+        var modeloEfetivo   = settings?.AiModel ?? _modeloPadrao;
+
+        // 1) Rate limit (item 2.14: particionado por estabelecimento)
         var permitido = await _rate.RegistrarTentativaAsync(
-            usuarioId, _opts.Value.LimitePorMinuto, ct);
+            usuarioId, estabelecimentoId, limitePorMinuto, ct);
         if (!permitido)
             throw new BusinessException("Limite de uso da IA atingido. Aguarde 1 minuto.");
+
+        // Item 2.13: ids para audit (capturados antes da sanitização — nunca vão para a IA).
+        var pacienteId   = request.PacienteId;
+        var prontuarioId = request.ProntuarioId;
+        var evolucaoId   = request.EvolucaoId;
 
         // 2) Sanitização PII (LGPD): redige CPF/CNPJ/telefone/email/CEP/RG do conteúdo
         // que vai para a IA. Estratégia string-level sobre o JSON serializado — qualquer
@@ -90,18 +120,23 @@ public class RateLimitedIaService : IIaService
                 estabelecimentoId: estabelecimentoId,
                 promptHash:        promptHash,
                 responseHash:      HashSha256(cached),
-                modelo:            _modelo,
+                modelo:            modeloEfetivo,
                 endpoint:          "sugestao-secao-cache",
                 duracaoMs:         0,
                 sucesso:           true,
-                erroMensagem:      null), ct);
+                erroMensagem:      null,
+                pacienteId:        pacienteId,
+                prontuarioId:      prontuarioId,
+                evolucaoId:        evolucaoId), ct);
 
             yield return cached;
             yield break;
         }
 
         // 4) Chama o inner com o request sanitizado — streaming chunk-a-chunk
-        await foreach (var chunk in StreamComAuditEcache(requestSanitizado, usuarioId, estabelecimentoId, promptHash, ct))
+        await foreach (var chunk in StreamComAuditEcache(
+            requestSanitizado, usuarioId, estabelecimentoId, promptHash, modeloEfetivo,
+            pacienteId, prontuarioId, evolucaoId, ct))
             yield return chunk;
     }
 
@@ -109,10 +144,21 @@ public class RateLimitedIaService : IIaService
     /// Serializa o request, aplica regexes de PII string-level e reidrata. Caso a deserialização
     /// falhe (cenário improvável — JSON gerado por nós), volta a um request mínimo apenas com o
     /// título da seção sanitizado para garantir que o conteúdo cru nunca chegue ao Anthropic.
+    ///
+    /// Os ids de correlação (paciente/prontuário/evolução) são droppados — são metadados de audit,
+    /// não fazem parte do conteúdo que vai para a IA.
     /// </summary>
     private static SugestaoSecaoProntuarioRequest SanitizarRequest(SugestaoSecaoProntuarioRequest request)
     {
-        var json = JsonSerializer.Serialize(request);
+        // Constrói uma cópia sem os ids de correlação antes de serializar. Os ids ficam apenas
+        // no audit log, nunca no prompt enviado à IA.
+        var paraSanitizar = new SugestaoSecaoProntuarioRequest
+        {
+            SecaoAlvoTitulo = request.SecaoAlvoTitulo,
+            SecoesContexto  = request.SecoesContexto
+        };
+
+        var json = JsonSerializer.Serialize(paraSanitizar);
         var sanitizado = PiiSanitizer.Sanitize(json);
 
         try
@@ -136,6 +182,10 @@ public class RateLimitedIaService : IIaService
         Guid usuarioId,
         long estabelecimentoId,
         string promptHash,
+        string modelo,
+        long? pacienteId,
+        long? prontuarioId,
+        long? evolucaoId,
         [EnumeratorCancellation] CancellationToken ct)
     {
         var sb = new StringBuilder();
@@ -181,11 +231,14 @@ public class RateLimitedIaService : IIaService
                     estabelecimentoId: estabelecimentoId,
                     promptHash:        promptHash,
                     responseHash:      erro is null && resposta.Length > 0 ? HashSha256(resposta) : null,
-                    modelo:            _modelo,
+                    modelo:            modelo,
                     endpoint:          "sugestao-secao",
                     duracaoMs:         duracao,
                     sucesso:           erro is null,
-                    erroMensagem:      erro?.Message), CancellationToken.None);
+                    erroMensagem:      erro?.Message,
+                    pacienteId:        pacienteId,
+                    prontuarioId:      prontuarioId,
+                    evolucaoId:        evolucaoId), CancellationToken.None);
             }
             catch
             {

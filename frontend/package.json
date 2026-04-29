@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@internationalized/date": "^3.12.1",
+        "@microsoft/signalr": "^8.0.7",
         "@vueuse/core": "^14.2.1",
         "axios": "^1.6.0",
         "class-variance-authority": "^0.7.1",

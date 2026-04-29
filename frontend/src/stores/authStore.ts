@@ -1,8 +1,10 @@
 import { defineStore } from "pinia"
 import { ref, computed } from "vue"
 import httpClient from "@/services/httpClient"
+import realtimeService from "@/services/realtimeService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
+import { useNotificacoesStore } from "@/stores/notificacoesStore"
 
 /**
  * Auth store — BFF pattern. Tokens ficam em cookies HttpOnly geridos pelo backend.
@@ -27,7 +29,12 @@ export const useAuthStore = defineStore("auth", () => {
         () => !!usuario.value && !usuario.value.onboardingCompleto,
     )
 
-    /** Reidrata a sessão via GET /auth/me — chamado no bootstrap antes de montar a app. */
+    /**
+     * Reidrata a sessão via GET /auth/me — chamado no bootstrap antes de montar a app.
+     * Após confirmar sessão válida, abre conexão realtime (SignalR) e registra handler de
+     * notificações no store. A conexão é fire-and-forget: se falhar, a app continua
+     * funcionando (sem realtime — usuário verá notificações apenas em refresh).
+     */
     async function init() {
         const noAutoRefresh = { _noAutoRefresh: true } as any
 
@@ -35,13 +42,12 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
             usuario.value = data.usuario
+            ativarRealtime()
             return
         } catch (err: any) {
             if (err?.response?.status !== 401) {
                 // Erro de rede ou servidor — não tenta refresh
-                usuario.value = null
-                useTenantStore().limpar()
-                useProfissionalStore().limpar()
+                await limparSessao()
                 return
             }
         }
@@ -51,11 +57,27 @@ export const useAuthStore = defineStore("auth", () => {
             await httpClient.post("/auth/refresh", {}, noAutoRefresh)
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
             usuario.value = data.usuario
+            ativarRealtime()
         } catch {
-            usuario.value = null
-            useTenantStore().limpar()
-            useProfissionalStore().limpar()
+            await limparSessao()
         }
+    }
+
+    /**
+     * Sobe a conexão SignalR e bind do store de notificações. Fire-and-forget — não trava
+     * o login se o hub estiver offline.
+     */
+    function ativarRealtime() {
+        useNotificacoesStore().bindRealtime()
+        void realtimeService.start()
+    }
+
+    async function limparSessao() {
+        usuario.value = null
+        useTenantStore().limpar()
+        useProfissionalStore().limpar()
+        useNotificacoesStore().limpar()
+        await realtimeService.stop()
     }
 
     async function login(email: string, password: string) {
@@ -63,6 +85,7 @@ export const useAuthStore = defineStore("auth", () => {
         await recarregarMe()
         // Recarrega perfil profissional para o avatar do sidebar refletir o novo usuário.
         await useProfissionalStore().init()
+        ativarRealtime()
         return data
     }
 
@@ -84,9 +107,7 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             await httpClient.post("/auth/logout")
         } finally {
-            usuario.value = null
-            useTenantStore().limpar()
-            useProfissionalStore().limpar()
+            await limparSessao()
         }
     }
 

@@ -109,6 +109,36 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
 
+        // Assinatura
+        {
+            path: "/minha-assinatura",
+            name: "MinhaAssinatura",
+            component: () => import("@/views/assinatura/MinhaAssinaturaView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/planos",
+            name: "Planos",
+            component: () => import("@/views/assinatura/PlanosView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+
+        // Configurações IA (apenas Dono)
+        {
+            path: "/configuracoes/ia",
+            name: "IaSettings",
+            component: () => import("@/views/configuracoes/MinhaIaSettingsView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+
+        // Notificações full-page
+        {
+            path: "/notificacoes",
+            name: "Notificacoes",
+            component: () => import("@/views/notificacoes/NotificacoesView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+
         // Relatórios
         {
             path: "/relatorios",
@@ -124,12 +154,38 @@ const router = createRouter({
             component: () => import("@/views/financeiro/FinanceiroView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
+        {
+            path: "/financeiro/categorias",
+            name: "CategoriasFinanceiras",
+            component: () => import("@/views/financeiro/CategoriasFinanceirasView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/financeiro/formas-pagamento",
+            name: "FormasPagamento",
+            component: () => import("@/views/financeiro/FormasPagamentoView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
 
         // Orçamentos
         {
             path: "/orcamentos",
             name: "Orcamentos",
             component: () => import("@/views/orcamentos/OrcamentosView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/orcamentos/:id(\\d+)/completo",
+            name: "OrcamentoCompleto",
+            component: () => import("@/views/orcamentos/OrcamentoCompletoView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+
+        // Cirurgias
+        {
+            path: "/pacientes/:pacienteId(\\d+)/cirurgias/:id(\\d+)",
+            name: "CirurgiaDetalhe",
+            component: () => import("@/views/cirurgias/CirurgiaView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
 

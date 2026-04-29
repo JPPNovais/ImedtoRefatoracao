@@ -1,0 +1,280 @@
+-- Seed catálogo de Profissões e Especialidades brasileiras.
+-- Gerado a partir de Application/Catalogo/SeedsCatalogo.cs (Wave 1 / Item 3.6).
+-- Idempotente: ON CONFLICT DO NOTHING — seguro para re-executar.
+-- NÃO contém BEGIN/COMMIT (gerenciado pelo Supabase CLI).
+
+-- ============================================================
+-- 1. Profissões
+-- ============================================================
+INSERT INTO public.profissoes (nome, conselho_sigla, ativo) VALUES
+    ('Médico',                        'CRM',    true),
+    ('Dentista',                      'CRO',    true),
+    ('Fisioterapeuta',                'CREFITO', true),
+    ('Psicólogo',                     'CRP',    true),
+    ('Nutricionista',                 'CRN',    true),
+    ('Fonoaudiólogo',                 'CRFa',   true),
+    ('Enfermeiro',                    'COREN',  true),
+    ('Terapeuta Ocupacional',         'CREFITO', true),
+    ('Farmacêutico',                  'CRF',    true),
+    ('Biomédico',                     'CFBM',   true),
+    ('Veterinário',                   'CFMV',   true),
+    ('Técnico de Enfermagem',         '',       true),
+    ('Educador Físico',               'CONFEF', true),
+    ('Assistente Social',             'CRESS',  true),
+    ('Médico Veterinário Residente',  '',       true),
+    ('Acupunturista',                 '',       true),
+    ('Quiropraxista',                 '',       true),
+    ('Médico Radiologista',           'CRM',    true),
+    ('Cirurgião-Dentista Especialista', 'CRO',  true),
+    ('Podólogo',                      '',       true),
+    ('Optometrista',                  '',       true),
+    ('Psicopedagogo',                 '',       true),
+    ('Gerontólogo',                   '',       true),
+    ('Homeopata',                     '',       true),
+    ('Osteopata',                     '',       true),
+    ('Massoterapeuta',                '',       true),
+    ('Pilates',                       '',       true),
+    ('Neuropsicopedagogo',            '',       true),
+    ('Médico do Esporte',             'CRM',    true),
+    ('Médico Nutrólogo',              'CRM',    true),
+    ('Terapeuta ABA',                 '',       true)
+ON CONFLICT (nome) DO NOTHING;
+
+-- ============================================================
+-- 2. Especialidades (JOIN pelo nome da profissão para obter ID)
+-- ============================================================
+WITH prof AS (SELECT id, nome FROM public.profissoes)
+INSERT INTO public.especialidades (profissao_id, nome, ativo)
+SELECT prof.id, e.nome, true
+FROM prof
+CROSS JOIN (VALUES
+    -- Médico (35)
+    ('Médico', 'Clínico Geral'),
+    ('Médico', 'Cardiologia'),
+    ('Médico', 'Pediatria'),
+    ('Médico', 'Ginecologia e Obstetrícia'),
+    ('Médico', 'Ortopedia e Traumatologia'),
+    ('Médico', 'Dermatologia'),
+    ('Médico', 'Endocrinologia'),
+    ('Médico', 'Psiquiatria'),
+    ('Médico', 'Gastroenterologia'),
+    ('Médico', 'Oftalmologia'),
+    ('Médico', 'Geriatria'),
+    ('Médico', 'Neurologia'),
+    ('Médico', 'Anestesiologia'),
+    ('Médico', 'Cirurgia Geral'),
+    ('Médico', 'Cirurgia Plástica'),
+    ('Médico', 'Infectologia'),
+    ('Médico', 'Nefrologia'),
+    ('Médico', 'Pneumologia'),
+    ('Médico', 'Reumatologia'),
+    ('Médico', 'Urologia'),
+    ('Médico', 'Hematologia'),
+    ('Médico', 'Oncologia'),
+    ('Médico', 'Radiologia'),
+    ('Médico', 'Medicina do Trabalho'),
+    ('Médico', 'Medicina Esportiva'),
+    ('Médico', 'Medicina de Família e Comunidade'),
+    ('Médico', 'Alergia e Imunologia'),
+    ('Médico', 'Medicina Intensiva'),
+    ('Médico', 'Otorrinolaringologia'),
+    ('Médico', 'Nutrologia'),
+    ('Médico', 'Neonatologia'),
+    ('Médico', 'Neurocirurgia'),
+    ('Médico', 'Medicina Paliativa'),
+    ('Médico', 'Patologia'),
+    ('Médico', 'Mastologia'),
+    -- Dentista (18)
+    ('Dentista', 'Odontologia Geral'),
+    ('Dentista', 'Odontopediatria'),
+    ('Dentista', 'Ortodontia'),
+    ('Dentista', 'Periodontia'),
+    ('Dentista', 'Endodontia'),
+    ('Dentista', 'Implantodontia'),
+    ('Dentista', 'Prótese Dentária'),
+    ('Dentista', 'Cirurgia e Traumatologia Bucomaxilofacial'),
+    ('Dentista', 'Dentística'),
+    ('Dentista', 'Odontologia Estética'),
+    ('Dentista', 'Odontogeriatria'),
+    ('Dentista', 'Patologia Oral'),
+    ('Dentista', 'Radiologia Odontológica'),
+    ('Dentista', 'Estomatologia'),
+    ('Dentista', 'Harmonização Orofacial'),
+    ('Dentista', 'Odontologia do Trabalho'),
+    ('Dentista', 'Odontologia Legal'),
+    ('Dentista', 'Saúde Coletiva (Odontologia)'),
+    -- Fisioterapeuta (13)
+    ('Fisioterapeuta', 'Fisioterapia Geral'),
+    ('Fisioterapeuta', 'Fisioterapia Traumato-Ortopédica'),
+    ('Fisioterapeuta', 'Fisioterapia Neurofuncional'),
+    ('Fisioterapeuta', 'Fisioterapia Cardiorrespiratória'),
+    ('Fisioterapeuta', 'Fisioterapia Dermatofuncional'),
+    ('Fisioterapeuta', 'Fisioterapia Uroginecológica'),
+    ('Fisioterapeuta', 'Fisioterapia em Terapia Intensiva'),
+    ('Fisioterapeuta', 'Fisioterapia Esportiva'),
+    ('Fisioterapeuta', 'Fisioterapia do Trabalho'),
+    ('Fisioterapeuta', 'Fisioterapia Aquática'),
+    ('Fisioterapeuta', 'Fisioterapia Oncológica'),
+    ('Fisioterapeuta', 'Fisioterapia em Gerontologia'),
+    ('Fisioterapeuta', 'Fisioterapia Pediátrica'),
+    -- Psicólogo (12)
+    ('Psicólogo', 'Psicologia Clínica'),
+    ('Psicólogo', 'Psicologia Organizacional e do Trabalho'),
+    ('Psicólogo', 'Psicologia Escolar e Educacional'),
+    ('Psicólogo', 'Psicologia Jurídica'),
+    ('Psicólogo', 'Psicologia Social'),
+    ('Psicólogo', 'Psicologia Hospitalar'),
+    ('Psicólogo', 'Neuropsicologia'),
+    ('Psicólogo', 'Psicologia do Esporte'),
+    ('Psicólogo', 'Terapia Cognitivo-Comportamental'),
+    ('Psicólogo', 'Psicanálise'),
+    ('Psicólogo', 'Terapia Familiar'),
+    ('Psicólogo', 'Psicologia Infantil'),
+    -- Nutricionista (9)
+    ('Nutricionista', 'Nutrição Clínica'),
+    ('Nutricionista', 'Nutrição Esportiva'),
+    ('Nutricionista', 'Nutrição Materno-Infantil'),
+    ('Nutricionista', 'Nutrição Oncológica'),
+    ('Nutricionista', 'Nutrição em Cardiologia'),
+    ('Nutricionista', 'Nutrição em Nefrologia'),
+    ('Nutricionista', 'Nutrição Comportamental'),
+    ('Nutricionista', 'Nutrição Funcional'),
+    ('Nutricionista', 'Fitoterapia Aplicada à Nutrição'),
+    -- Fonoaudiólogo (9)
+    ('Fonoaudiólogo', 'Fonoaudiologia Geral'),
+    ('Fonoaudiólogo', 'Audiologia'),
+    ('Fonoaudiólogo', 'Linguagem'),
+    ('Fonoaudiólogo', 'Motricidade Orofacial'),
+    ('Fonoaudiólogo', 'Voz'),
+    ('Fonoaudiólogo', 'Disfagia'),
+    ('Fonoaudiólogo', 'Fonoaudiologia Educacional'),
+    ('Fonoaudiólogo', 'Fonoaudiologia Neurofuncional'),
+    ('Fonoaudiólogo', 'Fonoaudiologia Hospitalar'),
+    -- Enfermeiro (13)
+    ('Enfermeiro', 'Enfermagem Geral'),
+    ('Enfermeiro', 'Enfermagem Obstétrica'),
+    ('Enfermeiro', 'Enfermagem Pediátrica'),
+    ('Enfermeiro', 'Enfermagem em Centro Cirúrgico'),
+    ('Enfermeiro', 'Enfermagem em Terapia Intensiva'),
+    ('Enfermeiro', 'Enfermagem do Trabalho'),
+    ('Enfermeiro', 'Enfermagem em Cardiologia'),
+    ('Enfermeiro', 'Enfermagem em Oncologia'),
+    ('Enfermeiro', 'Enfermagem em Nefrologia'),
+    ('Enfermeiro', 'Enfermagem em Saúde Mental'),
+    ('Enfermeiro', 'Enfermagem em Emergência'),
+    ('Enfermeiro', 'Enfermagem Domiciliar'),
+    ('Enfermeiro', 'Enfermagem Estética'),
+    -- Terapeuta Ocupacional (7)
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional Geral'),
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional Pediátrica'),
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional em Saúde Mental'),
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional Neurológica'),
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional em Gerontologia'),
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional em Reabilitação Física'),
+    ('Terapeuta Ocupacional', 'Terapia Ocupacional Social'),
+    -- Farmacêutico (7)
+    ('Farmacêutico', 'Farmácia Clínica'),
+    ('Farmacêutico', 'Farmácia Hospitalar'),
+    ('Farmacêutico', 'Farmácia Industrial'),
+    ('Farmacêutico', 'Farmácia de Manipulação'),
+    ('Farmacêutico', 'Farmacologia Clínica'),
+    ('Farmacêutico', 'Toxicologia'),
+    ('Farmacêutico', 'Análises Clínicas'),
+    -- Biomédico (7)
+    ('Biomédico', 'Biomedicina Clínica'),
+    ('Biomédico', 'Hematologia'),
+    ('Biomédico', 'Microbiologia'),
+    ('Biomédico', 'Parasitologia'),
+    ('Biomédico', 'Biologia Molecular'),
+    ('Biomédico', 'Citologia'),
+    ('Biomédico', 'Imunologia'),
+    -- Veterinário (8)
+    ('Veterinário', 'Clínica de Pequenos Animais'),
+    ('Veterinário', 'Clínica de Grandes Animais'),
+    ('Veterinário', 'Cirurgia Veterinária'),
+    ('Veterinário', 'Dermatologia Veterinária'),
+    ('Veterinário', 'Oftalmologia Veterinária'),
+    ('Veterinário', 'Oncologia Veterinária'),
+    ('Veterinário', 'Cardiologia Veterinária'),
+    ('Veterinário', 'Medicina Preventiva Veterinária'),
+    -- Técnico de Enfermagem (2)
+    ('Técnico de Enfermagem', 'Técnico em Enfermagem Geral'),
+    ('Técnico de Enfermagem', 'Técnico em Saúde Bucal'),
+    -- Educador Físico (6)
+    ('Educador Físico', 'Personal Trainer'),
+    ('Educador Físico', 'Musculação'),
+    ('Educador Físico', 'Treinamento Funcional'),
+    ('Educador Físico', 'Pilates'),
+    ('Educador Físico', 'Natação'),
+    ('Educador Físico', 'Corrida e Atletismo'),
+    -- Assistente Social (3)
+    ('Assistente Social', 'Assistência Social em Saúde'),
+    ('Assistente Social', 'Assistência Social Hospitalar'),
+    ('Assistente Social', 'Assistência Social Oncológica'),
+    -- Médico Veterinário Residente (2)
+    ('Médico Veterinário Residente', 'Residência em Pequenos Animais'),
+    ('Médico Veterinário Residente', 'Residência em Grandes Animais'),
+    -- Acupunturista (3)
+    ('Acupunturista', 'Acupuntura Tradicional Chinesa'),
+    ('Acupunturista', 'Auriculoterapia'),
+    ('Acupunturista', 'Moxibustão'),
+    -- Quiropraxista (3)
+    ('Quiropraxista', 'Quiropraxia Geral'),
+    ('Quiropraxista', 'Quiropraxia Esportiva'),
+    ('Quiropraxista', 'Quiropraxia Pediátrica'),
+    -- Médico Radiologista (5)
+    ('Médico Radiologista', 'Radiologia Geral'),
+    ('Médico Radiologista', 'Tomografia Computadorizada'),
+    ('Médico Radiologista', 'Ressonância Magnética'),
+    ('Médico Radiologista', 'Ultrassonografia'),
+    ('Médico Radiologista', 'Mamografia'),
+    -- Cirurgião-Dentista Especialista (2)
+    ('Cirurgião-Dentista Especialista', 'Disfunção Temporomandibular'),
+    ('Cirurgião-Dentista Especialista', 'Odontologia do Sono'),
+    -- Podólogo (3)
+    ('Podólogo', 'Podologia Geral'),
+    ('Podólogo', 'Podologia Esportiva'),
+    ('Podólogo', 'Podologia em Diabetologia'),
+    -- Optometrista (3)
+    ('Optometrista', 'Optometria Clínica'),
+    ('Optometrista', 'Visão Subnormal'),
+    ('Optometrista', 'Lentes de Contato'),
+    -- Psicopedagogo (2)
+    ('Psicopedagogo', 'Psicopedagogia Clínica'),
+    ('Psicopedagogo', 'Psicopedagogia Institucional'),
+    -- Gerontólogo (2)
+    ('Gerontólogo', 'Gerontologia Clínica'),
+    ('Gerontólogo', 'Gerontologia Social'),
+    -- Homeopata (2)
+    ('Homeopata', 'Homeopatia Clínica'),
+    ('Homeopata', 'Homeopatia Veterinária'),
+    -- Osteopata (3)
+    ('Osteopata', 'Osteopatia Geral'),
+    ('Osteopata', 'Osteopatia Visceral'),
+    ('Osteopata', 'Osteopatia Craniosacral'),
+    -- Massoterapeuta (3)
+    ('Massoterapeuta', 'Massoterapia Relaxante'),
+    ('Massoterapeuta', 'Massoterapia Terapêutica'),
+    ('Massoterapeuta', 'Drenagem Linfática'),
+    -- Pilates (4)
+    ('Pilates', 'Pilates Solo'),
+    ('Pilates', 'Pilates com Aparelhos'),
+    ('Pilates', 'Pilates para Gestantes'),
+    ('Pilates', 'Pilates Clínico'),
+    -- Neuropsicopedagogo (2)
+    ('Neuropsicopedagogo', 'Neuropsicopedagogia Clínica'),
+    ('Neuropsicopedagogo', 'Neuropsicopedagogia Institucional'),
+    -- Médico do Esporte (3)
+    ('Médico do Esporte', 'Medicina Esportiva Clínica'),
+    ('Médico do Esporte', 'Fisiologia do Exercício'),
+    ('Médico do Esporte', 'Prevenção de Lesões'),
+    -- Médico Nutrólogo (3)
+    ('Médico Nutrólogo', 'Nutrologia Clínica'),
+    ('Médico Nutrólogo', 'Nutrologia do Esporte'),
+    ('Médico Nutrólogo', 'Nutrologia Pediátrica'),
+    -- Terapeuta ABA (2)
+    ('Terapeuta ABA', 'Análise do Comportamento Aplicada'),
+    ('Terapeuta ABA', 'Terapia ABA para TEA')
+) AS e(profissao_nome, nome)
+WHERE prof.nome = e.profissao_nome
+ON CONFLICT (profissao_id, nome) DO NOTHING;

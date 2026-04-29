@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Vinculos.Commands;
 using Imedto.Backend.Domain.Auth;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.API.Controllers;
@@ -23,7 +25,7 @@ public class VinculoController : ControllerBase
         _env = env;
     }
 
-    /// <summary>Dono convida um profissional (por e-mail) para seu estabelecimento.</summary>
+    /// <summary>Dono ou usuário com permissão convida um profissional (por e-mail) para o estabelecimento.</summary>
     /// <remarks>
     /// Se o e-mail ainda não tem conta no Supabase, ela é criada automaticamente e um
     /// magic link de invite é gerado. Em produção, o link é enviado por e-mail via edge
@@ -32,6 +34,7 @@ public class VinculoController : ControllerBase
     /// <response code="201">Convite criado. Em dev inclui <c>actionLink</c> no body.</response>
     /// <response code="422">Dados inválidos ou profissional já vinculado.</response>
     [HttpPost("/api/estabelecimento/{estabelecimentoId:long}/profissionais/convidar")]
+    [RequiresPermissaoExtra(PermissoesExtras.GerirProfissionais, "estabelecimentoId")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ConvidarProfissional(long estabelecimentoId, [FromBody] ConvidarProfissionalRequest request)

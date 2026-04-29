@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Ia;
 using System.Text.Json;
 
@@ -8,6 +10,7 @@ namespace Imedto.Backend.API.Controllers;
 [ApiController]
 [Route("api/ia")]
 [Authorize]
+[FeatureGate(Features.Ia)]
 public class IaController : ControllerBase
 {
     private readonly IIaService _ia;

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Imedto.Backend.Domain.Ia;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.Infrastructure.Ia;
 using Imedto.Backend.SharedKernel.Domain;
@@ -22,7 +23,9 @@ public class RateLimitedIaServiceTests
     private Mock<IAiAuditRepository> _audit;
     private Mock<IAiCacheRepository> _cache;
     private Mock<IAiRateLimitRepository> _rate;
+    private Mock<IEstabelecimentoIaSettingsRepository> _settings;
     private Mock<IVinculoRepository> _vinculos;
+    private Mock<IModeloPermissaoRepository> _modelosPermissao;
     private Mock<IHttpContextAccessor> _http;
     private IOptions<IaOptions> _opts;
     private IConfiguration _config;
@@ -37,8 +40,15 @@ public class RateLimitedIaServiceTests
         _audit = new Mock<IAiAuditRepository>();
         _cache = new Mock<IAiCacheRepository>();
         _rate = new Mock<IAiRateLimitRepository>();
+        _settings = new Mock<IEstabelecimentoIaSettingsRepository>();
         _vinculos = new Mock<IVinculoRepository>();
+        _modelosPermissao = new Mock<IModeloPermissaoRepository>();
         _http = new Mock<IHttpContextAccessor>();
+
+        // Default: tenant não configurou IA settings — decorator usa defaults globais.
+        _settings
+            .Setup(s => s.ObterPorEstabelecimentoOuNulo(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((EstabelecimentoIaSettings)null);
 
         _opts = Options.Create(new IaOptions { LimitePorMinuto = 10, CacheTtlHoras = 24 });
         _config = new ConfigurationBuilder().Build();
@@ -49,6 +59,13 @@ public class RateLimitedIaServiceTests
         // exercitam negação explícita reconfiguram este mock no Arrange.
         _vinculos
             .Setup(v => v.PodeAtuarComoProfissional(It.IsAny<Guid>(), It.IsAny<long>()))
+            .ReturnsAsync(true);
+
+        // Default: modelo do vínculo concede a permissão fina de assistente clínico de IA.
+        // Testes que negam permissão fina reconfiguram esse mock no Arrange.
+        _modelosPermissao
+            .Setup(m => m.UsuarioTemPermissaoExtra(
+                It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         _audit
@@ -88,7 +105,7 @@ public class RateLimitedIaServiceTests
     }
 
     private RateLimitedIaService CriarSut() =>
-        new(_inner.Object, _audit.Object, _cache.Object, _rate.Object, _vinculos.Object, _http.Object, _opts, _config);
+        new(_inner.Object, _audit.Object, _cache.Object, _rate.Object, _settings.Object, _vinculos.Object, _modelosPermissao.Object, _http.Object, _opts, _config);
 
     private static SugestaoSecaoProntuarioRequest CriarRequest(string secao = "Queixa principal") =>
         new() { SecaoAlvoTitulo = secao, SecoesContexto = new Dictionary<string, string>() };
@@ -114,7 +131,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_CacheHit_NaoChamaInner_RetornaConteudoCached()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         const string outputCached = "Sugestão em cache";
@@ -138,7 +155,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_CacheHit_RegistraAuditComEndpointCache()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _cache.Setup(c => c.ObterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("resposta cached");
@@ -158,13 +175,38 @@ public class RateLimitedIaServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // 1.5) Permissão fina (item 3.4): vínculo ativo mas modelo sem `ia_assistente_clinico`
+    [Test]
+    public void SugerirSecaoProntuarioAsync_SemPermissaoFinaIa_LancaBusinessException()
+    {
+        // Arrange — pode atuar mas modelo de permissão NÃO concede assistente de IA.
+        _modelosPermissao
+            .Setup(m => m.UsuarioTemPermissaoExtra(
+                _usuarioId, EstabelecimentoId, PermissoesExtras.AssistenteClinicoIa, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var sut = CriarSut();
+
+        // Act + Assert
+        Assert.ThrowsAsync<BusinessException>(async () =>
+        {
+            await foreach (var _ in sut.SugerirSecaoProntuarioAsync(CriarRequest())) { }
+        });
+
+        // Não deve sequer chegar a registrar tentativa de rate limit (gate é antes).
+        _rate.Verify(r => r.RegistrarTentativaAsync(
+            It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        _inner.Verify(i => i.SugerirSecaoProntuarioAsync(
+            It.IsAny<SugestaoSecaoProntuarioRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     // 2) Rate limit excedido
 
     [Test]
     public void SugerirSecaoProntuarioAsync_RateLimitExcedido_LancaBusinessException()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         var sut = CriarSut();
@@ -180,7 +222,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_RateLimitExcedido_NaoChamaInner()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         var sut = CriarSut();
@@ -203,7 +245,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_Sucesso_EntregaChunksEGravaCacheEAudit()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _cache.Setup(c => c.ObterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string)null);
@@ -243,7 +285,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_ErroNoInner_AuditRegistradoComSucessoFalse()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _cache.Setup(c => c.ObterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string)null);
@@ -272,7 +314,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_ErroNoInner_NaoGravaCachee()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _cache.Setup(c => c.ObterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string)null);
@@ -302,7 +344,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_MesmoRequest_GeraHashIdentico()
     {
         // Arrange — captura os promptHash passados ao cache em duas chamadas diferentes
-        _rate.Setup(r => r.RegistrarTentativaAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var hashesCapturados = new List<string>();
@@ -331,7 +373,7 @@ public class RateLimitedIaServiceTests
     public async Task SugerirSecaoProntuarioAsync_Sucesso_AuditNaoContemPromptCru()
     {
         // Arrange
-        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, 10, It.IsAny<CancellationToken>()))
+        _rate.Setup(r => r.RegistrarTentativaAsync(_usuarioId, EstabelecimentoId, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _cache.Setup(c => c.ObterAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string)null);

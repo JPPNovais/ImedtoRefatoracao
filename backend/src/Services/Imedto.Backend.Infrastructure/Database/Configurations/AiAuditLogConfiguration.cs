@@ -25,6 +25,16 @@ public class AiAuditLogConfiguration : IEntityTypeConfiguration<AiAuditLog>
         builder.Property(a => a.ErroMensagem).HasColumnName("erro_mensagem").HasMaxLength(500);
         builder.Property(a => a.CriadoEm).HasColumnName("criado_em").IsRequired();
 
+        // Item 2.13: FKs nullable. NÃO declarar HasOne/WithMany para não criar navegação
+        // — apenas a coluna SQL. database-architect deve adicionar
+        //   FOREIGN KEY (paciente_id)   REFERENCES pacientes(id)              ON DELETE SET NULL
+        //   FOREIGN KEY (prontuario_id) REFERENCES prontuarios(id)            ON DELETE SET NULL
+        //   FOREIGN KEY (evolucao_id)   REFERENCES prontuario_evolucoes(id)   ON DELETE SET NULL
+        // manualmente na migration SQL idempotente da Wave 5.
+        builder.Property(a => a.PacienteId).HasColumnName("paciente_id");
+        builder.Property(a => a.ProntuarioId).HasColumnName("prontuario_id");
+        builder.Property(a => a.EvolucaoId).HasColumnName("evolucao_id");
+
         builder.HasIndex(a => new { a.UsuarioId, a.CriadoEm })
             .IsDescending(false, true)
             .HasDatabaseName("ix_ai_audit_usuario_data");

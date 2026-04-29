@@ -1,16 +1,23 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Auditoria;
 using Imedto.Backend.Domain.Automacoes;
+using Imedto.Backend.Domain.Catalogo;
+using Imedto.Backend.Domain.Cirurgias;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Ia;
+using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Inventario;
+using Imedto.Backend.Domain.Jobs;
 using Imedto.Backend.Domain.Orcamentos;
 using Imedto.Backend.Domain.ModelosPermissao;
+using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Profissionais;
 using Imedto.Backend.Domain.Prontuarios;
+using Imedto.Backend.Domain.Receitas;
 using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.Domain.Unidades;
 using Imedto.Backend.Domain.Usuarios;
@@ -34,6 +41,7 @@ public class AppDbContext : DbContext
     public DbSet<Profissional> Profissionais => Set<Profissional>();
     public DbSet<ModeloPermissaoEstabelecimento> ModelosPermissao => Set<ModeloPermissaoEstabelecimento>();
     public DbSet<VinculoProfissionalEstabelecimento> Vinculos => Set<VinculoProfissionalEstabelecimento>();
+    public DbSet<SolicitacaoVinculo> SolicitacoesVinculo => Set<SolicitacaoVinculo>();
     public DbSet<Paciente> Pacientes => Set<Paciente>();
     public DbSet<ModeloDeProntuario> ModelosDeProntuario => Set<ModeloDeProntuario>();
     public DbSet<ProntuarioVariavelPool> ProntuarioVariaveisPool => Set<ProntuarioVariavelPool>();
@@ -41,15 +49,43 @@ public class AppDbContext : DbContext
     public DbSet<ProntuarioEvolucao> ProntuarioEvolucoes => Set<ProntuarioEvolucao>();
     public DbSet<ProntuarioAcessoLog> ProntuarioAcessoLogs => Set<ProntuarioAcessoLog>();
     public DbSet<ProntuarioAnexo> ProntuarioAnexos => Set<ProntuarioAnexo>();
+    public DbSet<ExameFisico> ExamesFisicos => Set<ExameFisico>();
+    public DbSet<RegiaoExameFisico> RegioesExameFisico => Set<RegiaoExameFisico>();
+    public DbSet<Receita> Receitas => Set<Receita>();
+    public DbSet<ItemReceita> ReceitaItens => Set<ItemReceita>();
+    public DbSet<ConfiguracaoReceitaEstabelecimento> ConfiguracoesReceita => Set<ConfiguracaoReceitaEstabelecimento>();
+    public DbSet<MedicamentoFavorito> MedicamentosFavoritos => Set<MedicamentoFavorito>();
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();
     public DbSet<ItemInventario> ItensInventario => Set<ItemInventario>();
     public DbSet<MovimentacaoEstoque> MovimentacoesEstoque => Set<MovimentacaoEstoque>();
     public DbSet<Orcamento> Orcamentos => Set<Orcamento>();
     public DbSet<ItemOrcamento> ItensOrcamento => Set<ItemOrcamento>();
     public DbSet<Lancamento> Lancamentos => Set<Lancamento>();
+    public DbSet<CategoriaFinanceira> CategoriasFinanceiras => Set<CategoriaFinanceira>();
+    public DbSet<FormaPagamento> FormasPagamento => Set<FormaPagamento>();
     public DbSet<ConfiguracaoAutomacao> ConfiguracoesAutomacao => Set<ConfiguracaoAutomacao>();
+    public DbSet<RegraAutomacao> RegrasAutomacao => Set<RegraAutomacao>();
+    public DbSet<EventoAutomacao> EventosAutomacao => Set<EventoAutomacao>();
     public DbSet<AuditDeleteAttempt> AuditDeleteAttempts => Set<AuditDeleteAttempt>();
     public DbSet<AiAuditLog> AiAuditLogs => Set<AiAuditLog>();
+    public DbSet<EstabelecimentoIaSettings> EstabelecimentosIaSettings => Set<EstabelecimentoIaSettings>();
+    public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
+    public DbSet<Profissao> Profissoes => Set<Profissao>();
+    public DbSet<Especialidade> Especialidades => Set<Especialidade>();
+    public DbSet<RegiaoAnatomicaCatalogo> RegioesAnatomicasCatalogo => Set<RegiaoAnatomicaCatalogo>();
+    public DbSet<JobAgendado> JobsAgendados => Set<JobAgendado>();
+    public DbSet<Notificacao> Notificacoes => Set<Notificacao>();
+    public DbSet<Plano> Planos => Set<Plano>();
+    public DbSet<Assinatura> Assinaturas => Set<Assinatura>();
+    public DbSet<ProcedimentoCirurgico> ProcedimentosCirurgicos => Set<ProcedimentoCirurgico>();
+    public DbSet<MembroEquipeCirurgica> MembrosEquipeCirurgica => Set<MembroEquipeCirurgica>();
+    public DbSet<OrcamentoEquipe> OrcamentoEquipe => Set<OrcamentoEquipe>();
+    public DbSet<OrcamentoImplante> OrcamentoImplantes => Set<OrcamentoImplante>();
+    public DbSet<OrcamentoFormaPagamento> OrcamentoFormasPagamento => Set<OrcamentoFormaPagamento>();
+    // Item 6 — cirurgias múltiplas + internação + anestesia.
+    public DbSet<OrcamentoCirurgia> OrcamentoCirurgias => Set<OrcamentoCirurgia>();
+    public DbSet<OrcamentoInternacao> OrcamentoInternacoes => Set<OrcamentoInternacao>();
+    public DbSet<OrcamentoAnestesia> OrcamentoAnestesias => Set<OrcamentoAnestesia>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

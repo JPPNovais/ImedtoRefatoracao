@@ -48,6 +48,41 @@ public class VinculoProfissionalEstabelecimento : Entity
         };
     }
 
+    /// <summary>
+    /// Cria um vínculo já <see cref="VinculoStatus.Ativo"/> — usado pelo fluxo de
+    /// solicitação inversa, em que a aprovação do dono + a solicitação prévia do
+    /// profissional já configuram consentimento bilateral (não há "aceitar" intermediário).
+    /// </summary>
+    public static VinculoProfissionalEstabelecimento CriarAtivoPorSolicitacao(
+        Guid profissionalUsuarioId,
+        long estabelecimentoId,
+        long modeloPermissaoId,
+        Guid aprovadoPorUsuarioId)
+    {
+        if (profissionalUsuarioId == Guid.Empty)
+            throw new BusinessException("Profissional é obrigatório.");
+        if (estabelecimentoId <= 0)
+            throw new BusinessException("Estabelecimento é obrigatório.");
+        if (modeloPermissaoId <= 0)
+            throw new BusinessException("Modelo de permissão é obrigatório.");
+        if (aprovadoPorUsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário que aprova é obrigatório.");
+        if (profissionalUsuarioId == aprovadoPorUsuarioId)
+            throw new BusinessException("Você não pode aprovar sua própria solicitação.");
+
+        var agora = DateTime.UtcNow;
+        return new VinculoProfissionalEstabelecimento
+        {
+            ProfissionalUsuarioId = profissionalUsuarioId,
+            EstabelecimentoId = estabelecimentoId,
+            ModeloPermissaoId = modeloPermissaoId,
+            ConvidadoPorUsuarioId = aprovadoPorUsuarioId,
+            Status = VinculoStatus.Ativo,
+            ConvidadoEm = agora,
+            AceitoEm = agora
+        };
+    }
+
     /// <summary>Anexa <see cref="ProfissionalConvidadoEvent"/> — chamar após persistir o aggregate.</summary>
     public virtual void MarcarComoConvidado()
     {

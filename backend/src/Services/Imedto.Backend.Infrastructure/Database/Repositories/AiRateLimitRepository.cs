@@ -5,8 +5,9 @@ using Imedto.Backend.Domain.Ia;
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
 
 /// <summary>
-/// Rate limit de chamadas IA por usuário, janela fixa de 1 minuto. Idempotente
-/// via upsert atômico no índice único (usuario_id, periodo_inicio).
+/// Rate limit de chamadas IA por (usuário, estabelecimento), janela fixa de 1 minuto.
+/// Idempotente via upsert atômico no índice único
+/// (usuario_id, estabelecimento_id, periodo_inicio) — item 2.14.
 /// </summary>
 public class AiRateLimitRepository : IAiRateLimitRepository
 {
@@ -19,6 +20,7 @@ public class AiRateLimitRepository : IAiRateLimitRepository
 
     public async Task<bool> RegistrarTentativaAsync(
         Guid usuarioId,
+        long estabelecimentoId,
         int limitePorMinuto,
         CancellationToken ct = default)
     {
@@ -33,9 +35,9 @@ public class AiRateLimitRepository : IAiRateLimitRepository
         // Upsert atômico: insere com contagem 1 ou incrementa se já existe.
         // RETURNING devolve a contagem efetiva — comparamos com o limite.
         const string sql = """
-            INSERT INTO public.ai_rate_limits (usuario_id, periodo_inicio, contagem, ultimo_acesso)
-            VALUES (@UsuarioId, @PeriodoInicio, 1, NOW())
-            ON CONFLICT (usuario_id, periodo_inicio) DO UPDATE SET
+            INSERT INTO public.ai_rate_limits (usuario_id, estabelecimento_id, periodo_inicio, contagem, ultimo_acesso)
+            VALUES (@UsuarioId, @EstabelecimentoId, @PeriodoInicio, 1, NOW())
+            ON CONFLICT (usuario_id, estabelecimento_id, periodo_inicio) DO UPDATE SET
                 contagem      = public.ai_rate_limits.contagem + 1,
                 ultimo_acesso = NOW()
             RETURNING contagem
@@ -44,7 +46,12 @@ public class AiRateLimitRepository : IAiRateLimitRepository
         await using var conn = new NpgsqlConnection(_connectionString);
         var contagem = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             sql,
-            new { UsuarioId = usuarioId, PeriodoInicio = periodoInicio },
+            new
+            {
+                UsuarioId         = usuarioId,
+                EstabelecimentoId = estabelecimentoId,
+                PeriodoInicio     = periodoInicio
+            },
             cancellationToken: ct));
 
         return contagem <= limitePorMinuto;

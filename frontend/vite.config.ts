@@ -20,6 +20,13 @@ export default defineConfig({
                 target: "http://localhost:5050",
                 changeOrigin: true,
             },
+            // SignalR (item 2.4): negotiate HTTP + WebSocket upgrade.
+            // ws: true habilita o tunelamento do upgrade HTTP→WS pelo dev server.
+            "/hubs": {
+                target: "http://localhost:5050",
+                changeOrigin: true,
+                ws: true,
+            },
         },
     },
     optimizeDeps: {

@@ -27,6 +27,7 @@ public class ProfissionalQueryRepository
                     atualizado_em   AS AtualizadoEm
             FROM    public.profissionais
             WHERE   usuario_id = @UsuarioId
+              AND   deletado_em IS NULL
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);

@@ -59,6 +59,7 @@ public static class InfrastructureExtensions
         // Modelos de permissão + Vínculos
         services.AddScoped<Domain.ModelosPermissao.IModeloPermissaoRepository, Database.Repositories.ModeloPermissaoRepository>();
         services.AddScoped<Domain.Vinculos.IVinculoRepository, Database.Repositories.VinculoRepository>();
+        services.AddScoped<Domain.Vinculos.ISolicitacaoVinculoRepository, Database.Repositories.SolicitacaoVinculoRepository>();
 
         // Pacientes
         services.AddScoped<Domain.Pacientes.IPacienteRepository, Database.Repositories.PacienteRepository>();
@@ -72,6 +73,10 @@ public static class InfrastructureExtensions
         services.AddScoped<Domain.Prontuarios.IProntuarioAnexoRepository, Database.Repositories.ProntuarioAnexoRepository>();
         services.AddScoped<Domain.Prontuarios.IAnexoStorageService, Infrastructure.Storage.SupabaseStorageService>();
 
+        // Exame físico (item 3.2) — escrita via EF, leitura via Dapper.
+        services.AddScoped<Domain.Prontuarios.IExameFisicoRepository, Database.Repositories.ExameFisicoRepository>();
+        services.AddScoped<Database.Repositories.ExameFisicoQueryRepository>();
+
         // Storage de fotos públicas (avatar de profissional, logo de estabelecimento)
         services.AddScoped<Domain.Common.IFotoStorageService, Infrastructure.Storage.SupabaseFotoStorageService>();
 
@@ -84,6 +89,9 @@ public static class InfrastructureExtensions
 
         // Orçamentos
         services.AddScoped<Domain.Orcamentos.IOrcamentoRepository, Database.Repositories.OrcamentoRepository>();
+
+        // Cirurgias (item 3.3.A)
+        services.AddScoped<Domain.Cirurgias.IProcedimentoCirurgicoRepository, Database.Repositories.ProcedimentoCirurgicoRepository>();
 
         // Financeiro
         services.AddScoped<Domain.Financeiro.ILancamentoRepository, Database.Repositories.LancamentoRepository>();
@@ -106,6 +114,7 @@ public static class InfrastructureExtensions
     private static void RegistrarAuth(IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<SupabaseOptions>(configuration.GetSection(SupabaseOptions.Section));
+        services.Configure<Storage.StorageOptions>(configuration.GetSection(Storage.StorageOptions.Section));
 
         services.AddHttpClient("supabase", (sp, client) =>
         {

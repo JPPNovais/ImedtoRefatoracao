@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.API.Controllers;
@@ -61,11 +63,12 @@ public class EstabelecimentoController : ControllerBase
         return Created(string.Empty, null);
     }
 
-    /// <summary>Atualiza dados do estabelecimento. Apenas o dono pode.</summary>
+    /// <summary>Atualiza dados do estabelecimento. Dono ou usuário com permissão de configuração.</summary>
     /// <response code="204">Atualizado.</response>
     /// <response code="404">Estabelecimento não encontrado.</response>
-    /// <response code="422">Dados inválidos ou usuário não é dono.</response>
+    /// <response code="422">Dados inválidos ou sem permissão.</response>
     [HttpPut("{id:long}")]
+    [RequiresPermissaoExtra(PermissoesExtras.ConfigEstabelecimento, "id")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -87,11 +90,12 @@ public class EstabelecimentoController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Atualiza configuração de funcionamento (horários, dias, bloqueios). Apenas o dono pode.</summary>
+    /// <summary>Atualiza configuração de funcionamento (horários, dias, bloqueios). Dono ou usuário com permissão de configuração.</summary>
     /// <response code="204">Atualizado.</response>
     /// <response code="404">Estabelecimento não encontrado.</response>
     /// <response code="422">Dados inválidos ou usuário não é dono.</response>
     [HttpPut("{id:long}/funcionamento")]
+    [RequiresPermissaoExtra(PermissoesExtras.ConfigEstabelecimento, "id")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -117,11 +121,12 @@ public class EstabelecimentoController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Faz upload da foto/logo do estabelecimento (multipart). Apenas o dono pode.</summary>
+    /// <summary>Faz upload da foto/logo do estabelecimento (multipart). Dono ou usuário com permissão de configuração.</summary>
     /// <remarks>Aceita JPG, PNG, WebP e GIF até 2 MB. Retorna a URL pública atualizada.</remarks>
     /// <response code="200">Foto atualizada — corpo: <c>{ fotoUrl }</c>.</response>
-    /// <response code="422">Arquivo inválido ou usuário não é dono.</response>
+    /// <response code="422">Arquivo inválido ou sem permissão.</response>
     [HttpPut("{id:long}/foto")]
+    [RequiresPermissaoExtra(PermissoesExtras.ConfigEstabelecimento, "id")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

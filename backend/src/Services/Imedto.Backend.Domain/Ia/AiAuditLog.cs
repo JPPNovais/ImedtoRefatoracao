@@ -24,6 +24,15 @@ public class AiAuditLog : Entity
     public virtual string? ErroMensagem { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
 
+    /// <summary>
+    /// Item 2.13: FKs nullable para correlacionar a chamada com o conteúdo clínico
+    /// que motivou (paciente/prontuário/evolução). Migration deve aplicar
+    /// <c>ON DELETE SET NULL</c> — preserva trilha LGPD mesmo após exclusão do registro origem.
+    /// </summary>
+    public virtual long? PacienteId { get; protected set; }
+    public virtual long? ProntuarioId { get; protected set; }
+    public virtual long? EvolucaoId { get; protected set; }
+
     protected AiAuditLog() { }
 
     public static AiAuditLog Criar(
@@ -37,7 +46,10 @@ public class AiAuditLog : Entity
         bool sucesso,
         string? erroMensagem,
         int? tokensIn = null,
-        int? tokensOut = null)
+        int? tokensOut = null,
+        long? pacienteId = null,
+        long? prontuarioId = null,
+        long? evolucaoId = null)
     {
         return new AiAuditLog
         {
@@ -52,6 +64,9 @@ public class AiAuditLog : Entity
             ErroMensagem      = Truncar(erroMensagem, 500),
             TokensIn          = tokensIn,
             TokensOut         = tokensOut,
+            PacienteId        = pacienteId,
+            ProntuarioId      = prontuarioId,
+            EvolucaoId        = evolucaoId,
             CriadoEm          = DateTime.UtcNow
         };
     }

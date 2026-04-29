@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Inventario.Commands;
 using Imedto.Backend.Contracts.Inventario.Queries;
 using Imedto.Backend.Contracts.Inventario.Queries.Results;
@@ -109,6 +110,7 @@ public class InventarioController : ControllerBase
     }
 
     [HttpPost("movimentacoes")]
+    [Idempotent]
     public async Task<ActionResult> RegistrarMovimentacao([FromBody] RegistrarMovimentacaoDto dto)
     {
         await _cmd.Send(new RegistrarMovimentacaoEstoqueCommand

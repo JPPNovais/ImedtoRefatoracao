@@ -1,6 +1,7 @@
 import axios from "axios"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { useUpsellStore } from "@/stores/upsellStore"
 import router from "@/router"
 
 /**
@@ -9,6 +10,7 @@ import router from "@/router"
  * - withCredentials: true → envia cookies HttpOnly em todo request.
  * - Interceptor de request: injeta o header X-Estabelecimento-Id quando há tenant ativo.
  * - Interceptor de 401: tenta refresh automático e repete o request original.
+ * - Interceptor de 402: abre modal de upsell global.
  */
 const httpClient = axios.create({
     baseURL: "/api",
@@ -64,6 +66,13 @@ httpClient.interceptors.response.use(
             } finally {
                 isRefreshing = false
             }
+        }
+
+        // 402 Payment Required → abre modal de upsell
+        if (error.response?.status === 402) {
+            const mensagem = error.response?.data?.mensagem ?? "Seu plano não inclui este recurso."
+            useUpsellStore().abrir(mensagem)
+            return Promise.reject(error)
         }
 
         return Promise.reject(error)
