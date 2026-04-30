@@ -11,7 +11,12 @@
 > - Database: 4 tabelas novas + 1 view + 3 colunas + 83 procedimentos TUSS + RLS aplicada via MCP.
 > - Frontend: 4 views de relatórios + LGPD MinhaConta + Solicitação inversa + autocomplete TUSS + 3 componentes design system novos (AppCheckbox, AppTabs, AppCollapsible).
 > - Backend: 205 testes unitários + 11 integração verdes. Frontend: build limpo.
-> **Próxima ação:** Fase 5 — Migração ETL do projeto Supabase legado para o schema novo (a definir estratégia: strangler fig vs big-bang vs dual-write). Gerar `05_FASE_5_MIGRACAO_DADOS.md`.
+> **Fase 5 ✅ planejamento concluído** (Big-bang ETL escolhido):
+> - Análise: [ETL_MAPEAMENTO.md](ETL_MAPEAMENTO.md) (66→57 tabelas) + [ETL_VOLUMETRIA.md](ETL_VOLUMETRIA.md) (~25min ETL).
+> - Scripts: `scripts/etl/` (10 scripts SQL + run_all.sh).
+> - Validador: `backend/src/Tools/Imedto.Backend.EtlValidator/` (counts/integrity/smoke/full).
+> - Plano operacional: [ETL_PLANO_EXECUCAO.md](ETL_PLANO_EXECUCAO.md) (janela 14/jun/2026 sugerida, runbook + rollback completos).
+> **Pendente:** execução da janela (depende de aprovação do produto + comunicação 7d antes + dry-run de calibração + 8 dúvidas de produto resolvidas).
 
 ---
 

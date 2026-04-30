@@ -51,11 +51,27 @@ public class FeatureGateAttribute : Attribute, IAsyncActionFilter
         }
 
         var assinatura = sp.GetRequiredService<IAssinaturaService>();
-        var liberado = await assinatura.TenantTemFeature(
+        var resultado = await assinatura.AvaliarFeature(
             tenant.EstabelecimentoId, _feature, context.HttpContext.RequestAborted);
 
-        if (!liberado)
+        if (resultado == ResultadoFeature.AssinaturaInativa)
         {
+            // Trial expirado / Suspensa / Cancelada / Expirada / sem assinatura.
+            // Frontend escuta esse tipo e redireciona para /assinatura-expirada.
+            context.Result = new ObjectResult(new
+            {
+                tipo = "AssinaturaInativa",
+                mensagem = "Sua assinatura está inativa. Renove para continuar usando o Imedto."
+            })
+            {
+                StatusCode = StatusCodes.Status402PaymentRequired
+            };
+            return;
+        }
+
+        if (resultado == ResultadoFeature.FeatureNaoIncluida)
+        {
+            // Plano atual não inclui a feature — frontend abre modal de upsell.
             context.Result = new ObjectResult(new
             {
                 tipo = "FeatureBloqueada",

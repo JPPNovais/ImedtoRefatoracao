@@ -1,6 +1,18 @@
 namespace Imedto.Backend.Domain.Assinaturas;
 
 /// <summary>
+/// Resultado da avaliação de feature gating — distingue motivos de bloqueio para que o
+/// frontend escolha entre redirecionar para /assinatura-expirada (assinatura inativa)
+/// ou modal de upsell (feature não incluída no plano atual).
+/// </summary>
+public enum ResultadoFeature
+{
+    Liberada,
+    AssinaturaInativa,
+    FeatureNaoIncluida
+}
+
+/// <summary>
 /// Porta única para gating de feature por tenant. Consumido pelo <c>FeatureGateAttribute</c>
 /// e por handlers que precisam validar acesso premium antes de executar lógica de domínio.
 ///
@@ -16,6 +28,13 @@ public interface IAssinaturaService
     /// trial já expirou.
     /// </summary>
     Task<bool> TenantTemFeature(long estabelecimentoId, string feature, CancellationToken ct = default);
+
+    /// <summary>
+    /// Avalia detalhadamente o resultado do gating, retornando o motivo do bloqueio.
+    /// Permite que callers (FeatureGateAttribute, controllers, frontend) tratem
+    /// AssinaturaInativa de forma diferente de FeatureNaoIncluida.
+    /// </summary>
+    Task<ResultadoFeature> AvaliarFeature(long estabelecimentoId, string feature, CancellationToken ct = default);
 
     /// <summary>
     /// Indica se o estabelecimento está ativo (Trial dentro do prazo OU Ativa). Usado por telas

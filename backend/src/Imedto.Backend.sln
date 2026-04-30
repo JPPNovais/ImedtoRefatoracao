@@ -25,6 +25,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Imedto.Backend.Test", "Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Imedto.Backend.IntegrationTest", "Tests\Imedto.Backend.IntegrationTest\Imedto.Backend.IntegrationTest.csproj", "{8D1074F7-EE24-43B3-A510-A3EB0F03A0D4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5 - Tools", "5 - Tools", "{44444444-4444-4444-4444-444444444444}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Imedto.Backend.EtlValidator", "Tools\Imedto.Backend.EtlValidator\Imedto.Backend.EtlValidator.csproj", "{96A7571E-A4A8-449A-ADF0-271DE543DFE8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -131,6 +135,18 @@ Global
 		{8D1074F7-EE24-43B3-A510-A3EB0F03A0D4}.Release|x64.Build.0 = Release|Any CPU
 		{8D1074F7-EE24-43B3-A510-A3EB0F03A0D4}.Release|x86.ActiveCfg = Release|Any CPU
 		{8D1074F7-EE24-43B3-A510-A3EB0F03A0D4}.Release|x86.Build.0 = Release|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Debug|x64.Build.0 = Debug|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Debug|x86.Build.0 = Debug|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Release|x64.ActiveCfg = Release|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Release|x64.Build.0 = Release|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Release|x86.ActiveCfg = Release|Any CPU
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -144,5 +160,6 @@ Global
 		{FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF} = {22222222-2222-2222-2222-222222222222}
 		{00000000-0000-0000-0000-000000000001} = {33333333-3333-3333-3333-333333333333}
 		{8D1074F7-EE24-43B3-A510-A3EB0F03A0D4} = {33333333-3333-3333-3333-333333333333}
+		{96A7571E-A4A8-449A-ADF0-271DE543DFE8} = {44444444-4444-4444-4444-444444444444}
 	EndGlobalSection
 EndGlobal

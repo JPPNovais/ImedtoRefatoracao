@@ -5,6 +5,7 @@ import realtimeService from "@/services/realtimeService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
+import { useAssinaturaStore } from "@/stores/assinaturaStore"
 
 /**
  * Auth store — BFF pattern. Tokens ficam em cookies HttpOnly geridos pelo backend.
@@ -77,6 +78,7 @@ export const useAuthStore = defineStore("auth", () => {
         useTenantStore().limpar()
         useProfissionalStore().limpar()
         useNotificacoesStore().limpar()
+        useAssinaturaStore().limpar()
         await realtimeService.stop()
     }
 

@@ -68,10 +68,25 @@ httpClient.interceptors.response.use(
             }
         }
 
-        // 402 Payment Required → abre modal de upsell
+        // 402 Payment Required → distingue assinatura inativa (redirect) vs feature bloqueada (modal upsell)
         if (error.response?.status === 402) {
+            const tipo = error.response?.data?.tipo as string | undefined
             const mensagem = error.response?.data?.mensagem ?? "Seu plano não inclui este recurso."
-            useUpsellStore().abrir(mensagem)
+
+            if (tipo === "AssinaturaInativa") {
+                // Assinatura inativa (trial expirado / suspensa / cancelada / expirada).
+                // O router guard global já redireciona, mas aqui é segunda barreira para
+                // requests fora de navegação (ex: AJAX em página já carregada).
+                const { useAssinaturaStore } = await import("@/stores/assinaturaStore")
+                const assinatura = useAssinaturaStore()
+                await assinatura.recarregar()
+                if (router.currentRoute.value.name !== "AssinaturaExpirada") {
+                    router.push({ name: "AssinaturaExpirada" })
+                }
+            } else {
+                // Feature não incluída no plano → modal de upsell.
+                useUpsellStore().abrir(mensagem)
+            }
             return Promise.reject(error)
         }
 

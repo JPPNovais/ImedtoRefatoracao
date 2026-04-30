@@ -259,7 +259,8 @@ function voltar() {
             <!-- TAB: Exame físico -->
             <ExameFisicoTab
                 v-else-if="abaAtiva === 'exame'"
-                :nova-evolucao="novaEvolucao"
+                :paciente-id="String(pacienteId)"
+                :paciente-sexo="paciente?.genero ?? null"
                 :salvando="salvandoEvolucao"
                 @salvar="salvarEvolucao"
             />

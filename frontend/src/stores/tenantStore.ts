@@ -30,8 +30,13 @@ export const useTenantStore = defineStore("tenant", () => {
     const temTenantSelecionado = computed(() => !!ativo.value)
 
     function selecionar(estab: EstabelecimentoAtivo) {
+        const trocouEstab = ativo.value?.id !== estab.id
         ativo.value = estab
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(estab))
+        // Ao trocar de estabelecimento a assinatura é outra — força refresh.
+        if (trocouEstab) {
+            void import("@/stores/assinaturaStore").then((m) => m.useAssinaturaStore().limpar())
+        }
     }
 
     function limpar() {

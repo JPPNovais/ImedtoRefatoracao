@@ -1,6 +1,21 @@
 import { createRouter, createWebHistory } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { useAssinaturaStore } from "@/stores/assinaturaStore"
+
+/**
+ * Rotas isentas do bloqueio por assinatura — necessárias para o fluxo de
+ * upgrade/contato/logout. Espelha a lógica do legado em router/index.ts.
+ */
+const ROTAS_ISENTAS_ASSINATURA = new Set([
+    "Login",
+    "Landing",
+    "Onboarding",
+    "SelecionarEstabelecimento",
+    "AssinaturaExpirada",
+    "Planos",
+    "MinhaAssinatura",
+])
 
 const APP = { layout: "app" } as const
 
@@ -121,6 +136,12 @@ const router = createRouter({
             name: "Planos",
             component: () => import("@/views/assinatura/PlanosView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/assinatura-expirada",
+            name: "AssinaturaExpirada",
+            component: () => import("@/views/assinatura/AssinaturaExpiradaView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true },
         },
 
         // Configurações IA (apenas Dono)
@@ -262,7 +283,7 @@ const router = createRouter({
     ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
     const auth = useAuthStore()
     const tenant = useTenantStore()
 
@@ -289,6 +310,18 @@ router.beforeEach((to) => {
 
     if (to.name === "Landing" && auth.isAuthenticated && tenant.temTenantSelecionado) {
         return { name: "Home" }
+    }
+
+    // Bloqueio por assinatura inativa (trial expirado / suspensa / cancelada / expirada).
+    // Só roda se já temos tenant ativo — antes disso não há assinatura para avaliar.
+    if (auth.isAuthenticated && tenant.temTenantSelecionado) {
+        const assinatura = useAssinaturaStore()
+        await assinatura.ensureLoaded()
+
+        const routeName = (to.name as string | undefined) ?? ""
+        if (assinatura.isBlocked && !ROTAS_ISENTAS_ASSINATURA.has(routeName)) {
+            return { name: "AssinaturaExpirada" }
+        }
     }
 })
 

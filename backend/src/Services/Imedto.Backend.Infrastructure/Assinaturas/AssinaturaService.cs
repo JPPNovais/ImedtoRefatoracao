@@ -66,24 +66,37 @@ public class AssinaturaService : IAssinaturaService
         return ativo;
     }
 
-    private async Task<bool> ResolverFeature(long estabelecimentoId, string feature, CancellationToken ct)
+    public async Task<ResultadoFeature> AvaliarFeature(long estabelecimentoId, string feature, CancellationToken ct = default)
     {
+        if (estabelecimentoId <= 0 || string.IsNullOrWhiteSpace(feature))
+            return ResultadoFeature.AssinaturaInativa;
+
         try
         {
             var assinatura = await _assinaturaRepo.ObterPorEstabelecimentoOuNulo(estabelecimentoId);
-            if (assinatura is null) return false;
-            if (!assinatura.EstaAtiva(DateTime.UtcNow)) return false;
+            if (assinatura is null || !assinatura.EstaAtiva(DateTime.UtcNow))
+                return ResultadoFeature.AssinaturaInativa;
 
             var plano = await _planoRepo.ObterPorIdOuNulo(assinatura.PlanoId);
-            return plano is not null && plano.TemFeature(feature);
+            if (plano is null || !plano.TemFeature(feature))
+                return ResultadoFeature.FeatureNaoIncluida;
+
+            return ResultadoFeature.Liberada;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Falha ao resolver feature gating. Estabelecimento={EstabelecimentoId} Feature={Feature}",
+                "Falha ao avaliar feature gating. Estabelecimento={EstabelecimentoId} Feature={Feature}",
                 estabelecimentoId, feature);
-            return false;
+            // Fail-closed: erro técnico vira AssinaturaInativa pra forçar usuário a checar planos.
+            return ResultadoFeature.AssinaturaInativa;
         }
+    }
+
+    private async Task<bool> ResolverFeature(long estabelecimentoId, string feature, CancellationToken ct)
+    {
+        var resultado = await AvaliarFeature(estabelecimentoId, feature, ct);
+        return resultado == ResultadoFeature.Liberada;
     }
 
     private async Task<bool> ResolverAtivo(long estabelecimentoId, CancellationToken ct)

@@ -1,7 +1,11 @@
-<!-- Exame físico estruturado: sinais vitais, antropometria, ectoscopia, body map. -->
+<!--
+  Exame físico estruturado dentro da evolução: sinais vitais, antropometria,
+  ectoscopia e descrição da ectoscopia. Alinhado ao legado
+  (medical-record/components/ExameFisicoSection.vue): NÃO contém mapa corporal —
+  o BodyMap interativo vive apenas na aba dedicada "Exame físico".
+-->
 <script setup lang="ts">
 import { computed } from "vue"
-import BodyMap from "@/components/prontuario/BodyMap.vue"
 
 interface EfData {
     paSistolica?: string
@@ -24,21 +28,7 @@ interface EfData {
     batimentos?: string
     respiracao?: string
     descricaoEctoscopia?: string
-    regioesMarcadas?: string[]
-    notasRegioes?: Record<string, string>
-    observacoes?: string
 }
-
-const bodyMapValor = computed({
-    get: () => ({
-        regioesMarcadas: props.modelValue.regioesMarcadas ?? [],
-        notas: props.modelValue.notasRegioes ?? {},
-    }),
-    set: (v) => atualizar({
-        regioesMarcadas: v.regioesMarcadas,
-        notasRegioes:    v.notas,
-    }),
-})
 
 const props = defineProps<{ modelValue: EfData; readOnly?: boolean }>()
 const emit  = defineEmits<{ "update:modelValue": [v: EfData] }>()
@@ -273,22 +263,9 @@ const RESPIRACAO       = ["Bradipneico", "Eupneico", "Taquipneico", "Dispneico"]
             <label class="campo-label">Descrição da ectoscopia</label>
             <textarea
                 :value="modelValue.descricaoEctoscopia ?? ''" rows="3" class="input-field"
-                placeholder="Observações complementares..."
+                placeholder="Observações adicionais sobre a inspeção geral..."
                 :disabled="readOnly"
                 @input="(e) => atualizar({ descricaoEctoscopia: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
-        </div>
-
-        <!-- Mapa corporal interativo -->
-        <BodyMap v-model="bodyMapValor" :read-only="readOnly" />
-
-        <div class="subsecao">
-            <label class="campo-label">Observações gerais do exame físico</label>
-            <textarea
-                :value="modelValue.observacoes ?? ''" rows="4" class="input-field"
-                placeholder="Achados relevantes, ausculta, palpação..."
-                :disabled="readOnly"
-                @input="(e) => atualizar({ observacoes: (e.target as HTMLTextAreaElement).value })"
             ></textarea>
         </div>
     </div>
