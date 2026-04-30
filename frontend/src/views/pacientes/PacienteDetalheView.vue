@@ -98,11 +98,13 @@ function abrirProntuario() {
 }
 
 function criarOrcamento() {
-    router.push({ name: "Orcamentos", query: { novoParaPaciente: String(pacienteId.value) } })
+    // TODO Fase 6.2.b: tela de criação de orçamento (escolha de paciente já está
+    // resolvida aqui). Por ora redireciona à lista filtrada por paciente.
+    router.push({ name: "Orcamentos", query: { pacienteId: String(pacienteId.value) } })
 }
 
 function abrirOrcamento(o: OrcamentoResumo) {
-    router.push({ name: "Orcamentos", query: { orcamentoId: String(o.id) } })
+    router.push({ name: "OrcamentoDetalhe", params: { id: String(o.id) } })
 }
 </script>
 

@@ -17,6 +17,12 @@ using Imedto.Backend.Application.Relatorios.Queries;
 using Imedto.Backend.Application.Orcamentos.Commands;
 using Imedto.Backend.Application.Orcamentos.Events;
 using Imedto.Backend.Application.Orcamentos.Queries;
+using Imedto.Backend.Application.Orcamentos.Catalogos;
+using Imedto.Backend.Contracts.Orcamentos.Catalogos.Commands;
+using Imedto.Backend.Contracts.Orcamentos.Catalogos.Queries;
+using Imedto.Backend.Contracts.Orcamentos.Catalogos.Queries.Results;
+using Imedto.Backend.Domain.Orcamentos.Catalogos;
+using Imedto.Backend.Infrastructure.Database.Repositories.OrcamentoCatalogos;
 using Imedto.Backend.Application.ModelosPermissao.Commands;
 using Imedto.Backend.Application.ModelosPermissao.Queries;
 using Imedto.Backend.Application.Estabelecimentos.Commands;
@@ -391,20 +397,61 @@ public static class Container
         services.AddSingleton<InventarioQueryRepository>();
         services.AddScoped<EstoqueAbaixoMinimoEventHandler>();
 
-        // Orçamentos
+        // Orçamentos (aggregate único — sem distinção simples/completo).
         services.AddScoped<CriarOrcamentoCommandHandler>();
         services.AddScoped<AtualizarOrcamentoCommandHandler>();
+        services.AddScoped<EnviarOrcamentoCommandHandler>();
         services.AddScoped<AprovarOrcamentoCommandHandler>();
         services.AddScoped<RecusarOrcamentoCommandHandler>();
-        // Item 3.3.B — orçamento completo (cirúrgico/extendido).
-        services.AddScoped<CriarOrcamentoCompletoCommandHandler>();
-        services.AddScoped<AtualizarOrcamentoCompletoCommandHandler>();
+        services.AddScoped<CancelarOrcamentoCommandHandler>();
+        services.AddScoped<ConverterOrcamentoEmCirurgiaCommandHandler>();
         services.AddSingleton<ListarOrcamentosQueryHandlers>();
         services.AddSingleton<ObterOrcamentoQueryHandlers>();
-        services.AddSingleton<ObterOrcamentoCompletoQueryHandlers>();
+        services.AddSingleton<PreviewOrcamentoQueryHandler>();
         services.AddSingleton<OrcamentoQueryRepository>();
         services.AddScoped<OrcamentoCriadoEventHandler>();
         services.AddScoped<OrcamentoAprovadoEventHandler>();
+
+        // Fase 6.1 — Catálogos de orçamento (settings).
+        services.AddScoped<ICatalogoCirurgiaRepository, CatalogoCirurgiaRepository>();
+        services.AddScoped<IValorProfissionalOrcamentoRepository, ValorProfissionalOrcamentoRepository>();
+        services.AddScoped<IConfiguracaoLocalCirurgiaRepository, ConfiguracaoLocalCirurgiaRepository>();
+        services.AddScoped<ICatalogoEquipeEspecializadaRepository, CatalogoEquipeEspecializadaRepository>();
+        services.AddScoped<ICatalogoImplanteRepository, CatalogoImplanteRepository>();
+        services.AddScoped<IConfiguracaoPagamentoCatalogoRepository, ConfiguracaoPagamentoCatalogoRepository>();
+        services.AddScoped<ICatalogoProdutoRepository, CatalogoProdutoRepository>();
+        services.AddScoped<ICatalogoCirurgiaProdutoRepository, CatalogoCirurgiaProdutoRepository>();
+        services.AddSingleton<OrcamentoCatalogoQueryRepository>();
+        services.AddScoped<CriarCatalogoCirurgiaCommandHandler>();
+        services.AddScoped<AtualizarCatalogoCirurgiaCommandHandler>();
+        services.AddScoped<RemoverCatalogoCirurgiaCommandHandler>();
+        services.AddScoped<CriarValorProfissionalCommandHandler>();
+        services.AddScoped<AtualizarValorProfissionalCommandHandler>();
+        services.AddScoped<RemoverValorProfissionalCommandHandler>();
+        services.AddScoped<SalvarConfiguracaoLocalCommandHandler>();
+        services.AddScoped<CriarCatalogoEquipeCommandHandler>();
+        services.AddScoped<AtualizarCatalogoEquipeCommandHandler>();
+        services.AddScoped<RemoverCatalogoEquipeCommandHandler>();
+        services.AddScoped<CriarCatalogoImplanteCommandHandler>();
+        services.AddScoped<AtualizarCatalogoImplanteCommandHandler>();
+        services.AddScoped<RemoverCatalogoImplanteCommandHandler>();
+        services.AddScoped<CriarConfiguracaoPagamentoCommandHandler>();
+        services.AddScoped<AtualizarConfiguracaoPagamentoCommandHandler>();
+        services.AddScoped<RemoverConfiguracaoPagamentoCommandHandler>();
+        services.AddScoped<CriarCatalogoProdutoCommandHandler>();
+        services.AddScoped<AtualizarCatalogoProdutoCommandHandler>();
+        services.AddScoped<RemoverCatalogoProdutoCommandHandler>();
+        services.AddScoped<VincularProdutoCirurgiaCommandHandler>();
+        services.AddScoped<AtualizarVinculoProdutoCirurgiaCommandHandler>();
+        services.AddScoped<DesvincularProdutoCirurgiaCommandHandler>();
+        services.AddSingleton<ListarCatalogoCirurgiasQueryHandlers>();
+        services.AddSingleton<ListarValoresProfissionalQueryHandlers>();
+        services.AddSingleton<ListarConfiguracoesLocalQueryHandlers>();
+        services.AddSingleton<ListarCatalogoEquipesQueryHandlers>();
+        services.AddSingleton<ListarCatalogoImplantesQueryHandlers>();
+        services.AddSingleton<ListarConfiguracoesPagamentoQueryHandlers>();
+        services.AddSingleton<ListarCatalogoProdutosQueryHandlers>();
+        services.AddSingleton<ListarProdutosDaCirurgiaQueryHandlers>();
 
         // Item 3.3.A — Procedimentos cirúrgicos. Repositório de escrita registrado em
         // Infrastructure.Container (junto com os outros do domínio).
@@ -587,11 +634,34 @@ public static class Container
             bus.Register<InativarItemInventarioCommand, InativarItemInventarioCommandHandler>();
             bus.Register<CriarOrcamentoCommand, CriarOrcamentoCommandHandler>();
             bus.Register<AtualizarOrcamentoCommand, AtualizarOrcamentoCommandHandler>();
+            bus.Register<EnviarOrcamentoCommand, EnviarOrcamentoCommandHandler>();
             bus.Register<AprovarOrcamentoCommand, AprovarOrcamentoCommandHandler>();
             bus.Register<RecusarOrcamentoCommand, RecusarOrcamentoCommandHandler>();
-            // Item 3.3.B — orçamento completo.
-            bus.Register<CriarOrcamentoCompletoCommand, CriarOrcamentoCompletoCommandHandler>();
-            bus.Register<AtualizarOrcamentoCompletoCommand, AtualizarOrcamentoCompletoCommandHandler>();
+            bus.Register<CancelarOrcamentoCommand, CancelarOrcamentoCommandHandler>();
+            bus.Register<ConverterOrcamentoEmCirurgiaCommand, ConverterOrcamentoEmCirurgiaCommandHandler>();
+            // Fase 6.1 — Catálogos.
+            bus.Register<CriarCatalogoCirurgiaCommand, CriarCatalogoCirurgiaCommandHandler>();
+            bus.Register<AtualizarCatalogoCirurgiaCommand, AtualizarCatalogoCirurgiaCommandHandler>();
+            bus.Register<RemoverCatalogoCirurgiaCommand, RemoverCatalogoCirurgiaCommandHandler>();
+            bus.Register<CriarValorProfissionalCommand, CriarValorProfissionalCommandHandler>();
+            bus.Register<AtualizarValorProfissionalCommand, AtualizarValorProfissionalCommandHandler>();
+            bus.Register<RemoverValorProfissionalCommand, RemoverValorProfissionalCommandHandler>();
+            bus.Register<SalvarConfiguracaoLocalCommand, SalvarConfiguracaoLocalCommandHandler>();
+            bus.Register<CriarCatalogoEquipeCommand, CriarCatalogoEquipeCommandHandler>();
+            bus.Register<AtualizarCatalogoEquipeCommand, AtualizarCatalogoEquipeCommandHandler>();
+            bus.Register<RemoverCatalogoEquipeCommand, RemoverCatalogoEquipeCommandHandler>();
+            bus.Register<CriarCatalogoImplanteCommand, CriarCatalogoImplanteCommandHandler>();
+            bus.Register<AtualizarCatalogoImplanteCommand, AtualizarCatalogoImplanteCommandHandler>();
+            bus.Register<RemoverCatalogoImplanteCommand, RemoverCatalogoImplanteCommandHandler>();
+            bus.Register<CriarConfiguracaoPagamentoCommand, CriarConfiguracaoPagamentoCommandHandler>();
+            bus.Register<AtualizarConfiguracaoPagamentoCommand, AtualizarConfiguracaoPagamentoCommandHandler>();
+            bus.Register<RemoverConfiguracaoPagamentoCommand, RemoverConfiguracaoPagamentoCommandHandler>();
+            bus.Register<CriarCatalogoProdutoCommand, CriarCatalogoProdutoCommandHandler>();
+            bus.Register<AtualizarCatalogoProdutoCommand, AtualizarCatalogoProdutoCommandHandler>();
+            bus.Register<RemoverCatalogoProdutoCommand, RemoverCatalogoProdutoCommandHandler>();
+            bus.Register<VincularProdutoCirurgiaCommand, VincularProdutoCirurgiaCommandHandler>();
+            bus.Register<AtualizarVinculoProdutoCirurgiaCommand, AtualizarVinculoProdutoCirurgiaCommandHandler>();
+            bus.Register<DesvincularProdutoCirurgiaCommand, DesvincularProdutoCirurgiaCommandHandler>();
             // Item 3.3.A — procedimentos cirúrgicos.
             bus.Register<PlanejarProcedimentoCommand, PlanejarProcedimentoCommandHandler>();
             bus.Register<ConfirmarProcedimentoCommand, ConfirmarProcedimentoCommandHandler>();
@@ -663,8 +733,16 @@ public static class Container
             bus.Register<ListarMovimentacoesQuery, IEnumerable<MovimentacaoEstoqueDto>, ListarMovimentacoesQueryHandlers>();
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();
             bus.Register<ObterOrcamentoQuery, OrcamentoDto, ObterOrcamentoQueryHandlers>();
-            // Item 3.3.B — orçamento completo.
-            bus.Register<ObterOrcamentoCompletoQuery, OrcamentoCompletoDto, ObterOrcamentoCompletoQueryHandlers>();
+            bus.Register<PreviewOrcamentoQuery, PreviewOrcamentoDto, PreviewOrcamentoQueryHandler>();
+            // Fase 6.1 — Queries de catálogos.
+            bus.Register<ListarCatalogoCirurgiasQuery, IEnumerable<CatalogoCirurgiaDto>, ListarCatalogoCirurgiasQueryHandlers>();
+            bus.Register<ListarValoresProfissionalQuery, IEnumerable<ValorProfissionalOrcamentoDto>, ListarValoresProfissionalQueryHandlers>();
+            bus.Register<ListarConfiguracoesLocalQuery, IEnumerable<ConfiguracaoLocalCirurgiaDto>, ListarConfiguracoesLocalQueryHandlers>();
+            bus.Register<ListarCatalogoEquipesQuery, IEnumerable<CatalogoEquipeEspecializadaDto>, ListarCatalogoEquipesQueryHandlers>();
+            bus.Register<ListarCatalogoImplantesQuery, IEnumerable<CatalogoImplanteDto>, ListarCatalogoImplantesQueryHandlers>();
+            bus.Register<ListarConfiguracoesPagamentoQuery, IEnumerable<ConfiguracaoPagamentoCatalogoDto>, ListarConfiguracoesPagamentoQueryHandlers>();
+            bus.Register<ListarCatalogoProdutosQuery, IEnumerable<CatalogoProdutoDto>, ListarCatalogoProdutosQueryHandlers>();
+            bus.Register<ListarProdutosDaCirurgiaQuery, IEnumerable<CatalogoCirurgiaProdutoDto>, ListarProdutosDaCirurgiaQueryHandlers>();
             // Item 3.3.A — procedimentos cirúrgicos.
             bus.Register<ObterProcedimentoQuery, ProcedimentoCirurgicoDto, ObterProcedimentoQueryHandlers>();
             bus.Register<ListarProcedimentosDoPacienteQuery, IEnumerable<ProcedimentoCirurgicoResumoDto>, ObterProcedimentoQueryHandlers>();

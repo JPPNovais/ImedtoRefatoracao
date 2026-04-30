@@ -13,11 +13,14 @@ public class OrcamentoTests
 
     private static DateOnly Amanha() => DateOnly.FromDateTime(DateTime.Today.AddDays(1));
 
+    private static Orcamento NovoOrcamento() =>
+        Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), null, itens: UmItem());
+
     [Test]
-    public void Criar_ValidoComUmItem_CriaComStatusPendente()
+    public void Criar_ValidoComUmItem_CriaComStatusRascunho()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), UmItem());
-        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Pendente));
+        var orc = NovoOrcamento();
+        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Rascunho));
         Assert.That(orc.Total, Is.EqualTo(200m));
     }
 
@@ -25,8 +28,8 @@ public class OrcamentoTests
     public void Criar_SemItens_LancaBusinessException()
     {
         var ex = Assert.Throws<BusinessException>(() =>
-            Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), []));
-        Assert.That(ex.Message, Does.Contain("ao menos um item"));
+            Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), null, itens: []));
+        Assert.That(ex!.Message, Does.Contain("ao menos um item"));
     }
 
     [Test]
@@ -34,47 +37,56 @@ public class OrcamentoTests
     {
         var ontem = DateOnly.FromDateTime(DateTime.Today.AddDays(-1));
         var ex = Assert.Throws<BusinessException>(() =>
-            Orcamento.Criar(1, 1, ontem, null, Guid.NewGuid(), UmItem()));
-        Assert.That(ex.Message, Does.Contain("data passada"));
+            Orcamento.Criar(1, 1, ontem, null, Guid.NewGuid(), null, itens: UmItem()));
+        Assert.That(ex!.Message, Does.Contain("data passada"));
     }
 
     [Test]
     public void Criar_EstabelecimentoZero_LancaBusinessException()
     {
         var ex = Assert.Throws<BusinessException>(() =>
-            Orcamento.Criar(0, 1, Amanha(), null, Guid.NewGuid(), UmItem()));
-        Assert.That(ex.Message, Does.Contain("Estabelecimento"));
+            Orcamento.Criar(0, 1, Amanha(), null, Guid.NewGuid(), null, itens: UmItem()));
+        Assert.That(ex!.Message, Does.Contain("Estabelecimento"));
     }
 
     [Test]
     public void Criar_PacienteZero_LancaBusinessException()
     {
         var ex = Assert.Throws<BusinessException>(() =>
-            Orcamento.Criar(1, 0, Amanha(), null, Guid.NewGuid(), UmItem()));
-        Assert.That(ex.Message, Does.Contain("Paciente"));
+            Orcamento.Criar(1, 0, Amanha(), null, Guid.NewGuid(), null, itens: UmItem()));
+        Assert.That(ex!.Message, Does.Contain("Paciente"));
     }
 
     [Test]
-    public void Aprovar_StatusPendente_MudaParaAprovado()
+    public void Enviar_StatusRascunho_MudaParaEnviado()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), UmItem());
+        var orc = NovoOrcamento();
+        orc.Enviar();
+        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Enviado));
+    }
+
+    [Test]
+    public void Aprovar_StatusEnviado_MudaParaAprovado()
+    {
+        var orc = NovoOrcamento();
+        orc.Enviar();
         orc.Aprovar();
         Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Aprovado));
     }
 
     [Test]
-    public void Aprovar_JaAprovado_LancaBusinessException()
+    public void Aprovar_AindaRascunho_LancaBusinessException()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), UmItem());
-        orc.Aprovar();
+        var orc = NovoOrcamento();
         var ex = Assert.Throws<BusinessException>(() => orc.Aprovar());
-        Assert.That(ex.Message, Does.Contain("pendentes podem ser aprovados"));
+        Assert.That(ex!.Message, Does.Contain("enviados podem ser aprovados"));
     }
 
     [Test]
-    public void Recusar_StatusPendente_MudaParaRecusado()
+    public void Recusar_StatusEnviado_MudaParaRecusado()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), UmItem());
+        var orc = NovoOrcamento();
+        orc.Enviar();
         orc.Recusar();
         Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Recusado));
     }
@@ -82,18 +94,57 @@ public class OrcamentoTests
     [Test]
     public void Recusar_JaAprovado_LancaBusinessException()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), UmItem());
+        var orc = NovoOrcamento();
+        orc.Enviar();
         orc.Aprovar();
         var ex = Assert.Throws<BusinessException>(() => orc.Recusar());
-        Assert.That(ex.Message, Does.Contain("pendentes podem ser recusados"));
+        Assert.That(ex!.Message, Does.Contain("enviados podem ser recusados"));
     }
 
     [Test]
-    public void Expirar_StatusPendente_MudaParaExpirado()
+    public void Cancelar_StatusRascunho_MudaParaCancelado()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), UmItem());
+        var orc = NovoOrcamento();
+        orc.Cancelar();
+        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Cancelado));
+    }
+
+    [Test]
+    public void Cancelar_StatusAprovado_MudaParaCancelado()
+    {
+        var orc = NovoOrcamento();
+        orc.Enviar();
+        orc.Aprovar();
+        orc.Cancelar();
+        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Cancelado));
+    }
+
+    [Test]
+    public void Cancelar_JaRecusado_LancaBusinessException()
+    {
+        var orc = NovoOrcamento();
+        orc.Enviar();
+        orc.Recusar();
+        var ex = Assert.Throws<BusinessException>(() => orc.Cancelar());
+        Assert.That(ex!.Message, Does.Contain("terminal"));
+    }
+
+    [Test]
+    public void Expirar_StatusRascunho_MudaParaExpirado()
+    {
+        var orc = NovoOrcamento();
         orc.Expirar();
         Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Expirado));
+    }
+
+    [Test]
+    public void Expirar_JaAprovado_NaoMuda()
+    {
+        var orc = NovoOrcamento();
+        orc.Enviar();
+        orc.Aprovar();
+        orc.Expirar();
+        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Aprovado));
     }
 
     [Test]
@@ -104,7 +155,7 @@ public class OrcamentoTests
             new ItemPayload("A", 2, 100m, 10),  // 2 * 100 * 0.9 = 180
             new ItemPayload("B", 1, 50m, 0),    // 50
         };
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), itens);
+        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), null, itens: itens);
         Assert.That(orc.Total, Is.EqualTo(230m));
     }
 }

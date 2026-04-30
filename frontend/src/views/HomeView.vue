@@ -122,7 +122,7 @@ const statusCor: Record<string, string> = {
             </router-link>
             <router-link :to="{ name: 'Orcamentos' }" class="card">
                 <h3>Orçamentos</h3>
-                <p>Criar e gerenciar orçamentos para pacientes.</p>
+                <p>Cotações de cirurgias e procedimentos.</p>
             </router-link>
             <router-link :to="{ name: 'Inventario' }" class="card">
                 <h3>Inventário</h3>

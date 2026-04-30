@@ -18,7 +18,7 @@ public class AprovarOrcamentoCommandHandler : ICommandHandler<AprovarOrcamentoCo
 
     public async Task Handle(AprovarOrcamentoCommand cmd)
     {
-        var orcamento = await _repo.ObterPorIdComItens(cmd.OrcamentoId);
+        var orcamento = await _repo.ObterPorIdCompleto(cmd.OrcamentoId);
 
         if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
             throw new BusinessException("Orçamento não encontrado neste estabelecimento.");

@@ -212,17 +212,29 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
 
-        // Orçamentos
+        // Orçamentos — Lista / Detalhe / Form / Settings (Fase 6.2)
         {
             path: "/orcamentos",
             name: "Orcamentos",
-            component: () => import("@/views/orcamentos/OrcamentosView.vue"),
+            component: () => import("@/views/orcamentos/OrcamentoListaView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
         {
-            path: "/orcamentos/:id(\\d+)/completo",
-            name: "OrcamentoCompleto",
-            component: () => import("@/views/orcamentos/OrcamentoCompletoView.vue"),
+            path: "/orcamentos/:id(\\d+)",
+            name: "OrcamentoDetalhe",
+            component: () => import("@/views/orcamentos/OrcamentoDetalheView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/orcamentos/:id(\\d+)/editar",
+            name: "OrcamentoForm",
+            component: () => import("@/views/orcamentos/OrcamentoFormView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/configuracoes/orcamento",
+            name: "OrcamentoSettings",
+            component: () => import("@/views/orcamentos/OrcamentoSettingsView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
 

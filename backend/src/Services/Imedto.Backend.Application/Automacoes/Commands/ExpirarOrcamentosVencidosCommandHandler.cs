@@ -16,11 +16,13 @@ public class ExpirarOrcamentosVencidosCommandHandler : ICommandHandler<ExpirarOr
     public async Task Handle(ExpirarOrcamentosVencidosCommand command)
     {
         await using var conn = new NpgsqlConnection(_connStr);
+        // Espelha Orcamento.Expirar(): só transiciona estados não-terminais.
+        // Aprovado/Recusado/Cancelado/Expirado são preservados.
         await conn.ExecuteAsync(
             """
             UPDATE orcamentos
             SET status = 'Expirado', atualizado_em = NOW()
-            WHERE status = 'Pendente'
+            WHERE status IN ('Rascunho','Enviado')
               AND validade < CURRENT_DATE
             """);
     }

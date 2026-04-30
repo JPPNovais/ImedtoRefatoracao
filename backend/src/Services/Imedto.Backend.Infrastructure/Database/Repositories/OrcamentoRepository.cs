@@ -18,16 +18,6 @@ public class OrcamentoRepository : IOrcamentoRepository
         return orc;
     }
 
-    public async Task<Orcamento> ObterPorIdComItens(long id)
-    {
-        var orc = await _db.Orcamentos
-            .Include(o => o.Itens)
-            .FirstOrDefaultAsync(o => o.Id == id);
-        if (orc is null)
-            throw new BusinessException("Orçamento não encontrado.");
-        return orc;
-    }
-
     public async Task<Orcamento> ObterPorIdCompleto(long id)
     {
         // AsSplitQuery evita explosão cartesiana — Postgres faz uma SELECT por collection

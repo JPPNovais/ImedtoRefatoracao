@@ -13,6 +13,7 @@ using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Jobs;
 using Imedto.Backend.Domain.Lgpd;
 using Imedto.Backend.Domain.Orcamentos;
+using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.Domain.Pacientes;
@@ -87,6 +88,16 @@ public class AppDbContext : DbContext
     public DbSet<OrcamentoCirurgia> OrcamentoCirurgias => Set<OrcamentoCirurgia>();
     public DbSet<OrcamentoInternacao> OrcamentoInternacoes => Set<OrcamentoInternacao>();
     public DbSet<OrcamentoAnestesia> OrcamentoAnestesias => Set<OrcamentoAnestesia>();
+
+    // Fase 6.1 — Catálogos de orçamento (settings).
+    public DbSet<CatalogoCirurgia> CatalogoCirurgias => Set<CatalogoCirurgia>();
+    public DbSet<ValorProfissionalOrcamento> ValoresProfissionalOrcamento => Set<ValorProfissionalOrcamento>();
+    public DbSet<ConfiguracaoLocalCirurgia> ConfiguracoesLocalCirurgia => Set<ConfiguracaoLocalCirurgia>();
+    public DbSet<CatalogoEquipeEspecializada> CatalogoEquipesEspecializadas => Set<CatalogoEquipeEspecializada>();
+    public DbSet<CatalogoImplante> CatalogoImplantes => Set<CatalogoImplante>();
+    public DbSet<ConfiguracaoPagamentoCatalogo> ConfiguracoesPagamentoCatalogo => Set<ConfiguracaoPagamentoCatalogo>();
+    public DbSet<CatalogoProduto> CatalogoProdutos => Set<CatalogoProduto>();
+    public DbSet<CatalogoCirurgiaProduto> CatalogoCirurgiaProdutos => Set<CatalogoCirurgiaProduto>();
 
     // Item 4.3 — LGPD: anonimizações e consentimentos.
     public DbSet<LgpdAnonimizacao> LgpdAnonimizacoes => Set<LgpdAnonimizacao>();

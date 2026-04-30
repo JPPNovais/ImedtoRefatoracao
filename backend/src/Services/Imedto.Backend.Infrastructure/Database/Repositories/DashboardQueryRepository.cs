@@ -37,7 +37,7 @@ public class DashboardQueryRepository
                     WHERE estabelecimento_id = @EstabId AND ativo = true
                       AND quantidade_atual < quantidade_minima)                                               AS ItensAbaixoMinimo,
                 (SELECT COUNT(*) FROM orcamentos
-                    WHERE estabelecimento_id = @EstabId AND status = 'Pendente')                             AS OrcamentosPendentes,
+                    WHERE estabelecimento_id = @EstabId AND status IN ('Rascunho','Enviado'))               AS OrcamentosPendentes,
                 (SELECT COUNT(*) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND status = 'Pendente'
                       AND data_vencimento < CURRENT_DATE)                                                    AS LancamentosVencidos

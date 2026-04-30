@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue"
+import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
@@ -14,6 +14,8 @@ const tenant = useTenantStore()
 const profissional = useProfissionalStore()
 
 const sidebarAberta = ref(false)
+const userMenuAberto = ref(false)
+const userMenuEl = ref<HTMLElement | null>(null)
 
 const navItemsBase = [
     { name: "Home",            label: "Painel inicial",   icon: "fa-solid fa-house",                  donoOnly: false },
@@ -44,6 +46,8 @@ const activeNavMap: Record<string, string> = {
     CategoriasFinanceiras: "Financeiro",
     FormasPagamento: "Financeiro",
     Orcamentos: "Orcamentos",
+    OrcamentoDetalhe: "Orcamentos",
+    OrcamentoForm: "Orcamentos",
     Inventario: "Inventario",
     Relatorios: "Relatorios",
     Automacoes: "Automacoes",
@@ -67,6 +71,29 @@ async function sair() {
     await auth.logout()
     router.push({ name: "Login" })
 }
+
+function fecharUserMenuFora(ev: MouseEvent) {
+    if (!userMenuEl.value) return
+    if (!userMenuEl.value.contains(ev.target as Node)) userMenuAberto.value = false
+}
+
+function irParaConta() {
+    userMenuAberto.value = false
+    router.push({ name: "MinhaConta" })
+}
+
+function trocarEstabelecimentoFromMenu() {
+    userMenuAberto.value = false
+    trocarEstabelecimento()
+}
+
+async function sairFromMenu() {
+    userMenuAberto.value = false
+    await sair()
+}
+
+onMounted(() => document.addEventListener("click", fecharUserMenuFora))
+onBeforeUnmount(() => document.removeEventListener("click", fecharUserMenuFora))
 </script>
 
 <template>
@@ -77,20 +104,6 @@ async function sair() {
             <router-link :to="{ name: 'Home' }" class="sidebar-logo" @click="fecharSidebar">
                 <img :src="logoBranco" alt="Imedto" class="logo-img" />
             </router-link>
-
-            <div class="user-bloco">
-                <router-link :to="{ name: 'MinhaConta' }" class="user-info" @click="fecharSidebar">
-                    <div class="avatar">
-                        <img v-if="profissional.fotoUrl" :src="profissional.fotoUrl" :alt="auth.usuario?.nomeCompleto ?? 'Foto do profissional'" />
-                        <template v-else>{{ userInicial }}</template>
-                    </div>
-                    <div class="user-texto">
-                        <span class="user-nome">{{ auth.usuario?.nomeCompleto ?? auth.usuario?.email ?? "Profissional" }}</span>
-                        <span class="user-clinica" v-if="tenant.ativo">{{ tenant.ativo.nomeFantasia }}</span>
-                        <span class="user-papel" v-if="tenant.ativo">{{ tenant.ativo.papel }}</span>
-                    </div>
-                </router-link>
-            </div>
 
             <nav class="nav">
                 <router-link
@@ -143,6 +156,17 @@ async function sair() {
                 </router-link>
 
                 <router-link
+                    v-if="tenant.ativo?.papel === 'Dono'"
+                    :to="{ name: 'OrcamentoSettings' }"
+                    class="nav-item"
+                    :class="{ 'nav-item--ativo': route.name === 'OrcamentoSettings' }"
+                    @click="fecharSidebar"
+                >
+                    <span class="nav-icon"><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i></span>
+                    <span>Config. orçamento</span>
+                </router-link>
+
+                <router-link
                     :to="{ name: 'MinhaAssinatura' }"
                     class="nav-item"
                     :class="{ 'nav-item--ativo': route.name === 'MinhaAssinatura' || route.name === 'Planos' }"
@@ -179,9 +203,79 @@ async function sair() {
                 <button class="btn-menu" @click="sidebarAberta = !sidebarAberta" aria-label="Menu">
                     <span></span><span></span><span></span>
                 </button>
-                <span class="topbar-titulo">{{ tenant.ativo?.nomeFantasia ?? "Imedto" }}</span>
+
+                <div class="topbar-contexto" v-if="tenant.ativo">
+                    <i class="fa-solid fa-building topbar-contexto-icone" aria-hidden="true"></i>
+                    <span class="topbar-contexto-nome">{{ tenant.ativo.nomeFantasia }}</span>
+                </div>
+
                 <div class="topbar-acoes">
                     <AppHeaderNotifications />
+
+                    <div ref="userMenuEl" class="user-menu">
+                        <button
+                            type="button"
+                            class="user-menu-trigger"
+                            :aria-expanded="userMenuAberto"
+                            aria-haspopup="menu"
+                            @click="userMenuAberto = !userMenuAberto"
+                        >
+                            <div class="user-menu-avatar">
+                                <img
+                                    v-if="profissional.fotoUrl"
+                                    :src="profissional.fotoUrl"
+                                    :alt="auth.usuario?.nomeCompleto ?? 'Foto do profissional'"
+                                />
+                                <template v-else>{{ userInicial }}</template>
+                            </div>
+                            <span class="user-menu-nome">
+                                {{ auth.usuario?.nomeCompleto ?? auth.usuario?.email ?? "Profissional" }}
+                            </span>
+                            <i class="fa-solid fa-chevron-down user-menu-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div v-if="userMenuAberto" class="user-menu-dropdown" role="menu">
+                            <div class="user-menu-header">
+                                <div class="user-menu-avatar user-menu-avatar--lg">
+                                    <img
+                                        v-if="profissional.fotoUrl"
+                                        :src="profissional.fotoUrl"
+                                        :alt="auth.usuario?.nomeCompleto ?? 'Foto do profissional'"
+                                    />
+                                    <template v-else>{{ userInicial }}</template>
+                                </div>
+                                <div class="user-menu-info">
+                                    <span class="user-menu-info-nome">
+                                        {{ auth.usuario?.nomeCompleto ?? auth.usuario?.email ?? "Profissional" }}
+                                    </span>
+                                    <span class="user-menu-info-email" v-if="auth.usuario?.email">
+                                        {{ auth.usuario.email }}
+                                    </span>
+                                    <span class="user-menu-info-papel" v-if="tenant.ativo">
+                                        {{ tenant.ativo.papel }} · {{ tenant.ativo.nomeFantasia }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="user-menu-divider"></div>
+
+                            <button type="button" class="user-menu-item" @click="irParaConta">
+                                <i class="fa-solid fa-user user-menu-item-icone" aria-hidden="true"></i>
+                                Minha conta
+                            </button>
+                            <button type="button" class="user-menu-item" @click="trocarEstabelecimentoFromMenu">
+                                <i class="fa-solid fa-arrow-right-arrow-left user-menu-item-icone" aria-hidden="true"></i>
+                                Trocar estabelecimento
+                            </button>
+
+                            <div class="user-menu-divider"></div>
+
+                            <button type="button" class="user-menu-item user-menu-item--danger" @click="sairFromMenu">
+                                <i class="fa-solid fa-right-from-bracket user-menu-item-icone" aria-hidden="true"></i>
+                                Sair
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -226,59 +320,6 @@ async function sair() {
 }
 .sidebar-logo:hover { opacity: 0.8; }
 .logo-img { height: 28px; width: auto; object-fit: contain; }
-
-/* User block */
-.user-bloco {
-    padding: 0 0.75rem 0.75rem;
-}
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.5rem 0.5rem;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.15s;
-    text-decoration: none;
-    color: inherit;
-}
-.user-info:hover { background: rgba(255,255,255,0.08); }
-.avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.6);
-    background: rgba(255,255,255,0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    font-weight: 700;
-    flex-shrink: 0;
-    overflow: hidden;
-}
-.avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.user-texto { display: flex; flex-direction: column; min-width: 0; }
-.user-nome {
-    font-size: 0.82em;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #fff;
-}
-.user-clinica {
-    font-size: 0.72em;
-    color: #86efac;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.user-papel { font-size: 0.7em; color: rgba(255,255,255,0.55); }
 
 /* Nav */
 .nav {
@@ -351,20 +392,191 @@ async function sair() {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1.25rem;
+    height: 56px;
     background: var(--bg-card);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid hsl(var(--primary) / 0.12);
+    box-shadow: 0 2px 4px rgba(36, 21, 84, 0.06), 0 8px 24px rgba(36, 21, 84, 0.04);
     position: sticky;
     top: 0;
     z-index: 50;
 }
-.topbar-titulo { font-size: 0.9em; font-weight: 600; color: var(--text); }
+
+/* Contexto (estabelecimento) à esquerda */
+.topbar-contexto {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.65rem;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 260px;
+}
+.topbar-contexto-icone {
+    color: hsl(var(--primary));
+    font-size: 0.85em;
+}
+.topbar-contexto-nome {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .topbar-acoes {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
 }
+
+/* User menu */
+.user-menu { position: relative; }
+
+.user-menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.55rem 0.25rem 0.3rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    color: var(--text);
+    font-family: inherit;
+}
+.user-menu-trigger:hover {
+    background: var(--bg-muted);
+    border-color: var(--border);
+}
+
+.user-menu-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.user-menu-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.user-menu-avatar--lg {
+    width: 44px;
+    height: 44px;
+    font-size: 1.05em;
+}
+
+.user-menu-nome {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-menu-chevron {
+    font-size: 0.7em;
+    color: var(--text-muted);
+}
+
+.user-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    z-index: 200;
+    padding: 0.4rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.user-menu-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.6rem;
+}
+.user-menu-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.user-menu-info-nome {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.user-menu-info-email {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.user-menu-info-papel {
+    font-size: 0.7em;
+    color: hsl(var(--primary));
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.25rem 0;
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.83em;
+    color: var(--text);
+    text-align: left;
+    transition: background 0.12s;
+}
+.user-menu-item:hover { background: var(--bg-muted); }
+.user-menu-item-icone {
+    width: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+.user-menu-item--danger { color: hsl(0 70% 45%); }
+.user-menu-item--danger .user-menu-item-icone { color: hsl(0 70% 45%); }
+.user-menu-item--danger:hover { background: hsl(0 70% 95%); }
 
 .btn-menu {
     display: none;
@@ -402,5 +614,9 @@ async function sair() {
     .conteudo { margin-left: 0; }
     .btn-menu { display: flex; }
     .overlay { display: block; }
+
+    .user-menu-nome,
+    .user-menu-chevron { display: none; }
+    .topbar-contexto { max-width: 160px; }
 }
 </style>

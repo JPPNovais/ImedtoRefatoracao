@@ -10,35 +10,28 @@ public class OrcamentoCompletoTests
 {
     private static DateOnly Amanha() => DateOnly.FromDateTime(DateTime.Today.AddDays(1));
 
-    /// <summary>Fábrica única para orçamento completo — use parâmetros nomeados para clareza.</summary>
-    private static Orcamento CriarCompletoBase(
+    /// <summary>Helper para orçamentos com múltiplas collections via fábrica única.</summary>
+    private static Orcamento CriarOrcamento(
         IEnumerable<ItemPayload>? itens = null,
         IEnumerable<EquipePayload>? equipe = null,
         IEnumerable<ImplantePayload>? implantes = null,
         IEnumerable<FormaPagamentoPayload>? formas = null,
         IEnumerable<CirurgiaPayload>? cirurgias = null,
         InternacaoPayload? internacao = null,
-        AnestesiaPayload? anestesia = null,
-        decimal desconto = 0,
-        decimal juros = 0)
+        AnestesiaPayload? anestesia = null)
     {
         itens ??= [new ItemPayload("Consulta cirúrgica", 1, 1000m, 0)];
-        formas ??= [];
 
-        return Orcamento.CriarCompleto(
+        return Orcamento.Criar(
             estabelecimentoId: 1,
             pacienteId: 1,
             validade: Amanha(),
             observacoes: null,
             criadoPorUsuarioId: Guid.NewGuid(),
-            tipo: TipoOrcamento.Cirurgico,
             procedimentoCirurgicoId: null,
-            configuracao: null,
-            descontoBruto: desconto,
-            jurosBrutos: juros,
             itens: itens,
-            equipe: equipe ?? [],
-            implantes: implantes ?? [],
+            equipe: equipe,
+            implantes: implantes,
             formasPagamento: formas,
             cirurgias: cirurgias,
             internacao: internacao,
@@ -51,7 +44,7 @@ public class OrcamentoCompletoTests
         var itens = new[] { new ItemPayload("Honorários", 1, 2000m, 0) };
         var formas = new[] { new FormaPagamentoPayload(1, 2000m, 1, 0m, 0m, null) };
 
-        Assert.DoesNotThrow(() => CriarCompletoBase(itens: itens, formas: formas));
+        Assert.DoesNotThrow(() => CriarOrcamento(itens: itens, formas: formas));
     }
 
     [Test]
@@ -61,38 +54,25 @@ public class OrcamentoCompletoTests
         var formas = new[] { new FormaPagamentoPayload(1, 1500m, 1, 0m, 0m, null) }; // 500 a menos
 
         var ex = Assert.Throws<BusinessException>(() =>
-            CriarCompletoBase(itens: itens, formas: formas));
+            CriarOrcamento(itens: itens, formas: formas));
 
-        Assert.That(ex.Message, Does.Contain("não confere"));
-    }
-
-    [Test]
-    public void ValidarIntegridade_ComDesconto_SomaFormasDeveBaterComTotalEfetivo()
-    {
-        var itens = new[] { new ItemPayload("Honorários", 1, 2000m, 0) };
-        var formas = new[] { new FormaPagamentoPayload(1, 1800m, 1, 0m, 0m, null) }; // 2000 - 200 desconto
-        var desconto = 200m;
-
-        Assert.DoesNotThrow(() => CriarCompletoBase(itens: itens, formas: formas, desconto: desconto));
+        Assert.That(ex!.Message, Does.Contain("não confere"));
     }
 
     [Test]
     public void ValidarIntegridade_SemFormasPagamento_NaoValidaECriaOrcamento()
     {
-        // Sem formas é válido (cotação em andamento)
-        var orc = CriarCompletoBase();
+        var orc = CriarOrcamento();
 
         Assert.That(orc.FormasPagamento, Is.Empty);
-        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Pendente));
+        Assert.That(orc.Status, Is.EqualTo(OrcamentoStatus.Rascunho));
     }
 
     [Test]
     public void AdicionarMembroEquipe_DuplicataPermitida_DocumentaComportamentoAtual()
     {
-        // OrcamentoEquipe.AdicionarMembroEquipe não valida unicidade (diferente de ProcedimentoCirurgico).
-        // Este teste documenta o comportamento atual: duplicatas são aceitas no Orçamento.
         var profissionalId = Guid.NewGuid();
-        var orc = CriarCompletoBase(equipe: [new EquipePayload(profissionalId, "Cirurgião", 1000m)]);
+        var orc = CriarOrcamento(equipe: [new EquipePayload(profissionalId, "Cirurgião", 1000m)]);
 
         orc.AdicionarMembroEquipe(profissionalId, "Cirurgião", 1000m);
 
@@ -100,9 +80,9 @@ public class OrcamentoCompletoTests
     }
 
     [Test]
-    public void AdicionarFormaPagamento_OrcamentoPendente_AdicionaCorretamente()
+    public void AdicionarFormaPagamento_OrcamentoRascunho_AdicionaCorretamente()
     {
-        var orc = CriarCompletoBase();
+        var orc = CriarOrcamento();
 
         orc.AdicionarFormaPagamento(1, 1000m, 1, 0m, 0m, null);
 
@@ -113,20 +93,20 @@ public class OrcamentoCompletoTests
     [Test]
     public void AdicionarFormaPagamento_OrcamentoAprovado_LancaBusinessException()
     {
-        var orc = Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(),
-            [new ItemPayload("Item", 1, 100m, 0)]);
+        var orc = CriarOrcamento();
+        orc.Enviar();
         orc.Aprovar();
 
         var ex = Assert.Throws<BusinessException>(() =>
             orc.AdicionarFormaPagamento(1, 100m, 1, 0m, 0m, null));
 
-        Assert.That(ex.Message, Does.Contain("pendentes podem ser editados"));
+        Assert.That(ex!.Message, Does.Contain("rascunho ou enviados"));
     }
 
     [Test]
-    public void AdicionarImplante_OrcamentoPendente_CustoTotalAtualizado()
+    public void AdicionarImplante_OrcamentoRascunho_CustoTotalAtualizado()
     {
-        var orc = CriarCompletoBase();
+        var orc = CriarOrcamento();
 
         orc.AdicionarImplante(null, "Prótese titanium", 1m, 5000m);
 
@@ -136,49 +116,78 @@ public class OrcamentoCompletoTests
     [Test]
     public void RemoverImplante_ImplanteExistente_ImplanteRemovidoETotalAtualizado()
     {
-        // Começa com orçamento limpo, adiciona dois implantes em memória (Id=0 para ambos).
-        // Remove pelo Id=0 (pega o primeiro encontrado), verifica que sobrou 1 e o custo foi recalculado.
-        var orc = CriarCompletoBase();
+        var orc = CriarOrcamento();
         orc.AdicionarImplante(null, "Prótese titanium", 1m, 5000m);
         orc.AdicionarImplante(null, "Parafuso", 2m, 100m);
-        // Remove qualquer implante (Id=0 em memória — mesma referência do primeiro adicionado)
         var qualquer = orc.Implantes.First();
 
         orc.RemoverImplante(qualquer.Id);
 
         Assert.That(orc.Implantes, Has.Count.EqualTo(1));
-        // Custo restante deve ser o do implante que sobrou
         Assert.That(orc.CustoImplantesTotal, Is.EqualTo(orc.Implantes[0].CustoTotal));
     }
 
     [Test]
     public void RemoverImplante_ImplanteNaoEncontrado_LancaBusinessException()
     {
-        var orc = CriarCompletoBase();
+        var orc = CriarOrcamento();
 
         var ex = Assert.Throws<BusinessException>(() => orc.RemoverImplante(99));
 
-        Assert.That(ex.Message, Does.Contain("não encontrado"));
+        Assert.That(ex!.Message, Does.Contain("não encontrado"));
     }
 
     [Test]
-    public void CriarCompleto_SemItensNemEquipeNemImplantes_LancaBusinessException()
+    public void Criar_SemItensNemEquipeNemImplantesNemCirurgias_LancaBusinessException()
     {
         var ex = Assert.Throws<BusinessException>(() =>
-            Orcamento.CriarCompleto(1, 1, Amanha(), null, Guid.NewGuid(),
-                TipoOrcamento.Cirurgico, null, null, 0, 0,
-                [], [], [], []));
+            Orcamento.Criar(1, 1, Amanha(), null, Guid.NewGuid(), null,
+                itens: [], equipe: [], implantes: [], formasPagamento: []));
 
-        Assert.That(ex.Message, Does.Contain("ao menos um item"));
+        Assert.That(ex!.Message, Does.Contain("ao menos um item"));
     }
 
     [Test]
-    public void CalcularTotalEfetivo_ComDescontoEJuros_CalculaCorreto()
+    public void RegistrarConversaoEmProcedimento_StatusAprovado_VinculaProcedimento()
     {
-        var orc = CriarCompletoBase(itens: [new ItemPayload("Item", 1, 1000m, 0)]);
+        var orc = CriarOrcamento();
+        orc.Enviar();
+        orc.Aprovar();
 
-        var efetivo = orc.CalcularTotalEfetivo(descontoBruto: 100m, jurosBrutos: 50m);
+        orc.RegistrarConversaoEmProcedimento(42L);
 
-        Assert.That(efetivo, Is.EqualTo(950m)); // 1000 - 100 + 50
+        Assert.That(orc.ProcedimentoCirurgicoId, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void RegistrarConversaoEmProcedimento_AindaRascunho_LancaBusinessException()
+    {
+        var orc = CriarOrcamento();
+        var ex = Assert.Throws<BusinessException>(() => orc.RegistrarConversaoEmProcedimento(42L));
+        Assert.That(ex!.Message, Does.Contain("aprovados"));
+    }
+
+    [Test]
+    public void RegistrarConversaoEmProcedimento_JaConvertido_LancaBusinessException()
+    {
+        var orc = CriarOrcamento();
+        orc.Enviar();
+        orc.Aprovar();
+        orc.RegistrarConversaoEmProcedimento(42L);
+
+        var ex = Assert.Throws<BusinessException>(() => orc.RegistrarConversaoEmProcedimento(99L));
+        Assert.That(ex!.Message, Does.Contain("já foi convertido"));
+    }
+
+    [Test]
+    public void Total_SomaItensImplantesEquipeCirurgiasInternacaoAnestesia()
+    {
+        var orc = CriarOrcamento(
+            itens: [new ItemPayload("Item", 1, 1000m, 0)],
+            implantes: [new ImplantePayload(null, "Prótese", 1m, 500m)],
+            equipe: [new EquipePayload(Guid.NewGuid(), "Cirurgião", 200m)]);
+
+        // 1000 + 500 + 200 = 1700
+        Assert.That(orc.Total, Is.EqualTo(1700m));
     }
 }

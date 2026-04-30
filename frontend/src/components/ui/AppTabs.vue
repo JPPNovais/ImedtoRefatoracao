@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * AppTabs — tabs genérico do design system.
- * Usa a classe .tab-main / .tab-main-active do main.css.
- * Suporta abas por valor (generic T).
+ * AppTabs — tabs genérico do design system. 3 variantes:
+ *   - "main"      → botão pílula com fundo primary (default).
+ *   - "sub"       → chip pequeno arredondado.
+ *   - "underline" → sublinhado abaixo da ativa (estilo legado/Prontuário).
+ *                   Use em sub-navegação dentro de uma view.
  */
 interface Tab<T = string> {
     valor: T
@@ -13,7 +15,7 @@ interface Tab<T = string> {
 interface Props {
     modelValue: string | number
     abas: Tab[]
-    variante?: "main" | "sub"
+    variante?: "main" | "sub" | "underline"
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,19 +25,27 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     "update:modelValue": [value: string | number]
 }>()
+
+function classeBase(): string {
+    if (props.variante === "sub") return "tab-sub"
+    if (props.variante === "underline") return "tab-underline"
+    return "tab-main"
+}
+function classeAtiva(): string {
+    if (props.variante === "sub") return "tab-sub-active"
+    if (props.variante === "underline") return "tab-underline-active"
+    return "tab-main-active"
+}
 </script>
 
 <template>
-    <nav class="tabs-nav" role="tablist" :aria-label="$attrs['aria-label'] as string">
+    <nav class="tabs-nav" :class="`tabs-nav--${variante}`" role="tablist" :aria-label="$attrs['aria-label'] as string">
         <button
             v-for="aba in abas"
             :key="String(aba.valor)"
             role="tab"
             :aria-selected="modelValue === aba.valor"
-            :class="[
-                variante === 'sub' ? 'tab-sub' : 'tab-main',
-                modelValue === aba.valor ? (variante === 'sub' ? 'tab-sub-active' : 'tab-main-active') : '',
-            ]"
+            :class="[classeBase(), modelValue === aba.valor ? classeAtiva() : '']"
             @click="emit('update:modelValue', aba.valor)"
         >
             <i v-if="aba.icone" :class="aba.icone" aria-hidden="true"></i>
@@ -48,6 +58,13 @@ const emit = defineEmits<{
 .tabs-nav {
     display: flex;
     gap: 0.25rem;
+    flex-wrap: wrap;
+}
+/* Underline: sem gap entre botões, borda inferior contínua. */
+.tabs-nav--underline {
+    gap: 0;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
 }
 </style>

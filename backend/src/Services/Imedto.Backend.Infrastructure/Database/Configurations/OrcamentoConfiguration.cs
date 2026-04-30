@@ -1,6 +1,4 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Imedto.Backend.Domain.Orcamentos;
 
@@ -8,17 +6,6 @@ namespace Imedto.Backend.Infrastructure.Database.Configurations;
 
 public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
 {
-    /// <summary>
-    /// Opções de serialização do <see cref="ConfigPagamentoOrcamento"/> persistido como
-    /// jsonb. PropertyNamingPolicy=null preserva PascalCase, evitando renomes implícitos
-    /// — quem ler o jsonb direto no Postgres vê os mesmos nomes do POCO.
-    /// </summary>
-    private static readonly JsonSerializerOptions ConfigJsonOptions = new()
-    {
-        PropertyNamingPolicy = null,
-        WriteIndented = false
-    };
-
     public void Configure(EntityTypeBuilder<Orcamento> builder)
     {
         builder.ToTable("orcamentos");
@@ -36,30 +23,7 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
         builder.Property(o => o.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(o => o.AtualizadoEm).HasColumnName("atualizado_em");
 
-        // Item 3.3.B — extensões "completo". Defaults preservam orçamento simples existente.
-        // HasDefaultValue("Simples") aplica diretamente o nome da enum como default da
-        // coluna VARCHAR — combinado com HasConversion<string>() para escrita/leitura.
-        builder.Property(o => o.Tipo).HasColumnName("tipo").HasMaxLength(20).IsRequired()
-            .HasConversion<string>()
-            .HasDefaultValue(TipoOrcamento.Simples);
         builder.Property(o => o.ProcedimentoCirurgicoId).HasColumnName("procedimento_cirurgico_id");
-        // Item 7 — config de pagamento como jsonb com schema fechado (POCO). Uso de
-        // HasConversion (em vez de OwnsOne) preserva a coluna única + null sem precisar
-        // de propriedades shadow espalhadas. ValueComparer compara via JSON serializado
-        // para que o EF detecte mudanças mesmo quando o objeto é trocado por outro
-        // logicamente equivalente.
-        builder.Property(o => o.Configuracao)
-            .HasColumnName("config_pagamento_json")
-            .HasColumnType("jsonb")
-            .HasConversion(
-                v => v == null ? null : JsonSerializer.Serialize(v, ConfigJsonOptions),
-                v => string.IsNullOrWhiteSpace(v)
-                    ? null
-                    : JsonSerializer.Deserialize<ConfigPagamentoOrcamento>(v, ConfigJsonOptions),
-                new ValueComparer<ConfigPagamentoOrcamento?>(
-                    (a, b) => JsonSerializer.Serialize(a, ConfigJsonOptions) == JsonSerializer.Serialize(b, ConfigJsonOptions),
-                    v => v == null ? 0 : JsonSerializer.Serialize(v, ConfigJsonOptions).GetHashCode(),
-                    v => v == null ? null : JsonSerializer.Deserialize<ConfigPagamentoOrcamento>(JsonSerializer.Serialize(v, ConfigJsonOptions), ConfigJsonOptions)));
         builder.Property(o => o.CustoImplantesTotal).HasColumnName("custo_implantes_total")
             .HasPrecision(12, 2).IsRequired().HasDefaultValue(0m);
 
@@ -90,7 +54,6 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("fk_orcamento_forma_pagamento_orcamento");
 
-        // Item 6 — cirurgias múltiplas (N:1) + internação 1:1 + anestesia 1:1.
         builder.HasMany(o => o.Cirurgias)
             .WithOne()
             .HasForeignKey(c => c.OrcamentoId)

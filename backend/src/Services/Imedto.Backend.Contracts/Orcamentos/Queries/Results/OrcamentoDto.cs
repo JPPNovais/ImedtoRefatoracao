@@ -15,10 +15,24 @@ public class OrcamentoResumoDto
     public DateTime? AtualizadoEm { get; set; }
 }
 
+/// <summary>
+/// Detalhe completo do orçamento (aggregate único). Carrega todas as collections —
+/// itens, equipe, implantes, formas de pagamento, cirurgias — e os opcionais 1:1
+/// (internação, anestesia). Não há mais distinção "resumo simples vs completo".
+/// </summary>
 public class OrcamentoDto : OrcamentoResumoDto
 {
     public string? Observacoes { get; set; }
+    public long? ProcedimentoCirurgicoId { get; set; }
+    public decimal CustoImplantesTotal { get; set; }
+
     public List<ItemOrcamentoDto> Itens { get; set; } = new();
+    public List<OrcamentoEquipeDto> Equipe { get; set; } = new();
+    public List<OrcamentoImplanteDto> Implantes { get; set; } = new();
+    public List<OrcamentoFormaPagamentoDto> FormasPagamento { get; set; } = new();
+    public List<OrcamentoCirurgiaDto> Cirurgias { get; set; } = new();
+    public OrcamentoInternacaoDto? Internacao { get; set; }
+    public OrcamentoAnestesiaDto? Anestesia { get; set; }
 }
 
 public class ItemOrcamentoDto
@@ -29,25 +43,6 @@ public class ItemOrcamentoDto
     public decimal ValorUnitario { get; set; }
     public decimal DescontoPercent { get; set; }
     public decimal Subtotal { get; set; }
-}
-
-public class OrcamentoCompletoDto : OrcamentoDto
-{
-    public string Tipo { get; set; } = "Simples";
-    public long? ProcedimentoCirurgicoId { get; set; }
-    /// <summary>
-    /// Item 7 — POCO desserializado do jsonb. <c>null</c> quando o orçamento não tem
-    /// configuração extra. Substitui o antigo <c>ConfigPagamentoJson</c> opaco.
-    /// </summary>
-    public Imedto.Backend.Contracts.Orcamentos.ConfigPagamentoOrcamentoDto? Configuracao { get; set; }
-    public decimal CustoImplantesTotal { get; set; }
-    public List<OrcamentoEquipeDto> Equipe { get; set; } = new();
-    public List<OrcamentoImplanteDto> Implantes { get; set; } = new();
-    public List<OrcamentoFormaPagamentoDto> FormasPagamento { get; set; } = new();
-    // Item 6 — cirurgias múltiplas + internação 1:1 + anestesia 1:1.
-    public List<OrcamentoCirurgiaDto> Cirurgias { get; set; } = new();
-    public OrcamentoInternacaoDto? Internacao { get; set; }
-    public OrcamentoAnestesiaDto? Anestesia { get; set; }
 }
 
 public class OrcamentoEquipeDto
@@ -77,9 +72,9 @@ public class OrcamentoFormaPagamentoDto
     public string? FormaPagamentoNome { get; set; }
     public decimal Valor { get; set; }
     public int Parcelas { get; set; }
-    /// <summary>Item 7 — juros aplicados na forma de pagamento.</summary>
+    /// <summary>Juros aplicados nesta forma de pagamento.</summary>
     public decimal AcrescimoPercentual { get; set; }
-    /// <summary>Item 7 — % do valor da forma que vira entrada.</summary>
+    /// <summary>% do valor da forma que vira entrada.</summary>
     public decimal EntradaPercentual { get; set; }
     public string? Observacao { get; set; }
     public int Ordem { get; set; }
