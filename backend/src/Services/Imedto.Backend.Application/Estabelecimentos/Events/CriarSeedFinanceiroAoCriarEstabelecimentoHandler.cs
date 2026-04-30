@@ -1,4 +1,3 @@
-using Imedto.Backend.Application.Financeiro;
 using Imedto.Backend.Domain.Estabelecimentos.Events;
 using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.SharedKernel.Cqrs;

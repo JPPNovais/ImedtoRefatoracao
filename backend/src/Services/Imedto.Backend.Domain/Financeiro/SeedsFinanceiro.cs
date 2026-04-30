@@ -1,6 +1,4 @@
-using Imedto.Backend.Domain.Financeiro;
-
-namespace Imedto.Backend.Application.Financeiro;
+namespace Imedto.Backend.Domain.Financeiro;
 
 /// <summary>
 /// Conjunto mínimo de categorias e formas de pagamento criadas automaticamente quando um

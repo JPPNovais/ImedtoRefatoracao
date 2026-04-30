@@ -6,8 +6,12 @@
 > **Status:** Fases 1-3 ✅ concluídas (incluindo sub-iteração de paridade dos 8 bloqueadores). Fase 4 🚧 em progresso (Wave 1 ✅ entregue: testes integração interceptor + load test rate limit + PDF receita + permissões finas em 5 controllers + admin-reset bypass).
 > **Banco:** 30+ tabelas, RLS habilitada, 144 regiões anatômicas + 31 profissões + 196 especialidades + planos seedados, paridade Receitas (TipoNotificacao + 3 cols clínicas + Rascunho), paridade Orçamento (cirurgias/internação/anestesia + acrescimo/entrada por forma), backfill permissões finas Admin/Médico/Recepção.
 > **Backend:** 205 testes unitários + 11 testes integração verdes, 0 erros.
-> **Frontend (Fase 2 + Fase 3):** ✅ entregue (8 views: MinhaAssinatura, Planos, MinhaIaSettings, Automacoes, CategoriasFinanceiras, FormasPagamento, Notificacoes, CirurgiaView; ReceitaDrawer + ReceitasPacienteTab; 10 services novos; stores de notificações + upsell modal 402; composable useConfirm; build limpo).
-> **Próxima ação:** Wave 2 da Fase 4 (relatórios consolidados + solicitação de vínculo inversa + retenção LGPD + ANVISA + TUSS).
+> **Fase 4 ✅ concluída** (backend + banco + frontend + revisão de paridade com 3 bloqueadores ALTO resolvidos):
+> - Backend: 13 itens (relatórios consolidados 4 handlers, solicitação inversa, LGPD anonimização + consentimentos + view `lgpd_acesso_log`, PDF Receita real QuestPDF, ANVISA Portaria 344/98 + RDC 471/2021, TUSS 83 procedimentos, permissões finas em 5 controllers, admin-reset modular com 13 flags opt-in, Resend email, SignalR Redis backplane, cookie scope `/`, k6 + integração SoftDeleteInterceptor).
+> - Database: 4 tabelas novas + 1 view + 3 colunas + 83 procedimentos TUSS + RLS aplicada via MCP.
+> - Frontend: 4 views de relatórios + LGPD MinhaConta + Solicitação inversa + autocomplete TUSS + 3 componentes design system novos (AppCheckbox, AppTabs, AppCollapsible).
+> - Backend: 205 testes unitários + 11 integração verdes. Frontend: build limpo.
+> **Próxima ação:** Fase 5 — Migração ETL do projeto Supabase legado para o schema novo (a definir estratégia: strangler fig vs big-bang vs dual-write). Gerar `05_FASE_5_MIGRACAO_DADOS.md`.
 
 ---
 

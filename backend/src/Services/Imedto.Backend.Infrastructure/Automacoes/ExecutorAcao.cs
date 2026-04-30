@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -22,18 +23,24 @@ namespace Imedto.Backend.Infrastructure.Automacoes;
 /// ]
 /// </code>
 ///
-/// V1 suporta apenas <c>enviar-notificacao</c> (delega para <see cref="INotificacaoService"/>)
-/// e <c>enviar-email</c> (placeholder — apenas log até integração com provedor real).
+/// V1 suporta <c>enviar-notificacao</c> (delega para <see cref="INotificacaoService"/>)
+/// e <c>enviar-email</c> (item 4.7 — delega para <see cref="IEmailService"/>; em dev sem
+/// API key, cai no <c>NoOpEmailService</c>).
 /// Outras ações lançam <see cref="BusinessException"/> — falha controlada que vira retry.
 /// </summary>
 public class ExecutorAcao : IExecutorAcao
 {
     private readonly INotificacaoService _notificacoes;
+    private readonly IEmailService _email;
     private readonly ILogger<ExecutorAcao> _logger;
 
-    public ExecutorAcao(INotificacaoService notificacoes, ILogger<ExecutorAcao> logger)
+    public ExecutorAcao(
+        INotificacaoService notificacoes,
+        IEmailService email,
+        ILogger<ExecutorAcao> logger)
     {
         _notificacoes = notificacoes;
+        _email = email;
         _logger = logger;
     }
 
@@ -70,12 +77,7 @@ public class ExecutorAcao : IExecutorAcao
                 break;
 
             case "enviar-email":
-                // V1: provedor real fora de escopo (item futuro). Logamos para visibilidade.
-                // TODO: integrar com IEmailService quando o provedor SMTP/Resend for definitivo.
-                var destinatario = LerString(parametros, "para") ?? "(sem destinatário)";
-                _logger.LogWarning(
-                    "[Automacao] Ação 'enviar-email' acionada (estabelecimento {Estab}, destinatário {Para}) — provedor real ainda não integrado, ação ignorada.",
-                    estabelecimentoId, destinatario);
+                await EnviarEmailAsync(parametros, ct);
                 break;
 
             default:
@@ -115,6 +117,24 @@ public class ExecutorAcao : IExecutorAcao
             categoria: categoria,
             linkAcao: linkAcao,
             ct: ct);
+    }
+
+    private async Task EnviarEmailAsync(JsonElement parametros, CancellationToken ct)
+    {
+        if (parametros.ValueKind != JsonValueKind.Object)
+            throw new BusinessException("Ação 'enviar-email' requer objeto 'parametros'.");
+
+        var para = LerString(parametros, "para")
+            ?? throw new BusinessException("Ação 'enviar-email' requer 'para'.");
+        var assunto = LerString(parametros, "assunto")
+            ?? throw new BusinessException("Ação 'enviar-email' requer 'assunto'.");
+        var corpoHtml = LerString(parametros, "corpoHtml")
+            ?? throw new BusinessException("Ação 'enviar-email' requer 'corpoHtml'.");
+        var corpoTexto = LerString(parametros, "corpoTexto");
+
+        // IEmailService já trata retry e logs LGPD-safe internamente.
+        // Falha permanente NÃO bloqueia o handler (logado pelo serviço).
+        await _email.EnviarAsync(para, assunto, corpoHtml, corpoTexto, ct);
     }
 
     private static Guid? ResolverUsuarioId(string raw, JsonDocument payload)

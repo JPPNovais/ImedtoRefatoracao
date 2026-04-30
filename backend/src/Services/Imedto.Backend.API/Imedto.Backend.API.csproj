@@ -29,6 +29,9 @@
         <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
 
         <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+
+        <!-- SignalR backplane Redis (Fase 4 item 4.6 — multi-instância) -->
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="10.0.0" />
     </ItemGroup>
 
     <ItemGroup>

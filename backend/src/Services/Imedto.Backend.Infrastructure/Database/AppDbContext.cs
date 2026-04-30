@@ -11,6 +11,7 @@ using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Jobs;
+using Imedto.Backend.Domain.Lgpd;
 using Imedto.Backend.Domain.Orcamentos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Notificacoes;
@@ -86,6 +87,13 @@ public class AppDbContext : DbContext
     public DbSet<OrcamentoCirurgia> OrcamentoCirurgias => Set<OrcamentoCirurgia>();
     public DbSet<OrcamentoInternacao> OrcamentoInternacoes => Set<OrcamentoInternacao>();
     public DbSet<OrcamentoAnestesia> OrcamentoAnestesias => Set<OrcamentoAnestesia>();
+
+    // Item 4.3 — LGPD: anonimizações e consentimentos.
+    public DbSet<LgpdAnonimizacao> LgpdAnonimizacoes => Set<LgpdAnonimizacao>();
+    public DbSet<LgpdConsentimento> LgpdConsentimentos => Set<LgpdConsentimento>();
+
+    // Item 4.13 — Catálogo TUSS/CBHPM de procedimentos.
+    public DbSet<ProcedimentoCatalogo> CatalogoProcedimentos => Set<ProcedimentoCatalogo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

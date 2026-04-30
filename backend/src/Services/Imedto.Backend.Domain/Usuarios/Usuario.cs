@@ -74,6 +74,23 @@ public class Usuario : Entity<Guid>
         UltimoAcessoEm = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Anonimiza PII da conta do titular (direito ao esquecimento, Art. 18 LGPD).
+    /// O Id é mantido para preservar integridade referencial com registros históricos.
+    /// TODO: invalidar sessão Supabase (Auth) via service role após anonimizar — feito pelo controller.
+    /// </summary>
+    public virtual void Anonimizar()
+    {
+        NomeCompleto = $"Usuário Anonimizado";
+        Cpf = null;
+        Telefone = null;
+        Status = UsuarioStatus.Inativo;
+        AtualizadoEm = DateTime.UtcNow;
+        // E-mail: não nulificamos aqui pois é FK de autenticação no Supabase Auth.
+        // O controller deve chamar o revoke de sessão + o frontend redirecionar para logout.
+        // Se necessário anonimizar o e-mail no futuro, fazer via job que aguarda a sessão expirar.
+    }
+
     private static string SomenteDigitos(string valor) =>
         new(valor.Where(char.IsDigit).ToArray());
 }

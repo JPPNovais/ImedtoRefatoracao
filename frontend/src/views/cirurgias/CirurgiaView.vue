@@ -17,6 +17,8 @@ import {
     AppPageHeader, AppButton, AppBadge, AppTabs, AppField,
     AppInput, AppTextarea, AppModal, AppCard,
 } from "@/components/ui"
+import CodigoTussAutocomplete from "@/components/cirurgia/CodigoTussAutocomplete.vue"
+import type { ProcedimentoCatalogo } from "@/services/catalogoService"
 
 const route = useRoute()
 
@@ -38,6 +40,30 @@ const descricaoCirurgica = ref("")
 const anestesiaTecnica = ref("")
 const anestesiaIntercorrencias = ref("")
 const evolucaoPosOp = ref("")
+
+// Codigo TUSS (editavel no resumo quando nao finalizado)
+const codigoTussLocal = ref("")
+
+function aoSelecionarTuss(proc: ProcedimentoCatalogo) {
+    codigoTussLocal.value = proc.codigo
+    // Preenche o nome da cirurgia se estiver vazio
+    if (cirurgia.value && !cirurgia.value.cirurgiaPrincipal) {
+        cirurgia.value = { ...cirurgia.value, cirurgiaPrincipal: proc.nome }
+    }
+}
+
+async function salvarCodigoTuss() {
+    if (!codigoTussLocal.value) return
+    salvando.value = true
+    try {
+        await cirurgiaService.atualizar(id, { cirurgiaCodigoTuss: codigoTussLocal.value })
+        if (cirurgia.value) cirurgia.value.cirurgiaCodigoTuss = codigoTussLocal.value
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Erro ao salvar codigo TUSS."
+    } finally {
+        salvando.value = false
+    }
+}
 
 const abas = [
     { valor: "resumo",    label: "Resumo",    icone: "fa-solid fa-clipboard" },
@@ -71,6 +97,7 @@ watch(cirurgia, (c) => {
     anestesiaTecnica.value = (c.fichaAnestesica?.tecnica as string) ?? ""
     anestesiaIntercorrencias.value = (c.fichaAnestesica?.intercorrencias as string) ?? ""
     evolucaoPosOp.value = c.evolucaoPosOp ?? ""
+    codigoTussLocal.value = c.cirurgiaCodigoTuss ?? ""
 })
 
 async function carregar() {
@@ -254,9 +281,29 @@ onMounted(carregar)
                                 <span class="resumo-label">Cirurgia</span>
                                 <strong>{{ cirurgia.cirurgiaPrincipal }}</strong>
                             </div>
-                            <div v-if="cirurgia.cirurgiaCodigoTuss" class="resumo-item">
-                                <span class="resumo-label">Codigo TUSS</span>
-                                <span>{{ cirurgia.cirurgiaCodigoTuss }}</span>
+                            <div class="resumo-item">
+                                <span class="resumo-label">Codigo TUSS/CBHPM</span>
+                                <template v-if="isReadonly">
+                                    <span>{{ cirurgia.cirurgiaCodigoTuss ?? '—' }}</span>
+                                </template>
+                                <template v-else>
+                                    <div class="tuss-row">
+                                        <CodigoTussAutocomplete
+                                            v-model="codigoTussLocal"
+                                            placeholder="Buscar por codigo ou nome..."
+                                            @selecionar="aoSelecionarTuss"
+                                        />
+                                        <button
+                                            v-if="codigoTussLocal !== (cirurgia.cirurgiaCodigoTuss ?? '')"
+                                            class="btn-icon btn-icon-ver"
+                                            title="Salvar codigo TUSS"
+                                            :disabled="salvando"
+                                            @click="salvarCodigoTuss"
+                                        >
+                                            <i class="fa-solid fa-check" />
+                                        </button>
+                                    </div>
+                                </template>
                             </div>
                             <div class="resumo-item">
                                 <span class="resumo-label">Status</span>
@@ -495,6 +542,13 @@ onMounted(carregar)
     border-radius: var(--radius-sm);
     margin: 0 0 1rem;
 }
+
+.tuss-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+.tuss-row > :first-child { flex: 1; }
 
 @media (max-width: 768px) {
     .resumo-grid { grid-template-columns: 1fr; }

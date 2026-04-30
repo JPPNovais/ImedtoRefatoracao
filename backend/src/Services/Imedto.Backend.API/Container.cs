@@ -108,8 +108,14 @@ using Imedto.Backend.Domain.Financeiro.Events;
 using Imedto.Backend.Domain.Inventario.Events;
 using Imedto.Backend.Domain.Orcamentos.Events;
 using Imedto.Backend.Application.Catalogo.Queries;
+using Imedto.Backend.Domain.Catalogo;
+using Imedto.Backend.Application.Lgpd.Commands;
+using Imedto.Backend.Application.Lgpd.Queries;
 using Imedto.Backend.Contracts.Catalogo.Queries;
 using Imedto.Backend.Contracts.Catalogo.Queries.Results;
+using Imedto.Backend.Contracts.Lgpd.Commands;
+using Imedto.Backend.Contracts.Lgpd.Queries;
+using Imedto.Backend.Domain.Lgpd;
 using Imedto.Backend.Contracts.Automacoes.Commands;
 using Imedto.Backend.Contracts.Automacoes.Queries;
 using Imedto.Backend.Contracts.ModelosPermissao.Commands;
@@ -139,6 +145,7 @@ using Imedto.Backend.Infrastructure.Automacoes;
 using Imedto.Backend.Infrastructure.Notificacoes;
 using Imedto.Backend.Infrastructure.Admin;
 using Imedto.Backend.Infrastructure.Receitas;
+using Imedto.Backend.Infrastructure.Lgpd;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.API.Filters;
 using Imedto.Backend.API.Realtime;
@@ -445,7 +452,17 @@ public static class Container
         services.AddScoped<SalvarConfiguracaoAutomacaoCommandHandler>();
         services.AddSingleton<ObterConfiguracaoAutomacaoQueryHandlers>();
         services.AddScoped<IConfiguracaoAutomacaoRepository, ConfiguracaoAutomacaoRepository>();
-        services.AddSingleton<IEmailService, ResendEmailService>();
+        // Item 4.7 — provedor real (Resend) com fallback para NoOp se Email:ApiKey vazio.
+        // Decisão tomada na resolução (factory) para ler IConfiguration do scope sem
+        // precisar propagar a configuration por todos os métodos de Registrar*.
+        services.AddScoped<IEmailService>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var apiKey = cfg["Email:ApiKey"] ?? cfg["Email:ResendApiKey"];
+            return string.IsNullOrWhiteSpace(apiKey)
+                ? ActivatorUtilities.CreateInstance<NoOpEmailService>(sp)
+                : ActivatorUtilities.CreateInstance<ResendEmailService>(sp);
+        });
 
         // Item 2.2 — Engine de automações (regras + worker + executor)
         services.AddScoped<IRegraAutomacaoRepository, RegraAutomacaoRepository>();
@@ -483,6 +500,23 @@ public static class Container
         services.AddSingleton<ListarEspecialidadesQueryHandlers>();
         services.AddSingleton<ListarRegioesCatalogoQueryHandlers>();
         services.AddSingleton<CatalogoQueryRepository>();
+
+        // Item 4.13 — Catálogo TUSS/CBHPM de procedimentos.
+        services.AddScoped<IProcedimentoCatalogoRepository, ProcedimentoCatalogoRepository>();
+        services.AddSingleton<ProcedimentoCatalogoQueryRepository>();
+        services.AddSingleton<BuscarProcedimentoCatalogoQueryHandlers>();
+        services.AddSingleton<ObterProcedimentoPorCodigoQueryHandlers>();
+
+        // Item 4.3 — LGPD: anonimização, consentimentos e exportação.
+        services.AddScoped<ILgpdAnonimizacaoRepository, LgpdAnonimizacaoRepository>();
+        services.AddScoped<ILgpdConsentimentoRepository, LgpdConsentimentoRepository>();
+        services.AddScoped<IAnonimizacaoService, AnonimizacaoService>();
+        services.AddSingleton<LgpdQueryRepository>();
+        services.AddScoped<RegistrarConsentimentoCommandHandler>();
+        services.AddScoped<AnonimizarMinhaContaCommandHandler>();
+        services.AddSingleton<ExportarMeusDadosLgpdQueryHandlers>();
+        services.AddScoped<ListarMeusConsentimentosQueryHandlers>();
+        services.AddScoped<IJobHandler, AnonimizarPacientesInativosJob>();
 
         // Dashboard & Relatórios
         services.AddSingleton<DashboardQueryHandlers>();
@@ -593,6 +627,9 @@ public static class Container
             // Item 3.2 — Exame físico.
             bus.Register<RegistrarExameFisicoCommand, RegistrarExameFisicoCommandHandler>();
             bus.Register<AtualizarExameFisicoCommand, AtualizarExameFisicoCommandHandler>();
+            // Item 4.3 — LGPD.
+            bus.Register<RegistrarConsentimentoCommand, RegistrarConsentimentoCommandHandler>();
+            bus.Register<AnonimizarMinhaContaCommand, AnonimizarMinhaContaCommandHandler>();
             return bus;
         });
 
@@ -644,10 +681,16 @@ public static class Container
             bus.Register<RelatorioOperacionalQuery, RelatorioOperacionalDto, RelatorioOperacionalQueryHandler>();
             bus.Register<RelatorioPessoasQuery, RelatorioPessoasDto, RelatorioPessoasQueryHandler>();
             bus.Register<RelatorioOrcamentosQuery, RelatorioOrcamentosDto, RelatorioOrcamentosQueryHandler>();
+            // Item 4.3 — LGPD.
+            bus.Register<ExportarMeusDadosQuery, MeusDadosLgpdDto, ExportarMeusDadosLgpdQueryHandlers>();
+            bus.Register<ListarMeusConsentimentosQuery, IEnumerable<ConsentimentoDto>, ListarMeusConsentimentosQueryHandlers>();
             bus.Register<ObterConfiguracaoAutomacaoQuery, ConfiguracaoAutomacaoDto, ObterConfiguracaoAutomacaoQueryHandlers>();
             bus.Register<ListarProfissoesQuery, IEnumerable<ProfissaoListadaDto>, ListarProfissoesQueryHandlers>();
             bus.Register<ListarEspecialidadesQuery, IEnumerable<EspecialidadeListadaDto>, ListarEspecialidadesQueryHandlers>();
             bus.Register<ListarRegioesCatalogoQuery, IEnumerable<RegiaoCatalogoDto>, ListarRegioesCatalogoQueryHandlers>();
+            // Item 4.13 — Catálogo TUSS/CBHPM.
+            bus.Register<BuscarProcedimentoCatalogoQuery, IEnumerable<ProcedimentoCatalogoDto>, BuscarProcedimentoCatalogoQueryHandlers>();
+            bus.Register<ObterProcedimentoPorCodigoQuery, ProcedimentoCatalogoDto?, ObterProcedimentoPorCodigoQueryHandlers>();
             bus.Register<ListarRegrasAutomacaoQuery, IEnumerable<RegraAutomacaoDto>, ListarRegrasAutomacaoQueryHandlers>();
             bus.Register<ListarEventosAutomacaoQuery, IEnumerable<EventoAutomacaoDto>, ListarEventosAutomacaoQueryHandlers>();
             bus.Register<ListarNotificacoesQuery, PaginaNotificacoesDto, ListarNotificacoesQueryHandlers>();

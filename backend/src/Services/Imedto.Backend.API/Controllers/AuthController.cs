@@ -223,15 +223,21 @@ public class AuthController : ControllerBase
         var secure   = !isDev;
         var sameSite = isDev ? SameSiteMode.Lax : SameSiteMode.Strict;
 
+        // Item 4.8 — access-token usa Path="/" para que o cookie seja enviado tanto em
+        // /api/* quanto em /hubs/* (SignalR). Continua HttpOnly + Secure + SameSite=Strict
+        // (em prod), então ampliar o escopo de envio não introduz risco a XSS/CSRF — apenas
+        // permite o handshake do SignalR autenticar pelo cookie em vez de query string.
         Response.Cookies.Append("access-token", result.AccessToken, new CookieOptions
         {
             HttpOnly = true,
             Secure   = secure,
             SameSite = sameSite,
             Expires  = result.ExpiresAt,
-            Path     = "/api"
+            Path     = "/"
         });
 
+        // Refresh-token continua restrito ao endpoint que o consome — princípio do
+        // menor privilégio: o cookie de refresh nunca trafega em /api/* nem /hubs/*.
         Response.Cookies.Append("refresh-token", result.RefreshToken, new CookieOptions
         {
             HttpOnly = true,
@@ -244,7 +250,9 @@ public class AuthController : ControllerBase
 
     private void ClearAuthCookies()
     {
-        Response.Cookies.Delete("access-token",  new CookieOptions { Path = "/api" });
+        // Path precisa casar com o usado em SetAuthCookies — caso contrário o browser
+        // não remove o cookie e a sessão "vaza" entre logouts.
+        Response.Cookies.Delete("access-token",  new CookieOptions { Path = "/" });
         Response.Cookies.Delete("refresh-token", new CookieOptions { Path = "/api/auth/refresh" });
     }
 }

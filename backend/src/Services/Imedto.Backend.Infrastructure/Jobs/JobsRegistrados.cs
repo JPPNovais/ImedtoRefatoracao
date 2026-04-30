@@ -32,5 +32,9 @@ public static class JobsRegistrados
 
         // Item 3.8 — Limpeza de cache de IA expirado. Roda 1x/h.
         new("limpar-cache-ia", IntervaloSeg: 60 * 60),
+
+        // Item 4.3 — Anonimização LGPD de pacientes com retenção vencida (CFM 1.821/07: 20 anos).
+        // Roda mensalmente (~30 dias = 2.592.000 s).
+        new("anonimizar-pacientes-inativos", IntervaloSeg: 2592000),
     };
 }

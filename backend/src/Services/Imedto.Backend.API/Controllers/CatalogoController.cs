@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.Contracts.Catalogo.Queries;
 using Imedto.Backend.Contracts.Catalogo.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -54,6 +55,34 @@ public class CatalogoController : ControllerBase
     {
         var result = await _query.Query<ListarRegioesCatalogoQuery, IEnumerable<RegiaoCatalogoDto>>(
             new ListarRegioesCatalogoQuery { Vista = vista, ApenasAtivas = ativas });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Busca procedimentos do catálogo TUSS/CBHPM por código ou nome (autocomplete).
+    /// Sem RequiresEstabelecimento — ref data global.
+    /// </summary>
+    [HttpGet("procedimentos")]
+    public async Task<ActionResult<IEnumerable<ProcedimentoCatalogoDto>>> BuscarProcedimentos(
+        [FromQuery] string? termo,
+        [FromQuery] string? origem,
+        [FromQuery] int limit = 20)
+    {
+        var result = await _query.Query<BuscarProcedimentoCatalogoQuery, IEnumerable<ProcedimentoCatalogoDto>>(
+            new BuscarProcedimentoCatalogoQuery { Termo = termo, Origem = origem, Limit = limit });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Obtém um procedimento do catálogo pelo código TUSS/CBHPM.
+    /// </summary>
+    [HttpGet("procedimentos/{codigo}")]
+    public async Task<ActionResult<ProcedimentoCatalogoDto>> ObterProcedimento([FromRoute] string codigo)
+    {
+        var result = await _query.Query<ObterProcedimentoPorCodigoQuery, ProcedimentoCatalogoDto?>(
+            new ObterProcedimentoPorCodigoQuery { Codigo = codigo });
+        if (result is null)
+            throw new BusinessException("Procedimento não encontrado.");
         return Ok(result);
     }
 }

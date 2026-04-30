@@ -1,8 +1,8 @@
 # Fase 4 — Gaps secundários
 
-**Status geral:** 🚧 em progresso
+**Status geral:** ✅ concluída no backend + banco (frontend Fase 4 entregue, paridade revisada e bloqueadores resolvidos)
 **Iniciada em:** 2026-04-29
-**Concluída em:** —
+**Concluída em:** 2026-04-30
 
 > **Objetivo:** fechar os gaps secundários do plano original + pendências postergadas das Fases 1, 2 e 3 que não cabem em "domínio core" mas são necessárias para paridade comportamental e operacional com o legado.
 >
@@ -234,6 +234,93 @@ Adicionar interface `IAdminResetService` com método `ResetEstabelecimentoAsync(
 - [ ] **Status** atualizado em [00_PLANO_MIGRACAO.md](00_PLANO_MIGRACAO.md).
 - [ ] Gerar `05_FASE_5_MIGRACAO_DADOS.md` quando iniciar Fase 5 (migração ETL do legado).
 
+## Status por item
+
+| Item | Status | Aplicado no banco / Frontend |
+|------|--------|------------------------------|
+| 4.1 Relatórios consolidados | ✅ backend (4 handlers) | endpoints + 4 views frontend (Financeiro, Operacional, Pessoas, Orçamentos) |
+| 4.2 Solicitação de vínculo inversa | ✅ backend + RLS | tabela `solicitacoes_vinculo` + UNIQUE parcial + frontend `SolicitarVinculoView` + `SolicitacoesRecebidasView` |
+| 4.3 LGPD retenção/anonimização | ✅ backend + RLS | tabelas `lgpd_anonimizacoes`, `lgpd_consentimentos` + colunas `pacientes.anonimizado_*` + VIEW `lgpd_acesso_log` + Job mensal + frontend `MinhaContaLgpdView` |
+| 4.4 Teste integração SoftDeleteInterceptor | ✅ | 11 testes integração (`SoftDeleteInterceptorTests`) |
+| 4.5 Load test rate limit /auth | ✅ | k6 script + xUnit IntegrationTest |
+| 4.6 Backplane Redis SignalR | ✅ | `Microsoft.AspNetCore.SignalR.StackExchangeRedis` + fallback gracioso |
+| 4.7 Provedor email Resend | ✅ | `IEmailService` + `ResendEmailService` + `NoOpEmailService` fallback + integrado em `ExecutorAcao` + handlers de notificação |
+| 4.8 Cookie scope / | ✅ | `access-token` agora `path=/` (SignalR + API) |
+| 4.11 PDF real Receita | ✅ | QuestPDF 2025.4.0 (community license) |
+| 4.12 ANVISA Receitas | ✅ | `RegrasAnvisa` helper + auto-cálculo + `requer_retencao` aplicado + backfill |
+| 4.13 Catálogo TUSS/CBHPM | ✅ | tabela `catalogo_procedimentos` + 83 procedimentos seedados + `CodigoTussAutocomplete.vue` |
+| 4.14 Permissões finas em 5 controllers | ✅ | `[RequiresPermissaoExtra]` em ModeloPermissao, Estabelecimento, Automacao, Vinculo, ProntuarioTemplate |
+| 4.16 Admin-reset modular | ✅ | `ResetModulos` com 13 módulos opt-in + `ResetModulos.Tudo()` default + reseed pós-delete + endpoint dev-only |
+
 ## Resumo final da fase
 
-> Preencher quando concluir.
+### O que foi entregue
+
+**Backend (13 itens):**
+- 11 aggregates novos: `SolicitacaoVinculo` + 3 events, `LgpdAnonimizacao`, `LgpdConsentimento`, `ProcedimentoCatalogo`, `IAdminResetService` + `ResetModulos`, `IEmailService` + `ResendEmailService` + `NoOpEmailService`, `RegrasAnvisa` helper.
+- 4 query handlers de relatórios consolidados (Financeiro, Operacional, Pessoas, Orçamentos) — mapeiam 9 RPCs legados.
+- 5 controllers novos/estendidos: `RelatorioController`, `SolicitacaoVinculoController`, `MinhaContaController`, `LgpdConsentimentoController`, `AdminController`, `CatalogoController` estendido.
+- Job `AnonimizarPacientesInativosJob` mensal (CFM 1.821/07 — 20 anos).
+- Job `LimparCacheIaJob` 1h (já era da Fase 3).
+- Filtro `[RequiresPermissaoExtra]` aplicado em 5 controllers premium.
+- QuestPDF 2025.4.0 para PDF real de receita.
+- ANVISA Portaria 344/98 + RDC 471/2021 com auto-cálculo de validade e flag `requer_retencao`.
+- SignalR backplane Redis (com fallback para single-instance).
+
+**Database:**
+- 4 tabelas novas (`solicitacoes_vinculo`, `lgpd_anonimizacoes`, `lgpd_consentimentos`, `catalogo_procedimentos`).
+- 1 VIEW `lgpd_acesso_log` (sobre `prontuario_acesso_log` — Art. 46 LGPD).
+- 3 colunas novas (`pacientes.anonimizado_em/anonimizado_por_usuario_id`, `receitas.requer_retencao`).
+- 83 procedimentos TUSS seedados.
+- Backfill `requer_retencao = true` em receitas Controlada/Antibiótico.
+- RLS habilitada em todas as 4 tabelas novas.
+
+**Frontend:**
+- 4 views de relatórios (Financeiro, Operacional, Pessoas, Orçamentos).
+- 2 views de vínculo inverso (`SolicitarVinculoView`, `SolicitacoesRecebidasView`).
+- `MinhaContaLgpdView` (export + delete + consentimentos).
+- `CodigoTussAutocomplete.vue` para procedimentos cirúrgicos.
+- 3 componentes novos no design system: `AppCheckbox`, `AppTabs`, `AppCollapsible`.
+- 5 services novos: `relatorioService`, `solicitacaoVinculoService`, `lgpdService`, `catalogoService` estendido, `cirurgiaService`.
+
+**Testes:** 205 unitários + 11 integração verdes.
+
+### Bloqueadores de paridade detectados pela revisão (resolvidos)
+
+A revisão pelo `migration-engineer` detectou 3 bloqueadores ALTO + 6 menores:
+
+**Bloqueadores resolvidos:**
+1. ✅ **Admin-reset modular** — `IAdminResetService.ResetEstabelecimentoAsync` agora aceita `ResetModulos` com 13 flags opt-in + reseed pós-delete (modelos de permissão + financeiro). `AdminController` aceita body `{ motivo, modulos }`. `ResetModulos.Tudo()` como default.
+2. ✅ **lgpd_acesso_log** — VIEW criada apontando para `prontuario_acesso_log`. Cobre Art. 46 LGPD com nomenclatura canônica.
+3. ✅ **solicitacoes_vinculo no AdminReset** — incluída no módulo `Vinculos`.
+
+**Postergados (médios/baixos — Fase 5 ou sub-iteração futura):**
+- Item 4.1 — Validar com produto se 4 handlers cobrem todas as telas legadas de `reports/views`. Possível necessidade de mais 1-2 handlers específicos.
+- Item 4.12 — Validar com produto se travar receitas > 90 dias quebra reimpressão de receitas legadas (ETL Fase 5).
+- Item 4.14 — Doc-comment de `PermissoesExtras.cs` cita "13 chaves" mas legado tem 16 (10 áreas + 6 finas). Apenas comment.
+- Item 4.13 — Garantir que `procedimento_id` aceita NULL (já aceita) + UI tolera ausência de código TUSS para dados migrados.
+- Item 4.3 — Validar regra "20 anos CFM 1.821/07" com jurídico antes de habilitar job em produção.
+- Item 4.11 — QA visual do PDF QuestPDF vs `useReceitaPDF.ts` legado.
+
+### Mapeamento ETL Fase 5 (documentação preventiva)
+
+Tabela legada `solicitacao_vinculo_profissional_estabelecimento` → tabela nova `solicitacoes_vinculo`. Campos a mapear na Fase 5:
+- `profissional_id` (legado) → `profissional_usuario_id` (uuid).
+- `estabelecimento_id` → `estabelecimento_id` (bigint).
+- Status legado → enum novo (`Pendente`/`Aprovada`/`Recusada`/`Cancelada`).
+
+### Build & testes finais
+
+- `dotnet build`: 0 errors.
+- `dotnet test` unit: **205 verdes**.
+- `dotnet test` integration: **11 verdes**.
+- `npm run build`: limpo.
+
+### Próxima ação
+
+**Iniciar Fase 5 — Migração de dados** (greenfield ETL do projeto Supabase legado para o schema novo). Estratégias possíveis:
+- **A. Strangler Fig**: dual-read enquanto migra incrementalmente.
+- **B. Big-bang ETL**: janela de manutenção com cutover total.
+- **C. Dual-write**: app novo escreve em ambos schemas durante transição.
+
+Doc a gerar: `05_FASE_5_MIGRACAO_DADOS.md`.

@@ -28,6 +28,12 @@ public class Paciente : Entity, ISoftDeletable
 
     public virtual bool EstaDeletado => DeletadoEm.HasValue;
 
+    // Anonimização LGPD (item 4.3) — independente do soft delete.
+    public virtual DateTime? AnonimizadoEm { get; protected set; }
+    public virtual Guid? AnonimizadoPorUsuarioId { get; protected set; }
+
+    public virtual bool EstaAnonimizado => AnonimizadoEm.HasValue;
+
     protected Paciente() { }
 
     public static Paciente Cadastrar(
@@ -106,6 +112,30 @@ public class Paciente : Entity, ISoftDeletable
         Email = SanitizeOpt(email, digitsOnly: false)?.ToLowerInvariant();
         Endereco = SanitizeOpt(endereco, digitsOnly: false);
         Observacoes = SanitizeOpt(observacoes, digitsOnly: false);
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Anonimiza os campos PII do paciente substituindo-os por valores neutros.
+    /// Idempotente: se já anonimizado, lança exceção clara em vez de silenciar.
+    /// Pode estar deletado E anonimizado — fluxos ortogonais.
+    /// </summary>
+    public virtual void Anonimizar(Guid? usuarioId)
+    {
+        if (EstaAnonimizado)
+            throw new BusinessException("Paciente já está anonimizado.");
+
+        // LGPD: substitui PII. Nunca logar os valores originais.
+        NomeCompleto = $"Paciente Anonimizado #{Id}";
+        Cpf = null;
+        Email = null;
+        Telefone = null;
+        DataNascimento = null;
+        Endereco = null;
+        Observacoes = null;
+
+        AnonimizadoEm = DateTime.UtcNow;
+        AnonimizadoPorUsuarioId = usuarioId;
         AtualizadoEm = DateTime.UtcNow;
     }
 

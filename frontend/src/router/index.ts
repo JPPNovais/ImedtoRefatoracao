@@ -146,6 +146,30 @@ const router = createRouter({
             component: () => import("@/views/relatorios/RelatoriosView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
+        {
+            path: "/relatorios/financeiro",
+            name: "RelatorioFinanceiro",
+            component: () => import("@/views/relatorios/RelatorioFinanceiroView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/relatorios/operacional",
+            name: "RelatorioOperacional",
+            component: () => import("@/views/relatorios/RelatorioOperacionalView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/relatorios/pessoas",
+            name: "RelatorioPessoas",
+            component: () => import("@/views/relatorios/RelatorioPessoasView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/relatorios/orcamentos",
+            name: "RelatorioOrcamentos",
+            component: () => import("@/views/relatorios/RelatorioOrcamentosView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
 
         // Financeiro
         {

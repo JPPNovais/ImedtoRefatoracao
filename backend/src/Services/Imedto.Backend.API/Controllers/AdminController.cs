@@ -29,8 +29,11 @@ public class AdminController : ControllerBase
     }
 
     /// <summary>
-    /// Remove todo o conteúdo de um estabelecimento (hard delete bypass do SoftDeleteInterceptor).
+    /// Remove o conteúdo selecionado de um estabelecimento (hard delete bypass do SoftDeleteInterceptor).
     /// Mantém a casca (registro em <c>estabelecimentos</c>). Registra auditoria obrigatória.
+    ///
+    /// O campo <c>modulos</c> é opt-in — omitido = reset total (<see cref="ResetModulos.Tudo"/>).
+    /// Após deletar <c>Configuracoes</c> ou <c>Financeiro</c>, recria os seeds padrão automaticamente.
     ///
     /// Disponível apenas em Development até que o mecanismo de claim <c>imedto_admin</c>
     /// seja implementado no Supabase Auth.
@@ -46,17 +49,19 @@ public class AdminController : ControllerBase
         CancellationToken ct)
     {
         // TODO Wave futura: substituir por validação de claim imedto_admin = true no JWT.
-        // Enquanto o mecanismo não existe, o endpoint só funciona em Development.
         if (!_env.IsDevelopment())
             throw new SharedKernel.Domain.BusinessException(
                 "Endpoint admin requer claim imedto_admin (não implementado em produção).");
 
         var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+        var modulos = request.Modulos ?? ResetModulos.Tudo();
 
-        await _resetService.ResetEstabelecimentoAsync(id, request.Motivo, userId, ct);
+        await _resetService.ResetEstabelecimentoAsync(id, modulos, request.Motivo, userId, ct);
 
         return NoContent();
     }
 }
 
-public record AdminResetRequest(string Motivo);
+/// <param name="Motivo">Motivo do reset (obrigatório para auditoria).</param>
+/// <param name="Modulos">Módulos a resetar. Se omitido, apaga tudo.</param>
+public record AdminResetRequest(string Motivo, ResetModulos? Modulos);

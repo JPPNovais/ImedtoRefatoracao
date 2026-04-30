@@ -465,6 +465,56 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("especialidades", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Catalogo.ProcedimentoCatalogo", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<string>("Capitulo")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("capitulo");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("codigo");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("origem");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique()
+                        .HasDatabaseName("uq_catalogo_procedimentos_codigo");
+
+                    b.HasIndex("Ativo", "Origem")
+                        .HasDatabaseName("ix_catalogo_procedimentos_ativo_origem");
+
+                    b.ToTable("catalogo_procedimentos", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Catalogo.Profissao", b =>
                 {
                     b.Property<long>("Id")
@@ -1410,6 +1460,97 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("jobs_agendados", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Lgpd.LgpdAnonimizacao", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AnonimizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("anonimizado_em");
+
+                    b.Property<Guid?>("ExecutadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("executado_por_usuario_id");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("motivo");
+
+                    b.Property<long>("RegistroId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("registro_id");
+
+                    b.Property<string>("Tabela")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("tabela");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Motivo", "AnonimizadoEm")
+                        .HasDatabaseName("ix_lgpd_anonimizacoes_motivo_data");
+
+                    b.HasIndex("Tabela", "RegistroId")
+                        .HasDatabaseName("ix_lgpd_anonimizacoes_tabela_registro");
+
+                    b.ToTable("lgpd_anonimizacoes", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Lgpd.LgpdConsentimento", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AceitoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("aceito_em");
+
+                    b.Property<string>("IpOrigem")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_origem");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("tipo");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.Property<string>("Versao")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId", "Tipo", "AceitoEm")
+                        .HasDatabaseName("ix_lgpd_consentimentos_usuario_tipo_data");
+
+                    b.ToTable("lgpd_consentimentos", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.ModelosPermissao.ModeloPermissaoEstabelecimento", b =>
                 {
                     b.Property<long>("Id")
@@ -1936,6 +2077,14 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AnonimizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("anonimizado_em");
+
+                    b.Property<Guid?>("AnonimizadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("anonimizado_por_usuario_id");
 
                     b.Property<DateTime?>("AtualizadoEm")
                         .HasColumnType("timestamp with time zone")
@@ -2752,6 +2901,12 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("prontuario_id");
 
+                    b.Property<bool>("RequerRetencao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("requer_retencao");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -3019,6 +3174,67 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_usuarios_email");
 
                     b.ToTable("usuarios", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Vinculos.SolicitacaoVinculo", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("Mensagem")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("mensagem");
+
+                    b.Property<string>("MotivoRecusa")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("motivo_recusa");
+
+                    b.Property<Guid>("ProfissionalUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("profissional_usuario_id");
+
+                    b.Property<DateTime?>("RespondidaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("respondida_em");
+
+                    b.Property<Guid?>("RespondidaPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("respondida_por_usuario_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProfissionalUsuarioId", "EstabelecimentoId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_solicitacoes_vinculo_pendente")
+                        .HasFilter("status = 'Pendente'");
+
+                    b.HasIndex("ProfissionalUsuarioId", "Status")
+                        .HasDatabaseName("ix_solicitacoes_vinculo_profissional_status");
+
+                    b.HasIndex("EstabelecimentoId", "Status", "CriadaEm")
+                        .HasDatabaseName("ix_solicitacoes_vinculo_estab_status_data");
+
+                    b.ToTable("solicitacoes_vinculo", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Vinculos.VinculoProfissionalEstabelecimento", b =>

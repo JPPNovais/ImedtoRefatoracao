@@ -271,11 +271,30 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
-// --- SignalR (item 2.4 — realtime) ---
-// Hub único `EstabelecimentoHub` em /hubs/estabelecimento. Sem backplane (Redis) —
-// funciona apenas em single-instance. TODO: trocar por AddStackExchangeRedis quando escalar
-// horizontalmente. Em dev (1 processo) o broadcast cobre todas as conexões.
-builder.Services.AddSignalR();
+// --- SignalR (item 2.4 — realtime + item 4.6 — backplane Redis multi-instância) ---
+// Hub único `EstabelecimentoHub` em /hubs/estabelecimento.
+// Quando `Redis:ConnectionString` está preenchido, ativamos o backplane via Redis pub/sub
+// (sincroniza grupos/conexões entre múltiplas instâncias). Caso contrário, o servidor cai
+// no modo single-instance (correto e suficiente para dev/local; em prod é log de info).
+// TODO infra: provisionar Redis em prod (Terraform/Bicep — fora do escopo desta task).
+var redisConnection = builder.Configuration.GetSection("Redis:ConnectionString").Value;
+var signalR = builder.Services.AddSignalR();
+if (!string.IsNullOrWhiteSpace(redisConnection))
+{
+    signalR.AddStackExchangeRedis(redisConnection, options =>
+    {
+        // Prefixo dedicado para evitar colisão com outras apps que compartilhem o mesmo Redis.
+        options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("imedto-signalr");
+    });
+}
+else if (!builder.Environment.IsDevelopment())
+{
+    // Apenas em prod log informativo — em dev é o comportamento esperado.
+    var bootLogger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger("SignalR");
+    bootLogger.LogInformation(
+        "SignalR rodando sem backplane Redis (Redis:ConnectionString vazio). "
+        + "Multi-instância não funcionará — defina a connection string para habilitar.");
+}
 
 // --- Composition Root ---
 builder.Services.Install(builder.Configuration);

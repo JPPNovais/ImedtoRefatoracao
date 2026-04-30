@@ -27,6 +27,10 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.Property(p => p.DeletadoEm).HasColumnName("deletado_em");
         builder.Property(p => p.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
+        // Item 4.3 — anonimização LGPD.
+        builder.Property(p => p.AnonimizadoEm).HasColumnName("anonimizado_em");
+        builder.Property(p => p.AnonimizadoPorUsuarioId).HasColumnName("anonimizado_por_usuario_id");
+
         // Listagens ativas sempre filtram por estabelecimento + não-deletado.
         builder.HasIndex(p => new { p.EstabelecimentoId, p.DeletadoEm }).HasDatabaseName("ix_pacientes_estabelecimento");
 
@@ -38,5 +42,6 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
 
         builder.Ignore(p => p.DomainEvents);
         builder.Ignore(p => p.EstaDeletado);
+        builder.Ignore(p => p.EstaAnonimizado);
     }
 }
