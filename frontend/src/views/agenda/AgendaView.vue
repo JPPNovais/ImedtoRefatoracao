@@ -391,6 +391,15 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         </div>
 
         <div class="agenda-layout">
+            <AgendaRail
+                v-model="dataSel"
+                :counts="countsPorDia"
+                :lista-espera="listaEspera"
+                :agendamentos-do-dia="doDia"
+                @encaixar="encaixarListaEspera"
+                @remover="removerListaEspera"
+            />
+
             <AppCard padding="none" class="agenda-card">
                 <div class="agenda-toolbar">
                     <div class="dia-titulo">
@@ -449,15 +458,6 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                     />
                 </div>
             </AppCard>
-
-            <AgendaRail
-                v-model="dataSel"
-                :counts="countsPorDia"
-                :lista-espera="listaEspera"
-                :agendamentos-do-dia="doDia"
-                @encaixar="encaixarListaEspera"
-                @remover="removerListaEspera"
-            />
         </div>
     </div>
 
@@ -505,7 +505,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
 
 .agenda-layout {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 320px 1fr;
     gap: 16px;
     align-items: start;
 }
