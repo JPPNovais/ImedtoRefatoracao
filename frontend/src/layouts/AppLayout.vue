@@ -111,13 +111,6 @@ function irNotificacoes() {
             </router-link>
         </template>
 
-        <template #context>
-            <span v-if="tenant.ativo" class="ctx-tenant">
-                <i class="fa-solid fa-building" aria-hidden="true"></i>
-                {{ tenant.ativo.nomeFantasia }}
-            </span>
-        </template>
-
         <template #notificacoes="{ fechar }">
             <div class="pop-head">
                 <b>Notificações</b>
@@ -226,21 +219,6 @@ function irNotificacoes() {
     text-decoration: none;
 }
 .brand-logo { height: 26px; width: auto; }
-
-.ctx-tenant {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: hsl(0 0% 100% / 0.14);
-    border: 1px solid hsl(0 0% 100% / 0.2);
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 600;
-    color: white;
-    margin-left: 12px;
-}
-.ctx-tenant i { font-size: 11px; opacity: 0.8; }
 
 /* Conteúdo principal */
 .conteudo {
@@ -426,6 +404,5 @@ function irNotificacoes() {
 
 @media (max-width: 768px) {
     .conteudo { margin-left: 0; }
-    .ctx-tenant { display: none; }
 }
 </style>

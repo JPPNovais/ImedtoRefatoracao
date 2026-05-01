@@ -1,0 +1,39 @@
+# ─── Saídas de build (jamais entram no contexto) ───
+**/bin/
+**/obj/
+**/out/
+**/publish/
+
+# ─── IDE / OS ───
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+**/*.suo
+**/*.DotSettings.user
+**/.DS_Store
+
+# ─── Git e ferramentas ───
+**/.git/
+**/.gitignore
+**/.gitattributes
+**/README.md
+
+# ─── Secrets locais (não vão pro container — Render injeta via env vars) ───
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/.env
+**/.env.*
+**/*.pfx
+**/*.key
+**/secrets.json
+
+# ─── Tests e tooling não usados em produção ───
+src/Tests/
+src/Tools/
+
+# ─── Misc ───
+**/coverage/
+**/*.log
+**/.dockerignore
+Dockerfile
