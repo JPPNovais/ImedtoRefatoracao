@@ -32,6 +32,11 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
 
+# Alpine roda em globalization-invariant por padrão — sem ICU, culturas como
+# pt-BR levantam CultureNotFoundException. Instalamos icu-libs + tzdata e
+# desligamos o invariant mode.
+RUN apk add --no-cache icu-libs icu-data-full tzdata
+
 # Usuário não-root (segurança). A imagem base alpine já vem com o uid 1654 "app".
 USER app
 
@@ -43,6 +48,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_RUNNING_IN_CONTAINER=true \
     DOTNET_NOLOGO=true \
     DOTNET_PRINT_TELEMETRY_MESSAGE=false \
+    DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+    TZ=America/Sao_Paulo \
     DOTNET_GCHeapHardLimit=419430400
 
 COPY --from=build --chown=app:app /app/publish ./
