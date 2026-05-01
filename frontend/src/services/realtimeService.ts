@@ -1,4 +1,5 @@
 import {
+    HttpTransportType,
     HubConnection,
     HubConnectionBuilder,
     HubConnectionState,
@@ -38,20 +39,23 @@ class RealtimeService {
         if (this.connection?.state === HubConnectionState.Connected) return
         if (this.startPromise) return this.startPromise
 
-        // Em dev usamos same-origin via proxy do Vite ("/hubs/..."). Em prod o
-        // VITE_API_BASE_URL aponta para o backend (Render) e o handshake do
-        // SignalR roda cross-origin — `withCredentials: true` continua enviando
-        // o cookie HttpOnly desde que CORS + SameSite=None estejam ok no backend.
-        const apiBase = import.meta.env.VITE_API_BASE_URL
-            ? import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")
-            : ""
-        const hubUrl = `${apiBase}/hubs/estabelecimento`
+        // Hub URL: same-origin sempre. Em dev o proxy do Vite leva pra localhost:5050.
+        // Em prod, a Vercel reescreve /hubs/* para o backend (Render). Isso mantém
+        // o cookie HttpOnly como first-party (essencial em modo anônimo / Privacy
+        // Sandbox), com a contrapartida que o WebSocket upgrade não atravessa
+        // o proxy da Vercel — por isso forçamos LongPolling em prod.
+        const hubUrl = "/hubs/estabelecimento"
+
+        const isProd = import.meta.env.PROD
 
         const connection = new HubConnectionBuilder()
             .withUrl(hubUrl, {
                 // SignalR JS propaga cookies same-origin por default no negotiate HTTP.
                 // Não setamos accessTokenFactory: o backend lê do cookie HttpOnly.
                 withCredentials: true,
+                // Em produção atrás do proxy da Vercel, WebSocket upgrade não
+                // funciona; LongPolling (HTTP) atravessa o proxy normalmente.
+                ...(isProd ? { transport: HttpTransportType.LongPolling } : {}),
             })
             .withAutomaticReconnect(new BackoffRetryPolicy([0, 2000, 5000, 10_000, 30_000]))
             .configureLogging(import.meta.env.DEV ? LogLevel.Information : LogLevel.Error)
