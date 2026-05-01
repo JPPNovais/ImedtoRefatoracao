@@ -84,6 +84,7 @@ using Imedto.Backend.Domain.Profissionais.Events;
 using Imedto.Backend.Domain.Prontuarios.Events;
 using Imedto.Backend.Domain.Usuarios.Events;
 using Imedto.Backend.Domain.Vinculos.Events;
+using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Agendamentos.Events;
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Contracts.Agendamentos.Queries;
@@ -368,6 +369,11 @@ public static class Container
         services.AddScoped<CancelarAgendamentoCommandHandler>();
         services.AddScoped<ConfirmarAgendamentoCommandHandler>();
         services.AddScoped<ConcluirAgendamentoCommandHandler>();
+        services.AddScoped<IListaEsperaRepository, ListaEsperaRepository>();
+        services.AddSingleton<ListaEsperaQueryRepository>();
+        services.AddScoped<AdicionarListaEsperaCommandHandler>();
+        services.AddScoped<RemoverListaEsperaCommandHandler>();
+        services.AddSingleton<ListarListaEsperaQueryHandler>();
         services.AddSingleton<ListarAgendamentosQueryHandlers>();
         services.AddSingleton<ObterAgendamentoQueryHandlers>();
         services.AddSingleton<ConsultarDisponibilidadeQueryHandlers>();
@@ -628,6 +634,8 @@ public static class Container
             bus.Register<CancelarAgendamentoCommand, CancelarAgendamentoCommandHandler>();
             bus.Register<ConfirmarAgendamentoCommand, ConfirmarAgendamentoCommandHandler>();
             bus.Register<ConcluirAgendamentoCommand, ConcluirAgendamentoCommandHandler>();
+            bus.Register<AdicionarListaEsperaCommand, AdicionarListaEsperaCommandHandler>();
+            bus.Register<RemoverListaEsperaCommand, RemoverListaEsperaCommandHandler>();
             bus.Register<CriarItemInventarioCommand, CriarItemInventarioCommandHandler>();
             bus.Register<AtualizarItemInventarioCommand, AtualizarItemInventarioCommandHandler>();
             bus.Register<RegistrarMovimentacaoEstoqueCommand, RegistrarMovimentacaoEstoqueCommandHandler>();
@@ -729,6 +737,7 @@ public static class Container
             bus.Register<ListarAgendamentosQuery, IEnumerable<AgendamentoDto>, ListarAgendamentosQueryHandlers>();
             bus.Register<ObterAgendamentoQuery, AgendamentoDto, ObterAgendamentoQueryHandlers>();
             bus.Register<ConsultarDisponibilidadeQuery, DisponibilidadeSemanaDto, ConsultarDisponibilidadeQueryHandlers>();
+            bus.Register<ListarListaEsperaQuery, IEnumerable<ListaEsperaItemDto>, ListarListaEsperaQueryHandler>();
             bus.Register<ListarItensInventarioQuery, IEnumerable<ItemInventarioDto>, ListarItensInventarioQueryHandlers>();
             bus.Register<ListarMovimentacoesQuery, IEnumerable<MovimentacaoEstoqueDto>, ListarMovimentacoesQueryHandlers>();
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();

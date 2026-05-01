@@ -58,6 +58,7 @@ public class AppDbContext : DbContext
     public DbSet<ConfiguracaoReceitaEstabelecimento> ConfiguracoesReceita => Set<ConfiguracaoReceitaEstabelecimento>();
     public DbSet<MedicamentoFavorito> MedicamentosFavoritos => Set<MedicamentoFavorito>();
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();
+    public DbSet<ListaEsperaAgendamento> ListaEsperaAgendamentos => Set<ListaEsperaAgendamento>();
     public DbSet<ItemInventario> ItensInventario => Set<ItemInventario>();
     public DbSet<MovimentacaoEstoque> MovimentacoesEstoque => Set<MovimentacaoEstoque>();
     public DbSet<Orcamento> Orcamentos => Set<Orcamento>();

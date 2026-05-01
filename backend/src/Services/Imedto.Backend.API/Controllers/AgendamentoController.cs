@@ -153,7 +153,52 @@ public class AgendamentoController : ControllerBase
         });
         return NoContent();
     }
+
+    // ──────────── Lista de espera ────────────
+
+    [HttpGet("lista-espera")]
+    public async Task<ActionResult<IEnumerable<ListaEsperaItemDto>>> ListarListaEspera()
+    {
+        var data = await _query.Query<ListarListaEsperaQuery, IEnumerable<ListaEsperaItemDto>>(
+            new ListarListaEsperaQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
+        return Ok(data);
+    }
+
+    [HttpPost("lista-espera")]
+    public async Task<ActionResult> AdicionarListaEspera([FromBody] AdicionarListaEsperaDto dto)
+    {
+        var cmd = new AdicionarListaEsperaCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            PacienteId = dto.PacienteId,
+            Motivo = dto.Motivo,
+            ProfissionalPreferidoId = dto.ProfissionalPreferidoId,
+            Prioridade = dto.Prioridade ?? "Rotina",
+            PreferenciaPeriodo = dto.PreferenciaPeriodo ?? "Qualquer",
+            CriadoPorUsuarioId = _tenant.UsuarioId,
+        };
+        await _cmd.Send(cmd);
+        return Ok(new { id = cmd.IdCriado });
+    }
+
+    [HttpDelete("lista-espera/{id:long}")]
+    public async Task<ActionResult> RemoverListaEspera(long id)
+    {
+        await _cmd.Send(new RemoverListaEsperaCommand
+        {
+            Id = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+        });
+        return NoContent();
+    }
 }
+
+public record AdicionarListaEsperaDto(
+    long PacienteId,
+    string Motivo,
+    Guid? ProfissionalPreferidoId,
+    string? Prioridade,
+    string? PreferenciaPeriodo);
 
 // DTOs de entrada (request bodies)
 public record CriarAgendamentoDto(
