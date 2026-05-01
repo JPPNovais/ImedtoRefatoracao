@@ -219,9 +219,13 @@ public class AuthController : ControllerBase
 
     private void SetAuthCookies(AuthResult result)
     {
-        var isDev    = _env.IsDevelopment();
-        var secure   = !isDev;
-        var sameSite = isDev ? SameSiteMode.Lax : SameSiteMode.Strict;
+        var isDev  = _env.IsDevelopment();
+        var secure = !isDev;
+        // Em dev (same-origin via proxy do Vite) usamos Lax. Em prod o front
+        // pode estar em domínio diferente do backend (Vercel ↔ Render), então
+        // o cookie precisa ser `SameSite=None` — exige Secure (HTTPS), o que
+        // já está garantido em produção pelo proxy TLS do Render.
+        var sameSite = isDev ? SameSiteMode.Lax : SameSiteMode.None;
 
         // Item 4.8 — access-token usa Path="/" para que o cookie seja enviado tanto em
         // /api/* quanto em /hubs/* (SignalR). Continua HttpOnly + Secure + SameSite=Strict

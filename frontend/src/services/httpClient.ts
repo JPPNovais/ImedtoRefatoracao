@@ -11,9 +11,19 @@ import router from "@/router"
  * - Interceptor de request: injeta o header X-Estabelecimento-Id quando há tenant ativo.
  * - Interceptor de 401: tenta refresh automático e repete o request original.
  * - Interceptor de 402: abre modal de upsell global.
+ *
+ * Base URL:
+ * - Dev (`vite dev`): "/api" — o proxy do Vite redireciona para o backend local.
+ * - Prod: `VITE_API_BASE_URL` + "/api" (ex: https://imedtorefatoracao.onrender.com/api).
+ *   A variável é setada no painel da Vercel — em dev fica indefinida e o
+ *   fallback "/api" continua usando o proxy.
  */
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+    ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")}/api`
+    : "/api"
+
 const httpClient = axios.create({
-    baseURL: "/api",
+    baseURL: apiBaseUrl,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
 })

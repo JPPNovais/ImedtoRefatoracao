@@ -38,8 +38,17 @@ class RealtimeService {
         if (this.connection?.state === HubConnectionState.Connected) return
         if (this.startPromise) return this.startPromise
 
+        // Em dev usamos same-origin via proxy do Vite ("/hubs/..."). Em prod o
+        // VITE_API_BASE_URL aponta para o backend (Render) e o handshake do
+        // SignalR roda cross-origin — `withCredentials: true` continua enviando
+        // o cookie HttpOnly desde que CORS + SameSite=None estejam ok no backend.
+        const apiBase = import.meta.env.VITE_API_BASE_URL
+            ? import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, "")
+            : ""
+        const hubUrl = `${apiBase}/hubs/estabelecimento`
+
         const connection = new HubConnectionBuilder()
-            .withUrl("/hubs/estabelecimento", {
+            .withUrl(hubUrl, {
                 // SignalR JS propaga cookies same-origin por default no negotiate HTTP.
                 // Não setamos accessTokenFactory: o backend lê do cookie HttpOnly.
                 withCredentials: true,
