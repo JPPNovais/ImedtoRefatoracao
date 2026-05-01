@@ -42,6 +42,15 @@ const props = defineProps<{
     pacientes: PacienteListaItem[]
     /** Data inicial sugerida (ISO YYYY-MM-DD). */
     dataPadrao?: string
+    /**
+     * Quando definido, pula o passo 1 (paciente já selecionado) e abre direto
+     * em "Detalhes". Usado pelo encaixe da lista de espera.
+     */
+    pacientePreSelecionado?: PacienteListaItem | null
+    /** Profissional pré-selecionado (preferência da lista de espera). */
+    profissionalPreSelecionadoId?: string | null
+    /** Motivo pré-preenchido (vindo da lista de espera). */
+    motivoPreSelecionado?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -117,19 +126,23 @@ const detalhes = reactive({
 
 // ─── Helpers ───
 function reset() {
-    step.value = 1
+    const pacientePre = props.pacientePreSelecionado ?? null
+    step.value = pacientePre ? 2 : 1
     modo.value = "search"
     busca.value = ""
-    pacienteSel.value = null
+    pacienteSel.value = pacientePre
     erro.value = null
     Object.assign(novoPac, { nome: "", cpf: "", telefone: "", nascimento: "", sexo: "" })
     Object.assign(detalhes, {
-        profissionalUsuarioId: props.profissionais[0]?.usuarioId ?? "",
+        profissionalUsuarioId:
+            props.profissionalPreSelecionadoId
+            || props.profissionais[0]?.usuarioId
+            || "",
         tipo: "Consulta",
         data: props.dataPadrao || new Date().toISOString().slice(0, 10),
         duracaoMin: 30,
         hora: "",
-        motivo: "",
+        motivo: props.motivoPreSelecionado ?? "",
         observacoes: "",
         lembreteWA: true,
         lembreteSMS: false,
@@ -794,7 +807,12 @@ const profSelecionado = computed(() =>
             <footer class="modal-foot">
                 <button type="button" class="btn-ghost" @click="emit('fechar')">Cancelar</button>
                 <div class="spacer"></div>
-                <button v-if="step > 1" type="button" class="btn-secondary" @click="voltar">
+                <button
+                    v-if="step > (pacientePreSelecionado ? 2 : 1)"
+                    type="button"
+                    class="btn-secondary"
+                    @click="voltar"
+                >
                     <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Voltar
                 </button>
                 <button

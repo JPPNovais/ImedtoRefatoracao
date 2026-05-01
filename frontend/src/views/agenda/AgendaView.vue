@@ -235,6 +235,9 @@ async function recarregarSemCache() {
 // ─── Modal: Novo agendamento ───
 const modalNovoAberto = ref(false)
 const encaixandoListaEsperaId = ref<number | null>(null)
+const encaixePaciente = ref<PacienteListaItem | null>(null)
+const encaixeProfissionalId = ref<string | null>(null)
+const encaixeMotivo = ref<string | null>(null)
 
 async function abrirModalNovo() {
     if (profissionais.value.length === 0) {
@@ -249,8 +252,15 @@ async function abrirModalNovo() {
         } catch { /* sem perfil ainda */ }
     }
     await carregarPacientes()
-    encaixandoListaEsperaId.value = null
     modalNovoAberto.value = true
+}
+
+function fecharModalNovo() {
+    modalNovoAberto.value = false
+    encaixandoListaEsperaId.value = null
+    encaixePaciente.value = null
+    encaixeProfissionalId.value = null
+    encaixeMotivo.value = null
 }
 
 function onPacienteCriado(p: PacienteListaItem) {
@@ -258,14 +268,14 @@ function onPacienteCriado(p: PacienteListaItem) {
 }
 
 async function onAgendamentoCriado(payload: { listaEspera: boolean }) {
-    modalNovoAberto.value = false
+    const idEncaixe = encaixandoListaEsperaId.value
+    fecharModalNovo()
     if (payload.listaEspera) {
         await carregarListaEspera()
     } else {
         // Se foi encaixe da lista de espera, remove o item original.
-        if (encaixandoListaEsperaId.value) {
-            try { await listaEsperaService.remover(encaixandoListaEsperaId.value) } catch { /* não crítico */ }
-            encaixandoListaEsperaId.value = null
+        if (idEncaixe) {
+            try { await listaEsperaService.remover(idEncaixe) } catch { /* não crítico */ }
             await carregarListaEspera()
         }
         await recarregarSemCache()
@@ -320,11 +330,16 @@ async function removerListaEspera(item: ListaEsperaItem) {
     }
 }
 
-/** Encaixar item da lista de espera: abre modal de novo agendamento.
- *  O modal não tem API para pré-preencher diretamente — o fluxo é:
- *  guardar o id, abrir modal; após o submit do modal, removemos o item. */
+/** Encaixar item da lista de espera: abre modal de novo agendamento já no
+ *  passo "Detalhes" com paciente/profissional/motivo pré-preenchidos.
+ *  Após o submit do modal, removemos o item da lista de espera. */
 async function encaixarListaEspera(item: ListaEsperaItem) {
+    await carregarPacientes()
+    const pac = pacientes.value.find(p => p.id === item.pacienteId) ?? null
     encaixandoListaEsperaId.value = item.id
+    encaixePaciente.value = pac
+    encaixeProfissionalId.value = item.profissionalPreferidoId
+    encaixeMotivo.value = item.motivo
     await abrirModalNovo()
 }
 </script>
@@ -466,7 +481,10 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :profissionais="profissionaisDisponiveis"
         :pacientes="pacientes"
         :data-padrao="dataSel"
-        @fechar="modalNovoAberto = false"
+        :paciente-pre-selecionado="encaixePaciente"
+        :profissional-pre-selecionado-id="encaixeProfissionalId"
+        :motivo-pre-selecionado="encaixeMotivo"
+        @fechar="fecharModalNovo"
         @criado="onAgendamentoCriado"
         @paciente-criado="onPacienteCriado"
     />
