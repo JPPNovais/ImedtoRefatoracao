@@ -4,20 +4,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
-# 1) Cache de NuGet: copia só os .csproj e a solution para fazer restore primeiro.
-#    Isso evita refazer o restore a cada mudança de código.
+# Copia código + projetos. Restore + publish em um único RUN garante que
+# os pacotes restaurados pelo BuildKit cache mount estejam visíveis no publish.
+# (Splittar em dois RUNs pode falhar com NETSDK1064 em alguns runners se a
+# cache mount não persistir corretamente entre layers.)
 COPY src/Imedto.Backend.sln ./
-COPY src/Core/Imedto.Backend.SharedKernel/Imedto.Backend.SharedKernel.csproj    Core/Imedto.Backend.SharedKernel/
-COPY src/Services/Imedto.Backend.API/Imedto.Backend.API.csproj                  Services/Imedto.Backend.API/
-COPY src/Services/Imedto.Backend.Application/Imedto.Backend.Application.csproj  Services/Imedto.Backend.Application/
-COPY src/Services/Imedto.Backend.Contracts/Imedto.Backend.Contracts.csproj      Services/Imedto.Backend.Contracts/
-COPY src/Services/Imedto.Backend.Domain/Imedto.Backend.Domain.csproj            Services/Imedto.Backend.Domain/
-COPY src/Services/Imedto.Backend.Infrastructure/Imedto.Backend.Infrastructure.csproj Services/Imedto.Backend.Infrastructure/
-
-RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet restore Services/Imedto.Backend.API/Imedto.Backend.API.csproj
-
-# 2) Copia o código completo e publica em Release.
 COPY src/Core/        Core/
 COPY src/Services/    Services/
 
@@ -25,7 +16,6 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet publish Services/Imedto.Backend.API/Imedto.Backend.API.csproj \
         -c Release \
         -o /app/publish \
-        --no-restore \
         /p:UseAppHost=false
 
 # ─── Runtime stage ────────────────────────────────────────────────────────────
