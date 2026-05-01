@@ -190,15 +190,29 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // --- CORS com credenciais ---
+// `Cors:AllowedOrigins`        → lista fixa de origens (ex: dev local).
+// `Cors:AllowedOriginPatterns` → regex (úteis para previews dinâmicos da
+//                                Vercel/Render: ^https://app-.*\.vercel\.app$).
 var allowedOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>() ?? ["http://localhost:3000"];
+
+var allowedOriginPatterns = (builder.Configuration
+    .GetSection("Cors:AllowedOriginPatterns")
+    .Get<string[]>() ?? Array.Empty<string>())
+    .Select(p => new System.Text.RegularExpressions.Regex(
+        p,
+        System.Text.RegularExpressions.RegexOptions.Compiled
+        | System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+    .ToArray();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
         policy
-            .WithOrigins(allowedOrigins)
+            .SetIsOriginAllowed(origin =>
+                allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)
+                || allowedOriginPatterns.Any(rx => rx.IsMatch(origin)))
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials()
