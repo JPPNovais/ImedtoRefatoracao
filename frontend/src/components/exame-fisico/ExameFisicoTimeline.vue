@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { AppButton } from '@/components/ui'
-import type { ExameFisicoRegistro } from '@/services/exameFisicoService'
+import type { ExameFisicoResumoDto } from '@/services/exameFisicoService'
 
 defineProps<{
-  exames: ExameFisicoRegistro[]
+  exames: ExameFisicoResumoDto[]
   isLoading: boolean
 }>()
 
 const emit = defineEmits<{
-  visualizar: [exame: ExameFisicoRegistro]
-  duplicar: [exame: ExameFisicoRegistro]
+  visualizar: [exame: ExameFisicoResumoDto]
+  duplicar: [exame: ExameFisicoResumoDto]
 }>()
 
 function formatDate(dateStr: string): string {
@@ -24,15 +24,17 @@ function formatTime(dateStr: string): string {
   })
 }
 
-function getRegioesResumo(exame: ExameFisicoRegistro): string {
-  const regioes = exame.regioes_examinadas || []
-  if (regioes.length === 0) return 'Sem regiões específicas'
-  const nomes = regioes.map((r) => {
-    const partes = r.caminho.split(' > ')
-    return partes[partes.length - 1]
-  })
-  if (nomes.length <= 3) return nomes.join(', ')
-  return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`
+const SEVERIDADE_LABEL: Record<string, string> = {
+  LeveAlteracao: 'leve alteração',
+  Alterado: 'alterado',
+  Critico: 'crítico',
+  Normal: 'normal',
+}
+
+function getRegioesResumo(exame: ExameFisicoResumoDto): string {
+  if (exame.totalRegioes === 0) return 'Sem regiões específicas'
+  const label = exame.severidadeMaxima ? ` — ${SEVERIDADE_LABEL[exame.severidadeMaxima] ?? exame.severidadeMaxima}` : ''
+  return `${exame.totalRegioes} ${exame.totalRegioes === 1 ? 'região' : 'regiões'}${label}`
 }
 </script>
 
@@ -72,17 +74,17 @@ function getRegioesResumo(exame: ExameFisicoRegistro): string {
         <div class="flex items-start justify-between gap-2">
           <div class="space-y-0.5">
             <p class="text-[11px] font-semibold text-foreground">
-              {{ formatDate(exame.criado_em) }}
+              {{ formatDate(exame.realizadoEm) }}
               <span class="font-normal text-muted-foreground">
-                {{ formatTime(exame.criado_em) }}
+                {{ formatTime(exame.realizadoEm) }}
               </span>
             </p>
             <p class="text-[10px] text-muted-foreground">
-              {{ exame.profissional_nome }}
+              {{ exame.realizadoPorNome }}
             </p>
           </div>
           <span
-            v-if="exame.evolucao_prontuario_id"
+            v-if="exame.evolucaoId"
             class="text-[8px] border border-border rounded px-1.5 py-0.5 text-muted-foreground shrink-0"
           >
             Vinculado

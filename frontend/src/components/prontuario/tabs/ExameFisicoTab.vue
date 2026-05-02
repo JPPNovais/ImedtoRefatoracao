@@ -12,7 +12,7 @@ import type { RegiaoExaminada } from '@/components/exame-fisico/RegionExamCard.v
 
 import {
     exameFisicoService,
-    type ExameFisicoRegistro,
+    type ExameFisicoResumoDto,
     type DadosGeraisExame,
 } from '@/services/exameFisicoService'
 
@@ -29,7 +29,7 @@ const emit = defineEmits<{
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 const regioes = ref<ExameFisicoRegiao[]>([])
-const historicoExames = ref<ExameFisicoRegistro[]>([])
+const historicoExames = ref<ExameFisicoResumoDto[]>([])
 const isLoadingRegioes = ref(false)
 const isLoadingHistorico = ref(false)
 const isSaving = ref(false)
@@ -195,12 +195,49 @@ function removerRegiao(index: number) {
     exameAtual.regioes_examinadas.splice(index, 1)
 }
 
+// Mapeia lateralidade do backend ("Esquerda"/"Direita"/"Bilateral") para o modelo local
+const LATERALIDADE_BACKEND_PARA_LOCAL: Record<string, 'D' | 'E' | 'bilateral'> = {
+    Direita: 'D',
+    Esquerda: 'E',
+    Bilateral: 'bilateral',
+}
+
+// Mapeia lateralidade do modelo local para o backend
+const LATERALIDADE_LOCAL_PARA_BACKEND: Record<string, string> = {
+    D: 'Direita',
+    E: 'Esquerda',
+    bilateral: 'Bilateral',
+}
+
 // ─── Ações ─────────────────────────────────────────────────────────────────
-function onDuplicarExame(exame: ExameFisicoRegistro) {
-    Object.assign(exameAtual.dados_gerais, JSON.parse(JSON.stringify(exame.dados_gerais)))
-    exameAtual.regioes_examinadas.splice(0, exameAtual.regioes_examinadas.length,
-        ...JSON.parse(JSON.stringify(exame.regioes_examinadas)))
-    exameAtual.observacoes = exame.observacoes || ''
+async function onDuplicarExame(exame: ExameFisicoResumoDto) {
+    try {
+        const exameCompleto = await exameFisicoService.obterPorId(exame.id)
+        if (!exameCompleto) return
+
+        // dadosGeraisJson é string serializada no backend
+        if (exameCompleto.dadosGeraisJson) {
+            Object.assign(exameAtual.dados_gerais, JSON.parse(exameCompleto.dadosGeraisJson))
+        }
+
+        // Converte regiões do backend (RegiaoExameFisicoDto) para o modelo local (RegiaoExaminada)
+        const regioesConvertidas = exameCompleto.regioes.map((r, idx) => ({
+            regiao_id: r.regiaoCodigo,
+            caminho: getCaminho(r.regiaoCodigo),
+            lateralidade: r.lateralidade
+                ? (LATERALIDADE_BACKEND_PARA_LOCAL[r.lateralidade] ?? null)
+                : null,
+            texto_exame: getTemplate(r.regiaoCodigo),
+            achados: r.achados ?? '',
+            observacoes: '',
+            timestamp: new Date(idx).toISOString(),  // marcador de ordem
+        }))
+        exameAtual.regioes_examinadas.splice(0, exameAtual.regioes_examinadas.length, ...regioesConvertidas)
+
+        exameAtual.observacoes = exameCompleto.observacoesGerais ?? ''
+    } catch {
+        // erro tratado pelo interceptor do httpClient
+    }
 }
 
 function resetForm() {
@@ -216,17 +253,26 @@ async function handleSalvar() {
     }
     isSaving.value = true
     try {
+        // dadosGeraisJson deve ser string serializada, não o objeto
+        const dadosGeraisStr = JSON.stringify(exameAtual.dados_gerais)
+
         await exameFisicoService.registrar(props.evolucaoId, {
-            dadosGeraisJson: exameAtual.dados_gerais,
+            dadosGeraisJson: dadosGeraisStr,
             observacoesGerais: exameAtual.observacoes || undefined,
-            regioes: exameAtual.regioes_examinadas.map((r) => ({
-                regiaoId: r.regiao_id,
-                caminhoTexto: r.caminho,
-                lateralidade: r.lateralidade,
-                textoExame: r.texto_exame,
-                achados: r.achados,
-                observacoes: r.observacoes,
-            })),
+            regioes: exameAtual.regioes_examinadas.map((r, idx) => {
+                // Busca paiCodigo no catálogo para enviar ao backend
+                const regiaoNocat = regioes.value.find((cat) => cat.id === r.regiao_id)
+                return {
+                    codigo: r.regiao_id,
+                    paiCodigo: regiaoNocat?.pai_id ?? null,
+                    lateralidade: r.lateralidade
+                        ? (LATERALIDADE_LOCAL_PARA_BACKEND[r.lateralidade] ?? null)
+                        : null,
+                    achados: r.achados || undefined,
+                    severidade: 'Normal',
+                    ordem: idx,
+                }
+            }),
         })
         resetForm()
         await loadHistorico()
