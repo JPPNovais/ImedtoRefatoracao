@@ -120,7 +120,16 @@ public static class InfrastructureExtensions
         {
             var opts = sp.GetRequiredService<IOptions<SupabaseOptions>>().Value;
             client.BaseAddress = new Uri(opts.Url);
-            client.DefaultRequestHeaders.Add("apikey", opts.ServiceRoleKey);
+            // Default 'apikey' eh o anon_key (publica) — endpoints publicos (signup,
+            // login, refresh, recover) usam so isso. Endpoints admin (delete user,
+            // generate_link, admin/users) passam ServiceRoleKey explicitamente em
+            // header Authorization Bearer no proprio request — nao colocar service
+            // role como default bypassa rate limits/policies do Supabase.
+            // Fallback para string vazia evita NullReference no startup quando o
+            // appsettings local nao tem AnonKey configurada (ambiente parcial); em
+            // runtime real essa chamada vai falhar com 401 do Supabase, que eh
+            // muito mais seguro do que rodar com service_role default.
+            client.DefaultRequestHeaders.Add("apikey", opts.AnonKey ?? string.Empty);
         });
 
         services.AddScoped<IAuthService, SupabaseAuthService>();

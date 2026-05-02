@@ -14,6 +14,20 @@ public class SupabaseOptions
     /// <summary>Issuer/Authority para validação de JWT via JWKS. Ex: https://xxx.supabase.co/auth/v1</summary>
     public string Authority { get; set; }
 
-    /// <summary>Service role key — permissões de admin (delete user, etc.). NUNCA expor.</summary>
+    /// <summary>
+    /// Anon key — chave publica usada como header 'apikey' default em todas as
+    /// chamadas REST do Supabase (endpoints publicos: signup, login, refresh,
+    /// recover; e endpoints com Bearer do usuario: logout, /user). Pode ser
+    /// commitada em frontends, mas aqui fica no backend para garantir que toda
+    /// chamada para o Supabase passe por nosso BFF.
+    /// </summary>
+    public string AnonKey { get; set; }
+
+    /// <summary>
+    /// Service role key — permissoes de admin (delete user, generate_link,
+    /// admin/users). NUNCA expor para o front e NUNCA usar como apikey default
+    /// (bypassa rate limit/policies do proprio Supabase). So usar em headers
+    /// explicitos de operacoes admin.
+    /// </summary>
     public string ServiceRoleKey { get; set; }
 }
