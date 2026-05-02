@@ -23,17 +23,17 @@ public class CriarSeedFinanceiroAoCriarEstabelecimentoHandler : IEventHandler<Es
         _formaPagamentoRepo = formaPagamentoRepo;
     }
 
-    public async Task Handle(EstabelecimentoCriadoEvent @event)
+    public async Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
         foreach (var (nome, tipo) in SeedsFinanceiro.Categorias)
         {
-            var categoria = CategoriaFinanceira.CriarPadrao(@event.EstabelecimentoId, nome, tipo);
+            var categoria = CategoriaFinanceira.CriarPadrao(domainEvent.EstabelecimentoId, nome, tipo);
             await _categoriaRepo.Salvar(categoria);
         }
 
         foreach (var nome in SeedsFinanceiro.FormasPagamento)
         {
-            var forma = FormaPagamento.CriarPadrao(@event.EstabelecimentoId, nome);
+            var forma = FormaPagamento.CriarPadrao(domainEvent.EstabelecimentoId, nome);
             await _formaPagamentoRepo.Salvar(forma);
         }
     }

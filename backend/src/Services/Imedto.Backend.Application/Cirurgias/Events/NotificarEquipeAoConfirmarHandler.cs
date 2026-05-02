@@ -18,22 +18,22 @@ public class NotificarEquipeAoConfirmarHandler : IEventHandler<ProcedimentoConfi
     public NotificarEquipeAoConfirmarHandler(INotificacaoService notificacoes)
         => _notificacoes = notificacoes;
 
-    public async Task Handle(ProcedimentoConfirmadoEvent @event)
+    public async Task Handle(ProcedimentoConfirmadoEvent domainEvent)
     {
-        var quando = @event.DataAgendada is { } d
+        var quando = domainEvent.DataAgendada is { } d
             ? $" agendado para {d:dd/MM/yyyy HH:mm} (UTC)"
             : "";
-        var mensagem = $"Você foi confirmado(a) para a cirurgia '{@event.CirurgiaPrincipal}'{quando}.";
+        var mensagem = $"Você foi confirmado(a) para a cirurgia '{domainEvent.CirurgiaPrincipal}'{quando}.";
 
-        foreach (var usuarioId in @event.MembrosEquipeUsuarioIds.Distinct())
+        foreach (var usuarioId in domainEvent.MembrosEquipeUsuarioIds.Distinct())
         {
             await _notificacoes.EnviarAsync(
                 usuarioId: usuarioId,
-                estabelecimentoId: @event.EstabelecimentoId,
+                estabelecimentoId: domainEvent.EstabelecimentoId,
                 titulo: "Cirurgia confirmada",
                 mensagem: mensagem,
                 categoria: CategoriaNotificacao.Sistema,
-                linkAcao: $"/cirurgias/{@event.ProcedimentoId}");
+                linkAcao: $"/cirurgias/{domainEvent.ProcedimentoId}");
         }
     }
 }

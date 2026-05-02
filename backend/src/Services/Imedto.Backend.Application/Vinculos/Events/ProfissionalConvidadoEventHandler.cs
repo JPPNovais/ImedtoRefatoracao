@@ -13,11 +13,11 @@ public class ProfissionalConvidadoEventHandler : IEventHandler<ProfissionalConvi
         _logger = logger;
     }
 
-    public Task Handle(ProfissionalConvidadoEvent @event)
+    public Task Handle(ProfissionalConvidadoEvent domainEvent)
     {
         _logger.LogInformation(
             "Convite criado: Vinculo={VinculoId}, Profissional={ProfissionalUsuarioId}, Estabelecimento={EstabelecimentoId}",
-            @event.VinculoId, @event.ProfissionalUsuarioId, @event.EstabelecimentoId);
+            domainEvent.VinculoId, domainEvent.ProfissionalUsuarioId, domainEvent.EstabelecimentoId);
         return Task.CompletedTask;
     }
 }

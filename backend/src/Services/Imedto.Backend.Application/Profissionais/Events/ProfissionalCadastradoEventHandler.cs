@@ -13,11 +13,11 @@ public class ProfissionalCadastradoEventHandler : IEventHandler<ProfissionalCada
         _logger = logger;
     }
 
-    public Task Handle(ProfissionalCadastradoEvent @event)
+    public Task Handle(ProfissionalCadastradoEvent domainEvent)
     {
         _logger.LogInformation(
             "Profissional cadastrado: Usuario={UsuarioId}, {Conselho}/{Uf} {NumeroRegistro}",
-            @event.UsuarioId, @event.Conselho, @event.Uf, @event.NumeroRegistro);
+            domainEvent.UsuarioId, domainEvent.Conselho, domainEvent.Uf, domainEvent.NumeroRegistro);
         return Task.CompletedTask;
     }
 }

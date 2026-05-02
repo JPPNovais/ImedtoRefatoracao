@@ -6,5 +6,5 @@ namespace Imedto.Backend.SharedKernel.Cqrs;
 /// </summary>
 public interface IEventHandler<TEvent> where TEvent : IDomainEvent
 {
-    Task Handle(TEvent @event);
+    Task Handle(TEvent domainEvent);
 }

@@ -13,11 +13,11 @@ public class VinculoAceitoEventHandler : IEventHandler<VinculoAceitoEvent>
         _logger = logger;
     }
 
-    public Task Handle(VinculoAceitoEvent @event)
+    public Task Handle(VinculoAceitoEvent domainEvent)
     {
         _logger.LogInformation(
             "Convite aceito: Vinculo={VinculoId}, Profissional={ProfissionalUsuarioId}, Estabelecimento={EstabelecimentoId}",
-            @event.VinculoId, @event.ProfissionalUsuarioId, @event.EstabelecimentoId);
+            domainEvent.VinculoId, domainEvent.ProfissionalUsuarioId, domainEvent.EstabelecimentoId);
         return Task.CompletedTask;
     }
 }

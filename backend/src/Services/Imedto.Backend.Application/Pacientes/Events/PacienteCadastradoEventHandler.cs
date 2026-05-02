@@ -13,12 +13,12 @@ public class PacienteCadastradoEventHandler : IEventHandler<PacienteCadastradoEv
         _logger = logger;
     }
 
-    public Task Handle(PacienteCadastradoEvent @event)
+    public Task Handle(PacienteCadastradoEvent domainEvent)
     {
         // Não logar o nome (PII) — apenas IDs.
         _logger.LogInformation(
             "Paciente cadastrado: Id={PacienteId}, Estabelecimento={EstabelecimentoId}",
-            @event.PacienteId, @event.EstabelecimentoId);
+            domainEvent.PacienteId, domainEvent.EstabelecimentoId);
         return Task.CompletedTask;
     }
 }

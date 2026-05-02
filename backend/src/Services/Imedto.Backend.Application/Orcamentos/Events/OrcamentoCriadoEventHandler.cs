@@ -6,5 +6,5 @@ namespace Imedto.Backend.Application.Orcamentos.Events;
 // Placeholder — notificações futuras ao paciente serão implementadas aqui.
 public class OrcamentoCriadoEventHandler : IEventHandler<OrcamentoCriadoEvent>
 {
-    public Task Handle(OrcamentoCriadoEvent @event) => Task.CompletedTask;
+    public Task Handle(OrcamentoCriadoEvent domainEvent) => Task.CompletedTask;
 }

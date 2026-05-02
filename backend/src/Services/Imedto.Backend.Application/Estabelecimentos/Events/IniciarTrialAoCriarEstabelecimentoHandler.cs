@@ -34,16 +34,16 @@ public class IniciarTrialAoCriarEstabelecimentoHandler : IEventHandler<Estabelec
         _logger = logger;
     }
 
-    public async Task Handle(EstabelecimentoCriadoEvent @event)
+    public async Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
         // Idempotência: se já existe assinatura para este estabelecimento, ignora —
         // re-execuções de evento (retry) não devem criar trials duplicados.
-        var existente = await _assinaturaRepo.ObterPorEstabelecimentoOuNulo(@event.EstabelecimentoId);
+        var existente = await _assinaturaRepo.ObterPorEstabelecimentoOuNulo(domainEvent.EstabelecimentoId);
         if (existente is not null)
         {
             _logger.LogInformation(
                 "Estabelecimento {EstabelecimentoId} já possui assinatura — pulando inicialização de trial.",
-                @event.EstabelecimentoId);
+                domainEvent.EstabelecimentoId);
             return;
         }
 
@@ -53,15 +53,15 @@ public class IniciarTrialAoCriarEstabelecimentoHandler : IEventHandler<Estabelec
             _logger.LogWarning(
                 "Plano '{Nome}' não encontrado — trial não foi iniciado para o estabelecimento {EstabelecimentoId}. "
                 + "Verifique se o SeedPlanosHostedService rodou.",
-                NomePlanoTrial, @event.EstabelecimentoId);
+                NomePlanoTrial, domainEvent.EstabelecimentoId);
             return;
         }
 
-        var assinatura = Assinatura.IniciarTrial(@event.EstabelecimentoId, planoTrial.Id, DuracaoTrialPadrao);
+        var assinatura = Assinatura.IniciarTrial(domainEvent.EstabelecimentoId, planoTrial.Id, DuracaoTrialPadrao);
         await _assinaturaRepo.Salvar(assinatura);
 
         _logger.LogInformation(
             "Trial iniciado: Assinatura={AssinaturaId} Estabelecimento={EstabelecimentoId} ExpiraEm={ExpiraEm:o}",
-            assinatura.Id, @event.EstabelecimentoId, assinatura.ExpiraEm);
+            assinatura.Id, domainEvent.EstabelecimentoId, assinatura.ExpiraEm);
     }
 }

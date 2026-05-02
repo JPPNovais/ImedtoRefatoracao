@@ -53,24 +53,24 @@ public class AoAprovarSolicitacaoCriarVinculoHandler : IEventHandler<Solicitacao
         _eventBus = eventBus;
     }
 
-    public async Task Handle(SolicitacaoVinculoAprovadaEvent @event)
+    public async Task Handle(SolicitacaoVinculoAprovadaEvent domainEvent)
     {
-        if (await _assinaturaService.LimiteAtingidoAsync(@event.EstabelecimentoId, "profissionais"))
+        if (await _assinaturaService.LimiteAtingidoAsync(domainEvent.EstabelecimentoId, "profissionais"))
             throw new BusinessException("Plano não permite mais profissionais. Faça upgrade.");
 
         // Conta local do profissional precisa existir antes da aprovação. Em prática,
         // chegou até aqui = passou pelo onboarding (caso contrário não teria sub no JWT
         // para criar a solicitação). Esta checagem é defesa em profundidade.
-        var existente = await _usuarioRepo.ObterPorIdOuNulo(@event.ProfissionalUsuarioId);
+        var existente = await _usuarioRepo.ObterPorIdOuNulo(domainEvent.ProfissionalUsuarioId);
         if (existente is null)
             throw new BusinessException("Profissional precisa ter conta ativa antes da aprovação.");
 
-        var modeloPadrao = await _modeloRepo.ObterPadraoDoEstabelecimento(@event.EstabelecimentoId);
+        var modeloPadrao = await _modeloRepo.ObterPadraoDoEstabelecimento(domainEvent.EstabelecimentoId);
         if (modeloPadrao is null)
             throw new BusinessException("Estabelecimento não possui modelo de permissão padrão.");
 
         var vinculoExistente = await _vinculoRepo.ObterPorProfissionalEEstabelecimentoOuNulo(
-            @event.ProfissionalUsuarioId, @event.EstabelecimentoId);
+            domainEvent.ProfissionalUsuarioId, domainEvent.EstabelecimentoId);
 
         VinculoProfissionalEstabelecimento vinculo;
 
@@ -83,7 +83,7 @@ public class AoAprovarSolicitacaoCriarVinculoHandler : IEventHandler<Solicitacao
         if (vinculoExistente is { Status: VinculoStatus.Inativo })
         {
             // Reativa preservando linha histórica.
-            vinculoExistente.ReativarComoConvite(modeloPadrao.Id, @event.AprovadoPorUsuarioId);
+            vinculoExistente.ReativarComoConvite(modeloPadrao.Id, domainEvent.AprovadoPorUsuarioId);
             vinculoExistente.Aceitar();
             vinculo = vinculoExistente;
             await _vinculoRepo.Salvar(vinculo);
@@ -92,10 +92,10 @@ public class AoAprovarSolicitacaoCriarVinculoHandler : IEventHandler<Solicitacao
         {
             // Novo vínculo: Convidar + Aceitar em sequência (transação garante atomicidade).
             vinculo = VinculoProfissionalEstabelecimento.Convidar(
-                @event.ProfissionalUsuarioId,
-                @event.EstabelecimentoId,
+                domainEvent.ProfissionalUsuarioId,
+                domainEvent.EstabelecimentoId,
                 modeloPadrao.Id,
-                @event.AprovadoPorUsuarioId);
+                domainEvent.AprovadoPorUsuarioId);
 
             await _vinculoRepo.Salvar(vinculo);  // popula Id
             vinculo.MarcarComoConvidado();        // anexa ProfissionalConvidadoEvent

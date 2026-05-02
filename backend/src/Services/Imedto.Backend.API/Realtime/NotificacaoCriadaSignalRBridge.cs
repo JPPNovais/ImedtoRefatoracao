@@ -29,22 +29,22 @@ public class NotificacaoCriadaSignalRBridge : IEventHandler<NotificacaoCriadaEve
         _logger = logger;
     }
 
-    public async Task Handle(NotificacaoCriadaEvent @event)
+    public async Task Handle(NotificacaoCriadaEvent domainEvent)
     {
-        var grupo = $"usuario:{@event.UsuarioId}";
+        var grupo = $"usuario:{domainEvent.UsuarioId}";
 
         // Payload espelha o NotificacaoDto do GET /api/notificacoes — frontend usa o mesmo shape
         // em ambas as fontes (REST inicial + push em tempo real).
         var payload = new
         {
-            id = @event.NotificacaoId,
-            estabelecimentoId = @event.EstabelecimentoId,
-            titulo = @event.Titulo,
-            mensagem = @event.Mensagem,
-            categoria = @event.Categoria.ToString(),
-            linkAcao = @event.LinkAcao,
+            id = domainEvent.NotificacaoId,
+            estabelecimentoId = domainEvent.EstabelecimentoId,
+            titulo = domainEvent.Titulo,
+            mensagem = domainEvent.Mensagem,
+            categoria = domainEvent.Categoria.ToString(),
+            linkAcao = domainEvent.LinkAcao,
             lida = false,
-            criadaEm = @event.OcorridoEm
+            criadaEm = domainEvent.OcorridoEm
         };
 
         await _hub.Clients.Group(grupo).SendAsync("notificacao-recebida", payload);
@@ -52,6 +52,6 @@ public class NotificacaoCriadaSignalRBridge : IEventHandler<NotificacaoCriadaEve
         // LGPD: NÃO logar titulo/mensagem. Só metadados.
         _logger.LogInformation(
             "Notificação enviada via SignalR: Id={Id} Usuario={UsuarioId} Categoria={Categoria}",
-            @event.NotificacaoId, @event.UsuarioId, @event.Categoria);
+            domainEvent.NotificacaoId, domainEvent.UsuarioId, domainEvent.Categoria);
     }
 }

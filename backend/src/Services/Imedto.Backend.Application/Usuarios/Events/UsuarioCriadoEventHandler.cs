@@ -17,11 +17,11 @@ public class UsuarioCriadoEventHandler : IEventHandler<UsuarioCriadoEvent>
         _logger = logger;
     }
 
-    public Task Handle(UsuarioCriadoEvent @event)
+    public Task Handle(UsuarioCriadoEvent domainEvent)
     {
         _logger.LogInformation(
             "Usuário criado: Id={UsuarioId}, Email={Email}, OcorridoEm={OcorridoEm}",
-            @event.UsuarioId, @event.Email, @event.OcorridoEm);
+            domainEvent.UsuarioId, domainEvent.Email, domainEvent.OcorridoEm);
         return Task.CompletedTask;
     }
 }

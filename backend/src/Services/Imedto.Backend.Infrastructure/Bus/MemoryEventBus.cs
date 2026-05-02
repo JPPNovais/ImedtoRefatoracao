@@ -38,11 +38,11 @@ public class MemoryEventBus : IEventBus
         _handlers[typeof(TEvent)].Add(typeof(THandler));
     }
 
-    public async Task Publish<TEvent>(TEvent @event) where TEvent : IDomainEvent
+    public async Task Publish<TEvent>(TEvent domainEvent) where TEvent : IDomainEvent
     {
         // Usa o runtime type do evento — quando o caller itera uma coleção de IDomainEvent,
         // typeof(TEvent) seria IDomainEvent e o dispatch perderia todos os handlers concretos.
-        var eventType = @event!.GetType();
+        var eventType = domainEvent!.GetType();
 
         if (!_handlers.TryGetValue(eventType, out var handlerTypes))
             return;
@@ -55,7 +55,7 @@ public class MemoryEventBus : IEventBus
         foreach (var handlerType in handlerTypes)
         {
             var handler = serviceProvider.GetRequiredService(handlerType);
-            await (Task)handleMethod!.Invoke(handler, new object[] { @event })!;
+            await (Task)handleMethod!.Invoke(handler, new object[] { domainEvent })!;
         }
     }
 }

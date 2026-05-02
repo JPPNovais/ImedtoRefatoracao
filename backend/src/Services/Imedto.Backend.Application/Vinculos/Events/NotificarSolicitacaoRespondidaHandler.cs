@@ -19,18 +19,18 @@ public class NotificarSolicitacaoRespondidaHandler
         _notificacoes = notificacoes;
     }
 
-    public Task Handle(SolicitacaoVinculoAprovadaEvent @event)
+    public Task Handle(SolicitacaoVinculoAprovadaEvent domainEvent)
         => _notificacoes.EnviarAsync(
-            usuarioId: @event.ProfissionalUsuarioId,
+            usuarioId: domainEvent.ProfissionalUsuarioId,
             estabelecimentoId: null, // global do usuário — vê em qualquer contexto
             titulo: "Solicitação de vínculo aprovada",
             mensagem: "Sua solicitação foi aprovada. Você já pode atuar no estabelecimento.",
             categoria: CategoriaNotificacao.Convite,
             linkAcao: "/solicitacoes-vinculo/minhas");
 
-    public Task Handle(SolicitacaoVinculoRecusadaEvent @event)
+    public Task Handle(SolicitacaoVinculoRecusadaEvent domainEvent)
         => _notificacoes.EnviarAsync(
-            usuarioId: @event.ProfissionalUsuarioId,
+            usuarioId: domainEvent.ProfissionalUsuarioId,
             estabelecimentoId: null,
             titulo: "Solicitação de vínculo recusada",
             mensagem: "Sua solicitação de vínculo foi recusada. Acesse 'Minhas solicitações' para mais detalhes.",

@@ -6,5 +6,5 @@ namespace Imedto.Backend.Application.Orcamentos.Events;
 // Placeholder — integração financeira futura será implementada aqui.
 public class OrcamentoAprovadoEventHandler : IEventHandler<OrcamentoAprovadoEvent>
 {
-    public Task Handle(OrcamentoAprovadoEvent @event) => Task.CompletedTask;
+    public Task Handle(OrcamentoAprovadoEvent domainEvent) => Task.CompletedTask;
 }

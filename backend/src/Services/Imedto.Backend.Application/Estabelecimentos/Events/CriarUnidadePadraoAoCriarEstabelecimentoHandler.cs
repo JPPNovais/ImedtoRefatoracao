@@ -17,10 +17,10 @@ public class CriarUnidadePadraoAoCriarEstabelecimentoHandler : IEventHandler<Est
         _repository = repository;
     }
 
-    public async Task Handle(EstabelecimentoCriadoEvent @event)
+    public async Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
         var unidade = UnidadeEstabelecimento.Criar(
-            @event.EstabelecimentoId,
+            domainEvent.EstabelecimentoId,
             "Sede",
             isPrincipal: true,
             new EnderecoUnidadeInput(null, null, null, null, null, null, null),

@@ -38,10 +38,10 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
         _logger = logger;
     }
 
-    public async Task Handle(ProfissionalConvidadoEvent @event)
+    public async Task Handle(ProfissionalConvidadoEvent domainEvent)
     {
         await _notificacoes.EnviarAsync(
-            usuarioId: @event.ProfissionalUsuarioId,
+            usuarioId: domainEvent.ProfissionalUsuarioId,
             estabelecimentoId: null, // convite é "global do usuário" — vê em qualquer contexto
             titulo: "Você foi convidado",
             mensagem: "Você recebeu um convite para vincular-se a um estabelecimento. Acesse 'Meus convites' para revisar e aceitar.",
@@ -51,7 +51,7 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
         // Email opcional — só dispara se o usuário tiver email cadastrado.
         try
         {
-            var usuario = await _usuarioRepo.ObterPorIdOuNulo(@event.ProfissionalUsuarioId);
+            var usuario = await _usuarioRepo.ObterPorIdOuNulo(domainEvent.ProfissionalUsuarioId);
             if (usuario is null || string.IsNullOrWhiteSpace(usuario.Email)) return;
 
             await _email.EnviarAsync(
@@ -67,7 +67,7 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
         catch (Exception ex)
         {
             // Não relançar — notificação in-app já foi entregue, email é canal complementar.
-            _logger.LogWarning(ex, "Falha ao enviar email de convite para vínculo {VinculoId}.", @event.VinculoId);
+            _logger.LogWarning(ex, "Falha ao enviar email de convite para vínculo {VinculoId}.", domainEvent.VinculoId);
         }
     }
 }

@@ -38,14 +38,14 @@ public class NotificarSolicitacaoCriadaHandler : IEventHandler<SolicitacaoVincul
         _logger = logger;
     }
 
-    public async Task Handle(SolicitacaoVinculoCriadaEvent @event)
+    public async Task Handle(SolicitacaoVinculoCriadaEvent domainEvent)
     {
-        var estab = await _estabelecimentoRepo.ObterPorIdOuNulo(@event.EstabelecimentoId);
+        var estab = await _estabelecimentoRepo.ObterPorIdOuNulo(domainEvent.EstabelecimentoId);
         if (estab is null) return;
 
         await _notificacoes.EnviarAsync(
             usuarioId: estab.DonoUsuarioId,
-            estabelecimentoId: @event.EstabelecimentoId,
+            estabelecimentoId: domainEvent.EstabelecimentoId,
             titulo: "Nova solicitação de vínculo",
             mensagem: "Um profissional solicitou acesso ao seu estabelecimento. Acesse 'Solicitações recebidas' para revisar.",
             categoria: CategoriaNotificacao.Convite,
@@ -68,7 +68,7 @@ public class NotificarSolicitacaoCriadaHandler : IEventHandler<SolicitacaoVincul
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Falha ao enviar email de solicitação de vínculo {Id}.", @event.SolicitacaoId);
+            _logger.LogWarning(ex, "Falha ao enviar email de solicitação de vínculo {Id}.", domainEvent.SolicitacaoId);
         }
     }
 }

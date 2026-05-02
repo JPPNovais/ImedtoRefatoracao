@@ -11,12 +11,6 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-# === Supressoes globais ===
-
-# CA1716: parametro 'event' em IEventBus / IEventHandler conflita com keyword reservada
-# em outras linguagens. Mantemos pois consumidores sao 100% C# (uso interno).
-dotnet_diagnostic.CA1716.severity = none
-
 # === Supressoes para ARQUIVOS GERADOS por EF Core (Migrations) ===
 # Migrations seguem padrao YYYYMMDDHHMMSS_*.cs ou *.Designer.cs.
 [*.Designer.cs]

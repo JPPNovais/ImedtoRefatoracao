@@ -13,11 +13,11 @@ public class EstabelecimentoCriadoEventHandler : IEventHandler<EstabelecimentoCr
         _logger = logger;
     }
 
-    public Task Handle(EstabelecimentoCriadoEvent @event)
+    public Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
         _logger.LogInformation(
             "Estabelecimento criado: Id={EstabelecimentoId}, Dono={DonoUsuarioId}, Nome={NomeFantasia}",
-            @event.EstabelecimentoId, @event.DonoUsuarioId, @event.NomeFantasia);
+            domainEvent.EstabelecimentoId, domainEvent.DonoUsuarioId, domainEvent.NomeFantasia);
         return Task.CompletedTask;
     }
 }

@@ -39,16 +39,16 @@ public abstract class EnfileirarEventosAutomacaoBase<TEvent> : IEventHandler<TEv
         _logger = logger;
     }
 
-    public async Task Handle(TEvent @event)
+    public async Task Handle(TEvent domainEvent)
     {
-        var estabelecimentoId = EstabelecimentoIdDoEvento(@event);
+        var estabelecimentoId = EstabelecimentoIdDoEvento(domainEvent);
         if (estabelecimentoId <= 0) return;
 
         var regras = await _regraRepo.ListarAtivasPorEvento(estabelecimentoId, NomeGatilho);
         if (regras.Count == 0) return;
 
         // Serializa o payload uma vez — evita repetir por regra. JsonDocument readonly p/ avaliador.
-        var payloadJson = JsonSerializer.Serialize<object>(@event);
+        var payloadJson = JsonSerializer.Serialize<object>(domainEvent);
         using var payloadDoc = JsonDocument.Parse(payloadJson);
 
         foreach (var regra in regras)

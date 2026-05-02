@@ -5,5 +5,5 @@ namespace Imedto.Backend.Application.Financeiro.Events;
 
 public class LancamentoCriadoEventHandler : IEventHandler<LancamentoCriadoEvent>
 {
-    public Task Handle(LancamentoCriadoEvent @event) => Task.CompletedTask;
+    public Task Handle(LancamentoCriadoEvent domainEvent) => Task.CompletedTask;
 }

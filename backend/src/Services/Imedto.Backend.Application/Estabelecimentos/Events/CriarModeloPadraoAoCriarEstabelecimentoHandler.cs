@@ -18,9 +18,9 @@ public class CriarModeloPadraoAoCriarEstabelecimentoHandler : IEventHandler<Esta
         _repository = repository;
     }
 
-    public async Task Handle(EstabelecimentoCriadoEvent @event)
+    public async Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
-        foreach (var modelo in ModeloPermissaoEstabelecimento.CriarPadroes(@event.EstabelecimentoId))
+        foreach (var modelo in ModeloPermissaoEstabelecimento.CriarPadroes(domainEvent.EstabelecimentoId))
             await _repository.Salvar(modelo);
     }
 }

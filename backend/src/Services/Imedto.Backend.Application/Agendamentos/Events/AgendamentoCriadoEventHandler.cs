@@ -5,5 +5,5 @@ namespace Imedto.Backend.Application.Agendamentos.Events;
 
 public class AgendamentoCriadoEventHandler : IEventHandler<AgendamentoCriadoEvent>
 {
-    public Task Handle(AgendamentoCriadoEvent @event) => Task.CompletedTask;
+    public Task Handle(AgendamentoCriadoEvent domainEvent) => Task.CompletedTask;
 }

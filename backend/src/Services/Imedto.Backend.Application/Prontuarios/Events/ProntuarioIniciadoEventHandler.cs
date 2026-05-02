@@ -9,10 +9,10 @@ public class ProntuarioIniciadoEventHandler : IEventHandler<ProntuarioIniciadoEv
     private readonly ILogger<ProntuarioIniciadoEventHandler> _logger;
     public ProntuarioIniciadoEventHandler(ILogger<ProntuarioIniciadoEventHandler> logger) => _logger = logger;
 
-    public Task Handle(ProntuarioIniciadoEvent @event)
+    public Task Handle(ProntuarioIniciadoEvent domainEvent)
     {
         _logger.LogInformation("Prontuário iniciado: Id={ProntuarioId}, Paciente={PacienteId}, Estabelecimento={EstabelecimentoId}",
-            @event.ProntuarioId, @event.PacienteId, @event.EstabelecimentoId);
+            domainEvent.ProntuarioId, domainEvent.PacienteId, domainEvent.EstabelecimentoId);
         return Task.CompletedTask;
     }
 }
@@ -22,10 +22,10 @@ public class EvolucaoRegistradaEventHandler : IEventHandler<EvolucaoRegistradaEv
     private readonly ILogger<EvolucaoRegistradaEventHandler> _logger;
     public EvolucaoRegistradaEventHandler(ILogger<EvolucaoRegistradaEventHandler> logger) => _logger = logger;
 
-    public Task Handle(EvolucaoRegistradaEvent @event)
+    public Task Handle(EvolucaoRegistradaEvent domainEvent)
     {
         _logger.LogInformation("Evolução registrada: Id={EvolucaoId}, Prontuário={ProntuarioId}, Autor={AutorUsuarioId}",
-            @event.EvolucaoId, @event.ProntuarioId, @event.AutorUsuarioId);
+            domainEvent.EvolucaoId, domainEvent.ProntuarioId, domainEvent.AutorUsuarioId);
         return Task.CompletedTask;
     }
 }
