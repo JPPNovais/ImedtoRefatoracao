@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -41,7 +42,7 @@ public class SupabaseAuthService : IAuthService
         if (!response.IsSuccessStatusCode)
         {
             var erro = await response.Content.ReadAsStringAsync();
-            _logger.LogWarning("Signup falhou para {Email}: HTTP {Status} — {Body}", email, response.StatusCode, erro);
+            _logger.LogWarning("Signup falhou para {EmailHash}: HTTP {Status} — {Body}", HashEmail(email), response.StatusCode, erro);
 
             // Supabase retorna 422 com code "user_already_exists" quando e-mail está em uso.
             if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity && erro.Contains("already", StringComparison.OrdinalIgnoreCase))
@@ -77,7 +78,7 @@ public class SupabaseAuthService : IAuthService
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Login falhou para {Email}: HTTP {Status}", email, response.StatusCode);
+            _logger.LogWarning("Login falhou para {EmailHash}: HTTP {Status}", HashEmail(email), response.StatusCode);
             throw new BusinessException("Credenciais inválidas.");
         }
 
@@ -165,7 +166,7 @@ public class SupabaseAuthService : IAuthService
         if (!response.IsSuccessStatusCode)
         {
             var erro = await response.Content.ReadAsStringAsync();
-            _logger.LogWarning("Convite falhou para {Email}: HTTP {Status} — {Body}", email, response.StatusCode, erro);
+            _logger.LogWarning("Convite falhou para {EmailHash}: HTTP {Status} — {Body}", HashEmail(email), response.StatusCode, erro);
 
             // Se o usuário já existe, reutilizamos a conta e só criamos o vínculo no backend.
             var jaRegistrado = erro.Contains("already", StringComparison.OrdinalIgnoreCase)
@@ -206,7 +207,7 @@ public class SupabaseAuthService : IAuthService
         catch (Exception ex)
         {
             // Nunca revelar se o e-mail existe ou não (prevenção de enumeração).
-            _logger.LogWarning(ex, "Falha ao enviar recuperação de senha para {Email} (ignorado).", email);
+            _logger.LogWarning(ex, "Falha ao enviar recuperação de senha para {EmailHash} (ignorado).", HashEmail(email));
         }
     }
 
@@ -237,6 +238,18 @@ public class SupabaseAuthService : IAuthService
     }
 
     // ---- Helpers ----
+
+    /// <summary>
+    /// Hash SHA-256 truncado (16 hex chars) do email. Usado em logs para correlacionar
+    /// tentativas (ex: alguem tentando logar varias vezes na mesma conta) sem expor o
+    /// email cru — vazamento de PII em log estruturado eh incidente LGPD.
+    /// Mesmo padrao do hash de IP em Program.cs (rate limiter).
+    /// </summary>
+    private static string HashEmail(string email)
+    {
+        if (string.IsNullOrEmpty(email)) return "(vazio)";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(email.ToLowerInvariant())))[..16];
+    }
 
     private static async Task<AuthResult> ParseAuthResponse(HttpResponseMessage response)
     {

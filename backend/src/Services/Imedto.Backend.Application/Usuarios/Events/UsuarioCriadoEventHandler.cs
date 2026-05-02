@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Imedto.Backend.Domain.Usuarios.Events;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -19,9 +21,17 @@ public class UsuarioCriadoEventHandler : IEventHandler<UsuarioCriadoEvent>
 
     public Task Handle(UsuarioCriadoEvent domainEvent)
     {
+        // LGPD: hash do email em log estruturado (mesmo padrao do SupabaseAuthService).
+        // O Id ja correlaciona o usuario; o hash permite ver duplicidade sem expor PII.
         _logger.LogInformation(
-            "Usuário criado: Id={UsuarioId}, Email={Email}, OcorridoEm={OcorridoEm}",
-            domainEvent.UsuarioId, domainEvent.Email, domainEvent.OcorridoEm);
+            "Usuário criado: Id={UsuarioId}, EmailHash={EmailHash}, OcorridoEm={OcorridoEm}",
+            domainEvent.UsuarioId, HashEmail(domainEvent.Email), domainEvent.OcorridoEm);
         return Task.CompletedTask;
+    }
+
+    private static string HashEmail(string email)
+    {
+        if (string.IsNullOrEmpty(email)) return "(vazio)";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(email.ToLowerInvariant())))[..16];
     }
 }
