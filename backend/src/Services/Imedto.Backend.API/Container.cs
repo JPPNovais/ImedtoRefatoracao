@@ -735,7 +735,7 @@ public static class Container
             bus.Register<ListarSolicitacoesVinculoRecebidasQuery, IEnumerable<SolicitacaoVinculoDto>, ListarSolicitacoesVinculoRecebidasQueryHandlers>();
             bus.Register<ListarPacientesQuery, PaginaPacientesDto, ListarPacientesQueryHandlers>();
             bus.Register<ObterPacienteQuery, PacienteDto, ObterPacienteQueryHandlers>();
-            bus.Register<ExportarDadosPacienteQuery, object, ExportarDadosPacienteQueryHandlers>();
+            bus.Register<ExportarDadosPacienteQuery, PacienteExportLgpdDto, ExportarDadosPacienteQueryHandlers>();
             bus.Register<ListarModelosDisponiveisQuery, IEnumerable<ModeloProntuarioDto>, ListarModelosDisponiveisQueryHandlers>();
             bus.Register<ObterModeloDeProntuarioQuery, ModeloProntuarioDto, ObterModeloDeProntuarioQueryHandlers>();
             bus.Register<ListarVariaveisPoolQuery, IEnumerable<VariavelPoolDto>, ListarVariaveisPoolQueryHandlers>();

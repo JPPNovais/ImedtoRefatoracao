@@ -83,6 +83,42 @@ public class PacienteQueryRepository
         };
     }
 
+    /// <summary>
+    /// Carrega o pacote LGPD Art. 18 — todos os campos do paciente + metadados
+    /// de tratamento (criado/atualizado/deletado/anonimizado). Inclui registros
+    /// soft-deletados, ja que o titular tem direito a portabilidade do historico.
+    /// </summary>
+    public async Task<PacienteExportPessoalDto> ObterParaExportLgpd(long pacienteId, long estabelecimentoId)
+    {
+        const string sql = """
+            SELECT  id                          AS Id,
+                    nome_completo               AS NomeCompleto,
+                    cpf                         AS Cpf,
+                    data_nascimento             AS DataNascimento,
+                    genero                      AS Genero,
+                    telefone                    AS Telefone,
+                    email                       AS Email,
+                    endereco                    AS Endereco,
+                    observacoes                 AS Observacoes,
+                    criado_em                   AS CriadoEm,
+                    atualizado_em               AS AtualizadoEm,
+                    deletado_em                 AS DeletadoEm,
+                    deletado_por_usuario_id     AS DeletadoPorUsuarioId,
+                    anonimizado_em              AS AnonimizadoEm,
+                    anonimizado_por_usuario_id  AS AnonimizadoPorUsuarioId
+            FROM    public.pacientes
+            WHERE   id = @PacienteId
+              AND   estabelecimento_id = @EstabelecimentoId
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.QuerySingleOrDefaultAsync<PacienteExportPessoalDto>(sql, new
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = estabelecimentoId
+        });
+    }
+
     public async Task<PacienteDto> ObterPorId(long pacienteId, long estabelecimentoId)
     {
         // Minimizado (LGPD): sem estabelecimento_id (front nao usa, amplia IDOR)

@@ -140,12 +140,13 @@ public class PacienteController : ControllerBase
     /// <summary>LGPD Art. 18 — exporta todos os dados pessoais do paciente em JSON. Apenas Dono (acesso a TODA PII do titular).</summary>
     [HttpGet("{id:long}/exportar-dados")]
     [RequiresPapel(TenantPapel.Dono)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PacienteExportLgpdDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ExportarDados(long id)
     {
-        var dados = await _requestBus.Query<ExportarDadosPacienteQuery, object>(
+        var dados = await _requestBus.Query<ExportarDadosPacienteQuery, PacienteExportLgpdDto>(
             new ExportarDadosPacienteQuery
             {
                 PacienteId = id,
