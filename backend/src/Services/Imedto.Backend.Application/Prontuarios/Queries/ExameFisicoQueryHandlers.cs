@@ -17,13 +17,16 @@ public class ObterExameFisicoQueryHandlers
       IRequestHandler<TimelineExamesFisicosQuery, IEnumerable<ExameFisicoResumoDto>>
 {
     private readonly ExameFisicoQueryRepository _queryRepo;
+    private readonly IProntuarioRepository _prontuarioRepo;
     private readonly IProntuarioAcessoLogService _acessoLog;
 
     public ObterExameFisicoQueryHandlers(
         ExameFisicoQueryRepository queryRepo,
+        IProntuarioRepository prontuarioRepo,
         IProntuarioAcessoLogService acessoLog)
     {
         _queryRepo = queryRepo;
+        _prontuarioRepo = prontuarioRepo;
         _acessoLog = acessoLog;
     }
 
@@ -56,16 +59,18 @@ public class ObterExameFisicoQueryHandlers
         var pagina = Math.Max(1, query.Pagina);
         var tamanho = Math.Clamp(query.Tamanho, 1, 100);
 
-        var resultado = await _queryRepo.ListarDoPaciente(
-            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
-
-        // Audit LGPD: consultar a lista de exames do paciente é leitura sensível.
-        // Auditamos mesmo se vazio — saber que o usuário "olhou" já é informação relevante.
-        if (resultado.Total > 0)
+        // Audit LGPD: consulta a lista de exames eh leitura sensivel. Auditar mesmo
+        // se a lista vier vazia — "olhou e nao tinha" tambem eh informacao relevante.
+        // ObterPorPaciente ja filtra por estabelecimentoId (defense-in-depth multi-tenant).
+        var prontuario = await _prontuarioRepo.ObterPorPaciente(query.PacienteId, query.EstabelecimentoId);
+        if (prontuario is not null)
         {
             await _acessoLog.RegistrarAsync(
-                resultado.PrimeiroProntuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
+                prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
         }
+
+        var resultado = await _queryRepo.ListarDoPaciente(
+            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
 
         return new PaginaExamesFisicosDto
         {
@@ -79,14 +84,16 @@ public class ObterExameFisicoQueryHandlers
     public async Task<IEnumerable<ExameFisicoResumoDto>> Handle(TimelineExamesFisicosQuery query)
     {
         var ate = Math.Clamp(query.Ate, 1, 50);
-        var resultado = await _queryRepo.Timeline(query.PacienteId, query.EstabelecimentoId, ate);
 
-        if (resultado.PrimeiroProntuarioId > 0)
+        // Audit LGPD: idem Listar — auditar incondicionalmente quando ha prontuario.
+        var prontuario = await _prontuarioRepo.ObterPorPaciente(query.PacienteId, query.EstabelecimentoId);
+        if (prontuario is not null)
         {
             await _acessoLog.RegistrarAsync(
-                resultado.PrimeiroProntuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
+                prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
         }
 
+        var resultado = await _queryRepo.Timeline(query.PacienteId, query.EstabelecimentoId, ate);
         return resultado.Itens;
     }
 }

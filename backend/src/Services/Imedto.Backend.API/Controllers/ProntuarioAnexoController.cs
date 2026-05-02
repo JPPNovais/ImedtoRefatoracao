@@ -46,6 +46,7 @@ public class ProntuarioAnexoController : ControllerBase
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
                 EvolucaoId = evolucaoId
             });
         return Ok(lista);

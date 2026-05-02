@@ -7,6 +7,8 @@ public class ListarAnexosDoProntuarioQuery : IQuery<IEnumerable<AnexoDto>>
 {
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
+    /// <summary>Audit LGPD: identificacao do solicitante para registrar o acesso.</summary>
+    public Guid SolicitanteUsuarioId { get; set; }
     public long? EvolucaoId { get; set; } // opcional: só os da evolução
 }
 

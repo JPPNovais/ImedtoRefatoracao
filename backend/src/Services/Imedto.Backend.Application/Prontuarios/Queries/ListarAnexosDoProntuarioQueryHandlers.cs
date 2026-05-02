@@ -14,19 +14,27 @@ public class ListarAnexosDoProntuarioQueryHandlers
 {
     private readonly ProntuarioAnexoQueryRepository _queryRepository;
     private readonly IProntuarioRepository _prontuarioRepo;
+    private readonly IProntuarioAcessoLogService _acessoLog;
 
     public ListarAnexosDoProntuarioQueryHandlers(
         ProntuarioAnexoQueryRepository queryRepository,
-        IProntuarioRepository prontuarioRepo)
+        IProntuarioRepository prontuarioRepo,
+        IProntuarioAcessoLogService acessoLog)
     {
         _queryRepository = queryRepository;
         _prontuarioRepo = prontuarioRepo;
+        _acessoLog = acessoLog;
     }
 
     public async Task<IEnumerable<AnexoDto>> Handle(ListarAnexosDoProntuarioQuery query)
     {
         var prontuario = await _prontuarioRepo.ObterPorPaciente(query.PacienteId, query.EstabelecimentoId);
         if (prontuario is null) return Array.Empty<AnexoDto>();
+
+        // Audit LGPD: nomes de anexo podem indicar diagnostico ("Mamografia 2024.pdf").
+        // Auditar mesmo se a lista vier vazia — saber que houve consulta eh informacao relevante.
+        await _acessoLog.RegistrarAsync(
+            prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
 
         return await _queryRepository.ListarDoProntuario(prontuario.Id, query.EvolucaoId);
     }
