@@ -85,9 +85,10 @@ public class PacienteQueryRepository
 
     public async Task<PacienteDto> ObterPorId(long pacienteId, long estabelecimentoId)
     {
+        // Minimizado (LGPD): sem estabelecimento_id (front nao usa, amplia IDOR)
+        // e sem atualizado_em (sem uso no front).
         const string sql = """
             SELECT  id                  AS Id,
-                    estabelecimento_id  AS EstabelecimentoId,
                     nome_completo       AS NomeCompleto,
                     cpf                 AS Cpf,
                     data_nascimento     AS DataNascimento,
@@ -96,8 +97,7 @@ public class PacienteQueryRepository
                     email               AS Email,
                     endereco            AS Endereco,
                     observacoes         AS Observacoes,
-                    criado_em           AS CriadoEm,
-                    atualizado_em       AS AtualizadoEm
+                    criado_em           AS CriadoEm
             FROM    public.pacientes
             WHERE   id = @PacienteId
               AND   estabelecimento_id = @EstabelecimentoId

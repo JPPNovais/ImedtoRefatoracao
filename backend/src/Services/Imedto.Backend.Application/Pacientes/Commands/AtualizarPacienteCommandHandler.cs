@@ -16,11 +16,14 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
 
     public async Task Handle(AtualizarPacienteCommand command)
     {
-        var paciente = await _repository.ObterPorId(command.PacienteId);
+        var paciente = await _repository.ObterPorIdOuNulo(command.PacienteId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
         // Isolamento multi-tenant — o paciente precisa pertencer ao tenant da request.
+        // Mensagem deliberadamente igual a "não encontrado" para nao vazar existencia
+        // de paciente de outro estabelecimento (defense-in-depth LGPD).
         if (paciente.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+            throw new BusinessException("Paciente não encontrado.");
 
         var cpfDigitos = new string((command.Cpf ?? "").Where(char.IsDigit).ToArray());
         if (!string.IsNullOrEmpty(cpfDigitos) &&

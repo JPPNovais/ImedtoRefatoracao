@@ -21,10 +21,13 @@ public class DeletarPacienteCommandHandler : ICommandHandler<DeletarPacienteComm
 
     public async Task Handle(DeletarPacienteCommand command)
     {
-        var paciente = await _repository.ObterPorId(command.PacienteId);
+        var paciente = await _repository.ObterPorIdOuNulo(command.PacienteId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
+        // Mensagem deliberadamente igual a "não encontrado" para nao vazar existencia
+        // de paciente de outro estabelecimento (defense-in-depth LGPD).
         if (paciente.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+            throw new BusinessException("Paciente não encontrado.");
 
         paciente.MarcarComoDeletado(command.SolicitanteUsuarioId);
         await _repository.Salvar(paciente);
