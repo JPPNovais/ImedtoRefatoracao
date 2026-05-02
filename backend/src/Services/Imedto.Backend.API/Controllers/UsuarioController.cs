@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.Contracts.Usuarios.Commands;
+using Imedto.Backend.Contracts.Usuarios.Queries;
 using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.API.Controllers;
@@ -13,10 +14,12 @@ namespace Imedto.Backend.API.Controllers;
 public class UsuarioController : ControllerBase
 {
     private readonly ICommandBus _commandBus;
+    private readonly IRequestBus _requestBus;
 
-    public UsuarioController(ICommandBus commandBus)
+    public UsuarioController(ICommandBus commandBus, IRequestBus requestBus)
     {
         _commandBus = commandBus;
+        _requestBus = requestBus;
     }
 
     /// <summary>Atualização parcial do próprio perfil (nome, telefone).</summary>
@@ -56,6 +59,22 @@ public class UsuarioController : ControllerBase
         });
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Verifica se um CPF é válido (algoritmo padrão) e está disponível
+    /// (não cadastrado em outra conta). Usado pelo onboarding para feedback inline.
+    /// </summary>
+    /// <response code="200">Resultado da verificação.</response>
+    [HttpGet("me/cpf-disponivel")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<VerificarCpfDisponivelResult>> VerificarCpfDisponivel(
+        [FromQuery] string cpf)
+    {
+        var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+        var result = await _requestBus.Query<VerificarCpfDisponivelQuery, VerificarCpfDisponivelResult>(
+            new VerificarCpfDisponivelQuery { UsuarioId = userId, Cpf = cpf ?? "" });
+        return Ok(result);
     }
 }
 

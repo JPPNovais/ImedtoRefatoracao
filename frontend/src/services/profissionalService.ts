@@ -22,13 +22,11 @@ export interface SalvarProfissionalPayload {
 
 export const profissionalService = {
     async obterMeu(): Promise<ProfissionalPerfil | null> {
-        try {
-            const { data } = await httpClient.get<ProfissionalPerfil>("/profissional/me")
-            return data
-        } catch (e: any) {
-            if (e?.response?.status === 404) return null
-            throw e
-        }
+        const r = await httpClient.get<ProfissionalPerfil | "">("/profissional/me")
+        // Backend devolve 204 quando o usuário ainda não tem perfil profissional.
+        // Não é erro — é um estado válido (ex: durante o onboarding).
+        if (r.status === 204) return null
+        return r.data as ProfissionalPerfil
     },
 
     async salvar(payload: SalvarProfissionalPayload, existe: boolean): Promise<void> {

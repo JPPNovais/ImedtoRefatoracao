@@ -40,6 +40,21 @@ public class EstabelecimentoController : ControllerBase
         return Ok(resultado);
     }
 
+    /// <summary>
+    /// Verifica se um CNPJ é válido (algoritmo padrão) e está disponível
+    /// (não cadastrado em outro estabelecimento). Usado pelo onboarding inline.
+    /// </summary>
+    /// <response code="200">Resultado da verificação.</response>
+    [HttpGet("cnpj-disponivel")]
+    [ProducesResponseType(typeof(VerificarCnpjDisponivelResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<VerificarCnpjDisponivelResult>> VerificarCnpjDisponivel(
+        [FromQuery] string cnpj)
+    {
+        var resultado = await _requestBus.Query<VerificarCnpjDisponivelQuery, VerificarCnpjDisponivelResult>(
+            new VerificarCnpjDisponivelQuery { Cnpj = cnpj ?? "" });
+        return Ok(resultado);
+    }
+
     /// <summary>Cria um novo estabelecimento (o usuário autenticado vira dono).</summary>
     /// <response code="201">Criado.</response>
     /// <response code="422">Dados inválidos ou CNPJ duplicado.</response>

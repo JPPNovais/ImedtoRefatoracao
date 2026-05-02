@@ -1,5 +1,11 @@
 import httpClient from "./httpClient"
 
+export interface VerificarCpfResult {
+    valido: boolean
+    disponivel: boolean
+    motivo: string | null
+}
+
 export const usuarioService = {
     async completarOnboarding(payload: {
         nomeCompleto: string
@@ -14,5 +20,13 @@ export const usuarioService = {
         telefone?: string
     }): Promise<void> {
         await httpClient.patch("/usuario/me", payload)
+    },
+
+    /** Valida formato + duplicidade do CPF informado para o usuário corrente. */
+    async verificarCpfDisponivel(cpf: string): Promise<VerificarCpfResult> {
+        const { data } = await httpClient.get<VerificarCpfResult>("/usuario/me/cpf-disponivel", {
+            params: { cpf },
+        })
+        return data
     },
 }

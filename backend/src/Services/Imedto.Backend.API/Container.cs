@@ -37,6 +37,7 @@ using Imedto.Backend.Application.Profissionais.Events;
 using Imedto.Backend.Application.Profissionais.Queries;
 using Imedto.Backend.Application.Usuarios.Commands;
 using Imedto.Backend.Application.Usuarios.Events;
+using Imedto.Backend.Application.Usuarios.Queries;
 using Imedto.Backend.Application.Pacientes.Commands;
 using Imedto.Backend.Application.Pacientes.Events;
 using Imedto.Backend.Application.Pacientes.Queries;
@@ -74,6 +75,7 @@ using Imedto.Backend.Contracts.Profissionais.Commands;
 using Imedto.Backend.Contracts.Profissionais.Queries;
 using Imedto.Backend.Contracts.Profissionais.Queries.Results;
 using Imedto.Backend.Contracts.Usuarios.Commands;
+using Imedto.Backend.Contracts.Usuarios.Queries;
 using Imedto.Backend.Application.Vinculos.Queries;
 using Imedto.Backend.Contracts.Vinculos.Commands;
 using Imedto.Backend.Contracts.Vinculos.Queries;
@@ -235,9 +237,11 @@ public static class Container
     private static void RegistrarHandlers(IServiceCollection services)
     {
         // Usuarios
+        services.AddSingleton<UsuarioQueryRepository>();
         services.AddScoped<CriarRegistroLocalUsuarioCommandHandler>();
         services.AddScoped<AtualizarPerfilUsuarioCommandHandler>();
         services.AddScoped<CompletarOnboardingUsuarioCommandHandler>();
+        services.AddSingleton<VerificarCpfDisponivelQueryHandler>();
         services.AddScoped<UsuarioCriadoEventHandler>();
 
         // Estabelecimentos
@@ -246,6 +250,7 @@ public static class Container
         services.AddScoped<AtualizarFuncionamentoCommandHandler>();
         services.AddScoped<AlterarFotoEstabelecimentoCommandHandler>();
         services.AddSingleton<ListarMeusEstabelecimentosQueryHandlers>();
+        services.AddSingleton<VerificarCnpjDisponivelQueryHandler>();
         services.AddScoped<EstabelecimentoCriadoEventHandler>();
         services.AddScoped<CriarModeloPadraoAoCriarEstabelecimentoHandler>();
         services.AddScoped<CriarUnidadePadraoAoCriarEstabelecimentoHandler>();
@@ -714,6 +719,8 @@ public static class Container
         services.AddSingleton<IRequestBus>(sp =>
         {
             var bus = new MemoryRequestBus(sp, sp.GetRequiredService<IHttpContextAccessor>());
+            bus.Register<VerificarCpfDisponivelQuery, VerificarCpfDisponivelResult, VerificarCpfDisponivelQueryHandler>();
+            bus.Register<VerificarCnpjDisponivelQuery, VerificarCnpjDisponivelResult, VerificarCnpjDisponivelQueryHandler>();
             bus.Register<ListarMeusEstabelecimentosQuery, IEnumerable<EstabelecimentoDto>, ListarMeusEstabelecimentosQueryHandlers>();
             bus.Register<ListarUnidadesQuery, IEnumerable<UnidadeDto>, ListarUnidadesQueryHandlers>();
             bus.Register<ListarSalasQuery, IEnumerable<SalaDto>, ListarSalasQueryHandlers>();

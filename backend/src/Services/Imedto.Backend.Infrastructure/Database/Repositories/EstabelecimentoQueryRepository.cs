@@ -95,6 +95,22 @@ public class EstabelecimentoQueryRepository
     }
 
     /// <summary>
+    /// Verifica se o CNPJ (apenas dígitos) já está em uso por algum estabelecimento.
+    /// Usado pelo onboarding/validação inline.
+    /// </summary>
+    public async Task<bool> ExisteCnpj(string cnpjDigitos)
+    {
+        if (string.IsNullOrEmpty(cnpjDigitos)) return false;
+
+        const string sql = """
+            SELECT EXISTS(SELECT 1 FROM public.estabelecimentos WHERE cnpj = @cnpj)
+        """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.ExecuteScalarAsync<bool>(sql, new { cnpj = cnpjDigitos });
+    }
+
+    /// <summary>
     /// Retorna apenas os campos de funcionamento necessários para calcular disponibilidade.
     /// </summary>
     public async Task<ConfiguracaoFuncionamentoDto?> ObterConfiguracaoFuncionamento(long estabelecimentoId)

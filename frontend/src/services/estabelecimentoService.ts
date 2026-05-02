@@ -48,9 +48,23 @@ export interface AtualizarFuncionamentoPayload {
     datasBloqueadas:    { id?: string; data: string; descricao: string }[]
 }
 
+export interface VerificarCnpjResult {
+    valido: boolean
+    disponivel: boolean
+    motivo: string | null
+}
+
 export const estabelecimentoService = {
     async listarMeus(): Promise<Estabelecimento[]> {
         const { data } = await httpClient.get<Estabelecimento[]>("/estabelecimento")
+        return data
+    },
+
+    /** Valida formato + duplicidade do CNPJ informado. */
+    async verificarCnpjDisponivel(cnpj: string): Promise<VerificarCnpjResult> {
+        const { data } = await httpClient.get<VerificarCnpjResult>("/estabelecimento/cnpj-disponivel", {
+            params: { cnpj },
+        })
         return data
     },
 

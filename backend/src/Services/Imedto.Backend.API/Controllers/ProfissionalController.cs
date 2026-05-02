@@ -24,10 +24,14 @@ public class ProfissionalController : ControllerBase
         _requestBus = requestBus;
     }
 
-    /// <summary>Retorna o cadastro profissional do próprio usuário, ou 404 se não tiver.</summary>
+    /// <summary>
+    /// Retorna o cadastro profissional do próprio usuário.
+    /// Responde 200 com o DTO quando existe, 204 quando o usuário ainda não
+    /// completou o cadastro profissional (não é erro — é um estado válido).
+    /// </summary>
     [HttpGet("me")]
     [ProducesResponseType(typeof(ProfissionalDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ObterMe()
     {
         var userId = Guid.Parse(User.FindFirst("sub")!.Value);
@@ -36,7 +40,7 @@ public class ProfissionalController : ControllerBase
             new ObterProfissionalMeQuery { UsuarioId = userId });
 
         if (dto is null)
-            return NotFound();
+            return NoContent();
 
         return Ok(dto);
     }
