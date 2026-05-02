@@ -12,6 +12,11 @@ public class PacienteRepository : IPacienteRepository
         _context = context;
     }
 
+    public async Task<Paciente?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _context.Pacientes
+            .FirstOrDefaultAsync(p => p.Id == id && p.EstabelecimentoId == estabelecimentoId);
+
+#pragma warning disable CS0618 // implementacao da API obsoleta — mantida ate todos os modulos migrarem
     public async Task<Paciente> ObterPorId(long id)
     {
         var paciente = await _context.Pacientes.FindAsync(id);
@@ -22,6 +27,7 @@ public class PacienteRepository : IPacienteRepository
 
     public async Task<Paciente> ObterPorIdOuNulo(long id) =>
         await _context.Pacientes.FindAsync(id);
+#pragma warning restore CS0618
 
     public async Task<bool> ExisteCpfNoEstabelecimento(string cpf, long estabelecimentoId, long ignorarPacienteId) =>
         await _context.Pacientes
