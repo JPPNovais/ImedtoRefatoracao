@@ -1,0 +1,61 @@
+# EditorConfig herdado por todos os projetos abaixo de backend/src.
+# Padrao do repo (CLAUDE.md secao "Convencoes de codigo"): identadacao 4 espacos, UTF-8.
+
+root = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# === Supressoes globais ===
+
+# CA1716: parametro 'event' em IEventBus / IEventHandler conflita com keyword reservada
+# em outras linguagens. Mantemos pois consumidores sao 100% C# (uso interno).
+dotnet_diagnostic.CA1716.severity = none
+
+# === Supressoes para ARQUIVOS GERADOS por EF Core (Migrations) ===
+# Migrations seguem padrao YYYYMMDDHHMMSS_*.cs ou *.Designer.cs.
+[*.Designer.cs]
+generated_code = true
+dotnet_diagnostic.CS8632.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1305.severity = none
+
+[**/Migrations/*.cs]
+generated_code = true
+dotnet_diagnostic.CS8632.severity = none
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1304.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1311.severity = none
+dotnet_diagnostic.CA1862.severity = none
+dotnet_diagnostic.CA1866.severity = none
+dotnet_diagnostic.CA1822.severity = none
+dotnet_diagnostic.CA1851.severity = none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.CA1859.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA1725.severity = none
+dotnet_diagnostic.CA1711.severity = none
+
+# === Supressoes para ASSEMBLIES DE TESTE ===
+# Convencao universal NUnit/xUnit: nomes de teste usam underscores.
+# Padrao por path: Tests/<NomeProjetoTeste>/...
+[Tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1822.severity = none
+
+# === ETL Validator (ferramenta interna) ===
+[Tools/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA2007.severity = none
