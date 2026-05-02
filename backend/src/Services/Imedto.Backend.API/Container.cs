@@ -346,6 +346,8 @@ public static class Container
         services.AddScoped<IReceitaRepository, ReceitaRepository>();
         services.AddScoped<IConfiguracaoReceitaRepository, ConfiguracaoReceitaRepository>();
         services.AddScoped<IMedicamentoFavoritoRepository, MedicamentoFavoritoRepository>();
+        // Scoped (vs Singleton dos outros *QueryRepository) para alinhar com os handlers
+        // de Receita que sao Scoped por causa do IProntuarioAcessoLogService (audit LGPD).
         services.AddScoped<IReceitaQueryRepository, ReceitaQueryRepository>();
         services.AddScoped<IReceitaPdfService, QuestPdfReceitaService>(); // placeholder — Wave 4
         services.AddScoped<EmitirReceitaCommandHandler>();
