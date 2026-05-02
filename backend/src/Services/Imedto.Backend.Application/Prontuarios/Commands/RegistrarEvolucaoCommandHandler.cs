@@ -33,10 +33,10 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
 
     public async Task Handle(RegistrarEvolucaoCommand command)
     {
-        // Valida paciente e tenant (defense-in-depth mesmo com o filter).
-        var paciente = await _pacienteRepo.ObterPorId(command.PacienteId);
-        if (paciente.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        // Mensagem padronizada (nao vaza existencia cross-tenant).
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(command.PacienteId, command.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
         if (paciente.EstaDeletado)
             throw new BusinessException("Paciente deletado — não é possível registrar evolução.");
 

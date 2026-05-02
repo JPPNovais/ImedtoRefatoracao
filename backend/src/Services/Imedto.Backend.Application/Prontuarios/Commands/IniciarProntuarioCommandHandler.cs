@@ -30,10 +30,10 @@ public class IniciarProntuarioCommandHandler : ICommandHandler<IniciarProntuario
 
     public async Task Handle(IniciarProntuarioCommand command)
     {
-        // Valida paciente pertence ao tenant
-        var paciente = await _pacienteRepo.ObterPorId(command.PacienteId);
-        if (paciente.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        // Mensagem padronizada (nao vaza existencia cross-tenant).
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(command.PacienteId, command.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
         if (paciente.EstaDeletado)
             throw new BusinessException("Paciente deletado — não é possível iniciar prontuário.");
 

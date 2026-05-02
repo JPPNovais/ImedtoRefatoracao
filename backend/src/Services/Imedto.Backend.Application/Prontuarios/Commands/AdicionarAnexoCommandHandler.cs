@@ -35,9 +35,10 @@ public class AdicionarAnexoCommandHandler : ICommandHandler<AdicionarAnexoComman
 
     public async Task Handle(AdicionarAnexoCommand command)
     {
-        var paciente = await _pacienteRepo.ObterPorId(command.PacienteId);
-        if (paciente.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        // Mensagem padronizada (nao vaza existencia cross-tenant).
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(command.PacienteId, command.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(command.PacienteId, command.EstabelecimentoId)
             ?? throw new BusinessException("Paciente ainda não tem prontuário.");
