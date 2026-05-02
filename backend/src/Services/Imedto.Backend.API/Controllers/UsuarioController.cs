@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Contracts.Usuarios.Queries;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -65,9 +66,17 @@ public class UsuarioController : ControllerBase
     /// Verifica se um CPF é válido (algoritmo padrão) e está disponível
     /// (não cadastrado em outra conta). Usado pelo onboarding para feedback inline.
     /// </summary>
+    /// <remarks>
+    /// Rate-limited (auth-sensitive: 3 req/min por IP) — endpoint sensivel a
+    /// enumeracao: sem o limite seria possivel descobrir CPFs cadastrados na
+    /// base inteira em poucas horas.
+    /// </remarks>
     /// <response code="200">Resultado da verificação.</response>
+    /// <response code="429">Muitas tentativas — aguarde 60s.</response>
     [HttpGet("me/cpf-disponivel")]
+    [EnableRateLimiting("auth-sensitive")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<VerificarCpfDisponivelResult>> VerificarCpfDisponivel(
         [FromQuery] string cpf)
     {
