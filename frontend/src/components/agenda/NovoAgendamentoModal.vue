@@ -103,11 +103,6 @@ const TIPOS_CONSULTA = [
 
 const DURACOES = [15, 20, 30, 45, 60, 90, 120]
 
-const HORARIOS_PADRAO = [
-    "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00",
-    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
-]
-
 const detalhes = reactive({
     profissionalUsuarioId: "" as string,
     tipo: "Consulta",
@@ -181,13 +176,20 @@ async function carregarDisponibilidade() {
     }
 }
 
-const ocupadosDoDia = computed<Set<string>>(() => {
+// Dia atual da disponibilidade (gerado pelo backend respeitando funcionamento do estabelecimento).
+const diaAtual = computed<DisponibilidadeDia | null>(() =>
+    disponibilidade.value.find(d => d.data === detalhes.data) ?? null,
+)
+
+const slotsDoDia = computed(() => diaAtual.value?.slots ?? [])
+
+const diaFechado = computed(() =>
+    !!diaAtual.value && diaAtual.value.status === "fechado",
+)
+
+const horasValidas = computed<Set<string>>(() => {
     const set = new Set<string>()
-    const dia = disponibilidade.value.find(d => d.data === detalhes.data)
-    if (!dia) return set
-    for (const s of dia.slots) {
-        if (!s.disponivel) set.add(s.hora)
-    }
+    for (const s of slotsDoDia.value) set.add(s.hora)
     return set
 })
 
@@ -198,12 +200,15 @@ watch(
         if (listaEspera) { disponibilidade.value = []; return }
         if (!prof || !data) { disponibilidade.value = []; return }
         void carregarDisponibilidade()
-        // Limpa horário selecionado se ele virou ocupado.
-        if (detalhes.hora && ocupadosDoDia.value.has(detalhes.hora)) {
-            detalhes.hora = ""
-        }
     },
 )
+
+// Limpa horário selecionado se ele deixou de existir (fora do funcionamento, dia fechado, ocupado).
+watch(slotsDoDia, (slots) => {
+    if (!detalhes.hora) return
+    const slot = slots.find(s => s.hora === detalhes.hora)
+    if (!slot || !slot.disponivel) detalhes.hora = ""
+})
 
 const pacienteEfetivo = computed(() => {
     if (modo.value === "new") {
@@ -601,23 +606,41 @@ const profSelecionado = computed(() =>
                                     <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Carregando...
                                 </span>
                             </div>
-                            <div class="time-slots">
+                            <div v-if="diaFechado" class="slots-empty">
+                                <i class="fa-solid fa-store-slash" aria-hidden="true"></i>
+                                <span>O estabelecimento não funciona nesta data. Escolha outro dia ou ajuste o horário de funcionamento na configuração do estabelecimento.</span>
+                            </div>
+                            <div v-else-if="slotsDoDia.length === 0 && !carregandoSlots" class="slots-empty">
+                                <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                                <span>Nenhum horário configurado para esta data.</span>
+                            </div>
+                            <div v-else class="time-slots">
                                 <button
-                                    v-for="t in HORARIOS_PADRAO"
-                                    :key="t"
+                                    v-for="s in slotsDoDia"
+                                    :key="s.hora"
                                     type="button"
                                     class="slot"
                                     :class="{
-                                        active: detalhes.hora === t,
-                                        busy: ocupadosDoDia.has(t),
-                                        free: !ocupadosDoDia.has(t),
+                                        active: detalhes.hora === s.hora,
+                                        busy: !s.disponivel,
+                                        free: s.disponivel,
                                     }"
-                                    :disabled="ocupadosDoDia.has(t)"
-                                    :title="ocupadosDoDia.has(t) ? 'Ocupado' : 'Disponível'"
-                                    @click="!ocupadosDoDia.has(t) && (detalhes.hora = t)"
+                                    :disabled="!s.disponivel"
+                                    :title="s.disponivel
+                                        ? 'Disponível'
+                                        : (s.motivo === 'bloqueado'
+                                            ? 'Horário bloqueado'
+                                            : s.motivo === 'passado'
+                                                ? 'Horário no passado'
+                                                : 'Ocupado')"
+                                    @click="s.disponivel && (detalhes.hora = s.hora)"
                                 >
-                                    {{ t }}
-                                    <i v-if="ocupadosDoDia.has(t)" class="fa-solid fa-lock mark" aria-hidden="true"></i>
+                                    {{ s.hora }}
+                                    <i
+                                        v-if="!s.disponivel"
+                                        :class="['fa-solid mark', s.motivo === 'bloqueado' ? 'fa-ban' : 'fa-lock']"
+                                        aria-hidden="true"
+                                    ></i>
                                 </button>
                             </div>
                         </div>
@@ -1410,6 +1433,21 @@ const profSelecionado = computed(() =>
     background: hsl(0 0% 0% / 0.04);
 }
 .time-slots .slot .mark { font-size: 9px; margin-left: 4px; }
+
+/* Estado vazio (dia fechado / sem horários) */
+.slots-empty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    background: hsl(0 0% 0% / 0.03);
+    border: 1px dashed hsl(0 0% 0% / 0.15);
+    border-radius: 10px;
+    font-size: 12px;
+    color: hsl(0 0% 0% / 0.7);
+    line-height: 1.5;
+}
+.slots-empty i { color: hsl(0 0% 0% / 0.45); font-size: 16px; flex-shrink: 0; }
 
 /* Legenda dos slots */
 .slots-info {

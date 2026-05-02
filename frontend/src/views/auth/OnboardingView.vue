@@ -14,7 +14,7 @@
  *   - Step 3 → profissionalService.salvar (conselho, uf, numeroRegistro, especialidade)
  *   - Step 4 → estabelecimentoService.atualizarFuncionamento (apenas se dono)
  */
-import { computed, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { useAuthStore } from "@/stores/authStore"
@@ -22,6 +22,7 @@ import { useTenantStore } from "@/stores/tenantStore"
 import { usuarioService } from "@/services/usuarioService"
 import { estabelecimentoService } from "@/services/estabelecimentoService"
 import { profissionalService } from "@/services/profissionalService"
+import { vinculoService } from "@/services/vinculoService"
 import { buscarPorCep } from "@/services/viaCepService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 
@@ -33,6 +34,13 @@ const TOTAL = 5
 const step = ref<1 | 2 | 3 | 4 | 5>(1)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
+
+/**
+ * Origem do tipo de conta:
+ * - "convite": detectado por convite pendente — usuário não pode escolher dono.
+ * - "manual": usuário marcou owner/invited na primeira tela.
+ */
+const origemTipoConta = ref<"convite" | "manual">("manual")
 
 // ─── Step 1: Sua conta ───
 type TipoConta = "owner" | "invited"
@@ -483,6 +491,62 @@ async function finalizar() {
     }
 }
 
+// ─── Pré-preenchimento via convite pendente ───
+//
+// Se o usuário foi convidado, há ao menos um vínculo em status "Convidado" com
+// possíveis dados pré-cadastrados (nome/telefone/especialidade). Trazemos do
+// backend para evitar que o convidado redigite informações que o convidador já
+// passou. Quando há convite, o tipo é forçado em "invited".
+onMounted(async () => {
+    try {
+        const convites = await vinculoService.listarMeusConvites()
+        if (convites.length === 0) return
+
+        // Pega o convite mais recente (já vem ordenado DESC por convidado_em).
+        const c = convites[0]
+        conta.tipo = "invited"
+        origemTipoConta.value = "convite"
+
+        if (c.nomeConvidado && !conta.nomeCompleto) {
+            conta.nomeCompleto = c.nomeConvidado
+        }
+        if (c.telefoneConvidado && !conta.telefone) {
+            // Aplica máscara visual leve para telefone brasileiro (10 ou 11 dígitos).
+            const d = c.telefoneConvidado
+            if (d.length === 11) {
+                conta.telefone = `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+            } else if (d.length === 10) {
+                conta.telefone = `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+            } else {
+                conta.telefone = d
+            }
+        }
+        if (c.especialidadeConvidada) {
+            // Tenta encontrar uma das especialidades padrão (case-insensitive);
+            // se não bater, adiciona como "Outra" digitada pelo usuário.
+            const padrao = ESPECIALIDADES.find(e =>
+                e.v.toLowerCase() === c.especialidadeConvidada!.toLowerCase()
+            )
+            if (padrao) {
+                if (!especialidadesSelecionadas.value.includes(padrao.v)) {
+                    especialidadesSelecionadas.value.push(padrao.v)
+                }
+            } else {
+                if (!especialidadesSelecionadas.value.includes(OUTROS_KEY)) {
+                    especialidadesSelecionadas.value.push(OUTROS_KEY)
+                }
+                if (!especialidadesOutras.value.some(e =>
+                    e.toLowerCase() === c.especialidadeConvidada!.toLowerCase()
+                )) {
+                    especialidadesOutras.value.push(c.especialidadeConvidada)
+                }
+            }
+        }
+    } catch {
+        // Falha ao buscar convites não bloqueia o onboarding — usuário preenche do zero.
+    }
+})
+
 // ─── UI helpers ───
 const stepperPassos = computed(() => [
     { n: 1, label: "Sua conta",     visivel: true },
@@ -538,7 +602,15 @@ const stepperPassos = computed(() => [
                         Você poderá editá-los depois nas configurações.
                     </p>
 
-                    <div class="choice-grid">
+                    <div v-if="origemTipoConta === 'convite'" class="info-convite">
+                        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                        <div>
+                            <b>Você foi convidado para uma clínica.</b>
+                            <span>Já preenchemos o que pudemos com base no convite — confira e ajuste se precisar.</span>
+                        </div>
+                    </div>
+
+                    <div v-else class="choice-grid">
                         <button
                             type="button"
                             class="choice-card"
@@ -1246,6 +1318,36 @@ const stepperPassos = computed(() => [
     display: inline-flex;
     align-items: center;
     gap: 4px;
+}
+
+/* ── Banner convite detectado ── */
+.info-convite {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    background: hsl(var(--primary) / 0.06);
+    border: 1px solid hsl(var(--primary) / 0.2);
+    border-radius: 12px;
+    margin-bottom: 24px;
+}
+.info-convite > i {
+    color: hsl(var(--primary));
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.info-convite b {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: hsl(var(--primary-dark));
+    margin-bottom: 2px;
+}
+.info-convite span {
+    font-size: 12px;
+    color: hsl(var(--secondary) / 0.7);
+    line-height: 1.4;
 }
 
 /* ── Choice cards ── */

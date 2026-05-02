@@ -47,20 +47,15 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
         if (await _assinaturaService.LimiteAtingidoAsync(command.EstabelecimentoId, "profissionais"))
             throw new BusinessException("Plano não permite mais profissionais. Faça upgrade.");
 
-        // Resolve o modelo de permissão (explícito ou padrão do estabelecimento).
-        long modeloId;
+        // Modelo de permissão é opcional. Se vier explícito, valida que pertence
+        // ao estabelecimento; se não vier, o vínculo é criado sem permissão (o
+        // dono atribui depois, ou ao convidado fica sem acesso até atribuição).
+        long? modeloId = null;
         if (command.ModeloPermissaoId is { } explicitId && explicitId > 0)
         {
             if (!await _modeloRepo.PertenceAoEstabelecimento(explicitId, command.EstabelecimentoId))
                 throw new BusinessException("Modelo de permissão não pertence a este estabelecimento.");
             modeloId = explicitId;
-        }
-        else
-        {
-            var padrao = await _modeloRepo.ObterPadraoDoEstabelecimento(command.EstabelecimentoId);
-            if (padrao is null)
-                throw new BusinessException("Estabelecimento não possui modelo de permissão padrão.");
-            modeloId = padrao.Id;
         }
 
         // Garante registro local do profissional (idempotente — pode já existir).
@@ -83,7 +78,12 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
         VinculoProfissionalEstabelecimento vinculo;
         if (existente is { Status: VinculoStatus.Inativo })
         {
-            existente.ReativarComoConvite(modeloId, command.ConvidadoPorUsuarioId);
+            existente.ReativarComoConvite(
+                modeloId,
+                command.ConvidadoPorUsuarioId,
+                command.Nome,
+                command.Telefone,
+                command.Especialidade);
             vinculo = existente;
             await _vinculoRepo.Salvar(vinculo);
         }
@@ -93,7 +93,10 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
                 command.ProfissionalUsuarioId,
                 command.EstabelecimentoId,
                 modeloId,
-                command.ConvidadoPorUsuarioId);
+                command.ConvidadoPorUsuarioId,
+                command.Nome,
+                command.Telefone,
+                command.Especialidade);
 
             await _vinculoRepo.Salvar(vinculo);    // popula Id
             vinculo.MarcarComoConvidado();          // anexa event com Id correto

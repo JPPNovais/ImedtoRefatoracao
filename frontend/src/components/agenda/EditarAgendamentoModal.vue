@@ -48,11 +48,6 @@ const TIPOS_CONSULTA = [
 
 const DURACOES = [15, 20, 30, 45, 60, 90, 120]
 
-const ALL_SLOTS = [
-    "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00",
-]
-
 // ─── Estado ───
 const salvando = ref(false)
 const erro = ref<string | null>(null)
@@ -128,32 +123,52 @@ const proximosDias = computed(() => {
     return out
 })
 
-// Slots ocupados do dia selecionado (vindo da API + agendamentos do mês como fallback).
-const ocupadosDoDia = computed<Set<string>>(() => {
-    const set = new Set<string>()
+// Dia atual da disponibilidade (gerado pelo backend respeitando funcionamento do estabelecimento).
+const diaAtual = computed<DisponibilidadeDia | null>(() =>
+    disponibilidade.value.find(d => d.data === form.data) ?? null,
+)
 
-    // 1) Disponibilidade da API (fonte oficial).
-    const dia = disponibilidade.value.find(d => d.data === form.data)
+const diaFechado = computed(() =>
+    !!diaAtual.value && diaAtual.value.status === "fechado",
+)
+
+/**
+ * Slots a renderizar no grid de horários.
+ *
+ * Fonte primária: backend (já respeita horário de funcionamento, dias, bloqueios e ocupação).
+ * Fallback: lista de agendamentos do mês passada pelo parent — só se a API falhar.
+ *
+ * O horário original do próprio agendamento é sempre marcado como disponível
+ * (do ponto de vista do backend ele aparece como "agendado", mas para o usuário que está
+ * editando esse próprio agendamento ele continua sendo o horário atual).
+ */
+const slotsDoDia = computed<{ hora: string; disponivel: boolean; motivo: string | null }[]>(() => {
+    const dia = diaAtual.value
     if (dia) {
-        for (const s of dia.slots) {
-            if (!s.disponivel) set.add(s.hora)
-        }
-    } else {
-        // 2) Fallback: agendamentos do mês carregados pelo parent.
-        const todos = props.agendamentosTodos ?? []
-        for (const a of todos) {
-            if (a.id === props.agendamento?.id) continue
-            if (a.profissionalUsuarioId !== form.profissionalUsuarioId) continue
-            if (a.status === "Cancelado") continue
-            if (!a.inicioPrevisto.startsWith(form.data)) continue
-            const h = isoDataHora(a.inicioPrevisto).hora
-            set.add(h)
-        }
+        return dia.slots.map(s => {
+            const ehOriginal = form.data === form.origData && s.hora === form.origHora
+            return {
+                hora: s.hora,
+                disponivel: ehOriginal ? true : s.disponivel,
+                motivo: ehOriginal ? null : s.motivo,
+            }
+        })
     }
 
-    // O horário original sempre fica disponível (é o atual).
-    if (form.data === form.origData) set.delete(form.origHora)
-    return set
+    // Fallback: gera slots a partir dos agendamentos do mês do parent (sem informação de funcionamento).
+    const ocupadas = new Set<string>()
+    const todos = props.agendamentosTodos ?? []
+    for (const a of todos) {
+        if (a.id === props.agendamento?.id) continue
+        if (a.profissionalUsuarioId !== form.profissionalUsuarioId) continue
+        if (a.status === "Cancelado") continue
+        if (!a.inicioPrevisto.startsWith(form.data)) continue
+        ocupadas.add(isoDataHora(a.inicioPrevisto).hora)
+    }
+    if (form.data === form.origData) ocupadas.delete(form.origHora)
+    // Sem disponibilidade da API não há funcionamento — devolve lista vazia para forçar o empty state.
+    if (ocupadas.size === 0) return []
+    return [...ocupadas].sort().map(h => ({ hora: h, disponivel: false, motivo: "agendado" }))
 })
 
 const dataAlterada = computed(() => form.data !== form.origData)
@@ -373,33 +388,41 @@ async function salvar() {
                             </span>
                         </div>
 
-                        <div class="time-slots">
+                        <div v-if="diaFechado" class="slots-empty">
+                            <i class="fa-solid fa-store-slash" aria-hidden="true"></i>
+                            <span>O estabelecimento não funciona nesta data. Escolha outro dia ou ajuste o horário de funcionamento na configuração do estabelecimento.</span>
+                        </div>
+                        <div v-else-if="slotsDoDia.length === 0 && !carregandoSlots" class="slots-empty">
+                            <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                            <span>Nenhum horário configurado para esta data.</span>
+                        </div>
+                        <div v-else class="time-slots">
                             <button
-                                v-for="t in ALL_SLOTS"
-                                :key="t"
+                                v-for="s in slotsDoDia"
+                                :key="s.hora"
                                 type="button"
                                 class="slot"
                                 :class="{
-                                    active: form.hora === t,
-                                    busy: ocupadosDoDia.has(t),
-                                    free: !ocupadosDoDia.has(t),
-                                    original: t === form.origHora && form.data === form.origData,
+                                    active: form.hora === s.hora,
+                                    busy: !s.disponivel,
+                                    free: s.disponivel,
+                                    original: s.hora === form.origHora && form.data === form.origData,
                                 }"
-                                :disabled="ocupadosDoDia.has(t)"
-                                :title="ocupadosDoDia.has(t)
-                                    ? 'Ocupado'
-                                    : (t === form.origHora && form.data === form.origData ? 'Horário atual' : 'Disponível')"
-                                @click="!ocupadosDoDia.has(t) && selecionarHora(t)"
+                                :disabled="!s.disponivel"
+                                :title="!s.disponivel
+                                    ? (s.motivo === 'bloqueado' ? 'Horário bloqueado' : 'Ocupado')
+                                    : (s.hora === form.origHora && form.data === form.origData ? 'Horário atual' : 'Disponível')"
+                                @click="s.disponivel && selecionarHora(s.hora)"
                             >
-                                {{ t }}
+                                {{ s.hora }}
                                 <i
-                                    v-if="t === form.origHora && form.data === form.origData"
+                                    v-if="s.hora === form.origHora && form.data === form.origData"
                                     class="fa-solid fa-location-dot mark"
                                     aria-hidden="true"
                                 ></i>
                                 <i
-                                    v-else-if="ocupadosDoDia.has(t)"
-                                    class="fa-solid fa-lock mark"
+                                    v-else-if="!s.disponivel"
+                                    :class="['fa-solid mark', s.motivo === 'bloqueado' ? 'fa-ban' : 'fa-lock']"
                                     aria-hidden="true"
                                 ></i>
                             </button>
@@ -732,6 +755,21 @@ async function salvar() {
 .slot-dot { font-size: 8px; }
 .dot-free { color: hsl(160 79% 39%); }
 .dot-busy { color: hsl(0 0% 0% / 0.3); }
+
+/* ── Estado vazio (dia fechado / sem horários) ── */
+.slots-empty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    background: hsl(0 0% 0% / 0.03);
+    border: 1px dashed hsl(0 0% 0% / 0.15);
+    border-radius: 10px;
+    font-size: 12px;
+    color: hsl(0 0% 0% / 0.7);
+    line-height: 1.5;
+}
+.slots-empty i { color: hsl(0 0% 0% / 0.45); font-size: 16px; flex-shrink: 0; }
 
 /* ── Grid de horários ── */
 .time-slots {

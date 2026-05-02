@@ -11,26 +11,42 @@ public class VinculoProfissionalEstabelecimento : Entity
 {
     public virtual Guid ProfissionalUsuarioId { get; protected set; }
     public virtual long EstabelecimentoId { get; protected set; }
-    public virtual long ModeloPermissaoId { get; protected set; }
+    /// <summary>
+    /// Nullable: convite pode ser criado sem modelo de permissão. Enquanto null,
+    /// o profissional fica sem acesso (TenantAccessResolver retorna SemAcesso) até
+    /// alguém atribuir um modelo via <see cref="AtualizarModeloPermissao"/>.
+    /// </summary>
+    public virtual long? ModeloPermissaoId { get; protected set; }
     public virtual Guid ConvidadoPorUsuarioId { get; protected set; }
     public virtual VinculoStatus Status { get; protected set; }
     public virtual DateTime ConvidadoEm { get; protected set; }
     public virtual DateTime? AceitoEm { get; protected set; }
     public virtual DateTime? InativadoEm { get; protected set; }
 
+    /// <summary>
+    /// Dados que o convidador pode pré-cadastrar para ajudar o convidado no onboarding.
+    /// Todos opcionais — quando não preenchidos, o convidado digita do zero.
+    /// </summary>
+    public virtual string NomeConvidado { get; protected set; }
+    public virtual string TelefoneConvidado { get; protected set; }
+    public virtual string EspecialidadeConvidada { get; protected set; }
+
     protected VinculoProfissionalEstabelecimento() { }
 
     public static VinculoProfissionalEstabelecimento Convidar(
         Guid profissionalUsuarioId,
         long estabelecimentoId,
-        long modeloPermissaoId,
-        Guid convidadoPorUsuarioId)
+        long? modeloPermissaoId,
+        Guid convidadoPorUsuarioId,
+        string nomeConvidado = null,
+        string telefoneConvidado = null,
+        string especialidadeConvidada = null)
     {
         if (profissionalUsuarioId == Guid.Empty)
             throw new BusinessException("Profissional é obrigatório.");
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
-        if (modeloPermissaoId <= 0)
+        if (modeloPermissaoId is { } id && id <= 0)
             throw new BusinessException("Modelo de permissão é obrigatório.");
         if (convidadoPorUsuarioId == Guid.Empty)
             throw new BusinessException("Usuário que convida é obrigatório.");
@@ -44,8 +60,30 @@ public class VinculoProfissionalEstabelecimento : Entity
             ModeloPermissaoId = modeloPermissaoId,
             ConvidadoPorUsuarioId = convidadoPorUsuarioId,
             Status = VinculoStatus.Convidado,
-            ConvidadoEm = DateTime.UtcNow
+            ConvidadoEm = DateTime.UtcNow,
+            NomeConvidado = NormalizarTexto(nomeConvidado, 200),
+            TelefoneConvidado = NormalizarTelefone(telefoneConvidado),
+            EspecialidadeConvidada = NormalizarTexto(especialidadeConvidada, 200)
         };
+    }
+
+    private static string NormalizarTexto(string valor, int max)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+        var trim = valor.Trim();
+        if (trim.Length > max)
+            throw new BusinessException($"Texto excede o limite de {max} caracteres.");
+        return trim;
+    }
+
+    private static string NormalizarTelefone(string valor)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+        var digitos = new string(valor.Where(char.IsDigit).ToArray());
+        if (digitos.Length == 0) return null;
+        if (digitos.Length > 20)
+            throw new BusinessException("Telefone excede 20 dígitos.");
+        return digitos;
     }
 
     /// <summary>
@@ -63,6 +101,7 @@ public class VinculoProfissionalEstabelecimento : Entity
             throw new BusinessException("Profissional é obrigatório.");
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
+        // Solicitação inversa exige modelo (o dono está aprovando explicitamente).
         if (modeloPermissaoId <= 0)
             throw new BusinessException("Modelo de permissão é obrigatório.");
         if (aprovadoPorUsuarioId == Guid.Empty)
@@ -128,11 +167,16 @@ public class VinculoProfissionalEstabelecimento : Entity
     /// O profissional precisará aceitar de novo, mas o histórico (datas anteriores) é preservado
     /// na linha — apenas <see cref="AceitoEm"/>/<see cref="InativadoEm"/> são zerados.
     /// </summary>
-    public virtual void ReativarComoConvite(long novoModeloPermissaoId, Guid convidadoPorUsuarioId)
+    public virtual void ReativarComoConvite(
+        long? novoModeloPermissaoId,
+        Guid convidadoPorUsuarioId,
+        string nomeConvidado = null,
+        string telefoneConvidado = null,
+        string especialidadeConvidada = null)
     {
         if (Status != VinculoStatus.Inativo)
             throw new BusinessException("Apenas vínculos inativos podem ser reativados.");
-        if (novoModeloPermissaoId <= 0)
+        if (novoModeloPermissaoId is { } id && id <= 0)
             throw new BusinessException("Modelo de permissão é obrigatório.");
         if (convidadoPorUsuarioId == Guid.Empty)
             throw new BusinessException("Usuário que convida é obrigatório.");
@@ -143,6 +187,9 @@ public class VinculoProfissionalEstabelecimento : Entity
         ConvidadoEm = DateTime.UtcNow;
         AceitoEm = null;
         InativadoEm = null;
+        NomeConvidado = NormalizarTexto(nomeConvidado, 200);
+        TelefoneConvidado = NormalizarTelefone(telefoneConvidado);
+        EspecialidadeConvidada = NormalizarTexto(especialidadeConvidada, 200);
 
         AddDomainEvent(new ProfissionalConvidadoEvent(
             Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId));

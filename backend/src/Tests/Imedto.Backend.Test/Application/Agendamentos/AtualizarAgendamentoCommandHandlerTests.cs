@@ -1,6 +1,7 @@
 using Imedto.Backend.Application.Agendamentos.Commands;
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
@@ -13,6 +14,8 @@ public class AtualizarAgendamentoCommandHandlerTests
 {
     private Mock<IAgendamentoRepository> _agendamentoRepo;
     private Mock<IVinculoRepository> _vinculoRepo;
+    private Mock<IEstabelecimentoRepository> _estabelecimentoRepo;
+    private Mock<Estabelecimento> _estabelecimento;
     private AtualizarAgendamentoCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -23,7 +26,16 @@ public class AtualizarAgendamentoCommandHandlerTests
     {
         _agendamentoRepo = new Mock<IAgendamentoRepository>();
         _vinculoRepo = new Mock<IVinculoRepository>();
-        _sut = new AtualizarAgendamentoCommandHandler(_agendamentoRepo.Object, _vinculoRepo.Object);
+        _estabelecimentoRepo = new Mock<IEstabelecimentoRepository>();
+        _estabelecimento = new Mock<Estabelecimento>();
+        _estabelecimento.Setup(e => e.ValidarPodeAgendar(It.IsAny<DateTime>()));
+        _estabelecimentoRepo
+            .Setup(r => r.ObterPorId(EstabelecimentoId))
+            .ReturnsAsync(_estabelecimento.Object);
+        _sut = new AtualizarAgendamentoCommandHandler(
+            _agendamentoRepo.Object,
+            _vinculoRepo.Object,
+            _estabelecimentoRepo.Object);
     }
 
     private Agendamento CriarAgendamentoExistente(Guid profissionalId)

@@ -14,4 +14,9 @@ public class ConvidarProfissionalCommand : ICommand
     public Guid ProfissionalUsuarioId { get; set; }
     public string ProfissionalEmail { get; set; }
     public long? ModeloPermissaoId { get; set; }
+
+    /// <summary>Dados pré-cadastrados pelo convidador para o onboarding (todos opcionais).</summary>
+    public string Nome { get; set; }
+    public string Telefone { get; set; }
+    public string Especialidade { get; set; }
 }

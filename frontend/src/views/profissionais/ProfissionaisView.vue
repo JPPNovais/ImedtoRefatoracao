@@ -16,11 +16,14 @@ const carregando    = ref(false)
 const erro          = ref<string | null>(null)
 
 // ─── Convite inline (form no topo — padrão do legado) ─────────────────────────
-const emailConvite      = ref("")
-const modeloPermissaoId = ref<number | null>(null)
-const enviando          = ref(false)
-const mensagemSucesso   = ref<string | null>(null)
-const actionLinkDev     = ref<string | null>(null)
+const emailConvite       = ref("")
+const nomeConvite        = ref("")
+const telefoneConvite    = ref("")
+const especialidadeConvite = ref("")
+const modeloPermissaoId  = ref<number | null>(null)
+const enviando           = ref(false)
+const mensagemSucesso    = ref<string | null>(null)
+const actionLinkDev      = ref<string | null>(null)
 
 // ─── Tabs + filtro ────────────────────────────────────────────────────────────
 type Aba = "vinculados" | "solicitacoes"
@@ -41,19 +44,25 @@ const solicitacoes = computed(() =>
 
 // ─── Ações ────────────────────────────────────────────────────────────────────
 async function convidar() {
-    if (!emailConvite.value.trim() || !modeloPermissaoId.value) return
+    if (!emailConvite.value.trim()) return
     enviando.value = true
     erro.value = null
     mensagemSucesso.value = null
     actionLinkDev.value = null
     try {
-        const r = await vinculoService.convidarProfissional(
-            emailConvite.value.trim(),
-            modeloPermissaoId.value,
-        )
+        const r = await vinculoService.convidarProfissional({
+            email: emailConvite.value.trim(),
+            modeloPermissaoId: modeloPermissaoId.value,
+            nome: nomeConvite.value.trim() || null,
+            telefone: telefoneConvite.value.trim() || null,
+            especialidade: especialidadeConvite.value.trim() || null,
+        })
         mensagemSucesso.value = `Convite enviado para ${emailConvite.value}.`
         actionLinkDev.value   = r.actionLink ?? null
         emailConvite.value    = ""
+        nomeConvite.value     = ""
+        telefoneConvite.value = ""
+        especialidadeConvite.value = ""
         await carregar()
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao enviar convite."
@@ -81,9 +90,6 @@ async function carregar() {
         ])
         profissionais.value = prof
         modelos.value       = mods
-        if (!modeloPermissaoId.value) {
-            modeloPermissaoId.value = mods.find(m => m.ehPadrao)?.id ?? mods[0]?.id ?? null
-        }
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar."
     } finally {
@@ -129,6 +135,10 @@ onMounted(carregar)
         <!-- Form inline de convite -->
         <div class="card card-convite">
             <h3 class="secao-titulo">Enviar convite para profissional</h3>
+            <p class="secao-sub">
+                E-mail é o único campo obrigatório. Os demais são opcionais —
+                quando preenchidos, aparecem pré-cadastrados para o convidado no onboarding.
+            </p>
             <div class="form-grid">
                 <div class="campo">
                     <label class="campo-label">E-mail do profissional</label>
@@ -141,9 +151,39 @@ onMounted(carregar)
                     />
                 </div>
                 <div class="campo">
-                    <label class="campo-label">Modelo de permissão</label>
+                    <label class="campo-label">Nome completo <span class="opt">(opcional)</span></label>
+                    <input
+                        v-model="nomeConvite"
+                        type="text"
+                        class="input-field"
+                        placeholder="Como o profissional se chama"
+                        :disabled="enviando"
+                    />
+                </div>
+                <div class="campo">
+                    <label class="campo-label">Telefone <span class="opt">(opcional)</span></label>
+                    <input
+                        v-model="telefoneConvite"
+                        type="tel"
+                        class="input-field"
+                        placeholder="(11) 99999-0000"
+                        :disabled="enviando"
+                    />
+                </div>
+                <div class="campo">
+                    <label class="campo-label">Especialidade <span class="opt">(opcional)</span></label>
+                    <input
+                        v-model="especialidadeConvite"
+                        type="text"
+                        class="input-field"
+                        placeholder="Ex: Cardiologia"
+                        :disabled="enviando"
+                    />
+                </div>
+                <div class="campo campo-full">
+                    <label class="campo-label">Modelo de permissão <span class="opt">(opcional)</span></label>
                     <select v-model="modeloPermissaoId" class="input-field" :disabled="enviando">
-                        <option :value="null" disabled>Selecione...</option>
+                        <option :value="null">Sem permissão (atribuir depois)</option>
                         <option v-for="m in modelos" :key="m.id" :value="m.id">
                             {{ m.nome }} ({{ m.tipoAcesso }})
                         </option>
@@ -162,7 +202,7 @@ onMounted(carregar)
 
             <div class="form-footer">
                 <AppButton
-                    :disabled="enviando || !emailConvite.trim() || !modeloPermissaoId"
+                    :disabled="enviando || !emailConvite.trim()"
                     :loading="enviando"
                     @click="convidar"
                 >Enviar convite</AppButton>
@@ -299,10 +339,13 @@ onMounted(carregar)
 .card-lista   { padding: 0.5rem 1.25rem 1.25rem; }
 
 .secao-titulo { font-size: 0.92em; font-weight: 700; margin: 0; }
+.secao-sub { font-size: 0.78em; color: var(--text-muted); margin: -0.4rem 0 0.4rem; line-height: 1.4; }
+.opt { font-weight: 400; color: var(--text-muted); margin-left: 0.25rem; }
 
 .form-grid {
-    display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
 }
+.form-grid .campo-full { grid-column: 1 / -1; }
 @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } }
 
 .form-footer { display: flex; justify-content: flex-end; margin-top: 0.25rem; }

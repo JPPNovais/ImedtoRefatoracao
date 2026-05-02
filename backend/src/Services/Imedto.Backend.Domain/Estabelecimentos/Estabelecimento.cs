@@ -170,6 +170,38 @@ public class Estabelecimento : Entity
         AtualizadoEm = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Valida se um agendamento pode ocorrer no horário informado, respeitando a configuração
+    /// de funcionamento (dia da semana, datas bloqueadas, faixa de horário e horários bloqueados).
+    /// O parâmetro deve ser o início do agendamento em horário local.
+    /// </summary>
+    public virtual void ValidarPodeAgendar(DateTime inicioLocal)
+    {
+        var data       = DateOnly.FromDateTime(inicioLocal);
+        var horaInicio = TimeOnly.FromDateTime(inicioLocal);
+        var diaSemana  = (int)inicioLocal.DayOfWeek;
+
+        if (!DiasSemanaFuncionamento.Contains(diaSemana))
+            throw new BusinessException("O estabelecimento não funciona neste dia da semana.");
+
+        if (DatasBloqueadas.Any(db => db.Data == data))
+            throw new BusinessException("Esta data está bloqueada no estabelecimento.");
+
+        if (horaInicio < HorarioInicio || horaInicio >= HorarioFim)
+            throw new BusinessException(
+                $"O agendamento deve estar dentro do horário de funcionamento " +
+                $"({HorarioInicio:HH\\:mm}–{HorarioFim:HH\\:mm}).");
+
+        var bloqueio = HorariosBloqueados.FirstOrDefault(hb =>
+            horaInicio >= hb.Inicio && horaInicio < hb.Fim);
+        if (bloqueio is not null)
+        {
+            var desc = string.IsNullOrWhiteSpace(bloqueio.Descricao) ? "" : $" ({bloqueio.Descricao})";
+            throw new BusinessException(
+                $"Este horário está bloqueado{desc}: {bloqueio.Inicio:HH\\:mm}–{bloqueio.Fim:HH\\:mm}.");
+        }
+    }
+
     public virtual void AlterarFoto(string fotoUrl)
     {
         if (string.IsNullOrWhiteSpace(fotoUrl))

@@ -7,7 +7,7 @@ export interface ProfissionalVinculado {
     email: string
     nomeCompleto: string
     status: string
-    modeloPermissaoId: number
+    modeloPermissaoId: number | null
     modeloPermissaoNome: string
     especialidade?: string | null
     conselho?: string | null
@@ -16,10 +16,22 @@ export interface ProfissionalVinculado {
 export interface ConvitePendente {
     vinculoId: number
     estabelecimentoId: number
-    estabelecimentoNome: string
+    nomeFantasiaEstabelecimento: string
+    convidadoPorEmail: string | null
     convidadoPorNome: string | null
-    modeloPermissaoNome: string
-    criadoEm: string
+    convidadoEm: string
+    nomeConvidado: string | null
+    telefoneConvidado: string | null
+    especialidadeConvidada: string | null
+    modeloPermissaoId: number | null
+}
+
+export interface ConvidarProfissionalRequest {
+    email: string
+    modeloPermissaoId: number | null
+    nome?: string | null
+    telefone?: string | null
+    especialidade?: string | null
 }
 
 export interface ConvidarProfissionalResponse {
@@ -39,15 +51,14 @@ export const vinculoService = {
     },
 
     async convidarProfissional(
-        email: string,
-        modeloPermissaoId: number,
+        request: ConvidarProfissionalRequest,
     ): Promise<ConvidarProfissionalResponse> {
         const tenantStore = useTenantStore()
         const id = tenantStore.ativo?.id
         if (!id) throw new Error("Nenhum estabelecimento ativo.")
         const { data } = await httpClient.post<ConvidarProfissionalResponse>(
             `/estabelecimento/${id}/profissionais/convidar`,
-            { email, modeloPermissaoId },
+            request,
         )
         return data
     },

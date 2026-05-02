@@ -26,17 +26,17 @@ public class VinculoQueryRepository
             SELECT  v.id                       AS VinculoId,
                     v.profissional_usuario_id  AS UsuarioId,
                     u.email                    AS Email,
-                    u.nome_completo            AS NomeCompleto,
+                    COALESCE(u.nome_completo, v.nome_convidado) AS NomeCompleto,
                     v.status                   AS Status,
                     v.modelo_permissao_id      AS ModeloPermissaoId,
                     mp.nome                    AS ModeloPermissaoNome,
                     v.convidado_em             AS ConvidadoEm,
                     v.aceito_em                AS AceitoEm,
-                    p.especialidade            AS Especialidade,
+                    COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
                     p.conselho                 AS Conselho
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.usuarios u ON u.id = v.profissional_usuario_id
-            JOIN    public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
+            LEFT JOIN public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
             LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id
             WHERE   v.estabelecimento_id = @EstabelecimentoId
               AND   v.status <> 'Inativo'
@@ -50,7 +50,7 @@ public class VinculoQueryRepository
                     u.email                    AS Email,
                     u.nome_completo            AS NomeCompleto,
                     'Dono'                     AS Status,
-                    0::bigint                  AS ModeloPermissaoId,
+                    NULL::bigint               AS ModeloPermissaoId,
                     'Dono do estabelecimento'  AS ModeloPermissaoNome,
                     e.criado_em                AS ConvidadoEm,
                     e.criado_em                AS AceitoEm,
@@ -109,12 +109,16 @@ public class VinculoQueryRepository
     public async Task<IEnumerable<ConviteDto>> ListarConvitesPendentes(Guid usuarioId)
     {
         const string sql = """
-            SELECT  v.id                   AS VinculoId,
-                    v.estabelecimento_id   AS EstabelecimentoId,
-                    e.nome_fantasia        AS NomeFantasiaEstabelecimento,
-                    c.email                AS ConvidadoPorEmail,
-                    c.nome_completo        AS ConvidadoPorNome,
-                    v.convidado_em         AS ConvidadoEm
+            SELECT  v.id                       AS VinculoId,
+                    v.estabelecimento_id       AS EstabelecimentoId,
+                    e.nome_fantasia            AS NomeFantasiaEstabelecimento,
+                    c.email                    AS ConvidadoPorEmail,
+                    c.nome_completo            AS ConvidadoPorNome,
+                    v.convidado_em             AS ConvidadoEm,
+                    v.nome_convidado           AS NomeConvidado,
+                    v.telefone_convidado       AS TelefoneConvidado,
+                    v.especialidade_convidada  AS EspecialidadeConvidada,
+                    v.modelo_permissao_id      AS ModeloPermissaoId
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.estabelecimentos e ON e.id = v.estabelecimento_id
             JOIN    public.usuarios c ON c.id = v.convidado_por_usuario_id

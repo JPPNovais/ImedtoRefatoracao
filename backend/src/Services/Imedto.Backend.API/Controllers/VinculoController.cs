@@ -51,7 +51,10 @@ public class VinculoController : ControllerBase
             ConvidadoPorUsuarioId = userId,
             ProfissionalUsuarioId = profUserId,
             ProfissionalEmail = convite.User.Email,
-            ModeloPermissaoId = request.ModeloPermissaoId
+            ModeloPermissaoId = request.ModeloPermissaoId,
+            Nome = request.Nome,
+            Telefone = request.Telefone,
+            Especialidade = request.Especialidade
         });
 
         if (_env.IsDevelopment())
@@ -111,4 +114,9 @@ public class VinculoController : ControllerBase
     }
 }
 
-public record ConvidarProfissionalRequest(string Email, long? ModeloPermissaoId);
+public record ConvidarProfissionalRequest(
+    string Email,
+    long? ModeloPermissaoId,
+    string Nome = null,
+    string Telefone = null,
+    string Especialidade = null);

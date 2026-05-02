@@ -25,7 +25,7 @@ async function aceitar(c: ConvitePendente) {
     processando.value.add(c.vinculoId)
     try {
         await vinculoService.aceitarConvite(c.vinculoId)
-        msg.value = `Convite de ${c.estabelecimentoNome} aceito. Você já pode selecionar esse estabelecimento.`
+        msg.value = `Convite de ${c.nomeFantasiaEstabelecimento} aceito. Você já pode selecionar esse estabelecimento.`
         await carregar()
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao aceitar."
@@ -35,7 +35,7 @@ async function aceitar(c: ConvitePendente) {
 }
 
 async function recusar(c: ConvitePendente) {
-    if (!confirm(`Recusar convite de ${c.estabelecimentoNome}?`)) return
+    if (!confirm(`Recusar convite de ${c.nomeFantasiaEstabelecimento}?`)) return
     processando.value.add(c.vinculoId)
     try {
         await vinculoService.inativarVinculo(c.vinculoId)
@@ -77,12 +77,12 @@ onMounted(carregar)
         <div v-else class="lista">
             <div v-for="c in convites" :key="c.vinculoId" class="card-convite">
                 <div class="c-info">
-                    <h3 class="c-titulo">{{ c.estabelecimentoNome }}</h3>
+                    <h3 class="c-titulo">{{ c.nomeFantasiaEstabelecimento }}</h3>
                     <p class="c-desc">
-                        Convite como <strong>{{ c.modeloPermissaoNome }}</strong>
-                        <span v-if="c.convidadoPorNome"> · por {{ c.convidadoPorNome }}</span>
+                        <span v-if="c.convidadoPorNome">Convite enviado por {{ c.convidadoPorNome }}</span>
+                        <span v-else>Convite recebido</span>
                     </p>
-                    <p class="c-data">Recebido em {{ fmtData(c.criadoEm) }}</p>
+                    <p class="c-data">Recebido em {{ fmtData(c.convidadoEm) }}</p>
                 </div>
                 <div class="c-acoes">
                     <AppButton

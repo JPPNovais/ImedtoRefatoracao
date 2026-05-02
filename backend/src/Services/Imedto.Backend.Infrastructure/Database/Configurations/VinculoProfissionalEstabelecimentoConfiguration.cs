@@ -15,12 +15,15 @@ public class VinculoProfissionalEstabelecimentoConfiguration : IEntityTypeConfig
 
         builder.Property(v => v.ProfissionalUsuarioId).HasColumnName("profissional_usuario_id").IsRequired();
         builder.Property(v => v.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
-        builder.Property(v => v.ModeloPermissaoId).HasColumnName("modelo_permissao_id").IsRequired();
+        builder.Property(v => v.ModeloPermissaoId).HasColumnName("modelo_permissao_id");
         builder.Property(v => v.ConvidadoPorUsuarioId).HasColumnName("convidado_por_usuario_id").IsRequired();
         builder.Property(v => v.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(v => v.ConvidadoEm).HasColumnName("convidado_em").IsRequired();
         builder.Property(v => v.AceitoEm).HasColumnName("aceito_em");
         builder.Property(v => v.InativadoEm).HasColumnName("inativado_em");
+        builder.Property(v => v.NomeConvidado).HasColumnName("nome_convidado").HasMaxLength(200);
+        builder.Property(v => v.TelefoneConvidado).HasColumnName("telefone_convidado").HasMaxLength(20);
+        builder.Property(v => v.EspecialidadeConvidada).HasColumnName("especialidade_convidada").HasMaxLength(200);
 
         builder.HasIndex(v => new { v.EstabelecimentoId, v.Status }).HasDatabaseName("ix_vinculo_estabelecimento_status");
         builder.HasIndex(v => new { v.ProfissionalUsuarioId, v.Status }).HasDatabaseName("ix_vinculo_profissional_status");

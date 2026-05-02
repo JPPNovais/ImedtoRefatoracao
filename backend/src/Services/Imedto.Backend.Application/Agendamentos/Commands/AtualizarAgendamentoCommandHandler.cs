@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -10,13 +11,16 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
 {
     private readonly IAgendamentoRepository _agendamentoRepo;
     private readonly IVinculoRepository _vinculoRepo;
+    private readonly IEstabelecimentoRepository _estabelecimentoRepo;
 
     public AtualizarAgendamentoCommandHandler(
         IAgendamentoRepository agendamentoRepo,
-        IVinculoRepository vinculoRepo)
+        IVinculoRepository vinculoRepo,
+        IEstabelecimentoRepository estabelecimentoRepo)
     {
         _agendamentoRepo = agendamentoRepo;
         _vinculoRepo = vinculoRepo;
+        _estabelecimentoRepo = estabelecimentoRepo;
     }
 
     public async Task Handle(AtualizarAgendamentoCommand cmd)
@@ -33,6 +37,9 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
             if (!podeAtuar)
                 throw new BusinessException("Profissional não pode atuar neste estabelecimento.");
         }
+
+        var estab = await _estabelecimentoRepo.ObterPorId(cmd.EstabelecimentoId);
+        estab.ValidarPodeAgendar(cmd.InicioPrevisto.ToLocalTime());
 
         if (await _agendamentoRepo.ExisteConflito(
                 cmd.ProfissionalUsuarioId,
