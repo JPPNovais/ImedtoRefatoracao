@@ -177,9 +177,9 @@ public class Estabelecimento : Entity
     /// </summary>
     public virtual void ValidarPodeAgendar(DateTime inicioLocal)
     {
-        var data       = DateOnly.FromDateTime(inicioLocal);
+        var data = DateOnly.FromDateTime(inicioLocal);
         var horaInicio = TimeOnly.FromDateTime(inicioLocal);
-        var diaSemana  = (int)inicioLocal.DayOfWeek;
+        var diaSemana = (int)inicioLocal.DayOfWeek;
 
         if (!DiasSemanaFuncionamento.Contains(diaSemana))
             throw new BusinessException("O estabelecimento não funciona neste dia da semana.");

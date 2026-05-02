@@ -53,21 +53,21 @@ public class AiAuditLog : Entity
     {
         return new AiAuditLog
         {
-            UsuarioId         = usuarioId,
+            UsuarioId = usuarioId,
             EstabelecimentoId = estabelecimentoId,
-            PromptHash        = promptHash,
-            ResponseHash      = responseHash,
-            Modelo            = modelo,
-            Endpoint          = endpoint,
-            DuracaoMs         = duracaoMs,
-            Sucesso           = sucesso,
-            ErroMensagem      = Truncar(erroMensagem, 500),
-            TokensIn          = tokensIn,
-            TokensOut         = tokensOut,
-            PacienteId        = pacienteId,
-            ProntuarioId      = prontuarioId,
-            EvolucaoId        = evolucaoId,
-            CriadoEm          = DateTime.UtcNow
+            PromptHash = promptHash,
+            ResponseHash = responseHash,
+            Modelo = modelo,
+            Endpoint = endpoint,
+            DuracaoMs = duracaoMs,
+            Sucesso = sucesso,
+            ErroMensagem = Truncar(erroMensagem, 500),
+            TokensIn = tokensIn,
+            TokensOut = tokensOut,
+            PacienteId = pacienteId,
+            ProntuarioId = prontuarioId,
+            EvolucaoId = evolucaoId,
+            CriadoEm = DateTime.UtcNow
         };
     }
 

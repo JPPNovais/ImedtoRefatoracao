@@ -35,8 +35,8 @@ public class UnidadeController : ControllerBase
         var resultado = await _requestBus.Query<ListarUnidadesQuery, IEnumerable<UnidadeDto>>(
             new ListarUnidadesQuery
             {
-                EstabelecimentoId     = _tenant.EstabelecimentoId,
-                UsuarioSolicitanteId  = _tenant.UsuarioId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                UsuarioSolicitanteId = _tenant.UsuarioId,
             });
 
         return Ok(resultado);
@@ -50,18 +50,18 @@ public class UnidadeController : ControllerBase
     {
         await _commandBus.Send(new CriarUnidadeCommand
         {
-            EstabelecimentoId    = _tenant.EstabelecimentoId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
-            Nome                 = request.Nome,
-            IsPrincipal          = request.IsPrincipal,
-            Cep                  = request.Cep,
-            Logradouro           = request.Logradouro,
-            Numero               = request.Numero,
-            Complemento          = request.Complemento,
-            Bairro               = request.Bairro,
-            Cidade               = request.Cidade,
-            Estado               = request.Estado,
-            Telefone             = request.Telefone,
+            Nome = request.Nome,
+            IsPrincipal = request.IsPrincipal,
+            Cep = request.Cep,
+            Logradouro = request.Logradouro,
+            Numero = request.Numero,
+            Complemento = request.Complemento,
+            Bairro = request.Bairro,
+            Cidade = request.Cidade,
+            Estado = request.Estado,
+            Telefone = request.Telefone,
         });
 
         return Created(string.Empty, null);
@@ -76,18 +76,18 @@ public class UnidadeController : ControllerBase
     {
         await _commandBus.Send(new AtualizarUnidadeCommand
         {
-            UnidadeId            = unidadeId,
+            UnidadeId = unidadeId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
-            Nome                 = request.Nome,
-            IsPrincipal          = request.IsPrincipal,
-            Cep                  = request.Cep,
-            Logradouro           = request.Logradouro,
-            Numero               = request.Numero,
-            Complemento          = request.Complemento,
-            Bairro               = request.Bairro,
-            Cidade               = request.Cidade,
-            Estado               = request.Estado,
-            Telefone             = request.Telefone,
+            Nome = request.Nome,
+            IsPrincipal = request.IsPrincipal,
+            Cep = request.Cep,
+            Logradouro = request.Logradouro,
+            Numero = request.Numero,
+            Complemento = request.Complemento,
+            Bairro = request.Bairro,
+            Cidade = request.Cidade,
+            Estado = request.Estado,
+            Telefone = request.Telefone,
         });
 
         return NoContent();
@@ -102,7 +102,7 @@ public class UnidadeController : ControllerBase
     {
         await _commandBus.Send(new DeletarUnidadeCommand
         {
-            UnidadeId            = unidadeId,
+            UnidadeId = unidadeId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
         });
 

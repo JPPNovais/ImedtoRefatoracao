@@ -24,7 +24,7 @@ public class EstabelecimentoIaSettingsController : ControllerBase
         IEstabelecimentoIaSettingsRepository repo,
         ICurrentTenantAccessor tenant)
     {
-        _repo   = repo;
+        _repo = repo;
         _tenant = tenant;
     }
 
@@ -86,8 +86,8 @@ public class EstabelecimentoIaSettingsController : ControllerBase
         return valor?.Trim().ToLowerInvariant() switch
         {
             "minimized" => NivelMinimizacaoDados.Minimized,
-            "standard"  => NivelMinimizacaoDados.Standard,
-            null or ""  => NivelMinimizacaoDados.Standard,
+            "standard" => NivelMinimizacaoDados.Standard,
+            null or "" => NivelMinimizacaoDados.Standard,
             _ => throw new BusinessException("Nível de minimização inválido (use 'standard' ou 'minimized').")
         };
     }
@@ -116,13 +116,13 @@ public class EstabelecimentoIaSettingsDto
 
     public static EstabelecimentoIaSettingsDto De(EstabelecimentoIaSettings s) => new()
     {
-        EstabelecimentoId     = s.Id,
-        AiEnabled             = s.AiEnabled,
-        AiProvider            = s.AiProvider,
-        AiModel               = s.AiModel,
-        RateLimitPerMinute    = s.RateLimitPerMinute,
-        RateLimitPerDay       = s.RateLimitPerDay,
+        EstabelecimentoId = s.Id,
+        AiEnabled = s.AiEnabled,
+        AiProvider = s.AiProvider,
+        AiModel = s.AiModel,
+        RateLimitPerMinute = s.RateLimitPerMinute,
+        RateLimitPerDay = s.RateLimitPerDay,
         DataMinimizationLevel = s.DataMinimizationLevel == NivelMinimizacaoDados.Minimized ? "minimized" : "standard",
-        AtualizadaEm          = s.AtualizadaEm
+        AtualizadaEm = s.AtualizadaEm
     };
 }

@@ -51,12 +51,12 @@ public class RateLimitedIaService : IIaService
         _inner = inner;
         _audit = audit;
         _cache = cache;
-        _rate  = rate;
+        _rate = rate;
         _settings = settings;
         _vinculos = vinculos;
         _modelosPermissao = modelosPermissao;
-        _http  = http;
-        _opts  = opts;
+        _http = http;
+        _opts = opts;
         _modeloPadrao = config["Ia:Modelo"] ?? "claude-haiku-4-5-20251001";
     }
 
@@ -89,7 +89,7 @@ public class RateLimitedIaService : IIaService
             throw new BusinessException("IA desabilitada para este estabelecimento.");
 
         var limitePorMinuto = settings?.RateLimitPerMinute ?? _opts.Value.LimitePorMinuto;
-        var modeloEfetivo   = settings?.AiModel ?? _modeloPadrao;
+        var modeloEfetivo = settings?.AiModel ?? _modeloPadrao;
 
         // 1) Rate limit (item 2.14: particionado por estabelecimento)
         var permitido = await _rate.RegistrarTentativaAsync(
@@ -98,9 +98,9 @@ public class RateLimitedIaService : IIaService
             throw new BusinessException("Limite de uso da IA atingido. Aguarde 1 minuto.");
 
         // Item 2.13: ids para audit (capturados antes da sanitização — nunca vão para a IA).
-        var pacienteId   = request.PacienteId;
+        var pacienteId = request.PacienteId;
         var prontuarioId = request.ProntuarioId;
-        var evolucaoId   = request.EvolucaoId;
+        var evolucaoId = request.EvolucaoId;
 
         // 2) Sanitização PII (LGPD): redige CPF/CNPJ/telefone/email/CEP/RG do conteúdo
         // que vai para a IA. Estratégia string-level sobre o JSON serializado — qualquer
@@ -116,18 +116,18 @@ public class RateLimitedIaService : IIaService
         if (cached is not null)
         {
             await _audit.RegistrarAsync(AiAuditLog.Criar(
-                usuarioId:         usuarioId,
+                usuarioId: usuarioId,
                 estabelecimentoId: estabelecimentoId,
-                promptHash:        promptHash,
-                responseHash:      HashSha256(cached),
-                modelo:            modeloEfetivo,
-                endpoint:          "sugestao-secao-cache",
-                duracaoMs:         0,
-                sucesso:           true,
-                erroMensagem:      null,
-                pacienteId:        pacienteId,
-                prontuarioId:      prontuarioId,
-                evolucaoId:        evolucaoId), ct);
+                promptHash: promptHash,
+                responseHash: HashSha256(cached),
+                modelo: modeloEfetivo,
+                endpoint: "sugestao-secao-cache",
+                duracaoMs: 0,
+                sucesso: true,
+                erroMensagem: null,
+                pacienteId: pacienteId,
+                prontuarioId: prontuarioId,
+                evolucaoId: evolucaoId), ct);
 
             yield return cached;
             yield break;
@@ -155,7 +155,7 @@ public class RateLimitedIaService : IIaService
         var paraSanitizar = new SugestaoSecaoProntuarioRequest
         {
             SecaoAlvoTitulo = request.SecaoAlvoTitulo,
-            SecoesContexto  = request.SecoesContexto
+            SecoesContexto = request.SecoesContexto
         };
 
         var json = JsonSerializer.Serialize(paraSanitizar);
@@ -227,18 +227,18 @@ public class RateLimitedIaService : IIaService
             try
             {
                 await _audit.RegistrarAsync(AiAuditLog.Criar(
-                    usuarioId:         usuarioId,
+                    usuarioId: usuarioId,
                     estabelecimentoId: estabelecimentoId,
-                    promptHash:        promptHash,
-                    responseHash:      erro is null && resposta.Length > 0 ? HashSha256(resposta) : null,
-                    modelo:            modelo,
-                    endpoint:          "sugestao-secao",
-                    duracaoMs:         duracao,
-                    sucesso:           erro is null,
-                    erroMensagem:      erro?.Message,
-                    pacienteId:        pacienteId,
-                    prontuarioId:      prontuarioId,
-                    evolucaoId:        evolucaoId), CancellationToken.None);
+                    promptHash: promptHash,
+                    responseHash: erro is null && resposta.Length > 0 ? HashSha256(resposta) : null,
+                    modelo: modelo,
+                    endpoint: "sugestao-secao",
+                    duracaoMs: duracao,
+                    sucesso: erro is null,
+                    erroMensagem: erro?.Message,
+                    pacienteId: pacienteId,
+                    prontuarioId: prontuarioId,
+                    evolucaoId: evolucaoId), CancellationToken.None);
             }
             catch
             {

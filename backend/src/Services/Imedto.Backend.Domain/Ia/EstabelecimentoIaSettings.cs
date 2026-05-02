@@ -32,26 +32,26 @@ public class EstabelecimentoIaSettings : Entity
 
         return new EstabelecimentoIaSettings
         {
-            Id                    = estabelecimentoId,
-            AiEnabled             = true,
-            AiProvider            = "anthropic",
-            AiModel               = "claude-sonnet-4-6",
-            RateLimitPerMinute    = 10,
-            RateLimitPerDay       = 200,
+            Id = estabelecimentoId,
+            AiEnabled = true,
+            AiProvider = "anthropic",
+            AiModel = "claude-sonnet-4-6",
+            RateLimitPerMinute = 10,
+            RateLimitPerDay = 200,
             DataMinimizationLevel = NivelMinimizacaoDados.Standard,
-            AtualizadaEm          = null
+            AtualizadaEm = null
         };
     }
 
     public void Habilitar()
     {
-        AiEnabled    = true;
+        AiEnabled = true;
         AtualizadaEm = DateTime.UtcNow;
     }
 
     public void Desabilitar()
     {
-        AiEnabled    = false;
+        AiEnabled = false;
         AtualizadaEm = DateTime.UtcNow;
     }
 
@@ -65,8 +65,8 @@ public class EstabelecimentoIaSettings : Entity
             throw new BusinessException("Limite diário deve ser maior ou igual ao limite por minuto.");
 
         RateLimitPerMinute = porMinuto;
-        RateLimitPerDay    = porDia;
-        AtualizadaEm       = DateTime.UtcNow;
+        RateLimitPerDay = porDia;
+        AtualizadaEm = DateTime.UtcNow;
     }
 
     public void AtualizarModelo(string provider, string model)
@@ -80,14 +80,14 @@ public class EstabelecimentoIaSettings : Entity
         if (model.Length > 80)
             throw new BusinessException("Modelo de IA inválido.");
 
-        AiProvider   = provider.Trim();
-        AiModel      = model.Trim();
+        AiProvider = provider.Trim();
+        AiModel = model.Trim();
         AtualizadaEm = DateTime.UtcNow;
     }
 
     public void AtualizarMinimizacao(NivelMinimizacaoDados nivel)
     {
         DataMinimizationLevel = nivel;
-        AtualizadaEm          = DateTime.UtcNow;
+        AtualizadaEm = DateTime.UtcNow;
     }
 }

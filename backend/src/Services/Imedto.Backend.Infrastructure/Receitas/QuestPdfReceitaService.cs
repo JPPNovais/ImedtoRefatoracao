@@ -263,11 +263,11 @@ public class QuestPdfReceitaService : IReceitaPdfService
     {
         return tipo switch
         {
-            "Comum"       => "RECEITUÁRIO COMUM",
-            "Controlada"  => $"RECEITUÁRIO CONTROLADO — NOTIFICAÇÃO {tipoNotificacao ?? ""}".Trim(),
+            "Comum" => "RECEITUÁRIO COMUM",
+            "Controlada" => $"RECEITUÁRIO CONTROLADO — NOTIFICAÇÃO {tipoNotificacao ?? ""}".Trim(),
             "Antibiotico" => "RECEITUÁRIO ANTIBIÓTICO",
-            "Especial"    => "RECEITUÁRIO ESPECIAL",
-            _             => $"RECEITUÁRIO — {tipo.ToUpperInvariant()}"
+            "Especial" => "RECEITUÁRIO ESPECIAL",
+            _ => $"RECEITUÁRIO — {tipo.ToUpperInvariant()}"
         };
     }
 

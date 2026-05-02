@@ -31,10 +31,10 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
 
         // Defaults seguros se o estabelecimento não tiver configuração
         var horarioInicio = config?.HorarioInicio ?? new TimeOnly(8, 0);
-        var horarioFim    = config?.HorarioFim    ?? new TimeOnly(18, 0);
-        var diasFunc      = config?.DiasSemanaFuncionamento ?? new List<int> { 1, 2, 3, 4, 5 };
-        var bloqueados    = config?.HorariosBloqueados ?? new();
-        var datasBloq     = config?.DatasBloqueadas ?? new();
+        var horarioFim = config?.HorarioFim ?? new TimeOnly(18, 0);
+        var diasFunc = config?.DiasSemanaFuncionamento ?? new List<int> { 1, 2, 3, 4, 5 };
+        var bloqueados = config?.HorariosBloqueados ?? new();
+        var datasBloq = config?.DatasBloqueadas ?? new();
 
         var agendamentos = (await _agendRepo.ListarParaDisponibilidade(
             query.EstabelecimentoId,
@@ -54,7 +54,7 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
             var diaSemanaIdx = (int)data.DayOfWeek;
             var dia = new DisponibilidadeDiaDto
             {
-                Data      = data,
+                Data = data,
                 DiaSemana = NomesDiaSemana[diaSemanaIdx],
             };
 
@@ -77,7 +77,7 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
             foreach (var slotHora in slots)
             {
                 var slotInicio = data.ToDateTime(slotHora);
-                var slotFim    = slotInicio.AddMinutes(30);
+                var slotFim = slotInicio.AddMinutes(30);
 
                 // Horário bloqueado pelo estabelecimento?
                 var bloqueio = bloqueados.FirstOrDefault(hb =>
@@ -87,9 +87,9 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
                 {
                     dia.Slots.Add(new DisponibilidadeSlotDto
                     {
-                        Hora      = $"{slotHora.Hour:D2}:{slotHora.Minute:D2}",
+                        Hora = $"{slotHora.Hour:D2}:{slotHora.Minute:D2}",
                         Disponivel = false,
-                        Motivo    = "bloqueado",
+                        Motivo = "bloqueado",
                     });
                     continue;
                 }
@@ -103,9 +103,9 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
                 {
                     dia.Slots.Add(new DisponibilidadeSlotDto
                     {
-                        Hora       = $"{slotHora.Hour:D2}:{slotHora.Minute:D2}",
+                        Hora = $"{slotHora.Hour:D2}:{slotHora.Minute:D2}",
                         Disponivel = false,
-                        Motivo     = "agendado",
+                        Motivo = "agendado",
                         PacienteNome = agend.PacienteNome,
                     });
                     continue;
@@ -113,7 +113,7 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
 
                 dia.Slots.Add(new DisponibilidadeSlotDto
                 {
-                    Hora       = $"{slotHora.Hour:D2}:{slotHora.Minute:D2}",
+                    Hora = $"{slotHora.Hour:D2}:{slotHora.Minute:D2}",
                     Disponivel = true,
                 });
             }

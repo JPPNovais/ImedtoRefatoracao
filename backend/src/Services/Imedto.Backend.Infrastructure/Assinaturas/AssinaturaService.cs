@@ -128,8 +128,8 @@ public class AssinaturaService : IAssinaturaService
         var limite = recurso switch
         {
             "profissionais" => plano.LimiteProfissionais,
-            "pacientes"     => plano.LimitePacientes,
-            _               => throw new ArgumentException($"Recurso desconhecido: {recurso}", nameof(recurso))
+            "pacientes" => plano.LimitePacientes,
+            _ => throw new ArgumentException($"Recurso desconhecido: {recurso}", nameof(recurso))
         };
 
         if (limite is null) return false; // ilimitado
@@ -137,8 +137,8 @@ public class AssinaturaService : IAssinaturaService
         var atual = recurso switch
         {
             "profissionais" => await ContarProfissionaisAtivos(estabelecimentoId, ct),
-            "pacientes"     => await ContarPacientesAtivos(estabelecimentoId, ct),
-            _               => 0
+            "pacientes" => await ContarPacientesAtivos(estabelecimentoId, ct),
+            _ => 0
         };
 
         return atual >= limite.Value;

@@ -100,11 +100,11 @@ public static class AvaliadorCondicoes
             {
                 "==" => nA == nB,
                 "!=" => nA != nB,
-                "<"  => nA <  nB,
-                ">"  => nA >  nB,
+                "<" => nA < nB,
+                ">" => nA > nB,
                 "<=" => nA <= nB,
                 ">=" => nA >= nB,
-                _    => false
+                _ => false
             };
         }
 
@@ -119,7 +119,7 @@ public static class AvaliadorCondicoes
             {
                 "==" => bA == bB,
                 "!=" => bA != bB,
-                _    => false
+                _ => false
             };
         }
 
@@ -132,11 +132,11 @@ public static class AvaliadorCondicoes
         {
             "==" => sA == sB,
             "!=" => sA != sB,
-            "<"  => string.CompareOrdinal(sA, sB) <  0,
-            ">"  => string.CompareOrdinal(sA, sB) >  0,
+            "<" => string.CompareOrdinal(sA, sB) < 0,
+            ">" => string.CompareOrdinal(sA, sB) > 0,
             "<=" => string.CompareOrdinal(sA, sB) <= 0,
             ">=" => string.CompareOrdinal(sA, sB) >= 0,
-            "contains"   => sA.Contains(sB, StringComparison.OrdinalIgnoreCase),
+            "contains" => sA.Contains(sB, StringComparison.OrdinalIgnoreCase),
             "startsWith" => sA.StartsWith(sB, StringComparison.OrdinalIgnoreCase),
             _ => false
         };
@@ -160,9 +160,9 @@ public static class AvaliadorCondicoes
     {
         JsonValueKind.String => el.GetString(),
         JsonValueKind.Number => el.ToString(),
-        JsonValueKind.True   => "true",
-        JsonValueKind.False  => "false",
-        JsonValueKind.Null   => null,
+        JsonValueKind.True => "true",
+        JsonValueKind.False => "false",
+        JsonValueKind.Null => null,
         _ => el.GetRawText()
     };
 }

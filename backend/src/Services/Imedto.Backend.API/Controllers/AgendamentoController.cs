@@ -63,10 +63,10 @@ public class AgendamentoController : ControllerBase
         var result = await _query.Query<ConsultarDisponibilidadeQuery, DisponibilidadeSemanaDto>(
             new ConsultarDisponibilidadeQuery
             {
-                EstabelecimentoId     = _tenant.EstabelecimentoId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
                 ProfissionalUsuarioId = profissionalUsuarioId,
-                DataInicio            = dataInicio,
-                DataFim               = dataFim,
+                DataInicio = dataInicio,
+                DataFim = dataFim,
             });
         return Ok(result);
     }

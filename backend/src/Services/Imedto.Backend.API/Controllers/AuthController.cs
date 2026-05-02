@@ -219,7 +219,7 @@ public class AuthController : ControllerBase
 
     private void SetAuthCookies(AuthResult result)
     {
-        var isDev  = _env.IsDevelopment();
+        var isDev = _env.IsDevelopment();
         var secure = !isDev;
         // Em dev (same-origin via proxy do Vite) usamos Lax. Em prod o front
         // pode estar em domínio diferente do backend (Vercel ↔ Render), então
@@ -234,10 +234,10 @@ public class AuthController : ControllerBase
         Response.Cookies.Append("access-token", result.AccessToken, new CookieOptions
         {
             HttpOnly = true,
-            Secure   = secure,
+            Secure = secure,
             SameSite = sameSite,
-            Expires  = result.ExpiresAt,
-            Path     = "/"
+            Expires = result.ExpiresAt,
+            Path = "/"
         });
 
         // Refresh-token continua restrito ao endpoint que o consome — princípio do
@@ -245,10 +245,10 @@ public class AuthController : ControllerBase
         Response.Cookies.Append("refresh-token", result.RefreshToken, new CookieOptions
         {
             HttpOnly = true,
-            Secure   = secure,
+            Secure = secure,
             SameSite = sameSite,
-            Expires  = DateTimeOffset.UtcNow.AddDays(7),
-            Path     = "/api/auth/refresh"
+            Expires = DateTimeOffset.UtcNow.AddDays(7),
+            Path = "/api/auth/refresh"
         });
     }
 
@@ -256,7 +256,7 @@ public class AuthController : ControllerBase
     {
         // Path precisa casar com o usado em SetAuthCookies — caso contrário o browser
         // não remove o cookie e a sessão "vaza" entre logouts.
-        Response.Cookies.Delete("access-token",  new CookieOptions { Path = "/" });
+        Response.Cookies.Delete("access-token", new CookieOptions { Path = "/" });
         Response.Cookies.Delete("refresh-token", new CookieOptions { Path = "/api/auth/refresh" });
     }
 }

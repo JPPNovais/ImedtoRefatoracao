@@ -48,9 +48,9 @@ public class AiRateLimitRepository : IAiRateLimitRepository
             sql,
             new
             {
-                UsuarioId         = usuarioId,
+                UsuarioId = usuarioId,
                 EstabelecimentoId = estabelecimentoId,
-                PeriodoInicio     = periodoInicio
+                PeriodoInicio = periodoInicio
             },
             cancellationToken: ct));
 

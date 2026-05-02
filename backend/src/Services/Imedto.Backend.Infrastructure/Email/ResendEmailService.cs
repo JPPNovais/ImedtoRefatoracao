@@ -79,11 +79,11 @@ public class ResendEmailService : IEmailService
         // Body conforme docs do Resend: from, to (array), subject, html, text (opcional).
         var payload = new
         {
-            from    = _from,
-            to      = destinatarios,
+            from = _from,
+            to = destinatarios,
             subject = assunto,
-            html    = corpoHtml,
-            text    = corpoTexto
+            html = corpoHtml,
+            text = corpoTexto
         };
 
         var hashCorrelacao = HashCorrelacao(destinatarios);

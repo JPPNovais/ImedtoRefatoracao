@@ -55,8 +55,8 @@ public class RateLimitTests
                         QueueLimit = 0,
                     });
 
-            options.AddPolicy("auth-login",     ctx => CriarParticao(ctx, 5));
-            options.AddPolicy("auth-refresh",   ctx => CriarParticao(ctx, 10));
+            options.AddPolicy("auth-login", ctx => CriarParticao(ctx, 5));
+            options.AddPolicy("auth-refresh", ctx => CriarParticao(ctx, 10));
             options.AddPolicy("auth-sensitive", ctx => CriarParticao(ctx, 3));
         });
 
@@ -65,13 +65,13 @@ public class RateLimitTests
         _app.UseRateLimiter();
 
         // Endpoints de stub que espelham os paths de produção.
-        _app.MapPost("/api/auth/login",         () => Results.UnprocessableEntity(new { mensagem = "Credenciais inválidas." }))
+        _app.MapPost("/api/auth/login", () => Results.UnprocessableEntity(new { mensagem = "Credenciais inválidas." }))
             .RequireRateLimiting("auth-login");
 
-        _app.MapPost("/api/auth/refresh",       () => Results.Unauthorized())
+        _app.MapPost("/api/auth/refresh", () => Results.Unauthorized())
             .RequireRateLimiting("auth-refresh");
 
-        _app.MapPost("/api/auth/signup",        () => Results.UnprocessableEntity(new { mensagem = "E-mail já cadastrado." }))
+        _app.MapPost("/api/auth/signup", () => Results.UnprocessableEntity(new { mensagem = "E-mail já cadastrado." }))
             .RequireRateLimiting("auth-sensitive");
 
         _app.MapPost("/api/auth/forgot-password", () => Results.Ok())
@@ -290,18 +290,18 @@ public class RateLimitTests
                         QueueLimit = 0,
                     });
 
-            options.AddPolicy("auth-login",       ctx => Criar(ctx, politica == "auth-login" ? limite : 99));
-            options.AddPolicy("auth-refresh",     ctx => Criar(ctx, politica == "auth-refresh" ? limite : 99));
-            options.AddPolicy("auth-sensitive",   ctx => Criar(ctx, politica == "auth-sensitive" ? limite : 99));
+            options.AddPolicy("auth-login", ctx => Criar(ctx, politica == "auth-login" ? limite : 99));
+            options.AddPolicy("auth-refresh", ctx => Criar(ctx, politica == "auth-refresh" ? limite : 99));
+            options.AddPolicy("auth-sensitive", ctx => Criar(ctx, politica == "auth-sensitive" ? limite : 99));
         });
 
         var app = builder.Build();
         app.UseRateLimiter();
 
-        app.MapPost("/api/auth/login",            () => Results.UnprocessableEntity()).RequireRateLimiting("auth-login");
-        app.MapPost("/api/auth/refresh",          () => Results.Unauthorized()).RequireRateLimiting("auth-refresh");
-        app.MapPost("/api/auth/signup",           () => Results.UnprocessableEntity()).RequireRateLimiting("auth-sensitive");
-        app.MapPost("/api/auth/forgot-password",  () => Results.Ok()).RequireRateLimiting("auth-sensitive");
+        app.MapPost("/api/auth/login", () => Results.UnprocessableEntity()).RequireRateLimiting("auth-login");
+        app.MapPost("/api/auth/refresh", () => Results.Unauthorized()).RequireRateLimiting("auth-refresh");
+        app.MapPost("/api/auth/signup", () => Results.UnprocessableEntity()).RequireRateLimiting("auth-sensitive");
+        app.MapPost("/api/auth/forgot-password", () => Results.Ok()).RequireRateLimiting("auth-sensitive");
 
         await app.StartAsync();
         return (app.GetTestClient(), app);

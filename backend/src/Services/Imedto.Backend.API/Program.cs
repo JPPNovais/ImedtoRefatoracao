@@ -79,13 +79,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer           = true,
-            ValidIssuer              = authority,
-            ValidateAudience         = true,
-            ValidAudience            = "authenticated",
+            ValidateIssuer = true,
+            ValidIssuer = authority,
+            ValidateAudience = true,
+            ValidAudience = "authenticated",
             ValidateIssuerSigningKey = true,
-            ValidateLifetime         = true,
-            ClockSkew                = TimeSpan.Zero
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
 
         options.Events = new JwtBearerEvents
@@ -151,8 +151,8 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title       = "Imedto CQRS API",
-        Version     = "v1",
+        Title = "Imedto CQRS API",
+        Version = "v1",
         Description = """
             API com padrão DDD + CQRS e autenticação via BFF (Backend for Frontend).
 
@@ -166,8 +166,8 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Type        = SecuritySchemeType.Http,
-        Scheme      = "bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT",
         Description = "Token JWT do Supabase. Obtenha em POST /api/auth/login."
     });
@@ -318,7 +318,7 @@ builder.Services.AddHostedService<AutomacaoJob>();
 // ServiceName configurável; Endpoint vazio => não registra exporter (útil em Dev/Test).
 // Instrumentação automática para AspNetCore, EF Core, HttpClient e runtime (.NET GC/threads).
 var otelServiceName = builder.Configuration["Otel:ServiceName"] ?? "imedto-backend";
-var otelEndpoint    = builder.Configuration["Otel:Endpoint"];
+var otelEndpoint = builder.Configuration["Otel:Endpoint"];
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService(serviceName: otelServiceName))
@@ -425,10 +425,10 @@ if (!app.Environment.IsDevelopment())
 {
     app.Use(async (ctx, next) =>
     {
-        ctx.Response.Headers["X-Content-Type-Options"]  = "nosniff";
-        ctx.Response.Headers["X-Frame-Options"]         = "DENY";
-        ctx.Response.Headers["Referrer-Policy"]         = "strict-origin-when-cross-origin";
-        ctx.Response.Headers["X-XSS-Protection"]        = "0";
+        ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        ctx.Response.Headers["X-Frame-Options"] = "DENY";
+        ctx.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        ctx.Response.Headers["X-XSS-Protection"] = "0";
         ctx.Response.Headers["Content-Security-Policy"] = "default-src 'none'";
         await next();
     });

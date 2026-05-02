@@ -134,7 +134,7 @@ public class EstabelecimentoQueryRepository
         return new ConfiguracaoFuncionamentoDto
         {
             HorarioInicio = TimeOnly.TryParse(linha.HorarioInicioStr, out var hi) ? hi : new TimeOnly(8, 0),
-            HorarioFim    = TimeOnly.TryParse(linha.HorarioFimStr,    out var hf) ? hf : new TimeOnly(18, 0),
+            HorarioFim = TimeOnly.TryParse(linha.HorarioFimStr, out var hf) ? hf : new TimeOnly(18, 0),
             DiasSemanaFuncionamento = JsonSerializer.Deserialize<List<int>>(linha.DiasSemanaJson ?? "[1,2,3,4,5]") ?? new(),
             HorariosBloqueados = JsonSerializer.Deserialize<List<HorarioBloqueadoDispo>>(linha.HorariosBloqueadosJson ?? "[]", _jsonOpts) ?? new(),
             DatasBloqueadas = JsonSerializer.Deserialize<List<DataBloqueadaDispo>>(linha.DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new(),

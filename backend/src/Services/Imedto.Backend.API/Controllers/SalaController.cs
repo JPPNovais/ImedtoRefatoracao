@@ -35,7 +35,7 @@ public class SalaController : ControllerBase
         var resultado = await _requestBus.Query<ListarSalasQuery, IEnumerable<SalaDto>>(
             new ListarSalasQuery
             {
-                EstabelecimentoId    = _tenant.EstabelecimentoId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
                 UsuarioSolicitanteId = _tenant.UsuarioId,
             });
 
@@ -50,12 +50,12 @@ public class SalaController : ControllerBase
     {
         await _commandBus.Send(new CriarSalaCommand
         {
-            EstabelecimentoId    = _tenant.EstabelecimentoId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
-            UnidadeId            = request.UnidadeId,
-            TipoSalaId           = request.TipoSalaId,
-            Nome                 = request.Nome,
-            Descricao            = request.Descricao,
+            UnidadeId = request.UnidadeId,
+            TipoSalaId = request.TipoSalaId,
+            Nome = request.Nome,
+            Descricao = request.Descricao,
         });
 
         return Created(string.Empty, null);
@@ -70,12 +70,12 @@ public class SalaController : ControllerBase
     {
         await _commandBus.Send(new AtualizarSalaCommand
         {
-            SalaId               = salaId,
+            SalaId = salaId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
-            UnidadeId            = request.UnidadeId,
-            TipoSalaId           = request.TipoSalaId,
-            Nome                 = request.Nome,
-            Descricao            = request.Descricao,
+            UnidadeId = request.UnidadeId,
+            TipoSalaId = request.TipoSalaId,
+            Nome = request.Nome,
+            Descricao = request.Descricao,
         });
 
         return NoContent();
@@ -90,7 +90,7 @@ public class SalaController : ControllerBase
     {
         await _commandBus.Send(new DeletarSalaCommand
         {
-            SalaId               = salaId,
+            SalaId = salaId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
         });
 
