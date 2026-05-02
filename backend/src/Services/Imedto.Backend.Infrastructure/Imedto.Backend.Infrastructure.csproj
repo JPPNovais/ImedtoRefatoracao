@@ -19,6 +19,7 @@
         <PackageReference Include="QuestPDF" Version="2025.4.0" />
         <!-- Geração de JWT no MockAuthService -->
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.0.2" />
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.7" />
 
         <!--
             PRODUÇÃO: descomente abaixo e remova o InMemoryStore nos repositórios.
