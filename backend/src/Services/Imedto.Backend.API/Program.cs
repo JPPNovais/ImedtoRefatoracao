@@ -126,10 +126,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var logger = ctx.HttpContext.RequestServices
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger("JwtAuth");
+                // LGPD: nunca logar Authorization completo. JWT do Supabase contem
+                // email/sub no payload. Logamos so prefixo do token (suficiente p/
+                // correlacao em log) e o erro do middleware.
+                var authHeader = ctx.Request.Headers.Authorization.ToString();
+                var tokenPreview = authHeader.Length > 20
+                    ? authHeader[..20] + "…"
+                    : "(vazio)";
                 logger.LogWarning(ctx.Exception,
-                    "JWT falhou: {Error}. Token kid: {Kid}",
+                    "JWT falhou: {Error}. TokenPreview: {TokenPreview}",
                     ctx.Exception?.Message,
-                    ctx.Request.Headers.Authorization.ToString());
+                    tokenPreview);
                 return Task.CompletedTask;
             }
         };
@@ -434,13 +441,15 @@ if (!app.Environment.IsDevelopment())
     });
 }
 
-// Log estruturado de requisições — template default não inclui body/query/headers (seguro p/ LGPD).
-app.UseSerilogRequestLogging();
-
 app.UseCors("CorsPolicy");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Log estruturado de requisicoes — template default nao inclui body/query/headers (seguro p/ LGPD).
+// Posicionado APOS UseAuthentication para que User.Identity/claims fiquem disponiveis no log.
+app.UseSerilogRequestLogging();
+
 app.MapControllers();
 
 // --- SignalR hub ---
