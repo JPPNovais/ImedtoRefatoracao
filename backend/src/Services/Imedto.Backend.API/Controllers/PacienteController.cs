@@ -70,9 +70,11 @@ public class PacienteController : ControllerBase
         return Ok(dto);
     }
 
-    /// <summary>Cadastra um novo paciente no estabelecimento atual.</summary>
+    /// <summary>Cadastra um novo paciente no estabelecimento atual. Apenas Profissional ou Dono.</summary>
     [HttpPost]
+    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
     [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Criar([FromBody] PacienteRequest request)
     {
@@ -92,9 +94,11 @@ public class PacienteController : ControllerBase
         return Created(string.Empty, null);
     }
 
-    /// <summary>Atualiza os dados de um paciente.</summary>
+    /// <summary>Atualiza os dados de um paciente. Apenas Profissional ou Dono (Observacoes pode ter dado clinico).</summary>
     [HttpPut("{id:long}")]
+    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Atualizar(long id, [FromBody] PacienteRequest request)
@@ -133,9 +137,11 @@ public class PacienteController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>LGPD Art. 18 — exporta todos os dados pessoais do paciente em JSON.</summary>
+    /// <summary>LGPD Art. 18 — exporta todos os dados pessoais do paciente em JSON. Apenas Dono (acesso a TODA PII do titular).</summary>
     [HttpGet("{id:long}/exportar-dados")]
+    [RequiresPapel(TenantPapel.Dono)]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExportarDados(long id)
     {
