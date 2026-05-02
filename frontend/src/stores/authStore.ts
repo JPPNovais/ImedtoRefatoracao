@@ -15,11 +15,11 @@ export interface Usuario {
     id: string
     email: string
     nomeCompleto: string | null
-    cpf: string | null
+    // cpf e ultimoAcessoEm removidos: backend nao envia mais (LGPD - minimizacao).
+    // Telefone mantido — usado em MinhaContaView como round-trip do form.
     telefone: string | null
     status: "Pendente" | "Ativo" | "Inativo"
     onboardingCompleto: boolean
-    ultimoAcessoEm: string | null
 }
 
 export const useAuthStore = defineStore("auth", () => {

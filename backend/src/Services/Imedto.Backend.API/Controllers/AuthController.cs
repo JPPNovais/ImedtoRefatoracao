@@ -133,6 +133,9 @@ public class AuthController : ControllerBase
         if (usuario is null)
             return Unauthorized(new { mensagem = "Usuário não encontrado." });
 
+        // Payload minimizado (LGPD): cpf removido (nao usado pelo front) e
+        // ultimoAcessoEm removido (sem uso). Telefone mantido — eh round-trip
+        // do form em MinhaContaView (front precisa do valor existente para editar).
         return Ok(new
         {
             usuario = new
@@ -140,11 +143,9 @@ public class AuthController : ControllerBase
                 id = usuario.Id,
                 email = usuario.Email,
                 nomeCompleto = usuario.NomeCompleto,
-                cpf = usuario.Cpf,
                 telefone = usuario.Telefone,
                 status = usuario.Status.ToString(),
-                onboardingCompleto = usuario.OnboardingCompleto,
-                ultimoAcessoEm = usuario.UltimoAcessoEm
+                onboardingCompleto = usuario.OnboardingCompleto
             }
         });
     }
@@ -182,6 +183,9 @@ public class AuthController : ControllerBase
         if (usuario is null)
             throw new BusinessException("Registro local do usuário não encontrado.");
 
+        // Payload minimizado (LGPD): cpf removido (nao usado pelo front) e
+        // ultimoAcessoEm removido (sem uso). Telefone mantido — eh round-trip
+        // do form em MinhaContaView (front precisa do valor existente para editar).
         return Ok(new
         {
             usuario = new
@@ -189,11 +193,9 @@ public class AuthController : ControllerBase
                 id = usuario.Id,
                 email = usuario.Email,
                 nomeCompleto = usuario.NomeCompleto,
-                cpf = usuario.Cpf,
                 telefone = usuario.Telefone,
                 status = usuario.Status.ToString(),
-                onboardingCompleto = usuario.OnboardingCompleto,
-                ultimoAcessoEm = usuario.UltimoAcessoEm
+                onboardingCompleto = usuario.OnboardingCompleto
             }
         });
     }
