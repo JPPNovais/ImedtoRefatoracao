@@ -45,10 +45,11 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
 
         // Snapshot do template — usa override se fornecido, senão usa o modelo do prontuário.
         var modeloId = command.ModeloDeProntuarioId ?? prontuario.ModeloDeProntuarioId;
-        var modeloAtual = await _modeloRepo.ObterPorId(modeloId);
+        var modeloAtual = await _modeloRepo.ObterPorIdOuNulo(modeloId)
+            ?? throw new BusinessException("Modelo não encontrado.");
 
         if (!modeloAtual.EhPadraoSistema && modeloAtual.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Modelo não pertence a este estabelecimento.");
+            throw new BusinessException("Modelo não encontrado.");
 
         if (!modeloAtual.Ativo)
             throw new BusinessException("O modelo selecionado está inativo.");

@@ -16,12 +16,13 @@ public class ExcluirModeloDeProntuarioCommandHandler : ICommandHandler<ExcluirMo
 
     public async Task Handle(ExcluirModeloDeProntuarioCommand command)
     {
-        var modelo = await _repository.ObterPorId(command.ModeloId);
+        var modelo = await _repository.ObterPorIdOuNulo(command.ModeloId)
+            ?? throw new BusinessException("Modelo não encontrado.");
 
         if (modelo.EhPadraoSistema)
             throw new BusinessException("Modelos padrão do sistema não podem ser excluídos.");
         if (modelo.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Modelo não pertence a este estabelecimento.");
+            throw new BusinessException("Modelo não encontrado.");
 
         await _repository.Excluir(modelo);
     }

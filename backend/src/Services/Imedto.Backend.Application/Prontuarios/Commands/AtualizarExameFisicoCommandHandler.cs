@@ -27,9 +27,11 @@ public class AtualizarExameFisicoCommandHandler : ICommandHandler<AtualizarExame
 
     public async Task Handle(AtualizarExameFisicoCommand command)
     {
-        var exame = await _exameRepo.ObterPorId(command.ExameFisicoId);
+        var exame = await _exameRepo.ObterPorIdOuNulo(command.ExameFisicoId)
+            ?? throw new BusinessException("Exame físico não encontrado.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (exame.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Exame físico não pertence a este estabelecimento.");
+            throw new BusinessException("Exame físico não encontrado.");
         if (exame.DeletadoEm is not null)
             throw new BusinessException("Exame físico está deletado.");
 

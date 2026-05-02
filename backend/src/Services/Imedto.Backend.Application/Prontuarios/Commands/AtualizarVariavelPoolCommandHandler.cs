@@ -16,12 +16,14 @@ public class AtualizarVariavelPoolCommandHandler : ICommandHandler<AtualizarVari
 
     public async Task Handle(AtualizarVariavelPoolCommand command)
     {
-        var item = await _repository.ObterPorId(command.ItemId);
+        var item = await _repository.ObterPorIdOuNulo(command.ItemId)
+            ?? throw new BusinessException("Opção não encontrada.");
 
         if (item.EhPadraoSistema || item.EstabelecimentoId is null)
             throw new BusinessException("Opções padrão do sistema não podem ser editadas.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (item.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Esta opção não pertence ao seu estabelecimento.");
+            throw new BusinessException("Opção não encontrada.");
 
         if (await _repository.ExisteOutraComMesmoNome(command.EstabelecimentoId, item.Tipo, command.Nome ?? string.Empty, item.Id))
             throw new BusinessException("Já existe uma opção com esse nome para esta lista.");

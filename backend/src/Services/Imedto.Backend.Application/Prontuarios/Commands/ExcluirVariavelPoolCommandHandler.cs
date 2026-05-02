@@ -16,12 +16,13 @@ public class ExcluirVariavelPoolCommandHandler : ICommandHandler<ExcluirVariavel
 
     public async Task Handle(ExcluirVariavelPoolCommand command)
     {
-        var item = await _repository.ObterPorId(command.ItemId);
+        var item = await _repository.ObterPorIdOuNulo(command.ItemId)
+            ?? throw new BusinessException("Opção não encontrada.");
 
         if (item.EhPadraoSistema || item.EstabelecimentoId is null)
             throw new BusinessException("Opções padrão do sistema não podem ser excluídas.");
         if (item.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Esta opção não pertence ao seu estabelecimento.");
+            throw new BusinessException("Opção não encontrada.");
 
         await _repository.Excluir(item);
     }
