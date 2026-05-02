@@ -121,7 +121,20 @@ public class AuthController : ControllerBase
         if (string.IsNullOrEmpty(refreshToken))
             return Unauthorized(new { mensagem = "Sessão não encontrada." });
 
-        var result = await _authService.RefreshAsync(refreshToken);
+        AuthResult result;
+        try
+        {
+            result = await _authService.RefreshAsync(refreshToken);
+        }
+        catch (BusinessException)
+        {
+            // Refresh expirado/invalido eh estado normal de fim-de-sessao — devolver
+            // 401 (Swagger ja declara) em vez de 422. O interceptor do front depende
+            // de 401 para acionar logout/redirect; 422 quebra o ciclo.
+            ClearAuthCookies();
+            return Unauthorized(new { mensagem = "Sessão expirada. Faça login novamente." });
+        }
+
         SetAuthCookies(result);
 
         // Retorna o usuário de domínio (igual ao /auth/me) para que o frontend
