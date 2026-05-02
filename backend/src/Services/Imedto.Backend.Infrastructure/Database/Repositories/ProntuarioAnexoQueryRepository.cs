@@ -41,18 +41,28 @@ public class ProntuarioAnexoQueryRepository
         });
     }
 
-    public async Task<(long ProntuarioId, long EstabelecimentoId, string StoragePath, string Nome, string Mime)?>
-        ObterReferenciaAnexo(long anexoId)
+    /// <summary>
+    /// Carrega referencia do anexo filtrando por <paramref name="estabelecimentoId"/>
+    /// dentro do SQL — defense-in-depth LGPD: anexo de outro tenant retorna null.
+    /// O handler nao precisa mais comparar estabelecimento_id manualmente.
+    /// </summary>
+    public async Task<(long ProntuarioId, string StoragePath, string Nome, string Mime)?>
+        ObterReferenciaAnexo(long anexoId, long estabelecimentoId)
     {
         const string sql = """
-            SELECT prontuario_id, estabelecimento_id, storage_path, nome_original, mime_type
+            SELECT prontuario_id, storage_path, nome_original, mime_type
             FROM   public.prontuario_anexos
             WHERE  id = @AnexoId
+              AND  estabelecimento_id = @EstabelecimentoId
               AND  arquivado_em IS NULL
               AND  deletado_em IS NULL
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        return await conn.QuerySingleOrDefaultAsync<(long, long, string, string, string)?>(sql, new { AnexoId = anexoId });
+        return await conn.QuerySingleOrDefaultAsync<(long, string, string, string)?>(sql, new
+        {
+            AnexoId = anexoId,
+            EstabelecimentoId = estabelecimentoId
+        });
     }
 }

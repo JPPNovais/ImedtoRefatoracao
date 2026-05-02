@@ -53,14 +53,13 @@ public class ObterUrlAnexoQueryHandlers : IRequestHandler<ObterUrlAnexoQuery, An
 
     public async Task<AnexoUrlDto> Handle(ObterUrlAnexoQuery query)
     {
-        var referencia = await _queryRepository.ObterReferenciaAnexo(query.AnexoId);
+        // Defense-in-depth LGPD: o repositorio ja filtra por tenant. Anexo de outro
+        // estabelecimento retorna null. Mensagem nao vaza existencia.
+        var referencia = await _queryRepository.ObterReferenciaAnexo(query.AnexoId, query.EstabelecimentoId);
         if (referencia is null)
             throw new BusinessException("Anexo não encontrado.");
 
-        var (prontuarioId, estabelecimentoId, storagePath, nome, mime) = referencia.Value;
-
-        if (estabelecimentoId != query.EstabelecimentoId)
-            throw new BusinessException("Anexo não pertence a este estabelecimento.");
+        var (prontuarioId, storagePath, nome, mime) = referencia.Value;
 
         // TTL vem de StorageOptions (default 5 min). Mantém compatibilidade caso o caller
         // queira sobrescrever via TtlSegundos > 0 (ex.: testes ou caso de uso pontual).
