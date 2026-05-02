@@ -17,7 +17,6 @@ public class VariavelPoolQueryRepository
     {
         const string sql = """
             SELECT  id                  AS Id,
-                    estabelecimento_id  AS EstabelecimentoId,
                     tipo                AS Tipo,
                     nome                AS Nome,
                     ativo               AS Ativo,

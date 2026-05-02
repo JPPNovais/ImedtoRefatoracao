@@ -18,7 +18,6 @@ public class ModeloProntuarioQueryRepository
     {
         const string sql = """
             SELECT  id                  AS Id,
-                    estabelecimento_id  AS EstabelecimentoId,
                     nome                AS Nome,
                     descricao           AS Descricao,
                     estrutura           AS Estrutura,
@@ -43,7 +42,6 @@ public class ModeloProntuarioQueryRepository
     {
         const string sql = """
             SELECT  id                  AS Id,
-                    estabelecimento_id  AS EstabelecimentoId,
                     nome                AS Nome,
                     descricao           AS Descricao,
                     estrutura           AS Estrutura,

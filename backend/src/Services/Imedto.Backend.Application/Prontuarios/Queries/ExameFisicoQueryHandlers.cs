@@ -29,24 +29,26 @@ public class ObterExameFisicoQueryHandlers
 
     public async Task<ExameFisicoDto?> Handle(ObterExameFisicoQuery query)
     {
-        var dto = await _queryRepo.ObterCompleto(query.ExameFisicoId, query.EstabelecimentoId);
-        if (dto is null) return null;
+        var resultado = await _queryRepo.ObterCompleto(query.ExameFisicoId, query.EstabelecimentoId);
+        if (resultado is null) return null;
 
+        var (exame, prontuarioId) = resultado.Value;
         await _acessoLog.RegistrarAsync(
-            dto.ProntuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
+            prontuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
 
-        return dto;
+        return exame;
     }
 
     public async Task<ExameFisicoDto?> Handle(ObterExameFisicoPorEvolucaoQuery query)
     {
-        var dto = await _queryRepo.ObterPorEvolucao(query.EvolucaoId, query.EstabelecimentoId);
-        if (dto is null) return null;
+        var resultado = await _queryRepo.ObterPorEvolucao(query.EvolucaoId, query.EstabelecimentoId);
+        if (resultado is null) return null;
 
+        var (exame, prontuarioId) = resultado.Value;
         await _acessoLog.RegistrarAsync(
-            dto.ProntuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
+            prontuarioId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
 
-        return dto;
+        return exame;
     }
 
     public async Task<PaginaExamesFisicosDto> Handle(ListarExamesFisicosDoPacienteQuery query)

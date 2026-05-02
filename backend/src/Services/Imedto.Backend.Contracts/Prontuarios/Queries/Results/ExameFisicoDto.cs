@@ -10,10 +10,9 @@ public class ExameFisicoDto
 {
     public long Id { get; set; }
     public long EvolucaoId { get; set; }
-    public long ProntuarioId { get; set; }
-    public long PacienteId { get; set; }
+    // ProntuarioId/PacienteId removidos (LGPD): redundantes com a rota.
+    // RealizadoPorUsuarioId removido (LGPD): Guid de auth interno permite enumeracao.
     public DateTime RealizadoEm { get; set; }
-    public Guid RealizadoPorUsuarioId { get; set; }
     public string? RealizadoPorNome { get; set; }
     public string? DadosGeraisJson { get; set; }
     public string? ObservacoesGerais { get; set; }

@@ -19,10 +19,10 @@ public class ProntuarioQueryRepository
 
     public async Task<ProntuarioCompletoDto> ObterDoPaciente(long pacienteId, long estabelecimentoId, int tamanhoTimeline)
     {
+        // SELECT minimizado (LGPD): sem paciente_id/estabelecimento_id (vem da rota)
+        // e autor_usuario_id (Guid auth interno — front nao usa).
         const string sqlPront = """
             SELECT  p.id                         AS Id,
-                    p.paciente_id                AS PacienteId,
-                    p.estabelecimento_id         AS EstabelecimentoId,
                     p.modelo_de_prontuario_id    AS ModeloDeProntuarioId,
                     m.nome                       AS ModeloNome,
                     m.estrutura                  AS ModeloEstrutura,
@@ -38,7 +38,6 @@ public class ProntuarioQueryRepository
         const string sqlEvo = """
             SELECT  e.id                             AS Id,
                     e.prontuario_id                  AS ProntuarioId,
-                    e.autor_usuario_id               AS AutorUsuarioId,
                     u.nome_completo                  AS AutorNome,
                     mdp.nome                         AS ModeloNome,
                     e.conteudo                       AS Conteudo,

@@ -15,9 +15,9 @@ public class ProntuarioAnexoQueryRepository
 
     public async Task<IEnumerable<AnexoDto>> ListarDoProntuario(long prontuarioId, long? evolucaoId)
     {
+        // SELECT minimizado (LGPD): sem prontuario_id (front nao usa).
         const string sql = """
             SELECT  a.id                AS Id,
-                    a.prontuario_id     AS ProntuarioId,
                     a.evolucao_id       AS EvolucaoId,
                     a.nome_original     AS NomeOriginal,
                     a.mime_type         AS MimeType,

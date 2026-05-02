@@ -17,20 +17,25 @@ public class ExameFisicoQueryRepository
         _connectionString = connection.Value;
     }
 
-    public async Task<ExameFisicoDto?> ObterCompleto(long id, long estabelecimentoId)
+    /// <summary>
+    /// Retorna o exame + ProntuarioId para audit log. ProntuarioId NAO faz parte do
+    /// DTO publico (LGPD: redundante para o front), mas o handler precisa para gravar
+    /// no ProntuarioAcessoLog.
+    /// </summary>
+    public async Task<(ExameFisicoDto Exame, long ProntuarioId)?> ObterCompleto(long id, long estabelecimentoId)
     {
+        // SELECT minimizado (LGPD): sem paciente_id e realizado_por_usuario_id.
+        // ProntuarioId vem como tupla — usado so internamente para audit log.
         const string sqlExame = """
             SELECT  e.id                           AS Id,
                     e.evolucao_id                  AS EvolucaoId,
-                    e.prontuario_id                AS ProntuarioId,
-                    e.paciente_id                  AS PacienteId,
                     e.realizado_em                 AS RealizadoEm,
-                    e.realizado_por_usuario_id     AS RealizadoPorUsuarioId,
                     u.nome_completo                AS RealizadoPorNome,
                     e.dados_gerais_json            AS DadosGeraisJson,
                     e.observacoes_gerais           AS ObservacoesGerais,
                     e.criado_em                    AS CriadoEm,
-                    e.atualizado_em                AS AtualizadoEm
+                    e.atualizado_em                AS AtualizadoEm,
+                    e.prontuario_id                AS ProntuarioId
             FROM    public.exame_fisico e
             LEFT JOIN public.usuarios u ON u.id = e.realizado_por_usuario_id
             WHERE   e.id = @Id
@@ -39,31 +44,41 @@ public class ExameFisicoQueryRepository
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        var exame = await conn.QuerySingleOrDefaultAsync<ExameFisicoDto>(sqlExame, new
+        var row = await conn.QuerySingleOrDefaultAsync<(long Id, long EvolucaoId, DateTime RealizadoEm, string? RealizadoPorNome, string? DadosGeraisJson, string? ObservacoesGerais, DateTime CriadoEm, DateTime? AtualizadoEm, long ProntuarioId)?>(sqlExame, new
         {
             Id = id,
             EstabelecimentoId = estabelecimentoId
         });
 
-        if (exame is null) return null;
-        exame.Regioes = await CarregarRegioes(conn, exame.Id);
-        return exame;
+        if (row is null) return null;
+
+        var exame = new ExameFisicoDto
+        {
+            Id = row.Value.Id,
+            EvolucaoId = row.Value.EvolucaoId,
+            RealizadoEm = row.Value.RealizadoEm,
+            RealizadoPorNome = row.Value.RealizadoPorNome,
+            DadosGeraisJson = row.Value.DadosGeraisJson,
+            ObservacoesGerais = row.Value.ObservacoesGerais,
+            CriadoEm = row.Value.CriadoEm,
+            AtualizadoEm = row.Value.AtualizadoEm,
+            Regioes = await CarregarRegioes(conn, row.Value.Id)
+        };
+        return (exame, row.Value.ProntuarioId);
     }
 
-    public async Task<ExameFisicoDto?> ObterPorEvolucao(long evolucaoId, long estabelecimentoId)
+    public async Task<(ExameFisicoDto Exame, long ProntuarioId)?> ObterPorEvolucao(long evolucaoId, long estabelecimentoId)
     {
         const string sqlExame = """
             SELECT  e.id                           AS Id,
                     e.evolucao_id                  AS EvolucaoId,
-                    e.prontuario_id                AS ProntuarioId,
-                    e.paciente_id                  AS PacienteId,
                     e.realizado_em                 AS RealizadoEm,
-                    e.realizado_por_usuario_id     AS RealizadoPorUsuarioId,
                     u.nome_completo                AS RealizadoPorNome,
                     e.dados_gerais_json            AS DadosGeraisJson,
                     e.observacoes_gerais           AS ObservacoesGerais,
                     e.criado_em                    AS CriadoEm,
-                    e.atualizado_em                AS AtualizadoEm
+                    e.atualizado_em                AS AtualizadoEm,
+                    e.prontuario_id                AS ProntuarioId
             FROM    public.exame_fisico e
             LEFT JOIN public.usuarios u ON u.id = e.realizado_por_usuario_id
             WHERE   e.evolucao_id = @EvolucaoId
@@ -74,15 +89,27 @@ public class ExameFisicoQueryRepository
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        var exame = await conn.QuerySingleOrDefaultAsync<ExameFisicoDto>(sqlExame, new
+        var row = await conn.QuerySingleOrDefaultAsync<(long Id, long EvolucaoId, DateTime RealizadoEm, string? RealizadoPorNome, string? DadosGeraisJson, string? ObservacoesGerais, DateTime CriadoEm, DateTime? AtualizadoEm, long ProntuarioId)?>(sqlExame, new
         {
             EvolucaoId = evolucaoId,
             EstabelecimentoId = estabelecimentoId
         });
 
-        if (exame is null) return null;
-        exame.Regioes = await CarregarRegioes(conn, exame.Id);
-        return exame;
+        if (row is null) return null;
+
+        var exame = new ExameFisicoDto
+        {
+            Id = row.Value.Id,
+            EvolucaoId = row.Value.EvolucaoId,
+            RealizadoEm = row.Value.RealizadoEm,
+            RealizadoPorNome = row.Value.RealizadoPorNome,
+            DadosGeraisJson = row.Value.DadosGeraisJson,
+            ObservacoesGerais = row.Value.ObservacoesGerais,
+            CriadoEm = row.Value.CriadoEm,
+            AtualizadoEm = row.Value.AtualizadoEm,
+            Regioes = await CarregarRegioes(conn, row.Value.Id)
+        };
+        return (exame, row.Value.ProntuarioId);
     }
 
     public async Task<ListagemExamesResult> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanho)
