@@ -16,7 +16,12 @@ public class CompletarOnboardingUsuarioCommandHandler : ICommandHandler<Completa
 
     public async Task Handle(CompletarOnboardingUsuarioCommand command)
     {
-        var usuario = await _repository.ObterPorId(command.UsuarioId);
+        // Defesa minima: nunca aceitar Guid.Empty (vetor obvio de bypass).
+        if (command.UsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário não identificado.");
+
+        var usuario = await _repository.ObterPorIdOuNulo(command.UsuarioId)
+            ?? throw new BusinessException("Usuário não encontrado.");
 
         var cpfDigitos = new string((command.Cpf ?? "").Where(char.IsDigit).ToArray());
         if (await _repository.ExisteCpf(cpfDigitos, command.UsuarioId))
