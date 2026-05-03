@@ -37,7 +37,12 @@ public class AnonimizarMinhaContaCommandHandler : ICommandHandler<AnonimizarMinh
 
     public async Task Handle(AnonimizarMinhaContaCommand command)
     {
-        var usuario = await _usuarios.ObterPorId(command.UsuarioId);
+        // Defesa minima: nunca aceitar Guid.Empty (vetor obvio de bypass).
+        if (command.UsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário não identificado.");
+
+        var usuario = await _usuarios.ObterPorIdOuNulo(command.UsuarioId)
+            ?? throw new BusinessException("Usuário não encontrado.");
 
         // Anonimiza pacientes cujo e-mail corresponde ao do usuário.
         // Não loga o e-mail — apenas opera sobre os ids.

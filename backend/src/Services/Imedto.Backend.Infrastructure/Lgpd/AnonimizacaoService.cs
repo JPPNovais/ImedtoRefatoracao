@@ -33,7 +33,21 @@ public class AnonimizacaoService : IAnonimizacaoService
         Guid? executadoPor,
         CancellationToken ct = default)
     {
-        var paciente = await _pacientes.ObterPorId(pacienteId);
+        // Aqui o lookup eh sem tenant — intencional: tanto o job de retencao
+        // (varre todos pacientes inativos) quanto o handler "AnonimizarMinhaConta"
+        // (titular cancelando suas contas em multiplos estabelecimentos) precisam
+        // operar cross-tenant. Os callers ja garantem autorizacao apropriada
+        // (job = system; handler = titular agindo sobre proprio email).
+#pragma warning disable CS0618 // intencional — ver comentario acima
+        var paciente = await _pacientes.ObterPorIdOuNulo(pacienteId);
+#pragma warning restore CS0618
+        if (paciente is null)
+        {
+            _logger.LogWarning(
+                "[AnonimizacaoService] Paciente id={Id} nao encontrado — operacao ignorada.",
+                pacienteId);
+            return;
+        }
 
         if (paciente.EstaAnonimizado)
         {
