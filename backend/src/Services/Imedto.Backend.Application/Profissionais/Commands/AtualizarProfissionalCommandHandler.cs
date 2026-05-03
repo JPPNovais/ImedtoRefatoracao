@@ -16,7 +16,12 @@ public class AtualizarProfissionalCommandHandler : ICommandHandler<AtualizarProf
 
     public async Task Handle(AtualizarProfissionalCommand command)
     {
-        var prof = await _repository.ObterPorId(command.UsuarioId);
+        // Defesa minima: nunca aceitar Guid.Empty.
+        if (command.UsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário não identificado.");
+
+        var prof = await _repository.ObterPorIdOuNulo(command.UsuarioId)
+            ?? throw new BusinessException("Cadastro profissional não encontrado.");
 
         var conselho = (command.Conselho ?? "").Trim().ToUpperInvariant();
         var uf = (command.Uf ?? "").Trim().ToUpperInvariant();

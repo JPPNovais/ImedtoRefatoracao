@@ -24,7 +24,12 @@ public class CadastrarProfissionalCommandHandler : ICommandHandler<CadastrarProf
 
     public async Task Handle(CadastrarProfissionalCommand command)
     {
-        var usuario = await _usuarioRepository.ObterPorId(command.UsuarioId);
+        // Defesa minima: nunca aceitar Guid.Empty.
+        if (command.UsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário não identificado.");
+
+        var usuario = await _usuarioRepository.ObterPorIdOuNulo(command.UsuarioId)
+            ?? throw new BusinessException("Usuário não encontrado.");
 
         if (string.IsNullOrWhiteSpace(usuario.Cpf))
             throw new BusinessException("Complete o onboarding (nome e CPF) antes de se cadastrar como profissional.");

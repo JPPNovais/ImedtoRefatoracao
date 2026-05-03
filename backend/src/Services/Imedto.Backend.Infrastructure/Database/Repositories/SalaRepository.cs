@@ -20,6 +20,9 @@ public class SalaRepository : ISalaRepository
         return sala;
     }
 
+    public async Task<Sala?> ObterPorIdOuNulo(long id) =>
+        await _context.Salas.FindAsync(id);
+
     public async Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, string nome, long ignorarId) =>
         await _context.Salas
             .AsNoTracking()

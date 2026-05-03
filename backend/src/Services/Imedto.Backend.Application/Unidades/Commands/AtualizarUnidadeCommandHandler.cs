@@ -19,8 +19,10 @@ public class AtualizarUnidadeCommandHandler : ICommandHandler<AtualizarUnidadeCo
 
     public async Task Handle(AtualizarUnidadeCommand command)
     {
-        var unidade = await _unidades.ObterPorId(command.UnidadeId);
-        var estab = await _estabelecimentos.ObterPorId(unidade.EstabelecimentoId);
+        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId)
+            ?? throw new BusinessException("Unidade não encontrada.");
+        var estab = await _estabelecimentos.ObterPorIdOuNulo(unidade.EstabelecimentoId)
+            ?? throw new BusinessException("Estabelecimento não encontrado.");
 
         if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)
             throw new BusinessException("Apenas o dono pode editar unidades.");
