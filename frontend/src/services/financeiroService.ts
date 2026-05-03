@@ -2,7 +2,7 @@ import httpClient from "./httpClient"
 
 export interface Lancamento {
     id: number
-    estabelecimentoId: number
+    // estabelecimentoId removido: backend nao envia mais (LGPD - minimizacao).
     tipo: "Receita" | "Despesa"
     descricao: string
     valor: number

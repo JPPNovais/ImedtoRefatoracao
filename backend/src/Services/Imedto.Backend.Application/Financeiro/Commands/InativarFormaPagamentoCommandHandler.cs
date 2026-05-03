@@ -13,10 +13,11 @@ public class InativarFormaPagamentoCommandHandler : ICommandHandler<InativarForm
 
     public async Task Handle(InativarFormaPagamentoCommand cmd)
     {
-        var forma = await _repo.ObterPorId(cmd.FormaPagamentoId);
-
+        var forma = await _repo.ObterPorIdOuNulo(cmd.FormaPagamentoId)
+            ?? throw new BusinessException("Forma de pagamento não encontrada.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (forma.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Forma de pagamento não encontrada neste estabelecimento.");
+            throw new BusinessException("Forma de pagamento não encontrada.");
 
         forma.Inativar();
         await _repo.Salvar(forma);

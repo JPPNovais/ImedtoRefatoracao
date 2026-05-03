@@ -13,10 +13,11 @@ public class InativarCategoriaFinanceiraCommandHandler : ICommandHandler<Inativa
 
     public async Task Handle(InativarCategoriaFinanceiraCommand cmd)
     {
-        var categoria = await _repo.ObterPorId(cmd.CategoriaId);
-
+        var categoria = await _repo.ObterPorIdOuNulo(cmd.CategoriaId)
+            ?? throw new BusinessException("Categoria não encontrada.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (categoria.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Categoria não encontrada neste estabelecimento.");
+            throw new BusinessException("Categoria não encontrada.");
 
         categoria.Inativar();
         await _repo.Salvar(categoria);

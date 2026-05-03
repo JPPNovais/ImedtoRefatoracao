@@ -18,10 +18,11 @@ public class PagarLancamentoCommandHandler : ICommandHandler<PagarLancamentoComm
 
     public async Task Handle(PagarLancamentoCommand cmd)
     {
-        var lancamento = await _repo.ObterPorId(cmd.LancamentoId);
-
+        var lancamento = await _repo.ObterPorIdOuNulo(cmd.LancamentoId)
+            ?? throw new BusinessException("Lançamento não encontrado.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (lancamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Lançamento não encontrado neste estabelecimento.");
+            throw new BusinessException("Lançamento não encontrado.");
 
         lancamento.Pagar(cmd.DataPagamento);
         await _repo.Salvar(lancamento);

@@ -17,15 +17,14 @@ public class FormaPagamentoQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
+        // SELECT minimizado (LGPD): estabelecimento_id e atualizada_em removidos.
         const string sql = """
             SELECT
                 f.id                    AS Id,
-                f.estabelecimento_id    AS EstabelecimentoId,
                 f.nome                  AS Nome,
                 f.padrao                AS Padrao,
                 f.ativo                 AS Ativo,
-                f.criada_em             AS CriadaEm,
-                f.atualizada_em         AS AtualizadaEm
+                f.criada_em             AS CriadaEm
             FROM formas_pagamento f
             WHERE f.estabelecimento_id = @EstabelecimentoId
               AND (@Ativas::bool IS NULL OR f.ativo  = @Ativas::bool)

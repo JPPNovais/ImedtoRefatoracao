@@ -16,10 +16,11 @@ public class AtualizarCategoriaFinanceiraCommandHandler : ICommandHandler<Atuali
         if (!Enum.TryParse<TipoCategoria>(cmd.Tipo, out var tipo))
             throw new BusinessException("Tipo inválido. Use 'Receita' ou 'Despesa'.");
 
-        var categoria = await _repo.ObterPorId(cmd.CategoriaId);
-
+        var categoria = await _repo.ObterPorIdOuNulo(cmd.CategoriaId)
+            ?? throw new BusinessException("Categoria não encontrada.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (categoria.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Categoria não encontrada neste estabelecimento.");
+            throw new BusinessException("Categoria não encontrada.");
 
         categoria.Atualizar(cmd.Nome, tipo);
         await _repo.Salvar(categoria);

@@ -20,10 +20,10 @@ public class FinanceiroQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
+        // SELECT minimizado (LGPD): l.estabelecimento_id removido (vem da rota).
         const string sql = """
             SELECT
                 l.id                    AS Id,
-                l.estabelecimento_id    AS EstabelecimentoId,
                 l.tipo                  AS Tipo,
                 l.descricao             AS Descricao,
                 l.valor                 AS Valor,

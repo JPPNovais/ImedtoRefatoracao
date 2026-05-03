@@ -13,10 +13,11 @@ public class AtualizarFormaPagamentoCommandHandler : ICommandHandler<AtualizarFo
 
     public async Task Handle(AtualizarFormaPagamentoCommand cmd)
     {
-        var forma = await _repo.ObterPorId(cmd.FormaPagamentoId);
-
+        var forma = await _repo.ObterPorIdOuNulo(cmd.FormaPagamentoId)
+            ?? throw new BusinessException("Forma de pagamento não encontrada.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (forma.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Forma de pagamento não encontrada neste estabelecimento.");
+            throw new BusinessException("Forma de pagamento não encontrada.");
 
         forma.Atualizar(cmd.Nome);
         await _repo.Salvar(forma);

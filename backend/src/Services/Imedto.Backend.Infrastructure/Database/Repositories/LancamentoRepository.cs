@@ -17,6 +17,9 @@ public class LancamentoRepository : ILancamentoRepository
         return lancamento;
     }
 
+    public async Task<Lancamento?> ObterPorIdOuNulo(long id) =>
+        await _db.Lancamentos.FindAsync(id);
+
     public async Task Salvar(Lancamento lancamento)
     {
         if (lancamento.Id == 0)

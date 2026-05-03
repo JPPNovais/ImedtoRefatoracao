@@ -18,16 +18,15 @@ public class CategoriaFinanceiraQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
+        // SELECT minimizado (LGPD): estabelecimento_id e atualizada_em removidos.
         const string sql = """
             SELECT
                 c.id                    AS Id,
-                c.estabelecimento_id    AS EstabelecimentoId,
                 c.nome                  AS Nome,
                 c.tipo                  AS Tipo,
                 c.padrao                AS Padrao,
                 c.ativo                 AS Ativo,
-                c.criada_em             AS CriadaEm,
-                c.atualizada_em         AS AtualizadaEm
+                c.criada_em             AS CriadaEm
             FROM categorias_financeiras c
             WHERE c.estabelecimento_id = @EstabelecimentoId
               AND (@Tipo::text   IS NULL OR c.tipo   = @Tipo::text)

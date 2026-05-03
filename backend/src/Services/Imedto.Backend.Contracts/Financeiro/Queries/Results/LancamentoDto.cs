@@ -3,7 +3,7 @@ namespace Imedto.Backend.Contracts.Financeiro.Queries.Results;
 public class LancamentoDto
 {
     public long Id { get; set; }
-    public long EstabelecimentoId { get; set; }
+    // EstabelecimentoId removido (LGPD): vem da rota.
     public string Tipo { get; set; } = string.Empty;
     public string Descricao { get; set; } = string.Empty;
     public decimal Valor { get; set; }
