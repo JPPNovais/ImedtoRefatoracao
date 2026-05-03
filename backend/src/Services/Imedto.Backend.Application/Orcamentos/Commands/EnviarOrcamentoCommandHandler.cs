@@ -16,7 +16,7 @@ public class EnviarOrcamentoCommandHandler : ICommandHandler<EnviarOrcamentoComm
         var orcamento = await _repo.ObterPorIdCompleto(cmd.OrcamentoId);
 
         if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado neste estabelecimento.");
+            throw new BusinessException("Orçamento não encontrado.");
 
         orcamento.Enviar();
         await _repo.Salvar(orcamento);

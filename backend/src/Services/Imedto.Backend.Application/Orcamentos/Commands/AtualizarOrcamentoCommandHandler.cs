@@ -27,7 +27,7 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
     {
         var orcamento = await _repo.ObterPorIdCompleto(cmd.OrcamentoId);
         if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado neste estabelecimento.");
+            throw new BusinessException("Orçamento não encontrado.");
 
         if (cmd.ProcedimentoCirurgicoId is { } procId)
         {

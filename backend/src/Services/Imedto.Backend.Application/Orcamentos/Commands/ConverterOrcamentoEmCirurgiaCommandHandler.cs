@@ -38,7 +38,7 @@ public class ConverterOrcamentoEmCirurgiaCommandHandler : ICommandHandler<Conver
     {
         var orc = await _orcRepo.ObterPorIdCompleto(cmd.OrcamentoId);
         if (orc.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado neste estabelecimento.");
+            throw new BusinessException("Orçamento não encontrado.");
         if (orc.Status != OrcamentoStatus.Aprovado)
             throw new BusinessException("Apenas orçamentos aprovados podem ser convertidos em cirurgia.");
         if (orc.ProcedimentoCirurgicoId is not null && orc.ProcedimentoCirurgicoId != 0)
