@@ -41,10 +41,9 @@ public class ListarReceitasDoPacienteQueryHandlers
         var pagina = query.Pagina < 1 ? 1 : query.Pagina;
         var tamanho = query.TamanhoPagina is < 1 or > 100 ? 20 : query.TamanhoPagina;
 
-        var paciente = await _pacienteRepo.ObterPorIdOuNulo(query.PacienteId);
-        if (paciente is null || paciente.EstabelecimentoId != query.EstabelecimentoId)
-            // Mensagem genérica — não confirma se o paciente existe noutro tenant.
-            throw new BusinessException("Paciente não encontrado.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(query.PacienteId, query.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
         var resultado = await _queryRepo.ListarDoPaciente(
             query.PacienteId, query.EstabelecimentoId, pagina, tamanho);

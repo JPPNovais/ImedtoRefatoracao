@@ -34,10 +34,9 @@ public class EmitirReceitaCommandHandler : ICommandHandler<EmitirReceitaCommand>
 
     public async Task Handle(EmitirReceitaCommand cmd)
     {
-        // Defense-in-depth: paciente pertence ao tenant da request.
-        var paciente = await _pacienteRepo.ObterPorId(cmd.PacienteId);
-        if (paciente.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
         if (paciente.EstaDeletado)
             throw new BusinessException("Paciente deletado — não é possível emitir receita.");
 

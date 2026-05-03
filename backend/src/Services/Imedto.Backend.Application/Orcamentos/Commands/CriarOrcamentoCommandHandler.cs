@@ -32,10 +32,9 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
 
     public async Task Handle(CriarOrcamentoCommand cmd)
     {
-        // Tenant guard — defesa contra cross-tenant via API.
-        var paciente = await _pacienteRepo.ObterPorId(cmd.PacienteId);
-        if (paciente.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
         // Procedimento cirúrgico (raiz, opcional) precisa pertencer ao mesmo estab + paciente.
         if (cmd.ProcedimentoCirurgicoId is { } procId)

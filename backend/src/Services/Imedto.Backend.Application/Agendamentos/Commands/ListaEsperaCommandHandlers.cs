@@ -21,9 +21,9 @@ public class AdicionarListaEsperaCommandHandler : ICommandHandler<AdicionarLista
 
     public async Task Handle(AdicionarListaEsperaCommand cmd)
     {
-        var paciente = await _pacienteRepo.ObterPorId(cmd.PacienteId);
-        if (paciente.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
         if (!Enum.TryParse<ListaEsperaPrioridade>(cmd.Prioridade, ignoreCase: true, out var prioridade))
             throw new BusinessException($"Prioridade '{cmd.Prioridade}' inválida.");
@@ -53,8 +53,9 @@ public class RemoverListaEsperaCommandHandler : ICommandHandler<RemoverListaEspe
     {
         var entity = await _repo.ObterPorIdOuNulo(cmd.Id)
             ?? throw new BusinessException("Entrada da lista de espera não encontrada.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (entity.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Entrada não pertence a este estabelecimento.");
+            throw new BusinessException("Entrada da lista de espera não encontrada.");
         await _repo.Remover(entity);
     }
 }

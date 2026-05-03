@@ -32,21 +32,19 @@ public class PlanejarProcedimentoCommandHandler : ICommandHandler<PlanejarProced
 
     public async Task Handle(PlanejarProcedimentoCommand cmd)
     {
-        // Tenant guard — paciente, prontuário e agendamento (quando informado) precisam
-        // pertencer ao mesmo estabelecimento. Defesa contra cross-tenant.
-        var paciente = await _pacienteRepo.ObterPorId(cmd.PacienteId);
-        if (paciente.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Paciente não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
 
         var prontuario = await _prontuarioRepo.ObterPorId(cmd.ProntuarioId);
         if (prontuario.EstabelecimentoId != cmd.EstabelecimentoId || prontuario.PacienteId != cmd.PacienteId)
-            throw new BusinessException("Prontuário não pertence ao paciente neste estabelecimento.");
+            throw new BusinessException("Prontuário não encontrado.");
 
         if (cmd.AgendamentoId is { } ag)
         {
             var agendamento = await _agendamentoRepo.ObterPorId(ag);
             if (agendamento.EstabelecimentoId != cmd.EstabelecimentoId || agendamento.PacienteId != cmd.PacienteId)
-                throw new BusinessException("Agendamento não pertence ao paciente neste estabelecimento.");
+                throw new BusinessException("Agendamento não encontrado.");
         }
 
         var equipe = cmd.EquipeInicial.Select(m =>

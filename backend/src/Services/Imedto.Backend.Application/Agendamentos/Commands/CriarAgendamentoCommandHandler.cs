@@ -32,9 +32,9 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
 
     public async Task Handle(CriarAgendamentoCommand cmd)
     {
-        var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId);
-        if (paciente is null || paciente.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Paciente não encontrado neste estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Paciente não encontrado.");
         if (paciente.DeletadoEm.HasValue)
             throw new BusinessException("Não é possível agendar para um paciente inativo.");
 
