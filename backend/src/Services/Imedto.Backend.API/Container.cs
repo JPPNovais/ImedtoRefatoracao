@@ -361,7 +361,6 @@ public static class Container
         services.AddScoped<ListarReceitasDoPacienteQueryHandlers>();
         services.AddScoped<ObterReceitaQueryHandlers>();
         services.AddScoped<ObterConfiguracaoReceitaQueryHandlers>();
-        services.AddScoped<ListarMedicamentosFavoritosQueryHandlers>();
 
         // Modelos de Permissão
         services.AddScoped<CriarModeloPermissaoCommandHandler>();
@@ -798,7 +797,6 @@ public static class Container
             bus.Register<ListarReceitasDoPacienteQuery, PaginaReceitasDto, ListarReceitasDoPacienteQueryHandlers>();
             bus.Register<ObterReceitaQuery, ReceitaDto, ObterReceitaQueryHandlers>();
             bus.Register<ObterConfiguracaoReceitaQuery, ConfiguracaoReceitaDto, ObterConfiguracaoReceitaQueryHandlers>();
-            bus.Register<ListarMedicamentosFavoritosQuery, IEnumerable<MedicamentoFavoritoDto>, ListarMedicamentosFavoritosQueryHandlers>();
             // Item 3.2 — Exame físico (uma classe ObterExameFisicoQueryHandlers implementa as 4 queries; auditam acesso → scoped).
             bus.Register<ObterExameFisicoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();
             bus.Register<ObterExameFisicoPorEvolucaoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();

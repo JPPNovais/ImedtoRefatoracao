@@ -15,7 +15,8 @@ public interface IReceitaQueryRepository
     Task<PaginaReceitasDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
     Task<ReceitaDto?> ObterCompleta(long receitaId, long estabelecimentoId);
     Task<ConfiguracaoReceitaDto?> ObterConfiguracao(long estabelecimentoId);
-    Task<IEnumerable<MedicamentoFavoritoDto>> ListarFavoritos(Guid profissionalUsuarioId, long estabelecimentoId, int top);
+    // ListarFavoritos removido — endpoint GET /api/receitas/medicamentos-favoritos
+    // nao tinha consumidor no front. Decisao Fase 1.
     Task<int> ContarEmitidasNoMes(long estabelecimentoId, int ano, int mes);
 }
 
@@ -25,7 +26,6 @@ public interface IReceitaQueryRepository
 /// <list type="bullet">
 ///   <item><see cref="ListarDoPaciente"/> — paginada, sem itens (para a lista resumida).</item>
 ///   <item><see cref="ObterCompleta"/> — receita + itens via multi-mapping (1 + 1 round-trips).</item>
-///   <item><see cref="ListarFavoritos"/> — ranking ordenado por uso/recência.</item>
 ///   <item><see cref="ContarEmitidasNoMes"/> — indicador de volume.</item>
 /// </list>
 /// </summary>
@@ -176,35 +176,6 @@ public class ReceitaQueryRepository : IReceitaQueryRepository
         return await conn.QuerySingleOrDefaultAsync<ConfiguracaoReceitaDto>(sql, new
         {
             EstabelecimentoId = estabelecimentoId
-        });
-    }
-
-    public async Task<IEnumerable<MedicamentoFavoritoDto>> ListarFavoritos(
-        Guid profissionalUsuarioId,
-        long estabelecimentoId,
-        int top)
-    {
-        // Ranking: mais usados primeiro; em empate, o mais recente vence.
-        const string sql = """
-            SELECT  id                  AS Id,
-                    medicamento         AS Medicamento,
-                    posologia           AS Posologia,
-                    via_administracao   AS Via,
-                    uso_count           AS UsoCount,
-                    ultimo_uso          AS UltimoUso
-            FROM    public.medicamentos_favoritos
-            WHERE   profissional_usuario_id = @ProfissionalUsuarioId
-              AND   estabelecimento_id = @EstabelecimentoId
-            ORDER BY uso_count DESC, ultimo_uso DESC NULLS LAST
-            LIMIT   @Top
-            """;
-
-        await using var conn = new NpgsqlConnection(_connStr);
-        return await conn.QueryAsync<MedicamentoFavoritoDto>(sql, new
-        {
-            ProfissionalUsuarioId = profissionalUsuarioId,
-            EstabelecimentoId = estabelecimentoId,
-            Top = top
         });
     }
 

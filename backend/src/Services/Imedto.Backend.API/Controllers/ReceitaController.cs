@@ -26,7 +26,6 @@ namespace Imedto.Backend.API.Controllers;
 /// - <c>GET  /api/pacientes/{pacienteId}/receitas</c> — lista paginada.
 /// - <c>GET  /api/receitas/{id}/pdf</c> — download PDF (501 enquanto Wave 4 não chega).
 /// - <c>GET/PUT /api/receitas/configuracao</c> — config do estabelecimento (só dono no PUT).
-/// - <c>GET  /api/receitas/medicamentos-favoritos</c> — ranking pessoal do profissional.
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
@@ -262,20 +261,9 @@ public class ReceitaController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Ranking pessoal de medicamentos favoritos do profissional autenticado.</summary>
-    [HttpGet("api/receitas/medicamentos-favoritos")]
-    [ProducesResponseType(typeof(IEnumerable<MedicamentoFavoritoDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListarFavoritos([FromQuery] int top = 20)
-    {
-        var lista = await _requestBus.Query<ListarMedicamentosFavoritosQuery, IEnumerable<MedicamentoFavoritoDto>>(
-            new ListarMedicamentosFavoritosQuery
-            {
-                ProfissionalUsuarioId = _tenant.UsuarioId,
-                EstabelecimentoId = _tenant.EstabelecimentoId,
-                Top = top
-            });
-        return Ok(lista);
-    }
+    // ListarFavoritos removido (decisao Fase 1): endpoint GET sem consumidor no front.
+    // A escrita (registrar uso de medicamento favorito) continua via EmitirReceitaCommandHandler
+    // -> IMedicamentoFavoritoRepository.RegistrarUso. Recriar o GET quando UI for implementada.
 }
 
 public record EmitirReceitaRequest(
