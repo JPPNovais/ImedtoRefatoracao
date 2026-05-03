@@ -24,7 +24,12 @@ public class CriarEstabelecimentoCommandHandler : ICommandHandler<CriarEstabelec
 
     public async Task Handle(CriarEstabelecimentoCommand command)
     {
-        var usuario = await _usuarioRepository.ObterPorId(command.DonoUsuarioId);
+        // Defesa minima: nunca aceitar Guid.Empty.
+        if (command.DonoUsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário não identificado.");
+
+        var usuario = await _usuarioRepository.ObterPorIdOuNulo(command.DonoUsuarioId)
+            ?? throw new BusinessException("Usuário não encontrado.");
 
         // Regra: CPF do criador é obrigatório — só quem completou o onboarding pode criar.
         if (string.IsNullOrWhiteSpace(usuario.Cpf))

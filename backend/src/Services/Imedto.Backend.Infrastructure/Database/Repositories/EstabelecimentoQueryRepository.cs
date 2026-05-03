@@ -27,9 +27,10 @@ public class EstabelecimentoQueryRepository
     /// </summary>
     public async Task<IEnumerable<EstabelecimentoDto>> ListarPorUsuario(Guid usuarioId)
     {
+        // SELECT minimizado (LGPD): dono_usuario_id removido (Guid auth interno;
+        // front diferencia Dono via PapelDoUsuario).
         const string sql = """
             SELECT  e.id                          AS Id,
-                    e.dono_usuario_id             AS DonoUsuarioId,
                     e.nome_fantasia               AS NomeFantasia,
                     e.razao_social                AS RazaoSocial,
                     e.cnpj                        AS Cnpj,
@@ -48,7 +49,6 @@ public class EstabelecimentoQueryRepository
             WHERE   e.dono_usuario_id = @UsuarioId
             UNION
             SELECT  e.id,
-                    e.dono_usuario_id,
                     e.nome_fantasia,
                     e.razao_social,
                     e.cnpj,
@@ -76,7 +76,6 @@ public class EstabelecimentoQueryRepository
         return rows.Select(r => new EstabelecimentoDto
         {
             Id = r.Id,
-            DonoUsuarioId = r.DonoUsuarioId,
             NomeFantasia = r.NomeFantasia,
             RazaoSocial = r.RazaoSocial,
             Cnpj = r.Cnpj,
@@ -153,7 +152,6 @@ public class EstabelecimentoQueryRepository
     private class EstabelecimentoLinha
     {
         public long Id { get; set; }
-        public Guid DonoUsuarioId { get; set; }
         public string NomeFantasia { get; set; }
         public string RazaoSocial { get; set; }
         public string Cnpj { get; set; }

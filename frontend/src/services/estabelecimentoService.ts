@@ -15,7 +15,7 @@ export interface DataBloqueada {
 
 export interface Estabelecimento {
     id: number
-    donoUsuarioId: string
+    // donoUsuarioId removido: backend nao envia mais (LGPD - minimizacao). Use papelDoUsuario.
     nomeFantasia: string
     razaoSocial: string | null
     cnpj: string | null
