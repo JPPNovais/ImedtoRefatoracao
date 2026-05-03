@@ -2,7 +2,7 @@ import httpClient from "./httpClient"
 
 export interface ItemInventario {
     id: number
-    estabelecimentoId: number
+    // estabelecimentoId e atualizadoEm removidos: backend nao envia mais (LGPD - minimizacao).
     codigo: string
     nome: string
     categoria: string
@@ -13,7 +13,6 @@ export interface ItemInventario {
     estoqueAbaixoMinimo: boolean
     ativo: boolean
     criadoEm: string
-    atualizadoEm: string | null
 }
 
 export interface MovimentacaoEstoque {

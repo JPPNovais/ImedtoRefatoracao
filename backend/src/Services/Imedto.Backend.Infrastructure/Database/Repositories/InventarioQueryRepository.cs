@@ -18,10 +18,11 @@ public class InventarioQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
+        // SELECT minimizado (LGPD): estabelecimento_id e atualizado_em removidos —
+        // front nao consome (so estavam na interface TS).
         const string sql = """
             SELECT
                 i.id                                        AS Id,
-                i.estabelecimento_id                        AS EstabelecimentoId,
                 i.codigo                                    AS Codigo,
                 i.nome                                      AS Nome,
                 i.categoria                                 AS Categoria,
@@ -31,8 +32,7 @@ public class InventarioQueryRepository
                 i.custo_medio                               AS CustoMedio,
                 (i.quantidade_atual < i.quantidade_minima)  AS EstoqueAbaixoMinimo,
                 i.ativo                                     AS Ativo,
-                i.criado_em                                 AS CriadoEm,
-                i.atualizado_em                             AS AtualizadoEm
+                i.criado_em                                 AS CriadoEm
             FROM itens_inventario i
             WHERE i.estabelecimento_id = @EstabelecimentoId
               AND (@Categoria::text          IS NULL OR i.categoria = @Categoria::text)

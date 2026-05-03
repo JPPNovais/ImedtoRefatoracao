@@ -23,9 +23,11 @@ public class RegistrarMovimentacaoEstoqueCommandHandler : ICommandHandler<Regist
 
     public async Task Handle(RegistrarMovimentacaoEstoqueCommand cmd)
     {
-        var item = await _repo.ObterPorId(cmd.ItemInventarioId);
+        var item = await _repo.ObterPorIdOuNulo(cmd.ItemInventarioId)
+            ?? throw new BusinessException("Item não encontrado.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (item.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Item não encontrado neste estabelecimento.");
+            throw new BusinessException("Item não encontrado.");
 
         MovimentacaoEstoque mov;
         if (cmd.Tipo == nameof(TipoMovimentacaoEstoque.Entrada))
