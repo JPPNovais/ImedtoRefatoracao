@@ -14,16 +14,16 @@ public class ModeloPermissaoQueryRepository
     public async Task<IEnumerable<ModeloPermissaoDto>> ListarPorEstabelecimento(long estabelecimentoId)
     {
         await using var conn = new NpgsqlConnection(_connStr);
+        // SELECT minimizado (LGPD): estabelecimento_id e atualizado_em removidos
+        // — front nao consome (so estavam na interface TS sem uso real).
         const string sql = """
             SELECT
                 id                  AS Id,
-                estabelecimento_id  AS EstabelecimentoId,
                 nome                AS Nome,
                 tipo_acesso         AS TipoAcesso,
                 permissoes::text    AS PermissoesJson,
                 eh_padrao           AS EhPadrao,
-                criado_em           AS CriadoEm,
-                atualizado_em       AS AtualizadoEm
+                criado_em           AS CriadoEm
             FROM public.modelo_permissao_estabelecimento
             WHERE estabelecimento_id = @EstabelecimentoId
             ORDER BY eh_padrao DESC, nome
@@ -34,13 +34,11 @@ public class ModeloPermissaoQueryRepository
         return rows.Select(r => new ModeloPermissaoDto
         {
             Id = r.Id,
-            EstabelecimentoId = r.EstabelecimentoId,
             Nome = r.Nome,
             TipoAcesso = r.TipoAcesso,
             Permissoes = ParsePermissoes(r.PermissoesJson),
             EhPadrao = r.EhPadrao,
             CriadoEm = r.CriadoEm,
-            AtualizadoEm = r.AtualizadoEm,
         });
     }
 
@@ -64,12 +62,10 @@ public class ModeloPermissaoQueryRepository
     private class ModeloPermissaoLinha
     {
         public long Id { get; set; }
-        public long EstabelecimentoId { get; set; }
         public string Nome { get; set; } = string.Empty;
         public string TipoAcesso { get; set; } = string.Empty;
         public string? PermissoesJson { get; set; }
         public bool EhPadrao { get; set; }
         public DateTime CriadoEm { get; set; }
-        public DateTime? AtualizadoEm { get; set; }
     }
 }

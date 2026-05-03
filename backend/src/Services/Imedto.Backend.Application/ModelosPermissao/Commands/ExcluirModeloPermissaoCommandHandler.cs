@@ -14,10 +14,12 @@ public class ExcluirModeloPermissaoCommandHandler : ICommandHandler<ExcluirModel
 
     public async Task Handle(ExcluirModeloPermissaoCommand cmd)
     {
-        var modelo = await _repo.ObterPorId(cmd.ModeloId);
+        var modelo = await _repo.ObterPorIdOuNulo(cmd.ModeloId)
+            ?? throw new BusinessException("Modelo não encontrado.");
 
+        // Defense-in-depth multi-tenant: mensagem padronizada.
         if (modelo.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Modelo não encontrado neste estabelecimento.");
+            throw new BusinessException("Modelo não encontrado.");
 
         modelo.GarantirPodeExcluir();
 

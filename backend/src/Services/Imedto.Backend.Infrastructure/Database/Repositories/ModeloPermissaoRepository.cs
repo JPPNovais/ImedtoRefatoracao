@@ -20,6 +20,9 @@ public class ModeloPermissaoRepository : IModeloPermissaoRepository
         return modelo;
     }
 
+    public async Task<ModeloPermissaoEstabelecimento?> ObterPorIdOuNulo(long id) =>
+        await _context.ModelosPermissao.FindAsync(id);
+
     public async Task<ModeloPermissaoEstabelecimento> ObterPadraoDoEstabelecimento(long estabelecimentoId) =>
         await _context.ModelosPermissao
             .FirstOrDefaultAsync(m => m.EstabelecimentoId == estabelecimentoId && m.EhPadrao);

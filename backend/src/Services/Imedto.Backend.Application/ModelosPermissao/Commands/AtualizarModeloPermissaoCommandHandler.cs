@@ -17,10 +17,12 @@ public class AtualizarModeloPermissaoCommandHandler : ICommandHandler<AtualizarM
         if (!Enum.TryParse<TipoAcessoModelo>(cmd.TipoAcesso, out var tipoAcesso))
             throw new BusinessException($"TipoAcesso inválido: '{cmd.TipoAcesso}'.");
 
-        var modelo = await _repo.ObterPorId(cmd.ModeloId);
+        var modelo = await _repo.ObterPorIdOuNulo(cmd.ModeloId)
+            ?? throw new BusinessException("Modelo não encontrado.");
 
+        // Defense-in-depth multi-tenant: mensagem padronizada (nao vaza existencia).
         if (modelo.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Modelo não encontrado neste estabelecimento.");
+            throw new BusinessException("Modelo não encontrado.");
 
         // O domínio já valida que modelos padrão não podem ser editados.
         modelo.Atualizar(cmd.Nome, tipoAcesso, cmd.Permissoes);

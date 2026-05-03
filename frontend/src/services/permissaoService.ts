@@ -2,13 +2,12 @@ import httpClient from "./httpClient"
 
 export interface ModeloPermissao {
     id: number
-    estabelecimentoId: number
+    // estabelecimentoId e atualizadoEm removidos: backend nao envia mais (LGPD - minimizacao).
     nome: string
     tipoAcesso: "Profissional" | "Recepcionista"
     permissoes: string[]
     ehPadrao: boolean
     criadoEm: string
-    atualizadoEm: string | null
 }
 
 export interface SalvarModeloPayload {
