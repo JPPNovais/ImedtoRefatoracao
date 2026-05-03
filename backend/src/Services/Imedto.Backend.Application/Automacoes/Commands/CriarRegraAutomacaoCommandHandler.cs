@@ -25,7 +25,8 @@ public class CriarRegraAutomacaoCommandHandler : ICommandHandler<CriarRegraAutom
 
     public async Task Handle(CriarRegraAutomacaoCommand command)
     {
-        var estab = await _estabelecimentoRepo.ObterPorId(command.EstabelecimentoId);
+        var estab = await _estabelecimentoRepo.ObterPorIdOuNulo(command.EstabelecimentoId)
+            ?? throw new BusinessException("Estabelecimento não encontrado.");
         if (estab.DonoUsuarioId != command.SolicitanteUsuarioId)
             throw new BusinessException("Apenas o dono do estabelecimento pode criar regras de automação.");
 

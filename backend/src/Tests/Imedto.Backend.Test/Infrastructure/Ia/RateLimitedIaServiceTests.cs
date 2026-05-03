@@ -407,7 +407,9 @@ public class RateLimitedIaServiceTests
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         await Task.Yield();
+        // 'if (false) yield break' satisfaz o compilador de IAsyncEnumerable sem CS0162
+        // (codigo inalcancavel). Mensagem.Length nunca eh < 0, mas o compilador nao prova.
+        if (mensagem.Length < 0) yield break;
         throw new InvalidOperationException(mensagem);
-        yield break; // unreachable — satisfaz o compilador
     }
 }

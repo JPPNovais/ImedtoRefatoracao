@@ -39,7 +39,8 @@ public class AtivarRegraAutomacaoCommandHandler : ICommandHandler<AtivarRegraAut
         if (regra.EstabelecimentoId != estabelecimentoId)
             throw new BusinessException("Regra não encontrada.");
 
-        var estab = await estabRepo.ObterPorId(estabelecimentoId);
+        var estab = await estabRepo.ObterPorIdOuNulo(estabelecimentoId)
+            ?? throw new BusinessException("Estabelecimento não encontrado.");
         if (estab.DonoUsuarioId != solicitanteId)
             throw new BusinessException("Apenas o dono do estabelecimento pode alterar regras de automação.");
 

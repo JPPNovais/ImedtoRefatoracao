@@ -83,7 +83,10 @@ public class AnthropicIaService : IIaService
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
-        while (!reader.EndOfStream && !ct.IsCancellationRequested)
+        // Antes usavamos reader.EndOfStream (CA2024) — isso eh um peek sincrono que
+        // pode bloquear a thread em stream de rede. Iteramos por ReadLineAsync que ja
+        // sinaliza fim via null retornado.
+        while (!ct.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(ct);
             if (line == null) break;

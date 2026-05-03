@@ -28,7 +28,8 @@ public class AtualizarRegraAutomacaoCommandHandler : ICommandHandler<AtualizarRe
         if (regra.EstabelecimentoId != command.EstabelecimentoId)
             throw new BusinessException("Regra não encontrada.");
 
-        var estab = await _estabelecimentoRepo.ObterPorId(command.EstabelecimentoId);
+        var estab = await _estabelecimentoRepo.ObterPorIdOuNulo(command.EstabelecimentoId)
+            ?? throw new BusinessException("Estabelecimento não encontrado.");
         if (estab.DonoUsuarioId != command.SolicitanteUsuarioId)
             throw new BusinessException("Apenas o dono do estabelecimento pode editar regras de automação.");
 
