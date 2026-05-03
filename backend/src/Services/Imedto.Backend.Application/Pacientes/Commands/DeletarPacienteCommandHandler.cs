@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Imedto.Backend.Contracts.Pacientes.Commands;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -9,14 +8,14 @@ namespace Imedto.Backend.Application.Pacientes.Commands;
 public class DeletarPacienteCommandHandler : ICommandHandler<DeletarPacienteCommand>
 {
     private readonly IPacienteRepository _repository;
-    private readonly ILogger<DeletarPacienteCommandHandler> _logger;
+    private readonly IPacienteAcessoLogService _acessoLog;
 
     public DeletarPacienteCommandHandler(
         IPacienteRepository repository,
-        ILogger<DeletarPacienteCommandHandler> logger)
+        IPacienteAcessoLogService acessoLog)
     {
         _repository = repository;
-        _logger = logger;
+        _acessoLog = acessoLog;
     }
 
     public async Task Handle(DeletarPacienteCommand command)
@@ -29,9 +28,9 @@ public class DeletarPacienteCommandHandler : ICommandHandler<DeletarPacienteComm
         paciente.MarcarComoDeletado(command.SolicitanteUsuarioId);
         await _repository.Salvar(paciente);
 
-        // Audit trail mínima (sem PII no log — só IDs).
-        _logger.LogInformation(
-            "LGPD: paciente deletado. Paciente={PacienteId}, Estabelecimento={EstabelecimentoId}, Solicitante={UsuarioId}",
-            command.PacienteId, command.EstabelecimentoId, command.SolicitanteUsuarioId);
+        // Audit LGPD persistido em paciente_acesso_log (substitui o log
+        // estruturado anterior — agora temos trilha imutavel em tabela).
+        await _acessoLog.RegistrarAsync(
+            command.PacienteId, command.SolicitanteUsuarioId, command.EstabelecimentoId, TipoAcessoPaciente.Exclusao);
     }
 }

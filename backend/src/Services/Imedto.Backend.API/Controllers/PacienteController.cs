@@ -63,7 +63,8 @@ public class PacienteController : ControllerBase
             new ObterPacienteQuery
             {
                 PacienteId = id,
-                EstabelecimentoId = _tenant.EstabelecimentoId
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId
             });
 
         if (dto is null) return NotFound();
@@ -107,6 +108,7 @@ public class PacienteController : ControllerBase
         {
             PacienteId = id,
             EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId,
             NomeCompleto = request.NomeCompleto,
             Cpf = request.Cpf,
             DataNascimento = request.DataNascimento,

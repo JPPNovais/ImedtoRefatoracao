@@ -45,6 +45,7 @@ public class AppDbContext : DbContext
     public DbSet<VinculoProfissionalEstabelecimento> Vinculos => Set<VinculoProfissionalEstabelecimento>();
     public DbSet<SolicitacaoVinculo> SolicitacoesVinculo => Set<SolicitacaoVinculo>();
     public DbSet<Paciente> Pacientes => Set<Paciente>();
+    public DbSet<PacienteAcessoLog> PacienteAcessoLogs => Set<PacienteAcessoLog>();
     public DbSet<ModeloDeProntuario> ModelosDeProntuario => Set<ModeloDeProntuario>();
     public DbSet<ProntuarioVariavelPool> ProntuarioVariaveisPool => Set<ProntuarioVariavelPool>();
     public DbSet<Prontuario> Prontuarios => Set<Prontuario>();

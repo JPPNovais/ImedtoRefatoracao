@@ -63,6 +63,7 @@ public static class InfrastructureExtensions
 
         // Pacientes
         services.AddScoped<Domain.Pacientes.IPacienteRepository, Database.Repositories.PacienteRepository>();
+        services.AddScoped<Domain.Pacientes.IPacienteAcessoLogService, Database.Repositories.PacienteAcessoLogService>();
 
         // Prontuários (templates + pool + prontuário + evoluções)
         services.AddScoped<Domain.Prontuarios.IModeloDeProntuarioRepository, Database.Repositories.ModeloDeProntuarioRepository>();

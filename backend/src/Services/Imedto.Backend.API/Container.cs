@@ -316,8 +316,9 @@ public static class Container
         services.AddScoped<AtualizarPacienteCommandHandler>();
         services.AddScoped<DeletarPacienteCommandHandler>();
         services.AddSingleton<ListarPacientesQueryHandlers>();
-        services.AddSingleton<ObterPacienteQueryHandlers>();
-        services.AddSingleton<ExportarDadosPacienteQueryHandlers>();
+        // Scoped: Obter/Export auditam acesso via IPacienteAcessoLogService (LGPD).
+        services.AddScoped<ObterPacienteQueryHandlers>();
+        services.AddScoped<ExportarDadosPacienteQueryHandlers>();
         services.AddScoped<PacienteCadastradoEventHandler>();
         services.AddSingleton<PacienteQueryRepository>();
 

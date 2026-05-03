@@ -15,15 +15,18 @@ public class AnonimizacaoService : IAnonimizacaoService
 {
     private readonly IPacienteRepository _pacientes;
     private readonly ILgpdAnonimizacaoRepository _anonimizacoes;
+    private readonly IPacienteAcessoLogService _acessoLog;
     private readonly ILogger<AnonimizacaoService> _logger;
 
     public AnonimizacaoService(
         IPacienteRepository pacientes,
         ILgpdAnonimizacaoRepository anonimizacoes,
+        IPacienteAcessoLogService acessoLog,
         ILogger<AnonimizacaoService> logger)
     {
         _pacientes = pacientes;
         _anonimizacoes = anonimizacoes;
+        _acessoLog = acessoLog;
         _logger = logger;
     }
 
@@ -57,11 +60,18 @@ public class AnonimizacaoService : IAnonimizacaoService
             return;
         }
 
+        var estabelecimentoId = paciente.EstabelecimentoId;
         paciente.Anonimizar(executadoPor);
         await _pacientes.Salvar(paciente);
 
         var registro = LgpdAnonimizacao.Registrar("pacientes", pacienteId, motivo, executadoPor);
         await _anonimizacoes.Salvar(registro);
+
+        // Audit LGPD em paciente_acesso_log: anonimizacao eh evento sensivel.
+        // Quando 'executadoPor' eh null (job de retencao), usa Guid.Empty como
+        // marcador "operacao do sistema".
+        await _acessoLog.RegistrarAsync(
+            pacienteId, executadoPor ?? Guid.Empty, estabelecimentoId, TipoAcessoPaciente.Anonimizacao);
 
         // Sem PII no log — apenas o id e o motivo.
         _logger.LogInformation(

@@ -8,10 +8,14 @@ namespace Imedto.Backend.Application.Pacientes.Commands;
 public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPacienteCommand>
 {
     private readonly IPacienteRepository _repository;
+    private readonly IPacienteAcessoLogService _acessoLog;
 
-    public AtualizarPacienteCommandHandler(IPacienteRepository repository)
+    public AtualizarPacienteCommandHandler(
+        IPacienteRepository repository,
+        IPacienteAcessoLogService acessoLog)
     {
         _repository = repository;
+        _acessoLog = acessoLog;
     }
 
     public async Task Handle(AtualizarPacienteCommand command)
@@ -42,5 +46,10 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
             command.Observacoes);
 
         await _repository.Salvar(paciente);
+
+        // Audit LGPD: edicao de dados pessoais. SolicitanteUsuarioId vem do JWT
+        // (controller seta), entao este eh o usuario que efetivamente fez a edicao.
+        await _acessoLog.RegistrarAsync(
+            command.PacienteId, command.SolicitanteUsuarioId, command.EstabelecimentoId, TipoAcessoPaciente.Edicao);
     }
 }

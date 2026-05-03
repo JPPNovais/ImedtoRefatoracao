@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging;
 using Imedto.Backend.Contracts.Pacientes.Queries;
 using Imedto.Backend.Contracts.Pacientes.Queries.Results;
+using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -12,18 +12,20 @@ namespace Imedto.Backend.Application.Pacientes.Queries;
 /// + metadados de tratamento (cadastro/atualizacao/exclusao/anonimizacao). Nas fases
 /// de Prontuário/Agenda/Financeiro esse handler sera ampliado para agregar todos os
 /// dados vinculados.
+///
+/// Scoped: depende de IPacienteAcessoLogService (audit LGPD).
 /// </summary>
 public class ExportarDadosPacienteQueryHandlers : IRequestHandler<ExportarDadosPacienteQuery, PacienteExportLgpdDto>
 {
     private readonly PacienteQueryRepository _queryRepository;
-    private readonly ILogger<ExportarDadosPacienteQueryHandlers> _logger;
+    private readonly IPacienteAcessoLogService _acessoLog;
 
     public ExportarDadosPacienteQueryHandlers(
         PacienteQueryRepository queryRepository,
-        ILogger<ExportarDadosPacienteQueryHandlers> logger)
+        IPacienteAcessoLogService acessoLog)
     {
         _queryRepository = queryRepository;
-        _logger = logger;
+        _acessoLog = acessoLog;
     }
 
     public async Task<PacienteExportLgpdDto> Handle(ExportarDadosPacienteQuery query)
@@ -31,11 +33,9 @@ public class ExportarDadosPacienteQueryHandlers : IRequestHandler<ExportarDadosP
         var paciente = await _queryRepository.ObterParaExportLgpd(query.PacienteId, query.EstabelecimentoId)
             ?? throw new BusinessException("Paciente não encontrado.");
 
-        // LGPD: log estruturado do export — so IDs (sem PII). E indice de auditoria
-        // ate o PacienteAcessoLog dedicado ser criado (follow-up).
-        _logger.LogInformation(
-            "LGPD: export solicitado. Paciente={PacienteId}, Estabelecimento={EstabelecimentoId}",
-            query.PacienteId, query.EstabelecimentoId);
+        // Audit LGPD obrigatorio (Art. 37): export de dados pessoais eh evento sensivel.
+        await _acessoLog.RegistrarAsync(
+            query.PacienteId, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoPaciente.Export);
 
         return new PacienteExportLgpdDto
         {

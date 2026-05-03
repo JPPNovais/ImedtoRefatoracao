@@ -12,4 +12,6 @@ public class ExportarDadosPacienteQuery : IQuery<PacienteExportLgpdDto>
 {
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
+    /// <summary>Audit LGPD: registrar quem disparou o export.</summary>
+    public Guid SolicitanteUsuarioId { get; set; }
 }
