@@ -35,12 +35,16 @@ public class PacienteQueryRepository
             : new string(buscaSanitizada.Where(char.IsDigit).ToArray());
         if (string.IsNullOrEmpty(buscaNumerica)) buscaNumerica = null;
 
+        // Para usar o indice GIN trigram (ix_pacientes_nome_completo_trgm — ver migration
+        // 20260503004122_pacientes_indice_trigram_nome.sql), o ILIKE precisa comparar a
+        // EXPRESSAO indexada nos dois lados: imutable_unaccent(lower(nome_completo)).
+        // Sem isso, o planner faz seq scan filtrado pelo estabelecimento_id (B-tree).
         const string sqlCount = """
             SELECT count(*)
             FROM   public.pacientes
             WHERE  estabelecimento_id = @EstabelecimentoId
               AND  deletado_em IS NULL
-              AND  (@Busca::text IS NULL OR nome_completo ILIKE '%' || @Busca || '%'
+              AND  (@Busca::text IS NULL OR public.imutable_unaccent(lower(nome_completo)) ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%'
                                     OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%'))
             """;
 
@@ -54,7 +58,7 @@ public class PacienteQueryRepository
             FROM    public.pacientes
             WHERE   estabelecimento_id = @EstabelecimentoId
               AND   deletado_em IS NULL
-              AND   (@Busca IS NULL OR nome_completo ILIKE '%' || @Busca || '%'
+              AND   (@Busca IS NULL OR public.imutable_unaccent(lower(nome_completo)) ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%'
                                      OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%'))
             ORDER BY nome_completo
             LIMIT  @Tamanho
