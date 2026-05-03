@@ -6,7 +6,7 @@ namespace Imedto.Backend.SharedKernel.Domain;
 /// Classe base para entidades de domínio com tipo de ID parametrizável.
 /// Use <see cref="Entity{TId}"/> quando o ID for UUID (<c>Guid</c>) ou outro tipo não-inteiro.
 /// </summary>
-public abstract class Entity<TId>
+public abstract class Entity<TId> : IDomainEventCarrier
 {
     public virtual TId Id { get; protected set; }
 

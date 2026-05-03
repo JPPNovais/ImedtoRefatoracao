@@ -41,6 +41,7 @@ public static class InfrastructureExtensions
             options.AddInterceptors(sp.GetRequiredService<SoftDeleteInterceptor>());
         });
         services.AddScoped<IUnitOfWorkFactory, UnitOfWorkFactory>();
+        services.AddScoped<Imedto.Backend.SharedKernel.Domain.IDomainEventDispatcher, Database.EfDomainEventDispatcher>();
 
         // Connection string disponível para query repositories (Dapper).
         services.AddSingleton(new AppReadConnectionString(connectionString));
