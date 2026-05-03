@@ -20,6 +20,9 @@ public class VinculoRepository : IVinculoRepository
         return v;
     }
 
+    public async Task<VinculoProfissionalEstabelecimento?> ObterPorIdOuNulo(long id) =>
+        await _context.Vinculos.FindAsync(id);
+
     public async Task<VinculoProfissionalEstabelecimento> ObterVinculoAtivoOuPendente(Guid profissionalUsuarioId, long estabelecimentoId) =>
         await _context.Vinculos
             .FirstOrDefaultAsync(v =>

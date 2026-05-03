@@ -24,10 +24,12 @@ public class RecusarSolicitacaoVinculoCommandHandler : ICommandHandler<RecusarSo
 
     public async Task Handle(RecusarSolicitacaoVinculoCommand command)
     {
-        var solicitacao = await _solicitacaoRepo.ObterPorId(command.SolicitacaoId);
+        var solicitacao = await _solicitacaoRepo.ObterPorIdOuNulo(command.SolicitacaoId)
+            ?? throw new BusinessException("Solicitação não encontrada.");
 
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (solicitacao.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Solicitação não pertence a este estabelecimento.");
+            throw new BusinessException("Solicitação não encontrada.");
 
         var estab = await _estabelecimentoRepo.ObterPorId(command.EstabelecimentoId);
         if (estab.DonoUsuarioId != command.RecusadoPorUsuarioId)

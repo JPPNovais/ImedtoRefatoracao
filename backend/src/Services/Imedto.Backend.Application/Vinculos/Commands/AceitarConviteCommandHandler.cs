@@ -18,11 +18,13 @@ public class AceitarConviteCommandHandler : ICommandHandler<AceitarConviteComman
 
     public async Task Handle(AceitarConviteCommand command)
     {
-        var vinculo = await _repository.ObterPorId(command.VinculoId);
+        var vinculo = await _repository.ObterPorIdOuNulo(command.VinculoId)
+            ?? throw new BusinessException("Convite não encontrado.");
 
-        // Só o próprio profissional convidado pode aceitar.
+        // Só o próprio profissional convidado pode aceitar — mensagem generica
+        // (nao vaza para outros usuarios qual convite eh de quem).
         if (vinculo.ProfissionalUsuarioId != command.UsuarioSolicitanteId)
-            throw new BusinessException("Apenas o profissional convidado pode aceitar este convite.");
+            throw new BusinessException("Convite não encontrado.");
 
         vinculo.Aceitar();
         await _repository.Salvar(vinculo);

@@ -3,6 +3,7 @@ namespace Imedto.Backend.Domain.Vinculos;
 public interface IVinculoRepository
 {
     Task<VinculoProfissionalEstabelecimento> ObterPorId(long id);
+    Task<VinculoProfissionalEstabelecimento?> ObterPorIdOuNulo(long id);
     Task<VinculoProfissionalEstabelecimento> ObterVinculoAtivoOuPendente(Guid profissionalUsuarioId, long estabelecimentoId);
 
     /// <summary>

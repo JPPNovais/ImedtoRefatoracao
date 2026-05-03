@@ -21,7 +21,8 @@ public class InativarVinculoCommandHandler : ICommandHandler<InativarVinculoComm
 
     public async Task Handle(InativarVinculoCommand command)
     {
-        var vinculo = await _vinculoRepo.ObterPorId(command.VinculoId);
+        var vinculo = await _vinculoRepo.ObterPorIdOuNulo(command.VinculoId)
+            ?? throw new BusinessException("Vínculo não encontrado.");
         var estab = await _estabelecimentoRepo.ObterPorId(vinculo.EstabelecimentoId);
 
         // O dono do estabelecimento OU o próprio profissional podem encerrar o vínculo.

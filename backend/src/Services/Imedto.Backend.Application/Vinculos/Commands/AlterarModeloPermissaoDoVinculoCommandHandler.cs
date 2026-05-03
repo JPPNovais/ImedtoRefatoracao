@@ -25,10 +25,12 @@ public class AlterarModeloPermissaoDoVinculoCommandHandler : ICommandHandler<Alt
 
     public async Task Handle(AlterarModeloPermissaoDoVinculoCommand command)
     {
-        var vinculo = await _vinculoRepo.ObterPorId(command.VinculoId);
+        var vinculo = await _vinculoRepo.ObterPorIdOuNulo(command.VinculoId)
+            ?? throw new BusinessException("Vínculo não encontrado.");
 
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (vinculo.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Vínculo não pertence a este estabelecimento.");
+            throw new BusinessException("Vínculo não encontrado.");
 
         // Apenas o dono do estabelecimento pode reatribuir o modelo de permissão.
         var estab = await _estabRepo.ObterPorId(vinculo.EstabelecimentoId);

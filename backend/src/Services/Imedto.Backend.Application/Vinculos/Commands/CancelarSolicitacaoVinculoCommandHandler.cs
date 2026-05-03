@@ -20,10 +20,12 @@ public class CancelarSolicitacaoVinculoCommandHandler : ICommandHandler<Cancelar
 
     public async Task Handle(CancelarSolicitacaoVinculoCommand command)
     {
-        var solicitacao = await _solicitacaoRepo.ObterPorId(command.SolicitacaoId);
+        var solicitacao = await _solicitacaoRepo.ObterPorIdOuNulo(command.SolicitacaoId)
+            ?? throw new BusinessException("Solicitação não encontrada.");
 
+        // Mensagem generica (nao vaza existencia para outro profissional).
         if (solicitacao.ProfissionalUsuarioId != command.SolicitanteUsuarioId)
-            throw new BusinessException("Apenas o profissional que criou a solicitação pode cancelá-la.");
+            throw new BusinessException("Solicitação não encontrada.");
 
         solicitacao.Cancelar();
         await _solicitacaoRepo.Salvar(solicitacao);
