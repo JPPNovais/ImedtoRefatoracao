@@ -424,3 +424,79 @@ Não há nada que precise mudar **agora** no código que está sendo escrito (Fa
 2. 📝 Anotar na memória do agente as restrições de §9.1.
 3. ⏭️ Continuar trabalho da Fase 7 do plano de limpeza (pendências: PacienteAcessoLog, IDomainEventDispatcher, defense-in-depth UsuarioId).
 4. 🔜 Quando o usuário decidir iniciar a migração formalmente, abrir as Fases A → F deste plano.
+
+---
+
+## Checklist executável (atualização 2026-05-03)
+
+Esta seção complementa o plano A-F com o estado **atual** dos pré-requisitos
+e as ações concretas restantes. Use como pista para abrir cards/tasks quando
+a migração for formalmente iniciada.
+
+### Pré-requisitos já satisfeitos
+
+- [x] Auth abstraído via `IAuthService` (sem chamada a `Supabase.Client` em handlers).
+- [x] Storage abstraído via `IFotoStorageService` + `IAnexoStorageService`.
+- [x] **Defense-in-depth multi-tenant** em todos os repositórios sensíveis (LGPD).
+- [x] **Audit trail LGPD** (`paciente_acesso_log`, `prontuario_acesso_log`) NÃO depende de RLS.
+- [x] **Soft-delete** centralizado no `SoftDeleteInterceptor` (não usa policies).
+- [x] **Cobertura de testes** robusta antes de mexer no banco:
+      - 705+ unit tests
+      - 26+ integration tests (Testcontainers Postgres)
+      - Constraints reais validadas (unique parcial, FK, soft-delete interceptor)
+- [x] **Performance baseline** com `PerformanceIntegrationTests` — qualquer regressão
+      pós-migração aparece nos thresholds.
+- [x] **Load tests** k6 prontos para validar latência pós-cutover (`loadtests/k6/`).
+
+### Ações restantes (em ordem)
+
+1. **Fase A — `LocalJwtAuthService`**
+   - [ ] Adicionar `BCrypt.Net-Next` ao Infrastructure
+   - [ ] Implementar `IAuthService` com hash bcrypt + JWT HS256/RS256 próprio
+   - [ ] Endpoints novos: `POST /auth/signup-local`, `POST /auth/forgot-password-local`
+   - [ ] Migration: tabela `usuario_credenciais` (id, email, hash, salt, criado_em)
+   - [ ] Testes unitários do novo service (já temos pattern em `Tests/`)
+   - [ ] Feature flag `Auth:Provider = "Supabase" | "Local"` para alternar sem deploy
+
+2. **Fase B — `S3FotoStorageService` + `S3AnexoStorageService`**
+   - [ ] AWSSDK.S3 já é compatível com qualquer bucket S3-compatible
+   - [ ] Implementar via presigned URLs (TTL configurável, mantém contrato atual)
+   - [ ] Bucket privado para anexos, público para fotos profissionais
+   - [ ] Lifecycle policy: anexos → Glacier após 30 dias
+
+3. **Fase C — Decisão RLS**
+   - [ ] Reunião: manter RLS (defense-in-depth) ou remover (simplifica deploy RDS)?
+   - [ ] Se manter: portar policies para SQL puro (sem `auth.uid()` do Supabase)
+   - [ ] Se remover: migration `DROP POLICY` para todas as tabelas, validar que
+         os testes de defense-in-depth no backend continuam passando
+
+4. **Fase D — Provisionamento RDS**
+   - [ ] Terraform/CDK: instância RDS Postgres 16, multi-AZ, backup 7 dias
+   - [ ] Security Group: only-from-VPC do app
+   - [ ] Parameter group com `pg_trgm`, `unaccent` habilitados
+   - [ ] CloudWatch alarms: CPU > 80%, conexões > 80% pool, replication lag
+
+5. **Fase E — Cutover**
+   - [ ] Snapshot logical dump do Supabase (sem RLS, sem `auth.users`)
+   - [ ] `pg_restore` no RDS
+   - [ ] Atualizar `ConnectionStrings:Default` via env var
+   - [ ] Smoke test (k6 `00-smoke.js`)
+   - [ ] Load test (k6 `20-listar-pacientes.js`) — comparar com baseline
+   - [ ] Cutover em janela de baixa: deploy + DNS swap
+
+6. **Fase F — Cleanup pós-cutover (1 semana depois)**
+   - [ ] Remover dependências `Supabase.Client` se ainda houver alguma referência
+   - [ ] Remover Storage Supabase config (manter S3 only)
+   - [ ] Decommissionar projeto Supabase
+
+### Estimativa atualizada
+
+- **Fase A** (LocalJwt): 1.5 sessão (mais simples agora com `LocalJwtAuthService`
+  testável isoladamente — basta mockar `IUsuarioCredenciaisRepository`)
+- **Fase B** (S3): 1 sessão
+- **Fase C** (RLS): 0.5 sessão de discussão + 0.5 sessão de migration
+- **Fase D** (RDS): 1 sessão (mais Terraform que código)
+- **Fase E** (cutover): 1 sessão (testar dump→restore em staging primeiro)
+- **Fase F** (cleanup): 0.5 sessão
+
+**Total realista**: ~5 sessões de trabalho contíguas + janela de manutenção.

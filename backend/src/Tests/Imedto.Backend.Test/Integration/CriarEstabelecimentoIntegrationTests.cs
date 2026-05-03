@@ -2,7 +2,6 @@ using Imedto.Backend.Application.Estabelecimentos.Commands;
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Usuarios;
-using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -20,33 +19,16 @@ namespace Imedto.Backend.Test.Integration;
 /// pegar com mock.
 /// </summary>
 [TestFixture]
-public class CriarEstabelecimentoIntegrationTests
+public class CriarEstabelecimentoIntegrationTests : IntegrationTestBase
 {
-    private DbContextOptions<AppDbContext> _options;
-
-    [SetUp]
-    public async Task SetUp()
-    {
-        if (string.IsNullOrEmpty(PostgresIntegrationFixture.ConnectionString))
-            Assert.Ignore("Container Postgres nao subiu (Docker indisponivel).");
-
-        _options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(PostgresIntegrationFixture.ConnectionString)
-            .Options;
-
-        // Limpeza de tabelas usadas por este teste — garante isolamento entre runs.
-        await using var ctx = new AppDbContext(_options);
-        await ctx.Database.ExecuteSqlRawAsync(
-            "TRUNCATE estabelecimentos, usuarios RESTART IDENTITY CASCADE;");
-    }
+    protected override string[] TabelasParaTruncar => new[] { "estabelecimentos", "usuarios" };
 
     [Test]
     public async Task Handle_FluxoCompleto_PersisteEstabelecimentoVinculadoAoDono()
     {
         var donoId = Guid.NewGuid();
 
-        // Arrange: cria usuario onboarded direto no banco.
-        await using (var ctx = new AppDbContext(_options))
+        await using (var ctx = NewContext())
         {
             var u = Usuario.Criar(donoId, "dono@imedto.com");
             u.CompletarOnboarding("João Dono", "12345678909", "11999998888");
@@ -54,13 +36,12 @@ public class CriarEstabelecimentoIntegrationTests
             await ctx.SaveChangesAsync();
         }
 
-        // Act: roda o handler com repositorios reais.
-        await using (var ctx = new AppDbContext(_options))
+        await using (var ctx = NewContext())
         {
-            var estabRepo = new EstabelecimentoRepository(ctx);
-            var usuarioRepo = new UsuarioRepository(ctx);
-            var eventBus = new Mock<IEventBus>();
-            var sut = new CriarEstabelecimentoCommandHandler(estabRepo, usuarioRepo, eventBus.Object);
+            var sut = new CriarEstabelecimentoCommandHandler(
+                new EstabelecimentoRepository(ctx),
+                new UsuarioRepository(ctx),
+                new Mock<IEventBus>().Object);
 
             await sut.Handle(new CriarEstabelecimentoCommand
             {
@@ -72,8 +53,7 @@ public class CriarEstabelecimentoIntegrationTests
             });
         }
 
-        // Assert: confirma persistencia em uma nova session (sem cache).
-        await using (var ctx = new AppDbContext(_options))
+        await using (var ctx = NewContext())
         {
             var estab = await ctx.Estabelecimentos.SingleAsync();
             Assert.That(estab.DonoUsuarioId, Is.EqualTo(donoId));
@@ -89,20 +69,16 @@ public class CriarEstabelecimentoIntegrationTests
     {
         var donoId = Guid.NewGuid();
 
-        // Arrange: usuario + estabelecimento ja persistidos.
-        using (var ctx = new AppDbContext(_options))
+        using (var ctx = NewContext())
         {
             var u = Usuario.Criar(donoId, "dono@imedto.com");
             u.CompletarOnboarding("João", "12345678909", null);
             ctx.Usuarios.Add(u);
-
-            var primeiro = Estabelecimento.Criar(donoId, "Primeiro", null, null, null, null);
-            ctx.Estabelecimentos.Add(primeiro);
+            ctx.Estabelecimentos.Add(Estabelecimento.Criar(donoId, "Primeiro", null, null, null, null));
             ctx.SaveChanges();
         }
 
-        // Act + Assert: tentar criar segundo deve falhar pela regra "1 estabelecimento por dono".
-        using (var ctx = new AppDbContext(_options))
+        using (var ctx = NewContext())
         {
             var sut = new CriarEstabelecimentoCommandHandler(
                 new EstabelecimentoRepository(ctx),
@@ -124,7 +100,7 @@ public class CriarEstabelecimentoIntegrationTests
         var dono1 = Guid.NewGuid();
         var dono2 = Guid.NewGuid();
 
-        await using (var ctx = new AppDbContext(_options))
+        await using (var ctx = NewContext())
         {
             var u1 = Usuario.Criar(dono1, "d1@imedto.com");
             u1.CompletarOnboarding("D1", "11111111111", null);
@@ -137,7 +113,7 @@ public class CriarEstabelecimentoIntegrationTests
             await ctx.SaveChangesAsync();
         }
 
-        await using (var ctx = new AppDbContext(_options))
+        await using (var ctx = NewContext())
         {
             var sut = new CriarEstabelecimentoCommandHandler(
                 new EstabelecimentoRepository(ctx),

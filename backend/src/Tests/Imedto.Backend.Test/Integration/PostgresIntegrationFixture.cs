@@ -51,6 +51,38 @@ public class PostgresIntegrationFixture
             .Options;
         await using var ctx = new AppDbContext(options);
         await ctx.Database.EnsureCreatedAsync();
+
+        // Aplica migrations SQL custom (não geridas pelo EF Core) que os testes precisam.
+        // Lista corresponde a supabase/migrations relevantes para o caminho de queries.
+        await AplicarMigrationsCustomAsync(ctx);
+    }
+
+    private static async Task AplicarMigrationsCustomAsync(AppDbContext ctx)
+    {
+        // pg_trgm + unaccent + wrapper IMMUTABLE + indice trigram em pacientes.
+        // Sem isso, PacienteQueryRepository.Listar quebra em runtime nos testes.
+        const string trigramSql = """
+            CREATE EXTENSION IF NOT EXISTS pg_trgm;
+            CREATE EXTENSION IF NOT EXISTS unaccent;
+
+            CREATE OR REPLACE FUNCTION public.imutable_unaccent(text)
+                RETURNS text
+                LANGUAGE sql
+                IMMUTABLE
+                PARALLEL SAFE
+                STRICT
+            AS $$
+                SELECT public.unaccent('public.unaccent', $1);
+            $$;
+
+            CREATE INDEX IF NOT EXISTS ix_pacientes_nome_completo_trgm
+                ON public.pacientes
+                USING gin (public.imutable_unaccent(lower(nome_completo)) gin_trgm_ops)
+                WHERE deletado_em IS NULL;
+            """;
+#pragma warning disable EF1002
+        await ctx.Database.ExecuteSqlRawAsync(trigramSql);
+#pragma warning restore EF1002
     }
 
     [OneTimeTearDown]
