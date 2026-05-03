@@ -2,29 +2,35 @@ using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Tenancy;
 
 namespace Imedto.Backend.Application.Usuarios.Commands;
 
 public class CompletarOnboardingUsuarioCommandHandler : ICommandHandler<CompletarOnboardingUsuarioCommand>
 {
     private readonly IUsuarioRepository _repository;
+    private readonly ICurrentTenantAccessor _tenant;
 
-    public CompletarOnboardingUsuarioCommandHandler(IUsuarioRepository repository)
+    public CompletarOnboardingUsuarioCommandHandler(
+        IUsuarioRepository repository,
+        ICurrentTenantAccessor tenant)
     {
         _repository = repository;
+        _tenant = tenant;
     }
 
     public async Task Handle(CompletarOnboardingUsuarioCommand command)
     {
-        // Defesa minima: nunca aceitar Guid.Empty (vetor obvio de bypass).
-        if (command.UsuarioId == Guid.Empty)
-            throw new BusinessException("Usuário não identificado.");
+        // Defense-in-depth completa: usa sub do JWT, ignora command.UsuarioId.
+        var usuarioIdJwt = _tenant.UsuarioId;
+        if (usuarioIdJwt == Guid.Empty)
+            throw new BusinessException("Usuário não autenticado.");
 
-        var usuario = await _repository.ObterPorIdOuNulo(command.UsuarioId)
+        var usuario = await _repository.ObterPorIdOuNulo(usuarioIdJwt)
             ?? throw new BusinessException("Usuário não encontrado.");
 
         var cpfDigitos = new string((command.Cpf ?? "").Where(char.IsDigit).ToArray());
-        if (await _repository.ExisteCpf(cpfDigitos, command.UsuarioId))
+        if (await _repository.ExisteCpf(cpfDigitos, usuarioIdJwt))
             throw new BusinessException("CPF já cadastrado em outra conta.");
 
         usuario.CompletarOnboarding(command.NomeCompleto, command.Cpf, command.Telefone);

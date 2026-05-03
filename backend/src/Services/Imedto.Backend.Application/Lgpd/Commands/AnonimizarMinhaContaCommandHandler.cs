@@ -5,6 +5,7 @@ using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Imedto.Backend.Infrastructure.Database;
 
 namespace Imedto.Backend.Application.Lgpd.Commands;
@@ -23,25 +24,31 @@ public class AnonimizarMinhaContaCommandHandler : ICommandHandler<AnonimizarMinh
 {
     private readonly IUsuarioRepository _usuarios;
     private readonly IAnonimizacaoService _anonimizacao;
+    private readonly ICurrentTenantAccessor _tenant;
     private readonly AppDbContext _db;
 
     public AnonimizarMinhaContaCommandHandler(
         IUsuarioRepository usuarios,
         IAnonimizacaoService anonimizacao,
+        ICurrentTenantAccessor tenant,
         AppDbContext db)
     {
         _usuarios = usuarios;
         _anonimizacao = anonimizacao;
+        _tenant = tenant;
         _db = db;
     }
 
     public async Task Handle(AnonimizarMinhaContaCommand command)
     {
-        // Defesa minima: nunca aceitar Guid.Empty (vetor obvio de bypass).
-        if (command.UsuarioId == Guid.Empty)
-            throw new BusinessException("Usuário não identificado.");
+        // Defense-in-depth completa: usa sub do JWT, ignora command.UsuarioId.
+        // Garante que ninguem consiga anonimizar a conta de outro usuario via
+        // body manipulado (operacao IRREVERSIVEL — defesa eh critica).
+        var usuarioIdJwt = _tenant.UsuarioId;
+        if (usuarioIdJwt == Guid.Empty)
+            throw new BusinessException("Usuário não autenticado.");
 
-        var usuario = await _usuarios.ObterPorIdOuNulo(command.UsuarioId)
+        var usuario = await _usuarios.ObterPorIdOuNulo(usuarioIdJwt)
             ?? throw new BusinessException("Usuário não encontrado.");
 
         // Anonimiza pacientes cujo e-mail corresponde ao do usuário.
@@ -56,7 +63,7 @@ public class AnonimizarMinhaContaCommandHandler : ICommandHandler<AnonimizarMinh
             await _anonimizacao.AnonimizarPaciente(
                 pacienteId,
                 MotivoAnonimizacao.DireitoEsquecimento,
-                command.UsuarioId);
+                usuarioIdJwt);
         }
 
         // Anonimiza o aggregate de usuário.

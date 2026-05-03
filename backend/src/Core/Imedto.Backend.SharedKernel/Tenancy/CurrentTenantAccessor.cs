@@ -19,6 +19,16 @@ public class CurrentTenantAccessor : ICurrentTenantAccessor
     public bool EhDono => _papel == "Dono";
     public bool TemTenantDefinido => _estabelecimentoId.HasValue;
 
+    /// <summary>
+    /// Setado pelo <c>CurrentUserMiddleware</c> em TODA request autenticada.
+    /// Permite handlers usar _tenant.UsuarioId mesmo em endpoints sem
+    /// [RequiresEstabelecimento] (ex: /api/usuario/me).
+    /// </summary>
+    public void DefinirUsuario(Guid usuarioId)
+    {
+        _usuarioId = usuarioId;
+    }
+
     /// <summary>Chamado exclusivamente pelo <c>RequiresEstabelecimentoAttribute</c>.</summary>
     public void Definir(long estabelecimentoId, Guid usuarioId, string papel)
     {

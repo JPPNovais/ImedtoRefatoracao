@@ -446,6 +446,12 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Popula ICurrentTenantAccessor.UsuarioId em toda request autenticada
+// (defense-in-depth — handlers podem usar _tenant.UsuarioId em vez de
+// confiar em campos do command). Posicionado APOS UseAuthentication
+// porque depende de User.Claims populado.
+app.UseMiddleware<Imedto.Backend.SharedKernel.Tenancy.CurrentUserMiddleware>();
+
 // Log estruturado de requisicoes — template default nao inclui body/query/headers (seguro p/ LGPD).
 // Posicionado APOS UseAuthentication para que User.Identity/claims fiquem disponiveis no log.
 app.UseSerilogRequestLogging();
