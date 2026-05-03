@@ -16,7 +16,8 @@ public class AtualizarEstabelecimentoCommandHandler : ICommandHandler<AtualizarE
 
     public async Task Handle(AtualizarEstabelecimentoCommand command)
     {
-        var estab = await _repository.ObterPorId(command.EstabelecimentoId);
+        var estab = await _repository.ObterPorIdOuNulo(command.EstabelecimentoId)
+            ?? throw new BusinessException("Estabelecimento não encontrado.");
 
         // Controle de acesso: só o dono pode editar o estabelecimento (na Fase 5 isso vira
         // uma permissão granular via vínculo profissional).

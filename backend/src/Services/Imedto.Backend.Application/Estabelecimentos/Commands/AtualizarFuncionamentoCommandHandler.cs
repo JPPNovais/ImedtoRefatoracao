@@ -16,7 +16,8 @@ public class AtualizarFuncionamentoCommandHandler : ICommandHandler<AtualizarFun
 
     public async Task Handle(AtualizarFuncionamentoCommand command)
     {
-        var estab = await _repository.ObterPorId(command.EstabelecimentoId);
+        var estab = await _repository.ObterPorIdOuNulo(command.EstabelecimentoId)
+            ?? throw new BusinessException("Estabelecimento não encontrado.");
 
         if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)
             throw new BusinessException("Apenas o dono do estabelecimento pode editar o funcionamento.");
