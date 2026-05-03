@@ -884,7 +884,7 @@ const profSelecionado = computed(() =>
 @keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
-    background: white;
+    background: hsl(var(--card));
     width: 100%;
     max-width: 760px;
     max-height: calc(100vh - 64px);
@@ -902,7 +902,7 @@ const profSelecionado = computed(() =>
     align-items: flex-start;
     gap: 14px;
     padding: 22px 26px 16px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.08);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
 }
 .modal-head h2 {
     margin: 0;
@@ -912,16 +912,16 @@ const profSelecionado = computed(() =>
 }
 .modal-head span {
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
 }
 .modal-close {
     margin-left: auto;
     width: 34px;
     height: 34px;
-    background: hsl(0 0% 0% / 0.06);
+    background: hsl(var(--foreground) / 0.06);
     border: none;
     border-radius: 10px;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     cursor: pointer;
     font-size: 14px;
     transition: background 0.15s, color 0.15s;
@@ -938,8 +938,8 @@ const profSelecionado = computed(() =>
     align-items: center;
     gap: 10px;
     padding: 16px 26px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.08);
-    background: hsl(0 0% 0% / 0.02);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--foreground) / 0.02);
 }
 .step-pill {
     display: flex;
@@ -947,19 +947,19 @@ const profSelecionado = computed(() =>
     gap: 8px;
     padding: 6px 12px 6px 6px;
     border-radius: 99px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.1);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.1);
     font-size: 12px;
     font-weight: 500;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
     transition: all 0.15s;
 }
 .step-pill .num {
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: hsl(0 0% 0% / 0.1);
-    color: hsl(0 0% 0% / 0.7);
+    background: hsl(var(--foreground) / 0.1);
+    color: hsl(var(--foreground) / 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -988,7 +988,7 @@ const profSelecionado = computed(() =>
 .step-bar {
     flex: 1;
     height: 2px;
-    background: hsl(0 0% 0% / 0.1);
+    background: hsl(var(--foreground) / 0.1);
     border-radius: 1px;
     transition: background 0.15s;
 }
@@ -1017,11 +1017,11 @@ const profSelecionado = computed(() =>
     gap: 10px;
     height: 44px;
     padding: 0 14px;
-    background: hsl(0 0% 0% / 0.04);
-    border: 1px solid hsl(0 0% 0% / 0.1);
+    background: hsl(var(--foreground) / 0.04);
+    border: 1px solid hsl(var(--foreground) / 0.1);
     border-radius: 12px;
 }
-.search-patient i { color: hsl(0 0% 0% / 0.5); }
+.search-patient i { color: hsl(var(--foreground) / 0.5); }
 .search-patient input {
     flex: 1;
     border: none;
@@ -1031,14 +1031,14 @@ const profSelecionado = computed(() =>
     color: hsl(var(--primary-dark, 254 56% 21%));
     font-family: inherit;
 }
-.search-patient input::placeholder { color: hsl(0 0% 0% / 0.5); }
+.search-patient input::placeholder { color: hsl(var(--foreground) / 0.5); }
 .search-patient .clr {
     width: 24px;
     height: 24px;
     border: none;
     border-radius: 50%;
-    background: hsl(0 0% 0% / 0.1);
-    color: hsl(0 0% 0% / 0.6);
+    background: hsl(var(--foreground) / 0.1);
+    color: hsl(var(--foreground) / 0.6);
     cursor: pointer;
     font-family: inherit;
 }
@@ -1059,8 +1059,8 @@ const profSelecionado = computed(() =>
     align-items: center;
     padding: 12px 14px;
     border-radius: 12px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.1);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.1);
     cursor: pointer;
     text-align: left;
     font-family: inherit;
@@ -1104,14 +1104,14 @@ const profSelecionado = computed(() =>
     gap: 6px;
     flex-wrap: wrap;
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
 }
 .patient-card .info .meta i { font-size: 10px; margin-right: 3px; }
 .patient-card .info .meta .dotsep {
     width: 3px;
     height: 3px;
     border-radius: 50%;
-    background: hsl(0 0% 0% / 0.3);
+    background: hsl(var(--foreground) / 0.3);
 }
 .patient-card .check {
     color: hsl(var(--primary, 254 56% 38%));
@@ -1121,7 +1121,7 @@ const profSelecionado = computed(() =>
 .add-new-sticky {
     flex-shrink: 0;
     padding-top: 12px;
-    border-top: 1px solid hsl(0 0% 0% / 0.08);
+    border-top: 1px solid hsl(var(--foreground) / 0.08);
     margin-top: 4px;
 }
 .add-new-btn {
@@ -1163,7 +1163,7 @@ const profSelecionado = computed(() =>
 }
 .add-new-btn span {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
 }
 .add-new-btn .arr { color: hsl(160 79% 39%); }
 
@@ -1175,9 +1175,9 @@ const profSelecionado = computed(() =>
     align-items: center;
     gap: 10px;
 }
-.no-patient > i { font-size: 30px; color: hsl(0 0% 0% / 0.25); }
+.no-patient > i { font-size: 30px; color: hsl(var(--foreground) / 0.25); }
 .no-patient b { font-size: 14px; color: hsl(var(--primary-dark, 254 56% 21%)); }
-.no-patient span { font-size: 12px; color: hsl(0 0% 0% / 0.6); }
+.no-patient span { font-size: 12px; color: hsl(var(--foreground) / 0.6); }
 
 /* ─── Step 1 cadastro novo ─── */
 .step-info {
@@ -1207,20 +1207,20 @@ const profSelecionado = computed(() =>
     color: hsl(var(--primary-dark, 254 56% 21%));
     margin-bottom: 2px;
 }
-.step-info span { font-size: 12px; color: hsl(0 0% 0% / 0.7); }
+.step-info span { font-size: 12px; color: hsl(var(--foreground) / 0.7); }
 
 .quick-info {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.6);
+    color: hsl(var(--foreground) / 0.6);
     padding: 10px 12px;
-    background: hsl(0 0% 0% / 0.03);
+    background: hsl(var(--foreground) / 0.03);
     border-radius: 8px;
     display: flex;
     gap: 8px;
     align-items: flex-start;
     line-height: 1.5;
 }
-.quick-info i { color: hsl(0 0% 0% / 0.5); margin-top: 2px; }
+.quick-info i { color: hsl(var(--foreground) / 0.5); margin-top: 2px; }
 
 .link-back {
     background: none;
@@ -1251,7 +1251,7 @@ const profSelecionado = computed(() =>
 .field-group label {
     font-size: 11px;
     font-weight: 600;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -1266,7 +1266,7 @@ const profSelecionado = computed(() =>
     font-size: 10px;
     font-style: italic;
     font-weight: 400;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--foreground) / 0.5);
     margin-left: 4px;
 }
 .field-group input,
@@ -1274,12 +1274,12 @@ const profSelecionado = computed(() =>
 .field-group textarea {
     height: 40px;
     padding: 0 12px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    border: 1px solid hsl(var(--foreground) / 0.12);
     border-radius: 10px;
     font-size: 13px;
     font-family: inherit;
-    color: hsl(0 0% 24%);
-    background: white;
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
     outline: none;
     transition: border 0.15s, box-shadow 0.15s;
 }
@@ -1324,7 +1324,7 @@ const profSelecionado = computed(() =>
 }
 .patient-pinned .info span {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
 }
 
 /* Toggle Lista de espera */
@@ -1334,8 +1334,8 @@ const profSelecionado = computed(() =>
     gap: 12px;
     align-items: center;
     padding: 12px 14px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.12);
     border-radius: 12px;
     cursor: pointer;
     text-align: left;
@@ -1351,8 +1351,8 @@ const profSelecionado = computed(() =>
     width: 44px;
     height: 44px;
     border-radius: 10px;
-    background: hsl(0 0% 0% / 0.06);
-    color: hsl(0 0% 0% / 0.6);
+    background: hsl(var(--foreground) / 0.06);
+    color: hsl(var(--foreground) / 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1371,14 +1371,14 @@ const profSelecionado = computed(() =>
 }
 .wt-info span {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
     line-height: 1.4;
 }
 .waitlist-toggle.on .wt-info b { color: hsl(35 90% 30%); }
 .wt-switch {
     width: 36px;
     height: 20px;
-    background: hsl(0 0% 0% / 0.15);
+    background: hsl(var(--foreground) / 0.15);
     border-radius: 999px;
     position: relative;
     transition: background 0.2s;
@@ -1389,7 +1389,7 @@ const profSelecionado = computed(() =>
     left: 2px;
     width: 16px;
     height: 16px;
-    background: white;
+    background: hsl(var(--card));
     border-radius: 50%;
     box-shadow: 0 1px 4px hsl(0 0% 0% / 0.2);
     transition: transform 0.2s;
@@ -1406,9 +1406,9 @@ const profSelecionado = computed(() =>
 .time-slots .slot {
     padding: 8px 12px;
     border-radius: 8px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
-    color: hsl(0 0% 24%);
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -1426,15 +1426,15 @@ const profSelecionado = computed(() =>
     border-color: hsl(var(--primary, 254 56% 38%));
 }
 .time-slots .slot.busy {
-    background: hsl(0 0% 0% / 0.04);
-    color: hsl(0 0% 0% / 0.4);
+    background: hsl(var(--foreground) / 0.04);
+    color: hsl(var(--foreground) / 0.4);
     cursor: not-allowed;
-    border-color: hsl(0 0% 0% / 0.08);
+    border-color: hsl(var(--foreground) / 0.08);
 }
 .time-slots .slot.busy:hover {
-    border-color: hsl(0 0% 0% / 0.08);
-    color: hsl(0 0% 0% / 0.4);
-    background: hsl(0 0% 0% / 0.04);
+    border-color: hsl(var(--foreground) / 0.08);
+    color: hsl(var(--foreground) / 0.4);
+    background: hsl(var(--foreground) / 0.04);
 }
 .time-slots .slot .mark { font-size: 9px; margin-left: 4px; }
 
@@ -1444,14 +1444,14 @@ const profSelecionado = computed(() =>
     align-items: center;
     gap: 10px;
     padding: 14px 16px;
-    background: hsl(0 0% 0% / 0.03);
-    border: 1px dashed hsl(0 0% 0% / 0.15);
+    background: hsl(var(--foreground) / 0.03);
+    border: 1px dashed hsl(var(--foreground) / 0.15);
     border-radius: 10px;
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     line-height: 1.5;
 }
-.slots-empty i { color: hsl(0 0% 0% / 0.45); font-size: 16px; flex-shrink: 0; }
+.slots-empty i { color: hsl(var(--foreground) / 0.45); font-size: 16px; flex-shrink: 0; }
 
 /* Legenda dos slots */
 .slots-info {
@@ -1459,14 +1459,14 @@ const profSelecionado = computed(() =>
     gap: 14px;
     flex-wrap: wrap;
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
     margin-bottom: 6px;
 }
 .slots-info span { display: inline-flex; align-items: center; gap: 5px; }
 .slots-info .slots-loading { color: hsl(var(--primary, 254 56% 38%)); }
 .slot-dot { font-size: 8px; }
 .dot-free { color: hsl(160 79% 39%); }
-.dot-busy { color: hsl(0 0% 0% / 0.3); }
+.dot-busy { color: hsl(var(--foreground) / 0.3); }
 
 /* Period prefs */
 .period-prefs {
@@ -1477,11 +1477,11 @@ const profSelecionado = computed(() =>
 .p-pref {
     padding: 8px 14px;
     border-radius: 999px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
     font-size: 12px;
     font-weight: 600;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     cursor: pointer;
     font-family: inherit;
     display: inline-flex;
@@ -1501,8 +1501,8 @@ const profSelecionado = computed(() =>
     flex: 1;
     padding: 10px 14px;
     border-radius: 10px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -1510,7 +1510,7 @@ const profSelecionado = computed(() =>
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
 }
 .urgency-row .urg .d {
     width: 8px;
@@ -1536,19 +1536,19 @@ const profSelecionado = computed(() =>
     gap: 6px;
     padding: 8px 14px;
     border-radius: 999px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     transition: all 0.15s;
 }
 .reminder-row .tg input {
     appearance: none;
     width: 14px;
     height: 14px;
-    border: 1.5px solid hsl(0 0% 0% / 0.2);
+    border: 1.5px solid hsl(var(--foreground) / 0.2);
     border-radius: 4px;
     margin: 0;
 }
@@ -1563,7 +1563,7 @@ const profSelecionado = computed(() =>
 }
 .reminder-row .hint {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     margin-top: 4px;
 }
 
@@ -1627,8 +1627,8 @@ const profSelecionado = computed(() =>
 }
 
 .confirm-body {
-    background: white;
-    color: hsl(0 0% 24%);
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
     padding: 16px 22px;
     display: flex;
     flex-direction: column;
@@ -1641,7 +1641,7 @@ const profSelecionado = computed(() =>
     font-size: 12px;
 }
 .kv span {
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     font-weight: 500;
 }
 .kv b {
@@ -1683,7 +1683,7 @@ const profSelecionado = computed(() =>
     border: 1px solid hsl(160 79% 39% / 0.2);
     border-radius: 10px;
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.75);
+    color: hsl(var(--foreground) / 0.75);
     line-height: 1.5;
 }
 .confirm-info i {
@@ -1718,8 +1718,8 @@ const profSelecionado = computed(() =>
     align-items: center;
     gap: 8px;
     padding: 14px 22px;
-    border-top: 1px solid hsl(0 0% 0% / 0.08);
-    background: white;
+    border-top: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--card));
 }
 .spacer { flex: 1; }
 .btn-primary,
@@ -1759,19 +1759,19 @@ const profSelecionado = computed(() =>
     font-size: 12px;
 }
 .btn-secondary {
-    background: white;
-    color: hsl(0 0% 24%);
-    border-color: hsl(0 0% 0% / 0.18);
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--foreground) / 0.18);
 }
 .btn-secondary:hover {
-    background: hsl(0 0% 0% / 0.04);
+    background: hsl(var(--foreground) / 0.04);
 }
 .btn-ghost {
     background: transparent;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
 }
 .btn-ghost:hover {
-    background: hsl(0 0% 0% / 0.05);
+    background: hsl(var(--foreground) / 0.05);
 }
 
 @media (max-width: 720px) {

@@ -245,7 +245,7 @@ h4 { margin: 1rem 0 0.5rem; font-size: 0.9rem; color: #374151; }
 .hint { font-size: 0.82em; color: #9ca3af; }
 
 .grid-relatorios { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 1.5rem; }
-.bloco { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.25rem; }
+.bloco { background: hsl(var(--card)); border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.25rem; }
 .bloco-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .bloco-header h2 { margin: 0; }
 .bloco-acoes { display: flex; gap: 0.4rem; }

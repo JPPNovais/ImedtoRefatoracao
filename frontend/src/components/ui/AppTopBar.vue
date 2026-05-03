@@ -217,7 +217,7 @@ onBeforeUnmount(() => document.removeEventListener("click", fecharFora))
     height: 32px;
     border-radius: 50%;
     background: white;
-    color: hsl(var(--primary-dark, 254 56% 21%));
+    color: hsl(var(--primary-dark));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -254,20 +254,20 @@ onBeforeUnmount(() => document.removeEventListener("click", fecharFora))
     top: calc(100% + 6px);
     right: 0;
     width: 320px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.1);
+    background: hsl(var(--popover));
+    border: 1px solid hsl(var(--border));
     border-radius: 8px;
-    box-shadow: 0 10px 40px hsl(0 0% 0% / 0.15);
+    box-shadow: 0 10px 40px hsl(0 0% 0% / 0.25);
     overflow: hidden;
     z-index: 50;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--popover-foreground));
     animation: pop-in 0.15s ease-out;
 }
 .pop-profile { width: 280px; }
 .pop-vazio {
     padding: 1.5rem;
     text-align: center;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--muted-foreground));
     font-size: 13px;
 }
 

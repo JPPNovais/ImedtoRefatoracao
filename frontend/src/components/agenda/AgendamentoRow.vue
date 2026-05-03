@@ -46,8 +46,8 @@ const STATUS_META: Record<Agendamento["status"], {
     Concluido: {
         label: "Concluído",
         cor: "hsl(0 0% 60%)",
-        pillBg: "hsl(0 0% 0% / 0.06)",
-        pillFg: "hsl(0 0% 0% / 0.6)",
+        pillBg: "hsl(var(--foreground) / 0.06)",
+        pillFg: "hsl(var(--foreground) / 0.6)",
     },
     Cancelado: {
         label: "Cancelado",
@@ -250,7 +250,7 @@ const podeAlterar = computed(() => {
     align-items: start;
     gap: 14px;
     padding: 13px 16px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.05);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.05);
     cursor: pointer;
     transition: background 0.15s;
     position: relative;
@@ -275,7 +275,7 @@ const podeAlterar = computed(() => {
 }
 .duration {
     font-size: 10px;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     font-weight: 600;
     margin-top: 5px;
     display: inline-flex;
@@ -319,7 +319,7 @@ const podeAlterar = computed(() => {
 .pat-name {
     font-size: 14px;
     font-weight: 700;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     letter-spacing: -0.005em;
 }
 
@@ -345,7 +345,7 @@ const podeAlterar = computed(() => {
 
 .meta-row {
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
     margin-top: 5px;
     display: flex;
     gap: 12px;
@@ -359,16 +359,16 @@ const podeAlterar = computed(() => {
 }
 .meta-row i {
     font-size: 10px;
-    color: hsl(0 0% 0% / 0.45);
+    color: hsl(var(--foreground) / 0.45);
 }
 .meta-row .sep {
     width: 3px;
     height: 3px;
     border-radius: 50%;
-    background: hsl(0 0% 0% / 0.2);
+    background: hsl(var(--foreground) / 0.2);
 }
 .obs {
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     font-style: italic;
     max-width: 320px;
     overflow: hidden;
@@ -386,9 +386,9 @@ const podeAlterar = computed(() => {
     width: 30px;
     height: 30px;
     border-radius: 6px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
-    color: hsl(0 0% 0% / 0.6);
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
+    color: hsl(var(--foreground) / 0.6);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -427,10 +427,10 @@ const podeAlterar = computed(() => {
 
 .appt.cancelado .pat-name {
     text-decoration: line-through;
-    color: hsl(0 0% 0% / 0.45);
+    color: hsl(var(--foreground) / 0.45);
 }
 .appt.cancelado .time {
-    color: hsl(0 0% 0% / 0.4);
+    color: hsl(var(--foreground) / 0.4);
 }
 
 /* ── Painel inline de detalhes ── */
@@ -438,8 +438,8 @@ const podeAlterar = computed(() => {
     grid-column: 3 / -1;
     margin-top: 12px;
     padding: 12px 14px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.08);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.08);
     border-radius: 8px;
     cursor: default;
     display: flex;
@@ -460,7 +460,7 @@ const podeAlterar = computed(() => {
 .detalhe .lbl {
     font-size: 10px;
     font-weight: 700;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     display: inline-flex;
@@ -469,7 +469,7 @@ const podeAlterar = computed(() => {
 }
 .detalhe .val {
     font-size: 12px;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     font-weight: 500;
 }
 .detalhe .obs-block {
@@ -485,7 +485,7 @@ const podeAlterar = computed(() => {
 .detalhe .obs-block p {
     margin: 4px 0 0;
     font-size: 12px;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     line-height: 1.5;
 }
 .detalhe-acoes {
@@ -496,8 +496,8 @@ const podeAlterar = computed(() => {
 .btn-acao {
     padding: 7px 14px;
     border-radius: 6px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
     color: hsl(var(--primary, 254 56% 38%));
     font-size: 12px;
     font-weight: 700;

@@ -238,8 +238,8 @@ const tempoMedio = computed(() => {
 }
 
 .rail-card {
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.07);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.07);
     border-radius: 12px;
     padding: 14px 14px 12px;
     box-shadow: 0 1px 2px hsl(0 0% 0% / 0.04);
@@ -267,14 +267,14 @@ const tempoMedio = computed(() => {
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
-    color: hsl(0 0% 24%);
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
     cursor: pointer;
     font-family: inherit;
     font-size: 13px;
 }
-.rh .nav button:hover { background: hsl(0 0% 0% / 0.05); }
+.rh .nav button:hover { background: hsl(var(--foreground) / 0.05); }
 .count {
     font-size: 11px;
     font-weight: 700;
@@ -288,7 +288,7 @@ const tempoMedio = computed(() => {
 .month-name {
     font-size: 11px;
     font-weight: 700;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     text-align: center;
     margin-bottom: 8px;
     text-transform: capitalize;
@@ -301,7 +301,7 @@ const tempoMedio = computed(() => {
 .minical .h {
     font-size: 9px;
     font-weight: 700;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--foreground) / 0.5);
     text-align: center;
     padding: 4px 0;
     text-transform: uppercase;
@@ -315,7 +315,7 @@ const tempoMedio = computed(() => {
     background: transparent;
     font-size: 11px;
     font-weight: 600;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     border-radius: 6px;
     cursor: pointer;
     font-family: inherit;
@@ -323,7 +323,7 @@ const tempoMedio = computed(() => {
     transition: background 0.12s;
 }
 .minical .d:hover { background: hsl(var(--primary, 254 56% 38%) / 0.08); }
-.minical .d.muted { color: hsl(0 0% 0% / 0.25); }
+.minical .d.muted { color: hsl(var(--foreground) / 0.25); }
 .minical .d.today { color: hsl(var(--primary, 254 56% 38%)); font-weight: 800; }
 .minical .d.selected {
     background: hsl(var(--primary, 254 56% 38%));
@@ -338,12 +338,12 @@ const tempoMedio = computed(() => {
     border-radius: 50%;
     background: hsl(var(--primary, 254 56% 38%));
 }
-.minical .d.selected.has::after { background: white; }
+.minical .d.selected.has::after { background: hsl(var(--card)); }
 
 /* ── Lista de espera ── */
 .vazio {
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--foreground) / 0.5);
     padding: 14px 0;
     text-align: center;
 }
@@ -363,7 +363,7 @@ const tempoMedio = computed(() => {
     border-radius: 8px;
     transition: background 0.12s;
 }
-.w-item:hover { background: hsl(0 0% 0% / 0.03); }
+.w-item:hover { background: hsl(var(--foreground) / 0.03); }
 .w-av {
     width: 32px;
     height: 32px;
@@ -382,7 +382,7 @@ const tempoMedio = computed(() => {
     display: block;
     font-size: 12px;
     font-weight: 600;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -390,7 +390,7 @@ const tempoMedio = computed(() => {
 .w-info span {
     display: block;
     font-size: 10px;
-    color: hsl(0 0% 0% / 0.6);
+    color: hsl(var(--foreground) / 0.6);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -399,8 +399,8 @@ const tempoMedio = computed(() => {
     width: 26px;
     height: 26px;
     border-radius: 6px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
     color: hsl(var(--primary, 254 56% 38%));
     cursor: pointer;
     font-size: 11px;
@@ -425,7 +425,7 @@ const tempoMedio = computed(() => {
 .occ-bar {
     width: 100%;
     height: 8px;
-    background: hsl(0 0% 0% / 0.06);
+    background: hsl(var(--foreground) / 0.06);
     border-radius: 999px;
     overflow: hidden;
     margin-bottom: 8px;
@@ -445,7 +445,7 @@ const tempoMedio = computed(() => {
     display: flex;
     justify-content: space-between;
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
 }
 .occ-meta b {
     color: hsl(var(--primary-dark, 254 56% 21%));
@@ -454,9 +454,9 @@ const tempoMedio = computed(() => {
 .occ-extra {
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px dashed hsl(0 0% 0% / 0.1);
+    border-top: 1px dashed hsl(var(--foreground) / 0.1);
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.6);
+    color: hsl(var(--foreground) / 0.6);
     display: flex;
     flex-direction: column;
     gap: 4px;

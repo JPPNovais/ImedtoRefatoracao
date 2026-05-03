@@ -595,7 +595,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
     align-items: flex-end;
     gap: 16px;
     padding: 14px 16px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.06);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.06);
     flex-wrap: wrap;
 }
 .dia-titulo {
@@ -640,7 +640,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
 .estado {
     padding: 3rem;
     text-align: center;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     font-size: 13px;
     display: flex;
     align-items: center;

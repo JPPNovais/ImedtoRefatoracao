@@ -61,8 +61,8 @@ const corHsl = computed(() => {
 .stat-card {
     padding: 12px 14px;
     border-radius: 12px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.07);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.07);
     cursor: pointer;
     transition: all 0.15s;
     position: relative;
@@ -78,7 +78,7 @@ const corHsl = computed(() => {
     top: 0;
     bottom: 0;
     width: 3px;
-    background: var(--accent-color, hsl(0 0% 0% / 0.2));
+    background: var(--accent-color, hsl(var(--foreground) / 0.2));
     opacity: 0.85;
 }
 .stat-card:hover {
@@ -88,7 +88,7 @@ const corHsl = computed(() => {
 .stat-card.ativo {
     border-color: var(--accent-color);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 18%, transparent);
-    background: color-mix(in srgb, var(--accent-color) 4%, white);
+    background: color-mix(in srgb, var(--accent-color) 4%, hsl(var(--card)));
 }
 
 .top {
@@ -100,7 +100,7 @@ const corHsl = computed(() => {
 .top .lbl {
     font-size: 10px;
     font-weight: 700;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     line-height: 1.2;
@@ -122,7 +122,7 @@ const corHsl = computed(() => {
 
 .foot {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.6);
+    color: hsl(var(--foreground) / 0.6);
     margin-top: 4px;
     font-weight: 500;
 }

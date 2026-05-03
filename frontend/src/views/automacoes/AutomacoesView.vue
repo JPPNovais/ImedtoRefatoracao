@@ -283,7 +283,7 @@ h1 {
     width: 18px;
     left: 3px;
     bottom: 3px;
-    background: white;
+    background: hsl(var(--card));
     border-radius: 50%;
     transition: transform 0.2s;
 }

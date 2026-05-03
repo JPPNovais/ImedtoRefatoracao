@@ -95,7 +95,7 @@ const inicial = computed(() => {
 const STATUS_META: Record<Agendamento["status"], { label: string; bg: string; fg: string }> = {
     Agendado: { label: "Agendado", bg: "hsl(45 96% 47% / 0.18)", fg: "hsl(35 90% 30%)" },
     Confirmado: { label: "Confirmado", bg: "hsl(160 79% 39% / 0.12)", fg: "hsl(160 79% 28%)" },
-    Concluido: { label: "Concluído", bg: "hsl(0 0% 0% / 0.06)", fg: "hsl(0 0% 0% / 0.6)" },
+    Concluido: { label: "Concluído", bg: "hsl(var(--foreground) / 0.06)", fg: "hsl(var(--foreground) / 0.6)" },
     Cancelado: { label: "Cancelado", bg: "hsl(0 84% 60% / 0.10)", fg: "hsl(0 84% 60%)" },
 }
 
@@ -524,7 +524,7 @@ async function salvar() {
 @keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
-    background: white;
+    background: hsl(var(--card));
     width: 100%;
     max-width: 820px;
     max-height: calc(100vh - 64px);
@@ -543,7 +543,7 @@ async function salvar() {
     align-items: flex-start;
     gap: 14px;
     padding: 18px 24px 16px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.08);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
 }
 .edit-head { align-items: center; }
 .eh-patient { display: flex; align-items: center; gap: 14px; flex: 1; }
@@ -572,16 +572,16 @@ async function salvar() {
     font-weight: 500;
 }
 .eh-sub .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.eh-sub .eh-time { color: hsl(0 0% 0% / 0.65); display: inline-flex; align-items: center; gap: 5px; }
+.eh-sub .eh-time { color: hsl(var(--foreground) / 0.65); display: inline-flex; align-items: center; gap: 5px; }
 
 .modal-close {
     margin-left: auto;
     width: 34px;
     height: 34px;
-    background: hsl(0 0% 0% / 0.06);
+    background: hsl(var(--foreground) / 0.06);
     border: none;
     border-radius: 10px;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     cursor: pointer;
     font-size: 14px;
     transition: background 0.15s, color 0.15s;
@@ -601,7 +601,7 @@ async function salvar() {
 }
 .edit-section {
     padding: 18px 0;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.08);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
 }
 .edit-section:last-of-type { border-bottom: none; }
 .edit-section:first-of-type { padding-top: 4px; }
@@ -652,10 +652,10 @@ async function salvar() {
     border-right: 1px solid hsl(var(--primary, 254 56% 38%) / 0.15);
 }
 .cs-time .hh { font-size: 22px; font-weight: 700; color: hsl(var(--primary-dark, 254 56% 21%)); line-height: 1.1; }
-.cs-time .dur { font-size: 11px; color: hsl(0 0% 0% / 0.55); margin-top: 2px; }
+.cs-time .dur { font-size: 11px; color: hsl(var(--foreground) / 0.55); margin-top: 2px; }
 .cs-info { display: flex; flex-direction: column; gap: 2px; }
 .cs-info b { font-size: 14px; color: hsl(var(--primary-dark, 254 56% 21%)); text-transform: capitalize; }
-.cs-info span { font-size: 12px; color: hsl(0 0% 0% / 0.65); }
+.cs-info span { font-size: 12px; color: hsl(var(--foreground) / 0.65); }
 
 /* ── Bloco de reagendamento ── */
 .resched-block { display: flex; flex-direction: column; gap: 14px; }
@@ -675,17 +675,17 @@ async function salvar() {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     font-weight: 600;
 }
 .ft-side b { font-size: 18px; color: hsl(var(--primary-dark, 254 56% 21%)); }
-.ft-side .dt { font-size: 12px; color: hsl(0 0% 0% / 0.7); text-transform: capitalize; }
-.ft-side.from b { color: hsl(0 0% 0% / 0.55); text-decoration: line-through; }
+.ft-side .dt { font-size: 12px; color: hsl(var(--foreground) / 0.7); text-transform: capitalize; }
+.ft-side.from b { color: hsl(var(--foreground) / 0.55); text-decoration: line-through; }
 .ft-side.to b { color: hsl(160 79% 39%); }
 .ft-arr { color: hsl(160 79% 39%); font-size: 14px; }
 .ft-undo {
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.12);
     width: 30px;
     height: 30px;
     border-radius: 8px;
@@ -693,7 +693,7 @@ async function salvar() {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     transition: all 0.15s;
     font-family: inherit;
 }
@@ -708,15 +708,15 @@ async function salvar() {
     scrollbar-width: thin;
 }
 .day-strip::-webkit-scrollbar { height: 6px; }
-.day-strip::-webkit-scrollbar-thumb { background: hsl(0 0% 0% / 0.12); border-radius: 3px; }
+.day-strip::-webkit-scrollbar-thumb { background: hsl(var(--foreground) / 0.12); border-radius: 3px; }
 .day-btn {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 8px 10px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.12);
     border-radius: 10px;
     cursor: pointer;
     font-family: inherit;
@@ -727,7 +727,7 @@ async function salvar() {
 .day-btn .dow {
     font-size: 10px;
     font-weight: 600;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     letter-spacing: 0.04em;
 }
 .day-btn .dn {
@@ -739,7 +739,7 @@ async function salvar() {
 }
 .day-btn .mo {
     font-size: 10px;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     text-transform: capitalize;
 }
 .day-btn.active {
@@ -756,13 +756,13 @@ async function salvar() {
     gap: 14px;
     flex-wrap: wrap;
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
 }
 .slots-info span { display: inline-flex; align-items: center; gap: 5px; }
 .slots-info .orig-mark { color: hsl(var(--primary-dark, 254 56% 21%)); font-weight: 500; }
 .slot-dot { font-size: 8px; }
 .dot-free { color: hsl(160 79% 39%); }
-.dot-busy { color: hsl(0 0% 0% / 0.3); }
+.dot-busy { color: hsl(var(--foreground) / 0.3); }
 
 /* ── Estado vazio (dia fechado / sem horários) ── */
 .slots-empty {
@@ -770,14 +770,14 @@ async function salvar() {
     align-items: center;
     gap: 10px;
     padding: 14px 16px;
-    background: hsl(0 0% 0% / 0.03);
-    border: 1px dashed hsl(0 0% 0% / 0.15);
+    background: hsl(var(--foreground) / 0.03);
+    border: 1px dashed hsl(var(--foreground) / 0.15);
     border-radius: 10px;
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     line-height: 1.5;
 }
-.slots-empty i { color: hsl(0 0% 0% / 0.45); font-size: 16px; flex-shrink: 0; }
+.slots-empty i { color: hsl(var(--foreground) / 0.45); font-size: 16px; flex-shrink: 0; }
 
 /* ── Grid de horários ── */
 .time-slots {
@@ -787,9 +787,9 @@ async function salvar() {
 }
 .time-slots .slot {
     padding: 8px 6px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    border: 1px solid hsl(var(--foreground) / 0.12);
     border-radius: 8px;
-    background: white;
+    background: hsl(var(--card));
     color: hsl(var(--primary-dark, 254 56% 21%));
     font-size: 13px;
     font-weight: 600;
@@ -811,12 +811,12 @@ async function salvar() {
     color: white;
 }
 .time-slots .slot.busy {
-    background: hsl(0 0% 0% / 0.04);
-    color: hsl(0 0% 0% / 0.4);
+    background: hsl(var(--foreground) / 0.04);
+    color: hsl(var(--foreground) / 0.4);
     cursor: not-allowed;
-    border-color: hsl(0 0% 0% / 0.08);
+    border-color: hsl(var(--foreground) / 0.08);
 }
-.time-slots .slot.busy:hover { border-color: hsl(0 0% 0% / 0.08); color: hsl(0 0% 0% / 0.4); background: hsl(0 0% 0% / 0.04); }
+.time-slots .slot.busy:hover { border-color: hsl(var(--foreground) / 0.08); color: hsl(var(--foreground) / 0.4); background: hsl(var(--foreground) / 0.04); }
 .time-slots .slot.original {
     border-color: hsl(var(--primary, 254 56% 38%));
     border-style: dashed;
@@ -835,14 +835,14 @@ async function salvar() {
 .field-group label {
     font-size: 12px;
     font-weight: 600;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--foreground) / 0.7);
     display: inline-flex;
     align-items: center;
     gap: 5px;
 }
 .field-group label .opt {
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--foreground) / 0.5);
     font-weight: 400;
 }
 .field-group select,
@@ -850,11 +850,11 @@ async function salvar() {
 .field-group input {
     padding: 9px 12px;
     border-radius: 9px;
-    border: 1px solid hsl(0 0% 0% / 0.15);
-    background: white;
+    border: 1px solid hsl(var(--foreground) / 0.15);
+    background: hsl(var(--card));
     font-family: inherit;
     font-size: 13px;
-    color: hsl(0 0% 12%);
+    color: hsl(var(--foreground));
     transition: border 0.15s;
     resize: vertical;
 }
@@ -883,23 +883,23 @@ async function salvar() {
     align-items: center;
     gap: 10px;
     padding: 14px 24px;
-    border-top: 1px solid hsl(0 0% 0% / 0.08);
-    background: hsl(0 0% 0% / 0.02);
+    border-top: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--foreground) / 0.02);
 }
 .spacer { flex: 1; }
 .btn-ghost {
     padding: 9px 16px;
     background: none;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    border: 1px solid hsl(var(--foreground) / 0.12);
     border-radius: 9px;
-    color: hsl(0 0% 0% / 0.65);
+    color: hsl(var(--foreground) / 0.65);
     font-size: 13px;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
     transition: all 0.15s;
 }
-.btn-ghost:hover { background: hsl(0 0% 0% / 0.04); }
+.btn-ghost:hover { background: hsl(var(--foreground) / 0.04); }
 
 .btn-primary {
     padding: 9px 18px;

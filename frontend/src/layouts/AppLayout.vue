@@ -15,8 +15,17 @@ import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
+import { useTheme, type Theme } from "@/composables/useTheme"
 import { AppTopBar, AppSidebar } from "@/components/ui"
 import logoBranco from "@/assets/imedto-logo-branco.png"
+
+const { tema, definirTema } = useTheme()
+
+const TEMAS: { v: Theme; label: string; icon: string }[] = [
+    { v: "light", label: "Claro",  icon: "fa-solid fa-sun" },
+    { v: "dark",  label: "Escuro", icon: "fa-solid fa-moon" },
+    { v: "auto",  label: "Auto",   icon: "fa-solid fa-circle-half-stroke" },
+]
 
 const router = useRouter()
 const route = useRoute()
@@ -150,6 +159,26 @@ function irNotificacoes() {
                 <button type="button" class="pop-item" @click="() => { fechar(); trocarEstabelecimento() }">
                     <i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i>Trocar estabelecimento
                 </button>
+
+                <div class="pop-tema">
+                    <span class="pop-tema-label">Tema</span>
+                    <div class="pop-tema-row" role="radiogroup" aria-label="Tema">
+                        <button
+                            v-for="t in TEMAS"
+                            :key="t.v"
+                            type="button"
+                            class="pop-tema-btn"
+                            :class="{ ativo: tema === t.v }"
+                            :aria-checked="tema === t.v"
+                            role="radio"
+                            :title="t.label"
+                            @click="definirTema(t.v)"
+                        >
+                            <i :class="t.icon" aria-hidden="true"></i>
+                            <span>{{ t.label }}</span>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="pop-foot">
                 <button type="button" class="logout" @click="() => { fechar(); sair() }">
@@ -222,13 +251,13 @@ function irNotificacoes() {
     align-items: center;
     justify-content: space-between;
     padding: 12px 14px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.08);
+    border-bottom: 1px solid hsl(var(--border));
     font-size: 13px;
 }
-.pop-head b { color: hsl(var(--primary-dark, 254 56% 21%)); }
+.pop-head b { color: hsl(var(--primary-dark)); }
 .lnk {
     font-size: 11px;
-    color: hsl(var(--primary, 254 56% 38%));
+    color: hsl(var(--primary));
     cursor: pointer;
     font-weight: 600;
     text-decoration: none;
@@ -255,14 +284,14 @@ function irNotificacoes() {
     flex-direction: column;
     gap: 2px;
 }
-.notif-item:hover { background: hsl(0 0% 0% / 0.04); }
-.notif-item strong { font-size: 12px; color: hsl(var(--primary-dark, 254 56% 21%)); font-weight: 600; }
-.notif-item span { font-size: 11px; color: hsl(0 0% 0% / 0.65); }
-.notif-item.nao-lida strong { color: hsl(var(--primary, 254 56% 38%)); }
+.notif-item:hover { background: hsl(var(--muted)); }
+.notif-item strong { font-size: 12px; color: hsl(var(--primary-dark)); font-weight: 600; }
+.notif-item span { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.notif-item.nao-lida strong { color: hsl(var(--primary)); }
 .vazio {
     padding: 1.5rem;
     text-align: center;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--muted-foreground));
     font-size: 13px;
 }
 
@@ -270,14 +299,14 @@ function irNotificacoes() {
     display: flex;
     gap: 12px;
     padding: 14px;
-    border-bottom: 1px solid hsl(0 0% 0% / 0.08);
+    border-bottom: 1px solid hsl(var(--border));
 }
 .av-lg {
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: linear-gradient(135deg, hsl(var(--primary, 254 56% 38%)) 0%, hsl(var(--primary-dark, 254 56% 21%)) 100%);
-    color: white;
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-dark)) 100%);
+    color: hsl(var(--primary-foreground));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -290,16 +319,16 @@ function irNotificacoes() {
 .perfil-info b {
     display: block;
     font-size: 13px;
-    color: hsl(var(--primary-dark, 254 56% 21%));
+    color: hsl(var(--primary-dark));
     margin-bottom: 2px;
 }
 .perfil-info span {
     display: block;
     font-size: 11px;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(var(--muted-foreground));
     line-height: 1.4;
 }
-.perfil-info .clinic { color: hsl(160 79% 35%); margin-top: 2px; }
+.perfil-info .clinic { color: hsl(var(--success)); margin-top: 2px; }
 
 .pop-item {
     display: flex;
@@ -308,7 +337,7 @@ function irNotificacoes() {
     padding: 8px 10px;
     border-radius: 6px;
     font-size: 12px;
-    color: hsl(var(--primary-dark, 254 56% 21%));
+    color: hsl(var(--primary-dark));
     cursor: pointer;
     background: transparent;
     border: 0;
@@ -318,21 +347,72 @@ function irNotificacoes() {
 }
 .pop-item i {
     width: 14px;
-    color: hsl(0 0% 0% / 0.6);
+    color: hsl(var(--muted-foreground));
     font-size: 12px;
 }
-.pop-item:hover { background: hsl(0 0% 0% / 0.05); }
+.pop-item:hover { background: hsl(var(--muted)); }
 
 .pop-foot {
     padding: 10px 14px;
-    border-top: 1px solid hsl(0 0% 0% / 0.08);
+    border-top: 1px solid hsl(var(--border));
+}
+
+/* Seletor de tema (claro/escuro/auto) dentro do dropdown do perfil */
+.pop-tema {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 10px;
+    border-top: 1px solid hsl(var(--border));
+}
+.pop-tema-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 2px;
+}
+.pop-tema-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: hsl(var(--muted));
+    border-radius: 8px;
+    padding: 3px;
+}
+.pop-tema-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 0;
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.pop-tema-btn i { font-size: 11px; }
+.pop-tema-btn:hover:not(.ativo) {
+    color: hsl(var(--primary-dark));
+}
+.pop-tema-btn.ativo {
+    background: hsl(var(--card));
+    color: hsl(var(--primary-dark));
+    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.1);
 }
 .logout {
     width: 100%;
     padding: 8px;
     border: none;
-    background: hsl(0 84% 60% / 0.08);
-    color: hsl(0 84% 60%);
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
     border-radius: 6px;
     font-size: 12px;
     font-weight: 600;
@@ -343,7 +423,7 @@ function irNotificacoes() {
     gap: 8px;
     font-family: inherit;
 }
-.logout:hover { background: hsl(0 84% 60% / 0.14); }
+.logout:hover { background: hsl(var(--destructive) / 0.2); }
 
 /* Footer items da sidebar (mesmo padrão visual dos itens principais do nav). */
 .foot-item {
@@ -354,7 +434,7 @@ function irNotificacoes() {
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: hsl(0 0% 0% / 0.78);
+    color: hsl(var(--foreground) / 0.78);
     text-decoration: none;
     border: 0;
     background: transparent;
@@ -377,17 +457,17 @@ function irNotificacoes() {
     pointer-events: auto;
 }
 .foot-item:hover {
-    color: hsl(var(--primary-dark, 254 56% 21%));
-    background: hsl(0 0% 0% / 0.06);
+    color: hsl(var(--primary-dark));
+    background: hsl(var(--muted));
 }
 .foot-item.active {
-    background: hsl(var(--primary, 254 56% 38%) / 0.12);
-    color: hsl(var(--primary-dark, 254 56% 21%));
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary-dark));
     font-weight: 600;
 }
-.foot-item.active i { color: hsl(var(--primary, 254 56% 38%)); }
-.foot-item.danger { color: hsl(0 70% 50%); }
-.foot-item.danger:hover { background: hsl(0 70% 50% / 0.1); color: hsl(0 70% 45%); }
+.foot-item.active i { color: hsl(var(--primary)); }
+.foot-item.danger { color: hsl(var(--destructive)); }
+.foot-item.danger:hover { background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive)); }
 
 @media (max-width: 768px) {
     .conteudo { margin-left: 0; }

@@ -173,8 +173,8 @@ h1 {
 }
 
 .kpi-alerta {
-    border-color: #fcd34d;
-    background: #fffbeb;
+    border-color: hsl(var(--warning) / 0.45);
+    background: hsl(var(--warning) / 0.12);
 }
 
 .kpi-positivo {
@@ -267,7 +267,7 @@ h1 {
 }
 
 .item-alerta {
-    background: #fffbeb;
+    background: hsl(var(--warning) / 0.12);
     border-radius: var(--radius-sm);
     padding: 0.4rem 0.6rem;
     margin: 2px 0;

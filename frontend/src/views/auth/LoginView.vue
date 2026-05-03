@@ -349,7 +349,7 @@ function irPara(m: Modo) {
     align-items: center;
     justify-content: center;
     padding: 40px 24px;
-    background: white;
+    background: hsl(var(--card));
     position: relative;
     overflow-y: auto;
 }
@@ -456,7 +456,7 @@ function irPara(m: Modo) {
     font-family: inherit;
     font-size: 14px;
     color: hsl(var(--primary-dark));
-    background: white;
+    background: hsl(var(--card));
     border: 1.5px solid hsl(var(--secondary) / 0.12);
     border-radius: 10px;
     outline: none;
@@ -702,7 +702,7 @@ function irPara(m: Modo) {
 }
 .preview-card {
     position: absolute;
-    background: white;
+    background: hsl(var(--card));
     border-radius: 14px;
     padding: 14px 16px;
     color: hsl(var(--secondary));

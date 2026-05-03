@@ -414,7 +414,7 @@ function formatarData(s: string) {
     border-radius: var(--radius); padding: 0.9rem 1.1rem; min-width: 200px;
     display: flex; flex-direction: column; gap: 0.25rem;
 }
-.kpi-alerta { border-color: #fcd34d; background: #fffbeb; }
+.kpi-alerta { border-color: hsl(var(--warning) / 0.45); background: hsl(var(--warning) / 0.12); }
 .kpi-label  { font-size: 0.78em; color: var(--text-muted); }
 .kpi-valor  { font-size: 1.6rem; font-weight: 700; line-height: 1; }
 .vermelho   { color: var(--danger); }
@@ -425,7 +425,7 @@ function formatarData(s: string) {
 table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
 th { background: #f3f4f6; text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e5e7eb; }
 td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-tr.alerta { background: #fffbeb; }
+tr.alerta { background: hsl(var(--warning) / 0.12); }
 tr.inativo { opacity: 0.55; }
 tr:hover { background: #f9fafb; }
 

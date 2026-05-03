@@ -1078,7 +1078,7 @@ const stepperPassos = computed(() => [
     justify-content: space-between;
     padding: 20px 40px;
     border-bottom: 1px solid hsl(var(--secondary) / 0.06);
-    background: white;
+    background: hsl(var(--card));
 }
 .auth-logo {
     display: inline-flex;
@@ -1120,7 +1120,7 @@ const stepperPassos = computed(() => [
 
 /* ── Stepper ── */
 .onb-progress {
-    background: white;
+    background: hsl(var(--card));
     padding: 24px 40px 28px;
     border-bottom: 1px solid hsl(var(--secondary) / 0.06);
 }
@@ -1158,7 +1158,7 @@ const stepperPassos = computed(() => [
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: white;
+    background: hsl(var(--card));
     border: 2px solid hsl(var(--secondary) / 0.15);
     display: flex;
     align-items: center;
@@ -1200,7 +1200,7 @@ const stepperPassos = computed(() => [
 .onb-card {
     width: 100%;
     max-width: 720px;
-    background: white;
+    background: hsl(var(--card));
     border-radius: 18px;
     box-shadow: 0 1px 2px hsl(var(--primary-dark) / 0.04), 0 24px 60px hsl(var(--primary-dark) / 0.12);
     padding: 40px 48px;
@@ -1257,7 +1257,7 @@ const stepperPassos = computed(() => [
     font-family: inherit;
     font-size: 14px;
     color: hsl(var(--primary-dark));
-    background: white;
+    background: hsl(var(--card));
     border: 1.5px solid hsl(var(--secondary) / 0.12);
     border-radius: 10px;
     outline: none;
@@ -1366,7 +1366,7 @@ const stepperPassos = computed(() => [
     padding: 18px 16px;
     border: 1.5px solid hsl(var(--secondary) / 0.12);
     border-radius: 12px;
-    background: white;
+    background: hsl(var(--card));
     cursor: pointer;
     display: flex;
     align-items: flex-start;
@@ -1422,7 +1422,7 @@ const stepperPassos = computed(() => [
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: hsl(var(--card));
 }
 .choice-card .ch-check i { font-size: 10px; color: white; opacity: 0; }
 .choice-card.active .ch-check {
@@ -1441,7 +1441,7 @@ const stepperPassos = computed(() => [
 .spec-chip {
     padding: 8px 14px;
     border-radius: 99px;
-    background: white;
+    background: hsl(var(--card));
     border: 1.5px solid hsl(var(--secondary) / 0.12);
     font-size: 13px;
     font-weight: 500;
@@ -1469,7 +1469,7 @@ const stepperPassos = computed(() => [
     align-items: center;
     gap: 8px;
     padding: 4px 4px 4px 14px;
-    background: white;
+    background: hsl(var(--card));
     border: 1.5px solid hsl(var(--secondary) / 0.12);
     border-radius: 12px;
     margin-bottom: 24px;
@@ -1525,7 +1525,7 @@ const stepperPassos = computed(() => [
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    background: white;
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--secondary) / 0.1);
     border-radius: 10px;
     transition: all 160ms;
@@ -1557,7 +1557,7 @@ const stepperPassos = computed(() => [
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: white;
+    background: hsl(var(--card));
     box-shadow: 0 1px 2px hsl(var(--secondary) / 0.3);
     transition: transform 160ms;
 }
@@ -1568,7 +1568,7 @@ const stepperPassos = computed(() => [
     padding: 8px 10px;
     font-family: inherit;
     font-size: 13px;
-    background: white;
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--secondary) / 0.12);
     border-radius: 8px;
     outline: none;
@@ -1737,7 +1737,7 @@ const stepperPassos = computed(() => [
 }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .btn-secondary {
-    background: white;
+    background: hsl(var(--card));
     color: hsl(var(--primary-dark));
     border: 1.5px solid hsl(var(--secondary) / 0.15);
 }

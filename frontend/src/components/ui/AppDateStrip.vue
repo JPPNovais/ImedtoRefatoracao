@@ -143,8 +143,8 @@ function contagem(d: Date): number {
 
 <style scoped>
 .datestrip-wrap {
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.07);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--foreground) / 0.07);
     border-radius: 12px;
     padding: 14px 16px 16px;
     box-shadow: 0 1px 2px hsl(0 0% 0% / 0.04);
@@ -190,9 +190,9 @@ function contagem(d: Date): number {
     width: 28px;
     height: 28px;
     border-radius: 6px;
-    border: 1px solid hsl(0 0% 0% / 0.12);
-    background: white;
-    color: hsl(0 0% 24%);
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -200,7 +200,7 @@ function contagem(d: Date): number {
     font-size: 12px;
     font-family: inherit;
 }
-.nav-btn:hover { background: hsl(0 0% 0% / 0.05); }
+.nav-btn:hover { background: hsl(var(--foreground) / 0.05); }
 
 .datestrip {
     display: grid;
@@ -213,7 +213,7 @@ function contagem(d: Date): number {
     padding: 9px 4px 8px;
     border-radius: 8px;
     border: 1.5px solid transparent;
-    background: hsl(0 0% 0% / 0.025);
+    background: hsl(var(--foreground) / 0.025);
     text-align: center;
     cursor: pointer;
     transition: all 0.15s;
@@ -229,14 +229,14 @@ function contagem(d: Date): number {
 .dow {
     font-size: 10px;
     font-weight: 700;
-    color: hsl(0 0% 0% / 0.55);
+    color: hsl(var(--foreground) / 0.55);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
 .dom {
     font-size: 18px;
     font-weight: 800;
-    color: hsl(0 0% 24%);
+    color: hsl(var(--foreground));
     margin-top: 2px;
     line-height: 1.1;
     letter-spacing: -0.01em;
@@ -244,11 +244,11 @@ function contagem(d: Date): number {
 .meta {
     font-size: 9px;
     font-weight: 700;
-    color: hsl(0 0% 0% / 0.5);
+    color: hsl(var(--foreground) / 0.5);
     margin-top: 4px;
     min-height: 11px;
 }
-.dchip.weekend .dow { color: hsl(0 0% 0% / 0.35); }
+.dchip.weekend .dow { color: hsl(var(--foreground) / 0.35); }
 .dchip.today {
     background: hsl(var(--primary, 254 56% 38%) / 0.06);
     border-color: hsl(var(--primary, 254 56% 38%) / 0.25);
@@ -278,7 +278,7 @@ function contagem(d: Date): number {
     border-radius: 50%;
     background: hsl(var(--primary, 254 56% 38%) / 0.4);
 }
-.dchip.selected .pip { background: white; }
+.dchip.selected .pip { background: hsl(var(--card)); }
 
 @media (max-width: 1100px) {
     .datestrip { grid-template-columns: repeat(7, 1fr); }

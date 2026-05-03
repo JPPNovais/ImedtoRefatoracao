@@ -296,7 +296,7 @@ const vencidoPendente = (l: Lancamento) =>
 .page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
 
 .resumo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-.card-resumo { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.card-resumo { background: hsl(var(--card)); border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.15rem; }
 .card-resumo .label { font-size: 0.85em; color: #6b7280; font-weight: 500; }
 .card-resumo .valor { font-size: 1.5em; font-weight: 700; }
 .card-resumo .sub { font-size: 0.8em; color: #9ca3af; }
@@ -314,7 +314,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
 th { background: #f3f4f6; text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e5e7eb; }
 td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
 tr:hover { background: #f9fafb; }
-tr.vencido { background: #fff7ed; }
+tr.vencido { background: hsl(var(--warning) / 0.10); }
 tr.cancelado { opacity: 0.5; }
 
 .tipo-badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8em; font-weight: 600; }

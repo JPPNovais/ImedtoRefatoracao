@@ -277,7 +277,7 @@ onMounted(() => {
 .landing { font-family: 'Nunito', sans-serif; color: var(--text); }
 .container { max-width: 1152px; margin: 0 auto; padding: 0 1.5rem; }
 .container--narrow { max-width: 800px; }
-.bg-white { background: #ffffff; }
+.bg-white { background: hsl(var(--card)); }
 .bg-light  { background: hsl(var(--primary-light)); }
 
 /* Navbar */
@@ -327,7 +327,7 @@ onMounted(() => {
 .hero-nota { font-size: 0.82em; color: var(--text-faint); }
 .hero-card { display: flex; justify-content: center; }
 .hero-card-inner { background: hsl(var(--primary-light)); border-radius: 1.25rem; box-shadow: var(--shadow-md); padding: 1.25rem; width: 100%; max-width: 320px; }
-.hero-card-file { background: #fff; border-radius: var(--radius); padding: 1rem; margin-bottom: 0.75rem; }
+.hero-card-file { background: hsl(var(--card)); border-radius: var(--radius); padding: 1rem; margin-bottom: 0.75rem; }
 .hero-card-file-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
 .hc-avatar { width: 40px; height: 40px; background: rgba(69,43,151,0.12); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: hsl(var(--primary)); font-size: 1.1rem; }
 .hc-lines { flex: 1; display: flex; flex-direction: column; gap: 5px; }
@@ -364,7 +364,7 @@ onMounted(() => {
 .card p  { font-size: 0.875em; color: var(--text-muted); margin: 0; line-height: 1.6; }
 
 /* Benefits */
-.benefit-card { background: #fff; border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; transition: box-shadow 0.2s, transform 0.2s; }
+.benefit-card { background: hsl(var(--card)); border-radius: var(--radius-lg); padding: 1.5rem; text-align: center; transition: box-shadow 0.2s, transform 0.2s; }
 .benefit-card:hover { box-shadow: var(--shadow-md); transform: scale(1.03); }
 .benefit-stat  { font-size: 2.75rem; font-weight: 800; color: hsl(var(--primary)); margin-bottom: 0.2rem; }
 .benefit-label { font-size: 0.78em; font-weight: 700; color: hsl(var(--primary)); margin-bottom: 0.9rem; }
@@ -379,7 +379,7 @@ onMounted(() => {
 .step-card p  { font-size: 0.875em; color: var(--text-muted); margin: 0; }
 
 /* Testimonials */
-.testimonial { background: #fff; border-radius: var(--radius-lg); padding: 1.5rem; transition: box-shadow 0.2s, transform 0.2s; }
+.testimonial { background: hsl(var(--card)); border-radius: var(--radius-lg); padding: 1.5rem; transition: box-shadow 0.2s, transform 0.2s; }
 .testimonial:hover { box-shadow: var(--shadow-md); transform: scale(1.02); }
 .testimonial-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .t-avatar { width: 48px; height: 48px; border-radius: 50%; background: hsl(var(--primary)); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.95em; flex-shrink: 0; }
@@ -426,7 +426,7 @@ onMounted(() => {
 .cta-inner h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 800; margin: 0; }
 .cta-inner p  { font-size: 1.05em; opacity: 0.9; margin: 0; }
 .cta-inner span { font-size: 0.82em; opacity: 0.75; }
-.btn-cta { background: #fff; color: hsl(var(--primary)); border: none; border-radius: var(--radius-lg); font-size: 1em; font-weight: 700; padding: 0.85rem 2rem; cursor: pointer; font-family: inherit; transition: transform 0.2s, box-shadow 0.2s; margin: 0.5rem 0; }
+.btn-cta { background: hsl(var(--card)); color: hsl(var(--primary)); border: none; border-radius: var(--radius-lg); font-size: 1em; font-weight: 700; padding: 0.85rem 2rem; cursor: pointer; font-family: inherit; transition: transform 0.2s, box-shadow 0.2s; margin: 0.5rem 0; }
 .btn-cta:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
 
 /* Footer */

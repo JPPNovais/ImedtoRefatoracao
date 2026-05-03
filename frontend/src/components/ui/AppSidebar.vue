@@ -116,8 +116,8 @@ onBeforeUnmount(() => {
     top: var(--topbar-h, 64px);
     left: 0;
     height: calc(100vh - var(--topbar-h, 64px));
-    background: hsl(var(--primary-light, 240 33% 99%));
-    color: hsl(var(--primary-dark, 254 56% 21%));
+    background: hsl(var(--primary-light));
+    color: hsl(var(--primary-dark));
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
     transition: width 220ms cubic-bezier(.2,.8,.2,1), box-shadow 220ms;
     z-index: 35;
     overflow: visible;
-    border-right: 1px solid hsl(0 0% 0% / 0.08);
+    border-right: 1px solid hsl(var(--border));
 }
 .side.collapsed { width: 64px; }
 .side.expanded { width: 240px; }
@@ -139,10 +139,10 @@ onBeforeUnmount(() => {
     right: -14px;
     width: 28px;
     height: 28px;
-    background: white;
-    border: 1px solid hsl(0 0% 0% / 0.12);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 50%;
-    color: hsl(0 0% 0% / 0.6);
+    color: hsl(var(--muted-foreground));
     cursor: pointer;
     font-size: 11px;
     display: flex;
@@ -150,22 +150,22 @@ onBeforeUnmount(() => {
     justify-content: center;
     transition: background 0.15s, color 0.15s, opacity 0.15s, transform 0.15s;
     opacity: 0;
-    box-shadow: 0 2px 8px hsl(var(--primary-dark, 254 56% 21%) / 0.12);
+    box-shadow: 0 2px 8px hsl(0 0% 0% / 0.18);
     z-index: 5;
     font-family: inherit;
 }
 .side:hover .pin-btn,
 .side.expanded .pin-btn { opacity: 1; }
 .pin-btn:hover {
-    background: hsl(var(--primary, 254 56% 38%));
-    color: white;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
     transform: scale(1.08);
-    border-color: hsl(var(--primary, 254 56% 38%));
+    border-color: hsl(var(--primary));
 }
 .side.pinned .pin-btn {
-    background: hsl(var(--primary, 254 56% 38%));
-    color: white;
-    border-color: hsl(var(--primary, 254 56% 38%));
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary));
 }
 
 .nav {
@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: hsl(0 0% 0% / 0.78);
+    color: hsl(var(--foreground) / 0.78);
     cursor: pointer;
     user-select: none;
     text-decoration: none;
@@ -218,7 +218,7 @@ onBeforeUnmount(() => {
 }
 .item:hover {
     color: hsl(var(--primary-dark, 254 56% 21%));
-    background: hsl(0 0% 0% / 0.06);
+    background: hsl(var(--muted));
 }
 .item.active {
     background: hsl(var(--primary, 254 56% 38%) / 0.12);
@@ -271,8 +271,8 @@ onBeforeUnmount(() => {
 
 .foot {
     font-size: 12px;
-    color: hsl(0 0% 0% / 0.7);
-    border-top: 1px solid hsl(0 0% 0% / 0.1);
+    color: hsl(var(--muted-foreground));
+    border-top: 1px solid hsl(var(--border));
     padding-top: 10px;
     display: flex;
     flex-direction: column;

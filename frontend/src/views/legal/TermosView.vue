@@ -158,7 +158,7 @@
     max-width: 780px;
     margin: 0 auto;
     padding: 0 1rem 4rem;
-    background: #fff;
+    background: hsl(var(--card));
     min-height: 100vh;
 }
 
