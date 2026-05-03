@@ -18,6 +18,9 @@ public class OrcamentoRepository : IOrcamentoRepository
         return orc;
     }
 
+    public async Task<Orcamento?> ObterPorIdOuNulo(long id) =>
+        await _db.Orcamentos.FindAsync(id);
+
     public async Task<Orcamento> ObterPorIdCompleto(long id)
     {
         // AsSplitQuery evita explosão cartesiana — Postgres faz uma SELECT por collection

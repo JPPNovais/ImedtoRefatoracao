@@ -3,6 +3,7 @@ namespace Imedto.Backend.Domain.Orcamentos;
 public interface IOrcamentoRepository
 {
     Task<Orcamento> ObterPorId(long id);
+    Task<Orcamento?> ObterPorIdOuNulo(long id);
 
     /// <summary>
     /// Carrega o aggregate completo (itens + equipe + implantes + formas + cirurgias +

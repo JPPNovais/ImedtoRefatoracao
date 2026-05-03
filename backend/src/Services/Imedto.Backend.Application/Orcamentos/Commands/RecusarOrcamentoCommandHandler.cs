@@ -13,10 +13,11 @@ public class RecusarOrcamentoCommandHandler : ICommandHandler<RecusarOrcamentoCo
 
     public async Task Handle(RecusarOrcamentoCommand cmd)
     {
-        var orcamento = await _repo.ObterPorId(cmd.OrcamentoId);
-
+        var orcamento = await _repo.ObterPorIdOuNulo(cmd.OrcamentoId)
+            ?? throw new BusinessException("Orçamento não encontrado.");
+        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
         if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado neste estabelecimento.");
+            throw new BusinessException("Orçamento não encontrado.");
 
         orcamento.Recusar();
         await _repo.Salvar(orcamento);
