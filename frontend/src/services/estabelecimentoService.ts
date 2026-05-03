@@ -27,6 +27,8 @@ export interface Estabelecimento {
     papelDoUsuario: "Dono" | "Profissional"
     horarioInicio: string                       // "HH:mm" ou "HH:mm:ss"
     horarioFim: string
+    duracaoConsultaPadraoMinutos: number
+    intervaloEntreConsultasMinutos: number
     diasSemanaFuncionamento: number[]           // 0=Domingo .. 6=Sábado
     horariosBloqueados: HorarioBloqueado[]
     datasBloqueadas: DataBloqueada[]
@@ -43,6 +45,8 @@ export interface CriarEstabelecimentoPayload {
 export interface AtualizarFuncionamentoPayload {
     horarioInicio: string
     horarioFim: string
+    duracaoConsultaPadraoMinutos: number
+    intervaloEntreConsultasMinutos: number
     diasSemana: number[]
     horariosBloqueados: { id?: string; inicio: string; fim: string; descricao: string }[]
     datasBloqueadas:    { id?: string; data: string; descricao: string }[]

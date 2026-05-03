@@ -12,7 +12,7 @@
  *   - Modal de criação: NovoAgendamentoModal (3 steps + cadastro rápido + lista de espera)
  *   - Modal de edição/reagendamento: EditarAgendamentoModal (modal único com toggle inline)
  */
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
     AppButton, AppCard, AppPageHeader, AppEmptyState, AppSelect,
     AppDateStrip, AppStatCard, AppField, AppInput,
@@ -41,6 +41,16 @@ function toISO(d: Date) {
 }
 
 const dataSel = ref(toISO(new Date()))
+
+// ─── Relógio para marcação "AGORA" (só renderizada quando dataSel é hoje) ───
+const agora = ref(new Date())
+let agoraTimer: number | null = null
+
+const isHoje = computed(() => dataSel.value === toISO(agora.value))
+
+const horaAgoraLabel = computed(() =>
+    agora.value.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+)
 
 // ─── Estado base ───
 const agendamentos = ref<Agendamento[]>([])
@@ -121,15 +131,23 @@ const doDiaFiltrado = computed<Agendamento[]>(() => {
     return arr.sort((a, b) => a.inicioPrevisto.localeCompare(b.inicioPrevisto))
 })
 
-// Counts para o DateStrip e StatCards.
-const countsPorDia = computed<Record<string, number>>(() => {
-    const m: Record<string, number> = {}
-    for (const a of baseFiltrada.value) {
-        const k = a.inicioPrevisto.substring(0, 10)
-        m[k] = (m[k] ?? 0) + 1
-    }
-    return m
+/** Índice do primeiro agendamento ainda futuro no dia atual. -1 se todos já
+ *  começaram (marcador vai ao final) ou se o dia selecionado não é hoje. */
+const indiceProximo = computed(() => {
+    if (!isHoje.value) return -1
+    const ts = agora.value.getTime()
+    return doDiaFiltrado.value.findIndex(a => new Date(a.inicioPrevisto).getTime() > ts)
 })
+
+const mostrarAgoraNoFinal = computed(() =>
+    isHoje.value && doDiaFiltrado.value.length > 0 && indiceProximo.value === -1,
+)
+
+// Counts para o DateStrip — vêm do endpoint agregado (ver carregarContagens).
+// Filtra por profissional no backend; especialidade não é repassada (filtra
+// apenas a lista do dia client-side, para manter o endpoint enxuto).
+const contagens = ref<Record<string, number>>({})
+const countsPorDia = computed<Record<string, number>>(() => contagens.value)
 
 const stats = computed(() => {
     const arr = doDia.value
@@ -150,23 +168,18 @@ const tituloDia = computed(() => {
 })
 
 // ─── Carregamento ───
-const mesCarregado = ref<string>("")  // "yyyy-mm" do mês carregado
+// Lista do dia: sempre refaz ao trocar dataSel (sem cache — outro profissional
+// pode ter mexido na agenda). Contagens da strip: cache por mês + filtroProf.
+const janelaCarregada = ref<string>("")  // "yyyy-mm|profissionalId" da última carga das contagens
 
-async function carregar() {
-    const [y, m] = dataSel.value.split("-").map(Number)
-    const chave = `${y}-${String(m).padStart(2, "0")}`
-    if (mesCarregado.value === chave && !erro.value) {
-        return
-    }
-
+async function carregarDia() {
     carregando.value = true
     erro.value = null
     try {
         agendamentos.value = await agendaService.listar({
-            dataInicio: `${chave}-01`,
-            dataFim: toISO(new Date(y, m, 0)),
+            dataInicio: dataSel.value,
+            dataFim: dataSel.value,
         })
-        mesCarregado.value = chave
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar agenda."
     } finally {
@@ -174,9 +187,39 @@ async function carregar() {
     }
 }
 
-watch(dataSel, () => { void carregar() })
+async function carregarContagens(force = false) {
+    const [y, m] = dataSel.value.split("-").map(Number)
+    const chave = `${y}-${String(m).padStart(2, "0")}|${filtroProf.value}`
+    if (!force && janelaCarregada.value === chave) return
+
+    // Janela = mês inteiro ± 7 dias, para a strip de 14 dias (6 antes + atual + 7 depois)
+    // continuar com contagens corretas mesmo na virada do mês.
+    const inicio = new Date(y, m - 1, 1)
+    inicio.setDate(inicio.getDate() - 7)
+    const fim = new Date(y, m, 0)
+    fim.setDate(fim.getDate() + 7)
+    try {
+        const lista = await agendaService.contarPorDia({
+            dataInicio: toISO(inicio),
+            dataFim: toISO(fim),
+            profissionalUsuarioId: filtroProf.value || undefined,
+        })
+        const map: Record<string, number> = {}
+        for (const c of lista) map[c.data] = c.total
+        contagens.value = map
+        janelaCarregada.value = chave
+    } catch { /* não crítico — strip apenas perde contagens */ }
+}
+
+watch(dataSel, async () => {
+    await carregarDia()
+    await carregarContagens()
+})
+
+watch(filtroProf, () => { void carregarContagens(true) })
 
 onMounted(async () => {
+    agoraTimer = window.setInterval(() => { agora.value = new Date() }, 30_000)
     profissionais.value = await vinculoService.listarProfissionais()
     if (tenant.papel === "Dono") {
         try {
@@ -186,7 +229,14 @@ onMounted(async () => {
             }
         } catch { /* sem perfil ainda */ }
     }
-    await Promise.all([carregar(), carregarListaEspera(), carregarPacientes()])
+    await Promise.all([carregarDia(), carregarContagens(), carregarListaEspera(), carregarPacientes()])
+})
+
+onBeforeUnmount(() => {
+    if (agoraTimer !== null) {
+        window.clearInterval(agoraTimer)
+        agoraTimer = null
+    }
 })
 
 async function carregarPacientes() {
@@ -228,8 +278,7 @@ async function cancelarAgendamento(a: Agendamento) {
 }
 
 async function recarregarSemCache() {
-    mesCarregado.value = ""
-    await carregar()
+    await Promise.all([carregarDia(), carregarContagens(true)])
 }
 
 // ─── Modal: Novo agendamento ───
@@ -459,18 +508,26 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                 />
 
                 <div v-else class="appts">
-                    <AgendamentoRow
-                        v-for="a in doDiaFiltrado"
-                        :key="a.id"
-                        :agendamento="a"
-                        :expandido="expandidoId === a.id"
-                        @alternar="alternarExpansao"
-                        @editar="abrirEditar"
-                        @reagendar="abrirReagendar"
-                        @confirmar="confirmarAgendamento"
-                        @cancelar="cancelarAgendamento"
-                        @concluir="concluirAgendamento"
-                    />
+                    <template v-for="(a, i) in doDiaFiltrado" :key="a.id">
+                        <div v-if="isHoje && i === indiceProximo" class="agora-marker" aria-label="Horário atual">
+                            <span class="agora-pulse"><span class="agora-pulse-dot"></span></span>
+                            <span class="agora-label">AGORA · {{ horaAgoraLabel }}</span>
+                        </div>
+                        <AgendamentoRow
+                            :agendamento="a"
+                            :expandido="expandidoId === a.id"
+                            @alternar="alternarExpansao"
+                            @editar="abrirEditar"
+                            @reagendar="abrirReagendar"
+                            @confirmar="confirmarAgendamento"
+                            @cancelar="cancelarAgendamento"
+                            @concluir="concluirAgendamento"
+                        />
+                    </template>
+                    <div v-if="mostrarAgoraNoFinal" class="agora-marker" aria-label="Horário atual">
+                        <span class="agora-pulse"><span class="agora-pulse-dot"></span></span>
+                        <span class="agora-label">AGORA · {{ horaAgoraLabel }}</span>
+                    </div>
                 </div>
             </AppCard>
         </div>
@@ -594,5 +651,46 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
 .appts {
     display: flex;
     flex-direction: column;
+}
+
+/* ── Marcador "AGORA" — só aparece quando o dia selecionado é hoje ── */
+.agora-marker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 16px;
+    background: hsl(0 84% 60% / 0.04);
+    border-top: 1px solid hsl(0 84% 60% / 0.55);
+    border-bottom: 1px solid hsl(0 84% 60% / 0.12);
+    position: relative;
+}
+.agora-pulse {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: hsl(0 84% 60% / 0.18);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    animation: agora-pulse 2s ease-in-out infinite;
+}
+.agora-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: hsl(0 84% 55%);
+    box-shadow: 0 0 0 2px white;
+}
+.agora-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: hsl(0 78% 45%);
+    font-variant-numeric: tabular-nums;
+}
+@keyframes agora-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(0 84% 60% / 0.45); }
+    50%      { box-shadow: 0 0 0 6px hsl(0 84% 60% / 0); }
 }
 </style>

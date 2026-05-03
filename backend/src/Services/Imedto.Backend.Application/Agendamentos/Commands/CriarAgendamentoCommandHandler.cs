@@ -69,7 +69,10 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
         var estab = await _estabelecimentoRepo.ObterPorId(cmd.EstabelecimentoId);
 
         // Converte UTC → local para comparar com horário de funcionamento (sem timezone no banco)
-        estab.ValidarPodeAgendar(cmd.InicioPrevisto.ToLocalTime());
+        estab.ValidarPodeAgendar(
+            cmd.InicioPrevisto.ToLocalTime(),
+            cmd.FimPrevisto.ToLocalTime(),
+            DateTime.Now);
 
         // Conflito com agendamento existente do mesmo profissional
         var temConflito = await _agendamentoRepo.ExisteConflito(

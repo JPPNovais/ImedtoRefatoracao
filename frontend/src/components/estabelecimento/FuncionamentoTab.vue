@@ -32,6 +32,8 @@ function paraInputTime(s: string): string {
 const form = reactive({
     horarioInicio: paraInputTime(props.estabelecimento.horarioInicio),
     horarioFim:    paraInputTime(props.estabelecimento.horarioFim),
+    duracaoConsultaMin:  props.estabelecimento.duracaoConsultaPadraoMinutos ?? 30,
+    intervaloEntreConsultasMin: props.estabelecimento.intervaloEntreConsultasMinutos ?? 0,
     diasSemana:    [...props.estabelecimento.diasSemanaFuncionamento].sort((a, b) => a - b),
     horariosBloqueados: props.estabelecimento.horariosBloqueados.map(h => ({
         id: h.id,
@@ -49,6 +51,8 @@ const form = reactive({
 watch(() => props.estabelecimento, (e) => {
     form.horarioInicio = paraInputTime(e.horarioInicio)
     form.horarioFim = paraInputTime(e.horarioFim)
+    form.duracaoConsultaMin = e.duracaoConsultaPadraoMinutos ?? 30
+    form.intervaloEntreConsultasMin = e.intervaloEntreConsultasMinutos ?? 0
     form.diasSemana = [...e.diasSemanaFuncionamento].sort((a, b) => a - b)
     form.horariosBloqueados = e.horariosBloqueados.map(h => ({
         id: h.id, inicio: paraInputTime(h.inicio), fim: paraInputTime(h.fim), descricao: h.descricao ?? "",
@@ -61,6 +65,20 @@ const erroHorario = computed<string | null>(() => {
     return form.horarioFim <= form.horarioInicio
         ? "O término deve ser maior que o início."
         : null
+})
+
+const erroDuracao = computed<string | null>(() => {
+    const d = Number(form.duracaoConsultaMin)
+    if (!Number.isFinite(d) || d < 5 || d > 480)
+        return "Duração deve estar entre 5 e 480 minutos."
+    return null
+})
+
+const erroIntervalo = computed<string | null>(() => {
+    const i = Number(form.intervaloEntreConsultasMin)
+    if (!Number.isFinite(i) || i < 0 || i > 240)
+        return "Intervalo deve estar entre 0 e 240 minutos."
+    return null
 })
 
 function toggleDiaSemana(id: number) {
@@ -149,6 +167,8 @@ const podeSalvar = computed(() =>
     !!form.horarioInicio
     && !!form.horarioFim
     && !erroHorario.value
+    && !erroDuracao.value
+    && !erroIntervalo.value
     && form.diasSemana.length > 0,
 )
 
@@ -163,6 +183,8 @@ async function salvar() {
         await estabelecimentoService.atualizarFuncionamento(props.estabelecimento.id, {
             horarioInicio: form.horarioInicio,
             horarioFim:    form.horarioFim,
+            duracaoConsultaPadraoMinutos: Number(form.duracaoConsultaMin),
+            intervaloEntreConsultasMinutos: Number(form.intervaloEntreConsultasMin),
             diasSemana:    [...form.diasSemana].sort((a, b) => a - b),
             horariosBloqueados: form.horariosBloqueados.map(h => ({
                 id: h.id, inicio: h.inicio, fim: h.fim, descricao: h.descricao,
@@ -207,6 +229,44 @@ async function salvar() {
                     <AppInput
                         v-model="form.horarioFim"
                         type="time"
+                        :disabled="!podeEditar"
+                    />
+                </AppField>
+            </div>
+        </AppCard>
+
+        <!-- ── Duração e intervalo das consultas ── -->
+        <AppCard padding="md">
+            <h3 class="secao-titulo">Duração e intervalo das consultas</h3>
+            <p class="secao-sub">
+                A duração padrão define o tamanho de cada slot da agenda.
+                O intervalo é o tempo livre obrigatório entre o fim de uma consulta e o início da próxima.
+            </p>
+
+            <div class="grade-2">
+                <AppField
+                    label="Duração padrão (minutos)"
+                    :erro="erroDuracao ?? undefined"
+                >
+                    <AppInput
+                        v-model.number="form.duracaoConsultaMin"
+                        type="number"
+                        min="5"
+                        max="480"
+                        step="5"
+                        :disabled="!podeEditar"
+                    />
+                </AppField>
+                <AppField
+                    label="Intervalo entre consultas (minutos)"
+                    :erro="erroIntervalo ?? undefined"
+                >
+                    <AppInput
+                        v-model.number="form.intervaloEntreConsultasMin"
+                        type="number"
+                        min="0"
+                        max="240"
+                        step="5"
                         :disabled="!podeEditar"
                     />
                 </AppField>

@@ -410,7 +410,11 @@ async function salvar() {
                                 }"
                                 :disabled="!s.disponivel"
                                 :title="!s.disponivel
-                                    ? (s.motivo === 'bloqueado' ? 'Horário bloqueado' : 'Ocupado')
+                                    ? (s.motivo === 'bloqueado'
+                                        ? 'Horário bloqueado'
+                                        : s.motivo === 'passado'
+                                            ? 'Horário no passado'
+                                            : 'Ocupado')
                                     : (s.hora === form.origHora && form.data === form.origData ? 'Horário atual' : 'Disponível')"
                                 @click="s.disponivel && selecionarHora(s.hora)"
                             >
@@ -422,7 +426,11 @@ async function salvar() {
                                 ></i>
                                 <i
                                     v-else-if="!s.disponivel"
-                                    :class="['fa-solid mark', s.motivo === 'bloqueado' ? 'fa-ban' : 'fa-lock']"
+                                    :class="['fa-solid mark', s.motivo === 'bloqueado'
+                                        ? 'fa-ban'
+                                        : s.motivo === 'passado'
+                                            ? 'fa-clock-rotate-left'
+                                            : 'fa-lock']"
                                     aria-hidden="true"
                                 ></i>
                             </button>

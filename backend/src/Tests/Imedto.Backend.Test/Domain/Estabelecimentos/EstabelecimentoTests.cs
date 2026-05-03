@@ -148,12 +148,16 @@ public class EstabelecimentoTests
         e.AtualizarFuncionamento(
             new TimeOnly(7, 0),
             new TimeOnly(19, 0),
+            45,
+            10,
             new[] { 1, 2, 3, 4, 5, 6 },
             new[] { bloqueio },
             new[] { dataBloqueada });
 
         Assert.That(e.HorarioInicio, Is.EqualTo(new TimeOnly(7, 0)));
         Assert.That(e.HorarioFim, Is.EqualTo(new TimeOnly(19, 0)));
+        Assert.That(e.DuracaoConsultaPadraoMinutos, Is.EqualTo(45));
+        Assert.That(e.IntervaloEntreConsultasMinutos, Is.EqualTo(10));
         Assert.That(e.DiasSemanaFuncionamento, Is.EquivalentTo(new[] { 1, 2, 3, 4, 5, 6 }));
         Assert.That(e.HorariosBloqueados, Has.Count.EqualTo(1));
         Assert.That(e.HorariosBloqueados[0].Id, Is.Not.EqualTo(Guid.Empty), "Id Guid.Empty deve ser substituído.");
@@ -168,10 +172,25 @@ public class EstabelecimentoTests
         var ex = Assert.Throws<BusinessException>(() =>
             e.AtualizarFuncionamento(
                 new TimeOnly(18, 0), new TimeOnly(8, 0),
+                30, 0,
                 new[] { 1 },
                 Array.Empty<HorarioBloqueado>(),
                 Array.Empty<DataBloqueada>()));
         Assert.That(ex.Message, Does.Contain("término"));
+    }
+
+    [Test]
+    public void AtualizarFuncionamento_DuracaoInvalida_LancaBusinessException()
+    {
+        var e = CriarValido();
+        var ex = Assert.Throws<BusinessException>(() =>
+            e.AtualizarFuncionamento(
+                new TimeOnly(8, 0), new TimeOnly(18, 0),
+                0, 0,
+                new[] { 1 },
+                Array.Empty<HorarioBloqueado>(),
+                Array.Empty<DataBloqueada>()));
+        Assert.That(ex.Message, Does.Contain("Duração"));
     }
 
     [Test]
@@ -181,6 +200,7 @@ public class EstabelecimentoTests
         var ex = Assert.Throws<BusinessException>(() =>
             e.AtualizarFuncionamento(
                 new TimeOnly(8, 0), new TimeOnly(18, 0),
+                30, 0,
                 Array.Empty<int>(),
                 Array.Empty<HorarioBloqueado>(),
                 Array.Empty<DataBloqueada>()));
@@ -194,6 +214,7 @@ public class EstabelecimentoTests
         var ex = Assert.Throws<BusinessException>(() =>
             e.AtualizarFuncionamento(
                 new TimeOnly(8, 0), new TimeOnly(18, 0),
+                30, 0,
                 new[] { 7 },
                 Array.Empty<HorarioBloqueado>(),
                 Array.Empty<DataBloqueada>()));
@@ -208,6 +229,7 @@ public class EstabelecimentoTests
         var ex = Assert.Throws<BusinessException>(() =>
             e.AtualizarFuncionamento(
                 new TimeOnly(8, 0), new TimeOnly(18, 0),
+                30, 0,
                 new[] { 1 },
                 new[] { bloqueio },
                 Array.Empty<DataBloqueada>()));
@@ -224,6 +246,7 @@ public class EstabelecimentoTests
         var ex = Assert.Throws<BusinessException>(() =>
             e.AtualizarFuncionamento(
                 new TimeOnly(8, 0), new TimeOnly(18, 0),
+                30, 0,
                 new[] { 1 },
                 Array.Empty<HorarioBloqueado>(),
                 new[] { d1, d2 }));
@@ -238,7 +261,9 @@ public class EstabelecimentoTests
         var e = CriarValido();
         // Próxima segunda-feira (dia da semana 1) às 10h.
         var segunda = ProximoDiaDaSemana(DayOfWeek.Monday).Date.AddHours(10);
-        Assert.DoesNotThrow(() => e.ValidarPodeAgendar(segunda));
+        var fim = segunda.AddMinutes(30);
+        var agora = segunda.AddDays(-1);
+        Assert.DoesNotThrow(() => e.ValidarPodeAgendar(segunda, fim, agora));
     }
 
     [Test]
@@ -246,7 +271,9 @@ public class EstabelecimentoTests
     {
         var e = CriarValido();
         var domingo = ProximoDiaDaSemana(DayOfWeek.Sunday).Date.AddHours(10);
-        var ex = Assert.Throws<BusinessException>(() => e.ValidarPodeAgendar(domingo));
+        var fim = domingo.AddMinutes(30);
+        var agora = domingo.AddDays(-1);
+        var ex = Assert.Throws<BusinessException>(() => e.ValidarPodeAgendar(domingo, fim, agora));
         Assert.That(ex.Message, Does.Contain("dia da semana"));
     }
 
@@ -255,8 +282,34 @@ public class EstabelecimentoTests
     {
         var e = CriarValido();
         var segunda = ProximoDiaDaSemana(DayOfWeek.Monday).Date.AddHours(20);
-        var ex = Assert.Throws<BusinessException>(() => e.ValidarPodeAgendar(segunda));
+        var fim = segunda.AddMinutes(30);
+        var agora = segunda.AddDays(-1);
+        var ex = Assert.Throws<BusinessException>(() => e.ValidarPodeAgendar(segunda, fim, agora));
         Assert.That(ex.Message, Does.Contain("horário de funcionamento"));
+    }
+
+    [Test]
+    public void ValidarPodeAgendar_NoPassado_LancaBusinessException()
+    {
+        var e = CriarValido();
+        var segunda = ProximoDiaDaSemana(DayOfWeek.Monday).Date.AddHours(10);
+        var fim = segunda.AddMinutes(30);
+        // "Agora" depois do início → início está no passado.
+        var agora = segunda.AddDays(1);
+        var ex = Assert.Throws<BusinessException>(() => e.ValidarPodeAgendar(segunda, fim, agora));
+        Assert.That(ex.Message, Does.Contain("passado"));
+    }
+
+    [Test]
+    public void ValidarPodeAgendar_FimUltrapassaExpediente_LancaBusinessException()
+    {
+        var e = CriarValido();
+        // Estabelecimento padrão funciona até 18:00. Inicia 17:30 com 1h → ultrapassa.
+        var segunda = ProximoDiaDaSemana(DayOfWeek.Monday).Date.AddHours(17).AddMinutes(30);
+        var fim = segunda.AddHours(1);
+        var agora = segunda.AddDays(-1);
+        var ex = Assert.Throws<BusinessException>(() => e.ValidarPodeAgendar(segunda, fim, agora));
+        Assert.That(ex.Message, Does.Contain("ultrapassa"));
     }
 
     // ----- AlterarFoto -----

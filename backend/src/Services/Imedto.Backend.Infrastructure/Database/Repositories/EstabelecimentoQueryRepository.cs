@@ -42,6 +42,8 @@ public class EstabelecimentoQueryRepository
                     'Dono'                        AS PapelDoUsuario,
                     e.horario_inicio              AS HorarioInicio,
                     e.horario_fim                 AS HorarioFim,
+                    e.duracao_consulta_padrao_minutos     AS DuracaoConsultaPadraoMinutos,
+                    e.intervalo_entre_consultas_minutos   AS IntervaloEntreConsultasMinutos,
                     e.dias_semana_funcionamento::text AS DiasSemanaJson,
                     e.horarios_bloqueados::text       AS HorariosBloqueadosJson,
                     e.datas_bloqueadas::text          AS DatasBloqueadasJson
@@ -60,6 +62,8 @@ public class EstabelecimentoQueryRepository
                     'Profissional',
                     e.horario_inicio,
                     e.horario_fim,
+                    e.duracao_consulta_padrao_minutos,
+                    e.intervalo_entre_consultas_minutos,
                     e.dias_semana_funcionamento::text,
                     e.horarios_bloqueados::text,
                     e.datas_bloqueadas::text
@@ -87,6 +91,8 @@ public class EstabelecimentoQueryRepository
             PapelDoUsuario = r.PapelDoUsuario,
             HorarioInicio = r.HorarioInicio,
             HorarioFim = r.HorarioFim,
+            DuracaoConsultaPadraoMinutos = r.DuracaoConsultaPadraoMinutos,
+            IntervaloEntreConsultasMinutos = r.IntervaloEntreConsultasMinutos,
             DiasSemanaFuncionamento = JsonSerializer.Deserialize<List<int>>(r.DiasSemanaJson ?? "[]") ?? new(),
             HorariosBloqueados = JsonSerializer.Deserialize<List<HorarioBloqueadoDto>>(r.HorariosBloqueadosJson ?? "[]", _jsonOpts) ?? new(),
             DatasBloqueadas = JsonSerializer.Deserialize<List<DataBloqueadaDto>>(r.DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new(),
@@ -119,6 +125,8 @@ public class EstabelecimentoQueryRepository
         const string sql = """
             SELECT  horario_inicio::text                 AS HorarioInicioStr,
                     horario_fim::text                    AS HorarioFimStr,
+                    duracao_consulta_padrao_minutos      AS DuracaoConsultaPadraoMinutos,
+                    intervalo_entre_consultas_minutos    AS IntervaloEntreConsultasMinutos,
                     dias_semana_funcionamento::text      AS DiasSemanaJson,
                     horarios_bloqueados::text            AS HorariosBloqueadosJson,
                     datas_bloqueadas::text               AS DatasBloqueadasJson
@@ -134,6 +142,8 @@ public class EstabelecimentoQueryRepository
         {
             HorarioInicio = TimeOnly.TryParse(linha.HorarioInicioStr, out var hi) ? hi : new TimeOnly(8, 0),
             HorarioFim = TimeOnly.TryParse(linha.HorarioFimStr, out var hf) ? hf : new TimeOnly(18, 0),
+            DuracaoConsultaPadraoMinutos = linha.DuracaoConsultaPadraoMinutos,
+            IntervaloEntreConsultasMinutos = linha.IntervaloEntreConsultasMinutos,
             DiasSemanaFuncionamento = JsonSerializer.Deserialize<List<int>>(linha.DiasSemanaJson ?? "[1,2,3,4,5]") ?? new(),
             HorariosBloqueados = JsonSerializer.Deserialize<List<HorarioBloqueadoDispo>>(linha.HorariosBloqueadosJson ?? "[]", _jsonOpts) ?? new(),
             DatasBloqueadas = JsonSerializer.Deserialize<List<DataBloqueadaDispo>>(linha.DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new(),
@@ -144,6 +154,8 @@ public class EstabelecimentoQueryRepository
     {
         public string HorarioInicioStr { get; set; } = "08:00:00";
         public string HorarioFimStr { get; set; } = "18:00:00";
+        public int DuracaoConsultaPadraoMinutos { get; set; } = 30;
+        public int IntervaloEntreConsultasMinutos { get; set; } = 0;
         public string DiasSemanaJson { get; set; } = "[1,2,3,4,5]";
         public string HorariosBloqueadosJson { get; set; } = "[]";
         public string DatasBloqueadasJson { get; set; } = "[]";
@@ -163,6 +175,8 @@ public class EstabelecimentoQueryRepository
         public string PapelDoUsuario { get; set; }
         public TimeOnly HorarioInicio { get; set; }
         public TimeOnly HorarioFim { get; set; }
+        public int DuracaoConsultaPadraoMinutos { get; set; }
+        public int IntervaloEntreConsultasMinutos { get; set; }
         public string DiasSemanaJson { get; set; }
         public string HorariosBloqueadosJson { get; set; }
         public string DatasBloqueadasJson { get; set; }

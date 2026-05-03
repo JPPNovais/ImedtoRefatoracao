@@ -49,6 +49,28 @@ public class AgendamentoController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("contagem-por-dia")]
+    public async Task<ActionResult<IEnumerable<ContagemPorDiaDto>>> ContarPorDia(
+        [FromQuery, Required] DateOnly dataInicio,
+        [FromQuery, Required] DateOnly dataFim,
+        [FromQuery] Guid? profissionalUsuarioId)
+    {
+        if (dataFim < dataInicio)
+            return BadRequest("dataFim deve ser maior ou igual a dataInicio.");
+        if (dataFim > dataInicio.AddDays(60))
+            return BadRequest("Intervalo máximo é de 60 dias.");
+
+        var result = await _query.Query<ContarAgendamentosPorDiaQuery, IEnumerable<ContagemPorDiaDto>>(
+            new ContarAgendamentosPorDiaQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                DataInicio = dataInicio,
+                DataFim = dataFim,
+                ProfissionalUsuarioId = profissionalUsuarioId,
+            });
+        return Ok(result);
+    }
+
     [HttpGet("disponibilidade")]
     public async Task<ActionResult<DisponibilidadeSemanaDto>> ConsultarDisponibilidade(
         [FromQuery, Required] Guid profissionalUsuarioId,

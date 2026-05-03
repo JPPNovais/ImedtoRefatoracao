@@ -33,6 +33,8 @@ public class AtualizarFuncionamentoCommandHandler : ICommandHandler<AtualizarFun
         estab.AtualizarFuncionamento(
             command.HorarioInicio,
             command.HorarioFim,
+            command.DuracaoConsultaPadraoMinutos,
+            command.IntervaloEntreConsultasMinutos,
             command.DiasSemana,
             horarios,
             datas);

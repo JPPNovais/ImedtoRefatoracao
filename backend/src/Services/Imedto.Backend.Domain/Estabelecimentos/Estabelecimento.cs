@@ -25,6 +25,12 @@ public class Estabelecimento : Entity
     public virtual TimeOnly HorarioInicio { get; protected set; }
     public virtual TimeOnly HorarioFim { get; protected set; }
 
+    /// <summary>Duração padrão de uma consulta em minutos. Define o tamanho dos slots na agenda.</summary>
+    public virtual int DuracaoConsultaPadraoMinutos { get; protected set; }
+
+    /// <summary>Intervalo (gap) em minutos entre o fim de uma consulta e o início da próxima.</summary>
+    public virtual int IntervaloEntreConsultasMinutos { get; protected set; }
+
     // JSONB persistido — acesso tipado via propriedades read-only abaixo.
     public virtual string DiasSemanaFuncionamentoJson { get; protected set; }
     public virtual string HorariosBloqueadosJson { get; protected set; }
@@ -75,6 +81,8 @@ public class Estabelecimento : Entity
             CriadoEm = DateTime.UtcNow,
             HorarioInicio = new TimeOnly(8, 0),
             HorarioFim = new TimeOnly(18, 0),
+            DuracaoConsultaPadraoMinutos = 30,
+            IntervaloEntreConsultasMinutos = 0,
             DiasSemanaFuncionamentoJson = "[1,2,3,4,5]",
             HorariosBloqueadosJson = "[]",
             DatasBloqueadasJson = "[]",
@@ -124,12 +132,18 @@ public class Estabelecimento : Entity
     public virtual void AtualizarFuncionamento(
         TimeOnly horarioInicio,
         TimeOnly horarioFim,
+        int duracaoConsultaPadraoMinutos,
+        int intervaloEntreConsultasMinutos,
         IReadOnlyList<int> diasSemana,
         IReadOnlyList<HorarioBloqueado> horariosBloqueados,
         IReadOnlyList<DataBloqueada> datasBloqueadas)
     {
         if (horarioFim <= horarioInicio)
             throw new BusinessException("Horário de término deve ser maior que o horário de início.");
+        if (duracaoConsultaPadraoMinutos < 5 || duracaoConsultaPadraoMinutos > 480)
+            throw new BusinessException("Duração padrão da consulta deve estar entre 5 e 480 minutos.");
+        if (intervaloEntreConsultasMinutos < 0 || intervaloEntreConsultasMinutos > 240)
+            throw new BusinessException("Intervalo entre consultas deve estar entre 0 e 240 minutos.");
         if (diasSemana == null || diasSemana.Count == 0)
             throw new BusinessException("Selecione pelo menos um dia de funcionamento.");
         foreach (var d in diasSemana)
@@ -164,6 +178,8 @@ public class Estabelecimento : Entity
 
         HorarioInicio = horarioInicio;
         HorarioFim = horarioFim;
+        DuracaoConsultaPadraoMinutos = duracaoConsultaPadraoMinutos;
+        IntervaloEntreConsultasMinutos = intervaloEntreConsultasMinutos;
         DiasSemanaFuncionamentoJson = JsonSerializer.Serialize(diasSemana.Distinct().OrderBy(d => d));
         HorariosBloqueadosJson = JsonSerializer.Serialize(bloqueiosNormalizados, _jsonOpts);
         DatasBloqueadasJson = JsonSerializer.Serialize(datasNormalizadas, _jsonOpts);
@@ -171,14 +187,22 @@ public class Estabelecimento : Entity
     }
 
     /// <summary>
-    /// Valida se um agendamento pode ocorrer no horário informado, respeitando a configuração
-    /// de funcionamento (dia da semana, datas bloqueadas, faixa de horário e horários bloqueados).
-    /// O parâmetro deve ser o início do agendamento em horário local.
+    /// Valida se um agendamento pode ocorrer no intervalo informado, respeitando a configuração
+    /// de funcionamento (dia da semana, datas bloqueadas, faixa de horário, horários bloqueados),
+    /// proibindo agendamentos no passado e exigindo que o fim caiba dentro do expediente do mesmo dia.
+    /// Os parâmetros devem ser início, fim e "agora" em horário local.
     /// </summary>
-    public virtual void ValidarPodeAgendar(DateTime inicioLocal)
+    public virtual void ValidarPodeAgendar(DateTime inicioLocal, DateTime fimLocal, DateTime agoraLocal)
     {
+        if (fimLocal <= inicioLocal)
+            throw new BusinessException("O fim do agendamento deve ser posterior ao início.");
+
+        if (inicioLocal < agoraLocal)
+            throw new BusinessException("Não é possível agendar para uma data ou horário no passado.");
+
         var data = DateOnly.FromDateTime(inicioLocal);
         var horaInicio = TimeOnly.FromDateTime(inicioLocal);
+        var horaFim = TimeOnly.FromDateTime(fimLocal);
         var diaSemana = (int)inicioLocal.DayOfWeek;
 
         if (!DiasSemanaFuncionamento.Contains(diaSemana))
@@ -192,8 +216,15 @@ public class Estabelecimento : Entity
                 $"O agendamento deve estar dentro do horário de funcionamento " +
                 $"({HorarioInicio:HH\\:mm}–{HorarioFim:HH\\:mm}).");
 
+        // Não pode atravessar a meia-noite nem ultrapassar o fim do expediente.
+        if (DateOnly.FromDateTime(fimLocal) != data || horaFim > HorarioFim)
+            throw new BusinessException(
+                $"O agendamento ultrapassa o horário de funcionamento " +
+                $"({HorarioInicio:HH\\:mm}–{HorarioFim:HH\\:mm}). " +
+                "Reduza a duração ou escolha um horário anterior.");
+
         var bloqueio = HorariosBloqueados.FirstOrDefault(hb =>
-            horaInicio >= hb.Inicio && horaInicio < hb.Fim);
+            horaInicio < hb.Fim && horaFim > hb.Inicio);
         if (bloqueio is not null)
         {
             var desc = string.IsNullOrWhiteSpace(bloqueio.Descricao) ? "" : $" ({bloqueio.Descricao})";

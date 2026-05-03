@@ -6,6 +6,8 @@ public class ConfiguracaoFuncionamentoDto
 {
     public TimeOnly HorarioInicio { get; set; }
     public TimeOnly HorarioFim { get; set; }
+    public int DuracaoConsultaPadraoMinutos { get; set; } = 30;
+    public int IntervaloEntreConsultasMinutos { get; set; } = 0;
     public List<int> DiasSemanaFuncionamento { get; set; } = new();
     public List<HorarioBloqueadoDispo> HorariosBloqueados { get; set; } = new();
     public List<DataBloqueadaDispo> DatasBloqueadas { get; set; } = new();

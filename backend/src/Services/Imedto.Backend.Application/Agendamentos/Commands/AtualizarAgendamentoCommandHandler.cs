@@ -39,7 +39,10 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
         }
 
         var estab = await _estabelecimentoRepo.ObterPorId(cmd.EstabelecimentoId);
-        estab.ValidarPodeAgendar(cmd.InicioPrevisto.ToLocalTime());
+        estab.ValidarPodeAgendar(
+            cmd.InicioPrevisto.ToLocalTime(),
+            cmd.FimPrevisto.ToLocalTime(),
+            DateTime.Now);
 
         if (await _agendamentoRepo.ExisteConflito(
                 cmd.ProfissionalUsuarioId,

@@ -28,7 +28,8 @@ public class AtualizarAgendamentoCommandHandlerTests
         _vinculoRepo = new Mock<IVinculoRepository>();
         _estabelecimentoRepo = new Mock<IEstabelecimentoRepository>();
         _estabelecimento = new Mock<Estabelecimento>();
-        _estabelecimento.Setup(e => e.ValidarPodeAgendar(It.IsAny<DateTime>()));
+        _estabelecimento.Setup(e => e.ValidarPodeAgendar(
+            It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()));
         _estabelecimentoRepo
             .Setup(r => r.ObterPorId(EstabelecimentoId))
             .ReturnsAsync(_estabelecimento.Object);

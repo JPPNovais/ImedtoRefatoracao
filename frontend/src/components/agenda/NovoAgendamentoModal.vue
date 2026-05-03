@@ -638,7 +638,11 @@ const profSelecionado = computed(() =>
                                     {{ s.hora }}
                                     <i
                                         v-if="!s.disponivel"
-                                        :class="['fa-solid mark', s.motivo === 'bloqueado' ? 'fa-ban' : 'fa-lock']"
+                                        :class="['fa-solid mark', s.motivo === 'bloqueado'
+                                            ? 'fa-ban'
+                                            : s.motivo === 'passado'
+                                                ? 'fa-clock-rotate-left'
+                                                : 'fa-lock']"
                                         aria-hidden="true"
                                     ></i>
                                 </button>

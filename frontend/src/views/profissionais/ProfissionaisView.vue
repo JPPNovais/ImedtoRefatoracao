@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
+import { useRouter } from "vue-router"
 import AppBadge from "@/components/ui/AppBadge.vue"
 import { AppButton } from "@/components/ui"
 import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
 import { permissaoService, type ModeloPermissao }     from "@/services/permissaoService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAuthStore }   from "@/stores/authStore"
+
+const router = useRouter()
 
 const tenant = useTenantStore()
 const auth   = useAuthStore()
@@ -130,6 +133,26 @@ onMounted(carregar)
                 <span class="estab-label">Estabelecimento</span>
                 <span class="estab-nome">{{ tenant.ativo?.nomeFantasia ?? "—" }}</span>
             </div>
+        </div>
+
+        <!-- Atalhos: permissões + meus convites -->
+        <div class="atalhos-row">
+            <button type="button" class="atalho-link" @click="router.push({ name: 'ModelosPermissao' })">
+                <i class="fa-solid fa-user-group" aria-hidden="true"></i>
+                <div class="atalho-text">
+                    <span class="atalho-titulo">Modelos de permissão</span>
+                    <span class="atalho-desc">Defina o que cada perfil pode fazer.</span>
+                </div>
+                <i class="fa-solid fa-chevron-right chev" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="atalho-link" @click="router.push({ name: 'MeusConvites' })">
+                <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+                <div class="atalho-text">
+                    <span class="atalho-titulo">Meus convites</span>
+                    <span class="atalho-desc">Convites recebidos de outros estabelecimentos.</span>
+                </div>
+                <i class="fa-solid fa-chevron-right chev" aria-hidden="true"></i>
+            </button>
         </div>
 
         <!-- Form inline de convite -->
@@ -329,6 +352,34 @@ onMounted(carregar)
 .estab-info { display: flex; flex-direction: column; }
 .estab-label { font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .estab-nome  { font-size: 1em; font-weight: 700; color: var(--text); }
+
+/* Atalhos (permissões / convites) */
+.atalhos-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;
+}
+@media (max-width: 700px) { .atalhos-row { grid-template-columns: 1fr; } }
+.atalho-link {
+    display: flex; align-items: center; gap: 0.85rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0.85rem 1rem;
+    cursor: pointer; text-align: left; font-family: inherit;
+    transition: border-color 0.12s, background 0.12s, transform 0.12s;
+}
+.atalho-link:hover {
+    border-color: hsl(var(--primary, 254 56% 38%) / 0.4);
+    background: hsl(var(--primary, 254 56% 38%) / 0.04);
+}
+.atalho-link > i:first-child {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: hsl(var(--primary, 254 56% 38%) / 0.1);
+    color: hsl(var(--primary, 254 56% 38%));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95em; flex-shrink: 0;
+}
+.atalho-text { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; min-width: 0; }
+.atalho-titulo { font-size: 0.88em; font-weight: 700; color: var(--text); }
+.atalho-desc   { font-size: 0.75em; color: var(--text-muted); }
+.atalho-link .chev { color: var(--text-muted); font-size: 0.7em; }
 
 /* Card genérico */
 .card {

@@ -17,6 +17,8 @@ public class EstabelecimentoDto
     // Funcionamento.
     public TimeOnly HorarioInicio { get; set; }
     public TimeOnly HorarioFim { get; set; }
+    public int DuracaoConsultaPadraoMinutos { get; set; } = 30;
+    public int IntervaloEntreConsultasMinutos { get; set; } = 0;
     public IReadOnlyList<int> DiasSemanaFuncionamento { get; set; } = Array.Empty<int>();
     public IReadOnlyList<HorarioBloqueadoDto> HorariosBloqueados { get; set; } = Array.Empty<HorarioBloqueadoDto>();
     public IReadOnlyList<DataBloqueadaDto> DatasBloqueadas { get; set; } = Array.Empty<DataBloqueadaDto>();

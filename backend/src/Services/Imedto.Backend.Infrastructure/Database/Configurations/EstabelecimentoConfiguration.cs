@@ -29,6 +29,10 @@ public class EstabelecimentoConfiguration : IEntityTypeConfiguration<Estabelecim
             .HasDefaultValueSql("'08:00'::time");
         builder.Property(e => e.HorarioFim).HasColumnName("horario_fim").HasColumnType("time").IsRequired()
             .HasDefaultValueSql("'18:00'::time");
+        builder.Property(e => e.DuracaoConsultaPadraoMinutos).HasColumnName("duracao_consulta_padrao_minutos").IsRequired()
+            .HasDefaultValue(30);
+        builder.Property(e => e.IntervaloEntreConsultasMinutos).HasColumnName("intervalo_entre_consultas_minutos").IsRequired()
+            .HasDefaultValue(0);
         builder.Property(e => e.DiasSemanaFuncionamentoJson).HasColumnName("dias_semana_funcionamento").HasColumnType("jsonb").IsRequired()
             .HasDefaultValueSql("'[1,2,3,4,5]'::jsonb");
         builder.Property(e => e.HorariosBloqueadosJson).HasColumnName("horarios_bloqueados").HasColumnType("jsonb").IsRequired()

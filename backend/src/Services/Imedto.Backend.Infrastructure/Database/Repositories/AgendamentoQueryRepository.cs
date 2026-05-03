@@ -63,6 +63,34 @@ public class AgendamentoQueryRepository
         });
     }
 
+    public async Task<IEnumerable<ContagemPorDiaDto>> ContarPorDia(
+        long estabelecimentoId,
+        DateOnly dataInicio,
+        DateOnly dataFim,
+        Guid? profissionalUsuarioId)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+
+        const string sql = """
+            SELECT  a.inicio_previsto::date AS Data,
+                    COUNT(*)::int           AS Total
+            FROM    agendamentos a
+            WHERE   a.estabelecimento_id = @EstabelecimentoId
+              AND   a.inicio_previsto::date >= @DataInicio::date
+              AND   a.inicio_previsto::date <= @DataFim::date
+              AND   (@ProfissionalUsuarioId::uuid IS NULL OR a.profissional_usuario_id = @ProfissionalUsuarioId::uuid)
+            GROUP BY a.inicio_previsto::date
+            """;
+
+        return await conn.QueryAsync<ContagemPorDiaDto>(sql, new
+        {
+            EstabelecimentoId = estabelecimentoId,
+            DataInicio = dataInicio.ToDateTime(TimeOnly.MinValue),
+            DataFim = dataFim.ToDateTime(TimeOnly.MinValue),
+            ProfissionalUsuarioId = profissionalUsuarioId,
+        });
+    }
+
     /// <summary>
     /// Retorna agendamentos ativos (não cancelados) de um profissional num intervalo de datas,
     /// com apenas os campos necessários para calcular disponibilidade.

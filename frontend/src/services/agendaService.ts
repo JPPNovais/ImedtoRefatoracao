@@ -68,6 +68,16 @@ export const agendaService = {
         return data
     },
 
+    async contarPorDia(params: {
+        dataInicio: string
+        dataFim: string
+        profissionalUsuarioId?: string
+    }): Promise<{ data: string; total: number }[]> {
+        const { data } = await httpClient.get<{ data: string; total: number }[]>(
+            "/agendamentos/contagem-por-dia", { params })
+        return data
+    },
+
     async obter(id: number): Promise<Agendamento> {
         const { data } = await httpClient.get<Agendamento>(`/agendamentos/${id}`)
         return data

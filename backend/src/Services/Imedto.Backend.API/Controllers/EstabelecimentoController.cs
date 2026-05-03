@@ -124,6 +124,8 @@ public class EstabelecimentoController : ControllerBase
             UsuarioSolicitanteId = userId,
             HorarioInicio = request.HorarioInicio,
             HorarioFim = request.HorarioFim,
+            DuracaoConsultaPadraoMinutos = request.DuracaoConsultaPadraoMinutos,
+            IntervaloEntreConsultasMinutos = request.IntervaloEntreConsultasMinutos,
             DiasSemana = request.DiasSemana ?? Array.Empty<int>(),
             HorariosBloqueados = (request.HorariosBloqueados ?? Array.Empty<HorarioBloqueadoBody>())
                 .Select(h => new HorarioBloqueadoInput(h.Id, h.Inicio, h.Fim, h.Descricao ?? string.Empty))
@@ -205,6 +207,8 @@ public record AtualizarEstabelecimentoRequest(
 public record AtualizarFuncionamentoRequest(
     TimeOnly HorarioInicio,
     TimeOnly HorarioFim,
+    int DuracaoConsultaPadraoMinutos,
+    int IntervaloEntreConsultasMinutos,
     IReadOnlyList<int> DiasSemana,
     IReadOnlyList<HorarioBloqueadoBody> HorariosBloqueados,
     IReadOnlyList<DataBloqueadaBody> DatasBloqueadas);

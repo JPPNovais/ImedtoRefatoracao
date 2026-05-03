@@ -157,6 +157,28 @@ onMounted(async () => {
                         </AppButton>
                     </div>
                 </div>
+
+                <div class="atalho-card">
+                    <div class="atalho-icone">✨</div>
+                    <div class="atalho-info">
+                        <h4 class="atalho-titulo">Configurações de IA</h4>
+                        <p class="atalho-desc">Defina o comportamento da IA usada em sugestões, resumos e automações do estabelecimento.</p>
+                        <AppButton @click="router.push({ name: 'IaSettings' })">
+                            Configurar IA
+                        </AppButton>
+                    </div>
+                </div>
+
+                <div class="atalho-card">
+                    <div class="atalho-icone">⭐</div>
+                    <div class="atalho-info">
+                        <h4 class="atalho-titulo">Assinatura</h4>
+                        <p class="atalho-desc">Veja seu plano atual, datas de cobrança e gerencie a assinatura do estabelecimento.</p>
+                        <AppButton @click="router.push({ name: 'MinhaAssinatura' })">
+                            Ver assinatura
+                        </AppButton>
+                    </div>
+                </div>
             </div>
         </section>
 

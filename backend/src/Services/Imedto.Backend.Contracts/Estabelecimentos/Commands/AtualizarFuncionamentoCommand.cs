@@ -8,6 +8,8 @@ public class AtualizarFuncionamentoCommand : ICommand
     public Guid UsuarioSolicitanteId { get; set; }
     public TimeOnly HorarioInicio { get; set; }
     public TimeOnly HorarioFim { get; set; }
+    public int DuracaoConsultaPadraoMinutos { get; set; } = 30;
+    public int IntervaloEntreConsultasMinutos { get; set; } = 0;
     public IReadOnlyList<int> DiasSemana { get; set; } = Array.Empty<int>();
     public IReadOnlyList<HorarioBloqueadoInput> HorariosBloqueados { get; set; } = Array.Empty<HorarioBloqueadoInput>();
     public IReadOnlyList<DataBloqueadaInput> DatasBloqueadas { get; set; } = Array.Empty<DataBloqueadaInput>();

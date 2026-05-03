@@ -382,6 +382,7 @@ public static class Container
         services.AddScoped<RemoverListaEsperaCommandHandler>();
         services.AddSingleton<ListarListaEsperaQueryHandler>();
         services.AddSingleton<ListarAgendamentosQueryHandlers>();
+        services.AddSingleton<ContarAgendamentosPorDiaQueryHandler>();
         services.AddSingleton<ObterAgendamentoQueryHandlers>();
         services.AddSingleton<ConsultarDisponibilidadeQueryHandlers>();
         services.AddSingleton<AgendamentoQueryRepository>();
@@ -744,6 +745,7 @@ public static class Container
             bus.Register<ObterUrlAnexoQuery, AnexoUrlDto, ObterUrlAnexoQueryHandlers>();
             bus.Register<ListarModelosPermissaoQuery, IEnumerable<ModeloPermissaoDto>, ListarModelosPermissaoQueryHandlers>();
             bus.Register<ListarAgendamentosQuery, IEnumerable<AgendamentoDto>, ListarAgendamentosQueryHandlers>();
+            bus.Register<ContarAgendamentosPorDiaQuery, IEnumerable<ContagemPorDiaDto>, ContarAgendamentosPorDiaQueryHandler>();
             bus.Register<ObterAgendamentoQuery, AgendamentoDto, ObterAgendamentoQueryHandlers>();
             bus.Register<ConsultarDisponibilidadeQuery, DisponibilidadeSemanaDto, ConsultarDisponibilidadeQueryHandlers>();
             bus.Register<ListarListaEsperaQuery, IEnumerable<ListaEsperaItemDto>, ListarListaEsperaQueryHandler>();

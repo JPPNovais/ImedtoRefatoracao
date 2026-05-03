@@ -460,6 +460,8 @@ async function finalizar() {
                         await estabelecimentoService.atualizarFuncionamento(meuEstab.id, {
                             horarioInicio: inicio,
                             horarioFim: fim,
+                            duracaoConsultaPadraoMinutos: Number(duracaoConsulta.value) || 30,
+                            intervaloEntreConsultasMinutos: Number(intervaloConsulta.value) || 0,
                             diasSemana: ativos.map(d => d.indice),
                             horariosBloqueados: [],
                             datasBloqueadas: [],

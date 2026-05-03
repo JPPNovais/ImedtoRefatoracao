@@ -51,21 +51,15 @@ const activeMap: Record<string, string> = {
     OrcamentoDetalhe: "Orcamentos",
     OrcamentoForm: "Orcamentos",
     OrcamentoSettings: "Orcamentos",
+    // Permissões e convites pertencem ao escopo Profissionais.
+    ModelosPermissao: "Profissionais",
+    MeusConvites: "Profissionais",
 }
 
-// Itens do footer da sidebar (Dono only + perfil/conta).
-const navFooter = computed(() => {
-    const ehDono = tenant.papel === "Dono"
-    const items: Array<{ name?: string; label: string; icon: string; to?: { name: string }; onClick?: () => void; danger?: boolean }> = []
-    if (ehDono) {
-        items.push({ name: "Estabelecimento",   label: "Estabelecimento",  icon: "fa-solid fa-building",   to: { name: "Estabelecimento" } })
-        items.push({ name: "ModelosPermissao",  label: "Permissões",       icon: "fa-solid fa-user-group", to: { name: "ModelosPermissao" } })
-        items.push({ name: "IaSettings",        label: "Config. IA",       icon: "fa-solid fa-robot",      to: { name: "IaSettings" } })
-        items.push({ name: "OrcamentoSettings", label: "Config. orçamento", icon: "fa-solid fa-file-invoice-dollar", to: { name: "OrcamentoSettings" } })
-    }
-    items.push({ name: "MinhaAssinatura", label: "Assinatura",   icon: "fa-solid fa-star",     to: { name: "MinhaAssinatura" } })
-    items.push({ name: "MeusConvites",    label: "Meus convites", icon: "fa-solid fa-envelope", to: { name: "MeusConvites" } })
-    return items
+// "Configurações" no footer agrupa todas as telas de configuração do estabelecimento.
+const configuracoesAtiva = computed(() => {
+    const sub = ["Estabelecimento", "IaSettings", "MinhaAssinatura", "Planos", "ModelosProntuario"]
+    return sub.includes(route.name as string)
 })
 
 const userInicial = computed(() => {
@@ -150,6 +144,9 @@ function irNotificacoes() {
                 <button type="button" class="pop-item" @click="() => { fechar(); irMinhaConta() }">
                     <i class="fa-solid fa-user" aria-hidden="true"></i>Minha conta
                 </button>
+                <button type="button" class="pop-item" @click="() => { fechar(); router.push({ name: 'MeusConvites' }) }">
+                    <i class="fa-solid fa-envelope" aria-hidden="true"></i>Meus convites
+                </button>
                 <button type="button" class="pop-item" @click="() => { fechar(); trocarEstabelecimento() }">
                     <i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i>Trocar estabelecimento
                 </button>
@@ -165,36 +162,24 @@ function irNotificacoes() {
     <AppSidebar :items="navMain" :active-map="activeMap">
         <template #footer="{ expanded }">
             <router-link
-                v-for="item in navFooter"
-                :key="item.name"
-                :to="item.to!"
+                :to="{ name: 'Estabelecimento' }"
                 class="foot-item"
-                :class="{ active: route.name === item.name }"
-                :title="!expanded ? item.label : ''"
+                :class="{ active: configuracoesAtiva, 'is-expanded': expanded }"
+                :title="!expanded ? 'Configurações' : ''"
             >
-                <i :class="item.icon" aria-hidden="true"></i>
-                <span class="lbl">{{ item.label }}</span>
+                <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                <span class="lbl">Configurações</span>
             </router-link>
 
-            <button
-                type="button"
+            <a
+                href="mailto:contato.imedto@gmail.com?subject=Suporte%20Imedto"
                 class="foot-item"
-                :title="!expanded ? 'Trocar estabelecimento' : ''"
-                @click="trocarEstabelecimento"
+                :class="{ 'is-expanded': expanded }"
+                :title="!expanded ? 'Ajuda' : ''"
             >
-                <i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i>
-                <span class="lbl">Trocar estabelecimento</span>
-            </button>
-
-            <button
-                type="button"
-                class="foot-item danger"
-                :title="!expanded ? 'Sair' : ''"
-                @click="sair"
-            >
-                <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
-                <span class="lbl">Sair</span>
-            </button>
+                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+                <span class="lbl">Ajuda</span>
+            </a>
         </template>
     </AppSidebar>
 
@@ -360,16 +345,16 @@ function irNotificacoes() {
 }
 .logout:hover { background: hsl(0 84% 60% / 0.14); }
 
-/* Footer items da sidebar (sobrescreve estilo do AppSidebar via slot) */
+/* Footer items da sidebar (mesmo padrão visual dos itens principais do nav). */
 .foot-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 8px 12px;
+    padding: 9px 12px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
-    color: hsl(0 0% 0% / 0.7);
+    color: hsl(0 0% 0% / 0.78);
     text-decoration: none;
     border: 0;
     background: transparent;
@@ -378,15 +363,16 @@ function irNotificacoes() {
     width: 100%;
     font-family: inherit;
     white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
 }
-.foot-item i { width: 18px; text-align: center; font-size: 13px; flex-shrink: 0; }
+.foot-item i { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
 .foot-item .lbl {
     flex: 1;
     opacity: 0;
     transition: opacity 160ms;
     pointer-events: none;
 }
-:global(.side.expanded) .foot-item .lbl {
+.foot-item.is-expanded .lbl {
     opacity: 1;
     pointer-events: auto;
 }
@@ -399,6 +385,7 @@ function irNotificacoes() {
     color: hsl(var(--primary-dark, 254 56% 21%));
     font-weight: 600;
 }
+.foot-item.active i { color: hsl(var(--primary, 254 56% 38%)); }
 .foot-item.danger { color: hsl(0 70% 50%); }
 .foot-item.danger:hover { background: hsl(0 70% 50% / 0.1); color: hsl(0 70% 45%); }
 
