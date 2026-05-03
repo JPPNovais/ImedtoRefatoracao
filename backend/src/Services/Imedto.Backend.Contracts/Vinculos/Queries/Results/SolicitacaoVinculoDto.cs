@@ -9,10 +9,11 @@ public class SolicitacaoVinculoDto
 {
     public long Id { get; set; }
     public Guid ProfissionalUsuarioId { get; set; }
-    public string ProfissionalEmail { get; set; }
+    // ProfissionalEmail removido (LGPD): vazamento PII — front nao exibe nem usa
+    // (cross-check 0 matches em frontend/src). Auditoria Fase 1 sinalizou como alto risco.
     public string ProfissionalNome { get; set; }
     public long EstabelecimentoId { get; set; }
-    public string EstabelecimentoNomeFantasia { get; set; }
+    // EstabelecimentoNomeFantasia removido: front nao consome (0 matches).
     public string Status { get; set; }
     public string Mensagem { get; set; }
     public DateTime CriadaEm { get; set; }

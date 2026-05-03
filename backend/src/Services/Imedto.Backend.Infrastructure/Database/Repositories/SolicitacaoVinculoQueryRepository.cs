@@ -22,19 +22,18 @@ public class SolicitacaoVinculoQueryRepository
     public async Task<IEnumerable<SolicitacaoVinculoDto>> ListarPorProfissional(Guid profissionalUsuarioId)
     {
         const string sql = """
+            -- SELECT minimizado (LGPD): u.email e e.nome_fantasia removidos —
+            -- front nao consome esses campos.
             SELECT  s.id                          AS Id,
                     s.profissional_usuario_id     AS ProfissionalUsuarioId,
-                    u.email                       AS ProfissionalEmail,
                     u.nome_completo               AS ProfissionalNome,
                     s.estabelecimento_id          AS EstabelecimentoId,
-                    e.nome_fantasia               AS EstabelecimentoNomeFantasia,
                     s.status                      AS Status,
                     s.mensagem                    AS Mensagem,
                     s.criada_em                   AS CriadaEm,
                     s.respondida_em               AS RespondidaEm,
                     s.motivo_recusa               AS MotivoRecusa
             FROM    public.solicitacoes_vinculo s
-            JOIN    public.estabelecimentos e ON e.id = s.estabelecimento_id
             JOIN    public.usuarios u         ON u.id = s.profissional_usuario_id
             WHERE   s.profissional_usuario_id = @ProfissionalUsuarioId
             ORDER BY s.criada_em DESC
@@ -52,19 +51,18 @@ public class SolicitacaoVinculoQueryRepository
         long estabelecimentoId, string statusFiltro)
     {
         const string sql = """
+            -- SELECT minimizado (LGPD): u.email e e.nome_fantasia removidos —
+            -- front nao consome esses campos.
             SELECT  s.id                          AS Id,
                     s.profissional_usuario_id     AS ProfissionalUsuarioId,
-                    u.email                       AS ProfissionalEmail,
                     u.nome_completo               AS ProfissionalNome,
                     s.estabelecimento_id          AS EstabelecimentoId,
-                    e.nome_fantasia               AS EstabelecimentoNomeFantasia,
                     s.status                      AS Status,
                     s.mensagem                    AS Mensagem,
                     s.criada_em                   AS CriadaEm,
                     s.respondida_em               AS RespondidaEm,
                     s.motivo_recusa               AS MotivoRecusa
             FROM    public.solicitacoes_vinculo s
-            JOIN    public.estabelecimentos e ON e.id = s.estabelecimento_id
             JOIN    public.usuarios u         ON u.id = s.profissional_usuario_id
             WHERE   s.estabelecimento_id = @EstabelecimentoId
               AND   (@Status IS NULL OR s.status = @Status)

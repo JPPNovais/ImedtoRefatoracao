@@ -5,7 +5,8 @@ public class ConviteDto
     public long VinculoId { get; set; }
     public long EstabelecimentoId { get; set; }
     public string NomeFantasiaEstabelecimento { get; set; }
-    public string ConvidadoPorEmail { get; set; }
+    // ConvidadoPorEmail removido (LGPD): front nao exibe (so estava na interface TS,
+    // sem uso real em template). Front mostra ConvidadoPorNome.
     public string ConvidadoPorNome { get; set; }
     public DateTime ConvidadoEm { get; set; }
 

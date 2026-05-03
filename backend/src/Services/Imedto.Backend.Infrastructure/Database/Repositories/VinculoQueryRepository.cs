@@ -109,10 +109,10 @@ public class VinculoQueryRepository
     public async Task<IEnumerable<ConviteDto>> ListarConvitesPendentes(Guid usuarioId)
     {
         const string sql = """
+            -- SELECT minimizado (LGPD): c.email removido — front nao exibe.
             SELECT  v.id                       AS VinculoId,
                     v.estabelecimento_id       AS EstabelecimentoId,
                     e.nome_fantasia            AS NomeFantasiaEstabelecimento,
-                    c.email                    AS ConvidadoPorEmail,
                     c.nome_completo            AS ConvidadoPorNome,
                     v.convidado_em             AS ConvidadoEm,
                     v.nome_convidado           AS NomeConvidado,
