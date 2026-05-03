@@ -11,14 +11,14 @@ public interface IPacienteRepository
     Task<Paciente?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
     /// <summary>
-    /// Existe so para chamadores que ainda nao tem o tenant em contexto (caso raro).
-    /// Prefira a sobrecarga com estabelecimentoId.
+    /// Lookup sem filtro de tenant — uso restrito a operacoes cross-tenant
+    /// legitimas. Hoje so usado pelo <c>AnonimizacaoService</c> (job de
+    /// retencao + handler "AnonimizarMinhaConta" do titular). Qualquer outro
+    /// caller deve preferir a sobrecarga com <c>estabelecimentoId</c>
+    /// (defense-in-depth LGPD).
     /// </summary>
-    [Obsolete("Use ObterPorId(long, long) para garantir filtro de tenant — defense-in-depth LGPD. Esta sobrecarga sera removida assim que todos os modulos forem migrados (Fases 3-5).")]
-    Task<Paciente> ObterPorId(long id);
-
-    [Obsolete("Use ObterPorIdOuNulo(long, long) para garantir filtro de tenant — defense-in-depth LGPD. Esta sobrecarga sera removida assim que todos os modulos forem migrados (Fases 3-5).")]
-    Task<Paciente> ObterPorIdOuNulo(long id);
+    [Obsolete("Use ObterPorIdOuNulo(long, long) para garantir filtro de tenant. Esta sobrecarga so eh permitida em AnonimizacaoService (operacao cross-tenant legitima).")]
+    Task<Paciente?> ObterPorIdOuNulo(long id);
 
     Task<bool> ExisteCpfNoEstabelecimento(string cpf, long estabelecimentoId, long ignorarPacienteId);
     Task Salvar(Paciente paciente);

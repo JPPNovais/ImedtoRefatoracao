@@ -16,16 +16,8 @@ public class PacienteRepository : IPacienteRepository
         await _context.Pacientes
             .FirstOrDefaultAsync(p => p.Id == id && p.EstabelecimentoId == estabelecimentoId);
 
-#pragma warning disable CS0618 // implementacao da API obsoleta — mantida ate todos os modulos migrarem
-    public async Task<Paciente> ObterPorId(long id)
-    {
-        var paciente = await _context.Pacientes.FindAsync(id);
-        if (paciente is null)
-            throw new KeyNotFoundException($"Paciente {id} não encontrado.");
-        return paciente;
-    }
-
-    public async Task<Paciente> ObterPorIdOuNulo(long id) =>
+#pragma warning disable CS0618 // sobrecarga sem tenant — restrito ao AnonimizacaoService
+    public async Task<Paciente?> ObterPorIdOuNulo(long id) =>
         await _context.Pacientes.FindAsync(id);
 #pragma warning restore CS0618
 
