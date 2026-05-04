@@ -48,8 +48,15 @@ const navMain = computed(() => {
         { name: "Relatorios",      label: "Relatórios",       icon: "fa-solid fa-chart-pie",              to: { name: "Relatorios" } },
         { name: "Automacoes",      label: "Automação",        icon: "fa-solid fa-bolt",                   to: { name: "Automacoes" } },
     ]
+    if (tenant.semEstabelecimento) {
+        return items.map(item => ({ ...item, locked: true }))
+    }
     return items
 })
+
+const brandTo = computed(() =>
+    tenant.semEstabelecimento ? { name: "MeusConvites" } : { name: "Home" }
+)
 
 // Mapa de rotas filhas → item de nav ativo (ex: PacienteDetalhe → Pacientes).
 const activeMap: Record<string, string> = {
@@ -83,7 +90,8 @@ const subtituloUsuario = computed(() => {
 
 function trocarEstabelecimento() {
     tenant.limpar()
-    router.push({ name: "SelecionarEstabelecimento" })
+    // Reload completo: re-executa main.ts que chama resolverTenant novamente.
+    window.location.href = "/home"
 }
 
 async function sair() {
@@ -109,7 +117,7 @@ function irNotificacoes() {
         :contador-notificacoes="notificacoes.naoLidas"
     >
         <template #brand>
-            <router-link :to="{ name: 'Home' }" class="brand-link">
+            <router-link :to="brandTo" class="brand-link">
                 <img :src="logoBranco" alt="Imedto" class="brand-logo" />
             </router-link>
         </template>
@@ -190,7 +198,19 @@ function irNotificacoes() {
 
     <AppSidebar :items="navMain" :active-map="activeMap">
         <template #footer="{ expanded }">
+            <span
+                v-if="tenant.semEstabelecimento"
+                class="foot-item foot-item--locked"
+                :class="{ 'is-expanded': expanded }"
+                :title="!expanded ? 'Configurações' : ''"
+                aria-disabled="true"
+            >
+                <i class="fa-solid fa-gear" aria-hidden="true"></i>
+                <span class="lbl">Configurações</span>
+                <i class="fa-solid fa-lock foot-lock-icon" aria-hidden="true"></i>
+            </span>
             <router-link
+                v-else
                 :to="{ name: 'Estabelecimento' }"
                 class="foot-item"
                 :class="{ active: configuracoesAtiva, 'is-expanded': expanded }"
@@ -468,6 +488,21 @@ function irNotificacoes() {
 .foot-item.active i { color: hsl(var(--primary)); }
 .foot-item.danger { color: hsl(var(--destructive)); }
 .foot-item.danger:hover { background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive)); }
+
+.foot-item--locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.foot-lock-icon {
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 160ms;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.foot-item.is-expanded .foot-lock-icon,
+.foot-item--locked.is-expanded .foot-lock-icon { opacity: 1; }
 
 @media (max-width: 768px) {
     .conteudo { margin-left: 0; }

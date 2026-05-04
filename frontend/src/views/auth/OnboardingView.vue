@@ -8,20 +8,17 @@
  *   Step 4 — Horários (editor por dia + duração + intervalo)
  *   Step 5 — Tour (cards visuais)
  *
- * Backend integration (salva tudo ao final):
- *   - Step 1 → usuarioService.completarOnboarding (nome, cpf, telefone)
- *   - Step 2 → estabelecimentoService.criar (apenas se dono)
- *   - Step 3 → profissionalService.salvar (conselho, uf, numeroRegistro, especialidade)
- *   - Step 4 → estabelecimentoService.atualizarFuncionamento (apenas se dono)
+ * Backend integration (salva tudo ao final em uma única chamada atômica):
+ *   → onboardingService.finalizar (perfil + estabelecimento + profissional + horários)
  */
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { onboardingService } from "@/services/onboardingService"
 import { usuarioService } from "@/services/usuarioService"
 import { estabelecimentoService } from "@/services/estabelecimentoService"
-import { profissionalService } from "@/services/profissionalService"
 import { vinculoService } from "@/services/vinculoService"
 import { buscarPorCep } from "@/services/viaCepService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
@@ -401,91 +398,70 @@ async function finalizar() {
     erro.value = null
     carregando.value = true
     try {
-        // 1) Completa cadastro do usuário (sempre)
-        await usuarioService.completarOnboarding({
+        // Monta lista de especialidades: predefinidas + customizadas (sem o token "Outros").
+        const listaEspecialidades = [
+            ...especialidadesSelecionadas.value.filter(e => e !== OUTROS_KEY),
+            ...especialidadesOutras.value,
+        ]
+        const especialidade = listaEspecialidades.join(", ")
+
+        // Endereço final: "Rua X, 123 — Bairro Y, Cidade/UF, CEP"
+        const ruaENumero = [clinica.endereco.trim(), clinica.numero.trim()].filter(Boolean).join(", ")
+        const enderecoCompleto = [ruaENumero, clinica.cidadeUf, clinica.cep].filter(Boolean).join(" — ")
+
+        const ativos = dias.value.filter(d => d.ativo)
+        const inicio = ativos.length > 0
+            ? ativos.reduce((min, d) => d.inicio < min ? d.inicio : min, ativos[0].inicio)
+            : "08:00"
+        const fim = ativos.length > 0
+            ? ativos.reduce((max, d) => d.fim > max ? d.fim : max, ativos[0].fim)
+            : "18:00"
+
+        await onboardingService.finalizar({
             nomeCompleto: conta.nomeCompleto.trim(),
             cpf: conta.cpf.replace(/\D/g, ""),
             telefone: conta.telefone.trim() || undefined,
+
+            estabelecimento: conta.tipo === "owner" && clinica.nome.trim()
+                ? {
+                    nomeFantasia: clinica.nome.trim(),
+                    cnpj: clinica.cnpj.replace(/\D/g, "") || undefined,
+                    telefone: clinica.telefone || undefined,
+                    endereco: enderecoCompleto || undefined,
+                }
+                : undefined,
+
+            profissional: numeroRegistro.value.trim() && especialidade
+                ? {
+                    conselho: conselho.value,
+                    uf: ufRegistro.value,
+                    numeroRegistro: numeroRegistro.value.trim(),
+                    especialidade,
+                }
+                : undefined,
+
+            funcionamento: conta.tipo === "owner" && ativos.length > 0
+                ? {
+                    horarioInicio: inicio,
+                    horarioFim: fim,
+                    duracaoConsultaPadraoMinutos: Number(duracaoConsulta.value) || 30,
+                    intervaloEntreConsultasMinutos: Number(intervaloConsulta.value) || 0,
+                    diasSemana: ativos.map(d => d.indice),
+                }
+                : undefined,
         })
 
-        // 2) Cria estabelecimento (apenas se dono)
-        if (conta.tipo === "owner" && clinica.nome.trim()) {
-            // Endereço final: "Rua X, 123 — Bairro Y, Cidade/UF, CEP"
-            const ruaENumero = [clinica.endereco.trim(), clinica.numero.trim()].filter(Boolean).join(", ")
-            const enderecoCompleto = [ruaENumero, clinica.cidadeUf, clinica.cep].filter(Boolean).join(" — ")
-            await estabelecimentoService.criar({
-                nomeFantasia: clinica.nome.trim(),
-                cnpj: clinica.cnpj.replace(/\D/g, "") || undefined,
-                telefone: clinica.telefone || undefined,
-                endereco: enderecoCompleto || undefined,
-            })
-        }
-
-        // 3) Salva perfil profissional (especialidade + conselho)
-        if (conta.tipo === "owner" || conta.tipo === "invited") {
-            // Lista final de especialidades: predefinidas + customizadas (sem o token "Outros").
-            const lista = [
-                ...especialidadesSelecionadas.value.filter(e => e !== OUTROS_KEY),
-                ...especialidadesOutras.value,
-            ]
-            // O backend hoje aceita apenas uma string única — concatenamos com vírgula
-            // para preservar todas. Quando o domínio suportar lista, basta trocar aqui.
-            const especialidade = lista.join(", ")
-            if (especialidade && numeroRegistro.value.trim()) {
-                try {
-                    const existente = await profissionalService.obterMeu()
-                    await profissionalService.salvar(
-                        {
-                            conselho: conselho.value,
-                            uf: ufRegistro.value,
-                            numeroRegistro: numeroRegistro.value.trim(),
-                            especialidade,
-                        },
-                        existente !== null,
-                    )
-                } catch { /* não crítico — pode preencher depois */ }
-            }
-        }
-
-        // 4) Atualiza horários do estabelecimento (apenas se dono)
-        if (conta.tipo === "owner") {
-            const lista = await estabelecimentoService.listarMeus()
-            const meuEstab = lista.find(e => e.nomeFantasia === clinica.nome.trim()) ?? lista[0]
-            if (meuEstab) {
-                const ativos = dias.value.filter(d => d.ativo)
-                if (ativos.length > 0) {
-                    const inicio = ativos.reduce((min, d) => d.inicio < min ? d.inicio : min, ativos[0].inicio)
-                    const fim = ativos.reduce((max, d) => d.fim > max ? d.fim : max, ativos[0].fim)
-                    try {
-                        await estabelecimentoService.atualizarFuncionamento(meuEstab.id, {
-                            horarioInicio: inicio,
-                            horarioFim: fim,
-                            duracaoConsultaPadraoMinutos: Number(duracaoConsulta.value) || 30,
-                            intervaloEntreConsultasMinutos: Number(intervaloConsulta.value) || 0,
-                            diasSemana: ativos.map(d => d.indice),
-                            horariosBloqueados: [],
-                            datasBloqueadas: [],
-                        })
-                    } catch { /* não crítico */ }
-                }
-            }
-        }
-
-        // 5) Recarrega usuário e seleciona estabelecimento
+        // Recarrega usuário e seleciona estabelecimento
         await auth.recarregarMe()
         const lista = await estabelecimentoService.listarMeus()
-        if (lista.length === 1) {
+        if (lista.length > 0) {
             tenant.selecionar({
                 id: lista[0].id,
                 nomeFantasia: lista[0].nomeFantasia,
                 papel: lista[0].papelDoUsuario,
             })
-            router.replace({ name: "Home" })
-        } else if (lista.length > 1) {
-            router.replace({ name: "SelecionarEstabelecimento" })
-        } else {
-            router.replace({ name: "Home" })
         }
+        router.replace({ name: "Home" })
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Não foi possível concluir o cadastro."
     } finally {
@@ -607,7 +583,7 @@ const stepperPassos = computed(() => [
                     <div v-if="origemTipoConta === 'convite'" class="info-convite">
                         <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
                         <div>
-                            <b>Você foi convidado para uma clínica.</b>
+                            <b>Você foi convidado para um estabelecimento.</b>
                             <span>Já preenchemos o que pudemos com base no convite — confira e ajuste se precisar.</span>
                         </div>
                     </div>
@@ -632,10 +608,10 @@ const stepperPassos = computed(() => [
                             :class="{ active: conta.tipo === 'invited' }"
                             @click="conta.tipo = 'invited'"
                         >
-                            <div class="ch-icon"><i class="fa-solid fa-user-plus" aria-hidden="true"></i></div>
+                            <div class="ch-icon"><i class="fa-solid fa-user-nurse" aria-hidden="true"></i></div>
                             <div class="ch-info">
-                                <b>Fui convidado</b>
-                                <span>Já tenho um código ou link de convite da minha clínica</span>
+                                <b>Sou profissional de saúde</b>
+                                <span>Vou me cadastrar e aguardar o vínculo com meu estabelecimento</span>
                             </div>
                             <div class="ch-check"><i class="fa-solid fa-check" aria-hidden="true"></i></div>
                         </button>

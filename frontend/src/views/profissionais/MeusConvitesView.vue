@@ -25,11 +25,10 @@ async function aceitar(c: ConvitePendente) {
     processando.value.add(c.vinculoId)
     try {
         await vinculoService.aceitarConvite(c.vinculoId)
-        msg.value = `Convite de ${c.nomeFantasiaEstabelecimento} aceito. Você já pode selecionar esse estabelecimento.`
-        await carregar()
+        // Reload completo: re-executa main.ts que chama resolverTenant e detecta o novo vínculo.
+        window.location.href = "/home"
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao aceitar."
-    } finally {
         processando.value.delete(c.vinculoId)
     }
 }

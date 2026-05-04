@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.Contracts.Vinculos.Queries;
 using Imedto.Backend.Contracts.Vinculos.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Filters;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -38,6 +39,7 @@ public class EstabelecimentoProfissionaisController : ControllerBase
     }
 
     /// <summary>Usuário lista seus convites pendentes.</summary>
+    [AllowBeforeOnboarding]
     [HttpGet("/api/vinculo/convites/me")]
     [ProducesResponseType(typeof(IEnumerable<ConviteDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListarMeusConvites()

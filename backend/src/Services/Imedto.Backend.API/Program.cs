@@ -143,6 +143,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddMemoryCache();
 
 // --- Controllers com filtros globais ---
 builder.Services.AddControllers(options =>
@@ -150,6 +151,7 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<GlobalExceptionFilter>();
     options.Filters.Add<UnitOfWorkFilter>();
     options.Filters.Add<IdempotencyFilter>();
+    options.Filters.Add<OnboardingCompletadoFilter>();
 });
 
 // --- Swagger ---

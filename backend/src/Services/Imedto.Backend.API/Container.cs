@@ -35,6 +35,7 @@ using Imedto.Backend.Application.Salas.Queries;
 using Imedto.Backend.Application.Profissionais.Commands;
 using Imedto.Backend.Application.Profissionais.Events;
 using Imedto.Backend.Application.Profissionais.Queries;
+using Imedto.Backend.Application.Onboarding.Commands;
 using Imedto.Backend.Application.Usuarios.Commands;
 using Imedto.Backend.Application.Usuarios.Events;
 using Imedto.Backend.Application.Usuarios.Queries;
@@ -74,6 +75,7 @@ using Imedto.Backend.Contracts.Salas.Queries.Results;
 using Imedto.Backend.Contracts.Profissionais.Commands;
 using Imedto.Backend.Contracts.Profissionais.Queries;
 using Imedto.Backend.Contracts.Profissionais.Queries.Results;
+using Imedto.Backend.Contracts.Onboarding.Commands;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Contracts.Usuarios.Queries;
 using Imedto.Backend.Application.Vinculos.Queries;
@@ -236,6 +238,9 @@ public static class Container
 
     private static void RegistrarHandlers(IServiceCollection services)
     {
+        // Onboarding
+        services.AddScoped<FinalizarOnboardingCommandHandler>();
+
         // Usuarios
         services.AddSingleton<UsuarioQueryRepository>();
         services.AddScoped<CriarRegistroLocalUsuarioCommandHandler>();
@@ -597,6 +602,7 @@ public static class Container
         services.AddSingleton<ICommandBus>(sp =>
         {
             var bus = new MemoryCommandBus(sp, sp.GetRequiredService<IHttpContextAccessor>());
+            bus.Register<FinalizarOnboardingCommand, FinalizarOnboardingCommandHandler>();
             bus.Register<CriarRegistroLocalUsuarioCommand, CriarRegistroLocalUsuarioCommandHandler>();
             bus.Register<AtualizarPerfilUsuarioCommand, AtualizarPerfilUsuarioCommandHandler>();
             bus.Register<CompletarOnboardingUsuarioCommand, CompletarOnboardingUsuarioCommandHandler>();

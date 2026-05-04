@@ -11,7 +11,6 @@ const ROTAS_ISENTAS_ASSINATURA = new Set([
     "Login",
     "Landing",
     "Onboarding",
-    "SelecionarEstabelecimento",
     "AssinaturaExpirada",
     "Planos",
     "MinhaAssinatura",
@@ -51,19 +50,6 @@ const router = createRouter({
             component: () => import("@/views/auth/OnboardingView.vue"),
             meta: { requiresAuth: true },
         },
-        {
-            path: "/selecionar-estabelecimento",
-            name: "SelecionarEstabelecimento",
-            component: () => import("@/views/tenant/SelecionarEstabelecimentoView.vue"),
-            meta: { requiresAuth: true },
-        },
-        {
-            path: "/criar-estabelecimento",
-            name: "CriarPrimeiroEstabelecimento",
-            component: () => import("@/views/tenant/CriarPrimeiroEstabelecimentoView.vue"),
-            meta: { requiresAuth: true },
-        },
-
         // Com tenant (com sidebar)
         {
             path: "/home",
@@ -157,7 +143,7 @@ const router = createRouter({
             path: "/notificacoes",
             name: "Notificacoes",
             component: () => import("@/views/notificacoes/NotificacoesView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            meta: { requiresAuth: true, ...APP },
         },
 
         // Relatórios
@@ -313,7 +299,13 @@ router.beforeEach(async (to) => {
     }
 
     if (to.meta.requiresTenant && !tenant.temTenantSelecionado) {
-        return { name: "SelecionarEstabelecimento" }
+        // Profissional sem nenhum vínculo aprovado: redireciona para seus convites.
+        if (tenant.semEstabelecimento) {
+            return { name: "MeusConvites" }
+        }
+        // Tenant ainda não resolvido (ex: refresh em rota protegida antes do boot terminar).
+        // Deixa passar — a view vai lidar com o estado vazio ou o boot vai resolver.
+        return undefined
     }
 
     if (to.name === "Login" && auth.isAuthenticated) {

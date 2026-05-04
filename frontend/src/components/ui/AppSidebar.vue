@@ -22,6 +22,7 @@ interface SidebarItem {
     onClick?: () => void
     active?: boolean               // override manual
     danger?: boolean               // ex: "Sair"
+    locked?: boolean               // bloqueado (sem vínculo)
 }
 
 const props = defineProps<{
@@ -80,8 +81,18 @@ onBeforeUnmount(() => {
 
         <nav class="nav">
             <template v-for="(item, idx) in items" :key="idx">
+                <span
+                    v-if="item.locked"
+                    class="item locked"
+                    :title="!expanded ? item.label : ''"
+                    aria-disabled="true"
+                >
+                    <i :class="item.icon" aria-hidden="true"></i>
+                    <span class="lbl">{{ item.label }}</span>
+                    <i class="fa-solid fa-lock lock-icon" aria-hidden="true"></i>
+                </span>
                 <router-link
-                    v-if="item.to"
+                    v-else-if="item.to"
                     :to="item.to"
                     :class="['item', { active: isActive(item), danger: item.danger }]"
                     :title="!expanded ? item.label : ''"
@@ -241,6 +252,20 @@ onBeforeUnmount(() => {
 
 .item.danger { color: hsl(0 70% 50%); }
 .item.danger:hover { background: hsl(0 70% 50% / 0.1); color: hsl(0 70% 45%); }
+
+.item.locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.lock-icon {
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 160ms;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.side.expanded .lock-icon { opacity: 1; }
 
 .nav-badge {
     background: hsl(45 96% 47%);

@@ -6,6 +6,7 @@ using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Filters;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -16,6 +17,7 @@ namespace Imedto.Backend.API.Controllers;
 [ApiController]
 [Route("api/auth")]
 [Produces("application/json")]
+[AllowBeforeOnboarding]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

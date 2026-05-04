@@ -46,7 +46,7 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
             titulo: "Você foi convidado",
             mensagem: "Você recebeu um convite para vincular-se a um estabelecimento. Acesse 'Meus convites' para revisar e aceitar.",
             categoria: CategoriaNotificacao.Convite,
-            linkAcao: "/convites");
+            linkAcao: "/meus-convites");
 
         // Email opcional — só dispara se o usuário tiver email cadastrado.
         try

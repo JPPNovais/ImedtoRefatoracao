@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Contracts.Usuarios.Queries;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Filters;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -16,11 +18,13 @@ public class UsuarioController : ControllerBase
 {
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
+    private readonly IMemoryCache _cache;
 
-    public UsuarioController(ICommandBus commandBus, IRequestBus requestBus)
+    public UsuarioController(ICommandBus commandBus, IRequestBus requestBus, IMemoryCache cache)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
+        _cache = cache;
     }
 
     /// <summary>Atualização parcial do próprio perfil (nome, telefone).</summary>
@@ -44,6 +48,7 @@ public class UsuarioController : ControllerBase
     /// <summary>Finaliza o onboarding (preenche nome, CPF e marca usuário como ativo).</summary>
     /// <response code="204">Onboarding concluído.</response>
     /// <response code="422">CPF já cadastrado em outra conta ou dados inválidos.</response>
+    [AllowBeforeOnboarding]
     [HttpPost("me/onboarding")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -59,6 +64,10 @@ public class UsuarioController : ControllerBase
             Telefone = request.Telefone
         });
 
+        // Invalida cache do filtro de onboarding para que as próximas chamadas
+        // (criar estabelecimento, salvar profissional, etc.) passem imediatamente.
+        _cache.Remove($"onboarding:{userId}");
+
         return NoContent();
     }
 
@@ -73,6 +82,7 @@ public class UsuarioController : ControllerBase
     /// </remarks>
     /// <response code="200">Resultado da verificação.</response>
     /// <response code="429">Muitas tentativas — aguarde 60s.</response>
+    [AllowBeforeOnboarding]
     [HttpGet("me/cpf-disponivel")]
     [EnableRateLimiting("auth-sensitive")]
     [ProducesResponseType(StatusCodes.Status200OK)]

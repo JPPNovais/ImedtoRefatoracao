@@ -43,6 +43,13 @@ public class Usuario : Entity<Guid>
 
     public virtual void CompletarOnboarding(string nomeCompleto, string cpf, string telefone)
     {
+        PreencherPerfil(nomeCompleto, cpf, telefone);
+        MarcarOnboardingCompleto();
+    }
+
+    /// <summary>Salva nome/CPF/telefone sem marcar o onboarding como concluído.</summary>
+    public virtual void PreencherPerfil(string nomeCompleto, string cpf, string telefone)
+    {
         if (string.IsNullOrWhiteSpace(nomeCompleto))
             throw new BusinessException("Nome completo é obrigatório.");
         if (string.IsNullOrWhiteSpace(cpf))
@@ -55,6 +62,12 @@ public class Usuario : Entity<Guid>
         NomeCompleto = nomeCompleto.Trim();
         Cpf = cpfDigitos;
         Telefone = string.IsNullOrWhiteSpace(telefone) ? null : SomenteDigitos(telefone);
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>Ativa o usuário e marca onboarding como concluído. Chamar apenas após salvar todos os dados.</summary>
+    public virtual void MarcarOnboardingCompleto()
+    {
         Status = UsuarioStatus.Ativo;
         OnboardingCompleto = true;
         AtualizadoEm = DateTime.UtcNow;

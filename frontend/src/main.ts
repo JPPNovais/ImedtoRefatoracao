@@ -5,6 +5,8 @@ import App from "./App.vue"
 import router from "./router"
 import { useAuthStore } from "./stores/authStore"
 import { useProfissionalStore } from "./stores/profissionalStore"
+import { useTenantStore } from "./stores/tenantStore"
+import { estabelecimentoService } from "./services/estabelecimentoService"
 
 async function bootstrap() {
     const app = createApp(App)
@@ -17,8 +19,13 @@ async function bootstrap() {
     const auth = useAuthStore()
     await auth.init()
 
-    // Após autenticar, carrega o perfil profissional para popular avatar do sidebar.
-    if (auth.isAuthenticated) {
+    if (auth.isAuthenticated && !auth.onboardingPendente) {
+        // Carrega perfil profissional e resolve tenant em paralelo.
+        await Promise.all([
+            useProfissionalStore().init(),
+            useTenantStore().resolverTenant(() => estabelecimentoService.listarMeus()),
+        ])
+    } else if (auth.isAuthenticated) {
         await useProfissionalStore().init()
     }
 
