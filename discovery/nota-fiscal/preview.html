@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discovery — Nota Fiscal · Imedto</title>
+<style>
+  :root {
+    --primary: hsl(254 56% 38%);
+    --primary-dark: hsl(254 56% 21%);
+    --primary-light: hsl(254 40% 95%);
+    --bg: hsl(240 33% 99%);
+    --bg-card: #fff;
+    --bg-muted: hsl(240 5% 96%);
+    --text: hsl(0 0% 24%);
+    --text-muted: hsl(0 0% 45%);
+    --text-faint: hsl(0 0% 60%);
+    --border: hsl(240 6% 90%);
+    --border-strong: hsl(240 6% 82%);
+    --success: hsl(160 79% 39%);
+    --success-bg: hsl(160 79% 95%);
+    --warning: hsl(45 96% 47%);
+    --warning-bg: hsl(45 96% 95%);
+    --danger: hsl(0 84% 60%);
+    --danger-bg: hsl(0 84% 96%);
+    --info: hsl(199 89% 48%);
+    --info-bg: hsl(199 89% 95%);
+    --radius: 0.5rem;
+    --radius-lg: 0.75rem;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+    --shadow-lg: 0 10px 25px -5px rgba(0,0,0,.10), 0 8px 10px -6px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.55;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    padding: 80px 0 100px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 -1px 0;
+    height: 40px;
+    background: var(--bg);
+    clip-path: polygon(0 100%, 100% 100%, 100% 0);
+  }
+  .hero .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    margin-bottom: 20px;
+  }
+  .hero .badge::before {
+    content: ""; width: 8px; height: 8px; background: hsl(160 79% 65%); border-radius: 50%;
+  }
+  .hero h1 { font-size: 44px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 16px; }
+  .hero .tagline { font-size: 19px; opacity: .85; max-width: 720px; line-height: 1.5; }
+  .hero .meta { margin-top: 32px; display: flex; gap: 32px; font-size: 13px; opacity: .75; flex-wrap: wrap; }
+  .hero .meta strong { color: #fff; opacity: 1; font-weight: 600; }
+
+  /* Sections */
+  section { padding: 64px 0; }
+  section.alt { background: var(--bg-muted); }
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 12px;
+  }
+  h2 { font-size: 30px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 12px; }
+  h2 + .lead { font-size: 16px; color: var(--text-muted); max-width: 720px; margin-bottom: 36px; }
+  h3 { font-size: 19px; font-weight: 600; margin-bottom: 12px; }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .grid { display: grid; gap: 20px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 880px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 32px; }
+  }
+
+  /* TL;DR cards */
+  .tldr-card { padding: 24px 24px 22px; }
+  .tldr-card .label {
+    font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+  .tldr-card .value { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .tldr-card .desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .tldr-card.primary { border-left: 4px solid var(--primary); }
+  .tldr-card.success { border-left: 4px solid var(--success); }
+  .tldr-card.warning { border-left: 4px solid var(--warning); }
+  .tldr-card.danger { border-left: 4px solid var(--danger); }
+
+  /* Provider table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: var(--bg-muted); font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  tbody tr:hover { background: hsl(254 40% 98%); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-card); }
+  .price { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .check { color: var(--success); font-weight: 700; }
+  .cross { color: var(--danger); font-weight: 700; }
+  .partial { color: var(--warning); font-weight: 700; }
+  .unknown { color: var(--text-faint); }
+
+  .badge-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; line-height: 1.4;
+  }
+  .badge-pill.recommended { background: var(--primary-light); color: var(--primary); }
+  .badge-pill.fallback { background: var(--info-bg); color: var(--info); }
+  .badge-pill.deprecated { background: var(--danger-bg); color: var(--danger); }
+  .badge-pill.gov { background: var(--warning-bg); color: hsl(45 96% 30%); }
+
+  /* Score table */
+  .score-bar {
+    display: inline-flex; gap: 2px; vertical-align: middle;
+  }
+  .score-bar i {
+    width: 8px; height: 14px; border-radius: 2px; background: var(--border-strong); display: inline-block;
+  }
+  .score-bar i.on { background: var(--primary); }
+  .score-total { font-weight: 700; font-size: 15px; color: var(--primary); }
+
+  /* Flow diagram */
+  .flow {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    overflow-x: auto;
+  }
+  .flow svg { display: block; margin: 0 auto; max-width: 100%; }
+
+  /* Mockups */
+  .mockup {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+  }
+  .mockup-bar {
+    background: var(--bg-muted); padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .mockup-bar i {
+    width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+  }
+  .mockup-bar i:nth-child(1) { background: hsl(0 84% 70%); }
+  .mockup-bar i:nth-child(2) { background: hsl(45 96% 60%); }
+  .mockup-bar i:nth-child(3) { background: hsl(160 79% 50%); }
+  .mockup-bar .url {
+    margin-left: 14px; padding: 4px 10px; background: #fff;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: ui-monospace, monospace; font-size: 11px;
+  }
+  .mockup-body { padding: 0; }
+
+  /* Mock app */
+  .app {
+    display: grid; grid-template-columns: 220px 1fr; min-height: 540px;
+  }
+  .app-side {
+    background: var(--primary-dark); color: #fff; padding: 20px 14px;
+    font-size: 13px;
+  }
+  .app-logo {
+    font-weight: 700; font-size: 18px; margin-bottom: 28px; padding: 0 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .app-logo::before {
+    content: ""; width: 22px; height: 22px; background: #fff; border-radius: 6px;
+    display: inline-block;
+    background-image: linear-gradient(135deg, #fff 50%, var(--primary-light) 50%);
+  }
+  .app-side ul { list-style: none; }
+  .app-side li {
+    padding: 9px 12px; border-radius: 6px; margin-bottom: 2px;
+    color: rgba(255,255,255,.75); cursor: default;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .app-side li.active { background: rgba(255,255,255,.12); color: #fff; font-weight: 500; }
+  .app-side li::before {
+    content: ""; width: 14px; height: 14px;
+    background: rgba(255,255,255,.5); border-radius: 3px;
+  }
+  .app-side li.active::before { background: #fff; }
+
+  .app-main { padding: 24px 28px; }
+  .app-page-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+  }
+  .app-page-header h1 { font-size: 22px; margin-bottom: 4px; color: var(--text); }
+  .app-page-header p { font-size: 13px; color: var(--text-muted); }
+  .btn {
+    background: var(--primary); color: #fff; border: 0;
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-ghost {
+    background: transparent; color: var(--text-muted); border: 1px solid var(--border);
+  }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  .filters {
+    display: flex; gap: 10px; align-items: center; margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .filters input, .filters select {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; font-size: 13px; background: #fff;
+  }
+  .filters input { flex: 1; max-width: 280px; }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; }
+  .data-table th { background: var(--bg-muted); padding: 10px 12px; font-weight: 600; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+  .data-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); }
+  .data-table tr:last-child td { border-bottom: 0; }
+  .pat-name { font-weight: 500; color: var(--text); }
+  .pat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .status-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+  }
+  .status-pendente { background: var(--warning-bg); color: hsl(45 96% 30%); }
+  .status-autorizada { background: var(--success-bg); color: var(--success); }
+  .status-em-trans { background: var(--info-bg); color: var(--info); }
+  .status-rejeitada { background: var(--danger-bg); color: var(--danger); }
+  .status-cancelada { background: var(--bg-muted); color: var(--text-muted); }
+
+  .icon-btns { display: inline-flex; gap: 6px; }
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--bg-muted); border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 14px;
+  }
+  .icon-btn:hover { background: var(--primary-light); color: var(--primary); }
+
+  /* NF detail mockup */
+  .nf-detail { padding: 24px 28px; max-width: 720px; margin: 0 auto; }
+  .nf-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+  }
+  .nf-numero { font-size: 26px; font-weight: 700; color: var(--text); }
+  .nf-numero small { font-size: 13px; font-weight: 500; color: var(--text-muted); display: block; margin-top: 2px; }
+  .nf-keyvalue { display: grid; grid-template-columns: 200px 1fr; gap: 8px 16px; font-size: 13px; padding: 16px 0; }
+  .nf-keyvalue dt { color: var(--text-muted); }
+  .nf-keyvalue dd { color: var(--text); font-weight: 500; }
+  .nf-actions { display: flex; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); margin-top: 8px; }
+
+  /* Architecture */
+  .arch-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 880px) { .arch-grid { grid-template-columns: 1fr; } }
+  .arch-list { list-style: none; }
+  .arch-list li {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 18px; margin-bottom: 10px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .arch-list .num {
+    flex-shrink: 0;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
+  }
+  .arch-list .body strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  .arch-list .body span { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Risk list */
+  .risk-list { display: grid; gap: 12px; }
+  .risk-item {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 18px; display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: start;
+  }
+  .risk-item .severity {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px; color: #fff;
+  }
+  .risk-item.high .severity { background: var(--danger); }
+  .risk-item.med .severity { background: var(--warning); color: hsl(45 96% 20%); }
+  .risk-item.low .severity { background: var(--info); }
+  .risk-item .what { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .risk-item .how { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Footer */
+  footer {
+    background: var(--text); color: rgba(255,255,255,.75);
+    padding: 40px 0; font-size: 13px; text-align: center;
+  }
+  footer strong { color: #fff; }
+
+  /* Anchor offset */
+  section[id] { scroll-margin-top: 20px; }
+
+  /* Nav */
+  .nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+  }
+  .nav .wrap { display: flex; justify-content: space-between; align-items: center; }
+  .nav .brand { font-weight: 700; color: var(--primary); font-size: 15px; }
+  .nav ul { list-style: none; display: flex; gap: 22px; font-size: 13px; }
+  .nav a { color: var(--text-muted); text-decoration: none; }
+  .nav a:hover { color: var(--primary); }
+  @media (max-width: 880px) { .nav ul { display: none; } }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="badge">Discovery · Draft · 2026-05-03</span>
+    <h1>Nota Fiscal eletrônica<br>integrada com APIs do governo</h1>
+    <p class="tagline">Como o Imedto vai emitir NFS-e em nome de cada clínica, multi-tenant, com cobertura nacional, sem virar provedor fiscal — e mantendo conformidade LGPD numa premissa de saúde.</p>
+    <div class="meta">
+      <span><strong>Escopo MVP</strong> · NFS-e municipal</span>
+      <span><strong>Fora do MVP</strong> · NF-e (modelo 55), NFC-e</span>
+      <span><strong>Próximo passo</strong> · POC com 1 provedor</span>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <div class="wrap">
+    <span class="brand">Imedto · Discovery</span>
+    <ul>
+      <li><a href="#tldr">Sumário</a></li>
+      <li><a href="#fluxo">Fluxo</a></li>
+      <li><a href="#telas">Telas</a></li>
+      <li><a href="#arquitetura">Arquitetura</a></li>
+      <li><a href="#mercado">Mercado</a></li>
+      <li><a href="#riscos">Riscos</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- TL;DR -->
+<section id="tldr">
+  <div class="wrap">
+    <span class="eyebrow">Sumário executivo</span>
+    <h2>O que decidir agora — e o que NÃO decidir</h2>
+    <p class="lead">A pesquisa de mercado aponta um caminho claro: começar com gateway, não fazer integração direta com município. A escolha do gateway depende de uma rodada com 3-5 clientes-âncora antes de POC.</p>
+
+    <div class="grid grid-4">
+      <div class="card tldr-card primary">
+        <div class="label">Recomendação POC</div>
+        <div class="value">Focus NFe</div>
+        <div class="desc">R$ 89,90/mês + R$ 0,10/NF. Sandbox imediato. SLA 99,99% histórico. Trial sem cartão.</div>
+      </div>
+      <div class="card tldr-card success">
+        <div class="label">Fallback estratégico</div>
+        <div class="value">NFE.io</div>
+        <div class="desc">Cobertura top-10 confirmada. Webhook obrigatório (alinha com CQRS). Cliente: Cuidas (healthtech).</div>
+      </div>
+      <div class="card tldr-card warning">
+        <div class="label">Wildcard</div>
+        <div class="value">Nota Gateway</div>
+        <div class="desc">iClinic e Doctoralia já usam. Pedir proposta numérica antes de descartar.</div>
+      </div>
+      <div class="card tldr-card danger">
+        <div class="label">Não usar</div>
+        <div class="value">Nuvem Fiscal</div>
+        <div class="desc">Descontinuada em 31/07/2026. Migração obrigatória anunciada.</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 28px;" class="card">
+      <h3>Premissas não-negociáveis</h3>
+      <ul style="margin-top: 8px; padding-left: 20px; color: var(--text-muted); font-size: 14px; line-height: 1.8;">
+        <li><strong>Toda regra fiscal vive no backend</strong> — frontend é só UX. CID/diagnóstico nunca aparece na descrição da NF (LGPD).</li>
+        <li><strong>Multi-tenant por design</strong> — cada estabelecimento tem CNPJ, certificado A1, série, código de serviço próprios. Nada é "do Imedto".</li>
+        <li><strong>Abstração via interface</strong> (<code>INfsEmissaoGateway</code>) — trocar de provedor é nova classe, não reescrita.</li>
+        <li><strong>Outbox pattern</strong> para chamada externa — UI confirma rápido, worker garante idempotência e retry.</li>
+        <li><strong>Custódia do certificado A1 delegada ao gateway</strong> — reduz superfície de ataque e responsabilidade do Imedto.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Fluxo -->
+<section id="fluxo" class="alt">
+  <div class="wrap">
+    <span class="eyebrow">Como funciona</span>
+    <h2>Fluxo de emissão (do agendamento à NF autorizada)</h2>
+    <p class="lead">Sequência ponta-a-ponta. A clínica não vê o gateway externo — para ela, o Imedto é quem emite a NF. Tudo que envolve transmissão é assíncrono.</p>
+
+    <div class="flow">
+      <svg viewBox="0 0 1080 460" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, sans-serif" font-size="12">
+        <!-- Lanes -->
+        <g>
+          <text x="80" y="30" font-weight="600" fill="hsl(0 0% 24%)">Clínica (UI)</text>
+          <line x1="80" y1="40" x2="80" y2="430" stroke="hsl(254 56% 38%)" stroke-width="2"/>
+          <text x="280" y="30" font-weight="600" fill="hsl(0 0% 24%)">Backend Imedto</text>
+          <line x1="280" y1="40" x2="280" y2="430" stroke="hsl(254 56% 38%)" stroke-width="2"/>
+          <text x="540" y="30" font-weight="600" fill="hsl(0 0% 24%)">Postgres / Outbox</text>
+          <line x1="540" y1="40" x2="540" y2="430" stroke="hsl(254 56% 38%)" stroke-width="2"/>
+          <text x="780" y="30" font-weight="600" fill="hsl(0 0% 24%)">Gateway (Focus NFe)</text>
+          <line x1="780" y1="40" x2="780" y2="430" stroke="hsl(254 56% 38%)" stroke-width="2"/>
+          <text x="980" y="30" font-weight="600" fill="hsl(0 0% 24%)">Prefeitura</text>
+          <line x1="980" y1="40" x2="980" y2="430" stroke="hsl(254 56% 38%)" stroke-width="2"/>
+        </g>
+
+        <!-- Step 1 -->
+        <g>
+          <line x1="80" y1="70" x2="280" y2="70" stroke="hsl(0 0% 45%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="180" y="64" text-anchor="middle" fill="hsl(0 0% 24%)">1. Marcar consulta como concluída + paga</text>
+        </g>
+        <g>
+          <rect x="240" y="80" width="80" height="22" rx="4" fill="hsl(254 40% 95%)"/>
+          <text x="280" y="95" text-anchor="middle" fill="hsl(254 56% 38%)" font-weight="600">cria Lançamento</text>
+        </g>
+
+        <!-- Step 2 -->
+        <g>
+          <line x1="80" y1="135" x2="280" y2="135" stroke="hsl(0 0% 45%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="180" y="129" text-anchor="middle" fill="hsl(0 0% 24%)">2. "Emitir NF" no lançamento</text>
+        </g>
+        <g>
+          <line x1="280" y1="155" x2="540" y2="155" stroke="hsl(0 0% 45%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="410" y="149" text-anchor="middle" fill="hsl(0 0% 24%)">grava NotaFiscal(rascunho) + outbox</text>
+        </g>
+
+        <!-- Step 3 -->
+        <g>
+          <line x1="280" y1="185" x2="80" y2="185" stroke="hsl(160 79% 39%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="180" y="179" text-anchor="middle" fill="hsl(160 79% 30%)" font-weight="500">202 Accepted (UI mostra "em transmissão")</text>
+        </g>
+
+        <!-- Step 4 worker -->
+        <g>
+          <line x1="540" y1="225" x2="280" y2="225" stroke="hsl(199 89% 48%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="410" y="219" text-anchor="middle" fill="hsl(199 89% 35%)">worker consome evento</text>
+        </g>
+        <g>
+          <line x1="280" y1="255" x2="780" y2="255" stroke="hsl(0 0% 45%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="530" y="249" text-anchor="middle" fill="hsl(0 0% 24%)">3. POST /nfse (assina com certificado A1)</text>
+        </g>
+        <g>
+          <line x1="780" y1="285" x2="980" y2="285" stroke="hsl(0 0% 45%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="880" y="279" text-anchor="middle" fill="hsl(0 0% 24%)">4. transmite XML</text>
+        </g>
+        <g>
+          <line x1="980" y1="315" x2="780" y2="315" stroke="hsl(160 79% 39%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="880" y="309" text-anchor="middle" fill="hsl(160 79% 30%)" font-weight="500">5. autorizada (chave + protocolo)</text>
+        </g>
+        <g>
+          <line x1="780" y1="345" x2="280" y2="345" stroke="hsl(160 79% 39%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="530" y="339" text-anchor="middle" fill="hsl(160 79% 30%)" font-weight="500">6. webhook autorizada (HMAC)</text>
+        </g>
+
+        <!-- Step 7 -->
+        <g>
+          <line x1="280" y1="385" x2="540" y2="385" stroke="hsl(0 0% 45%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="410" y="379" text-anchor="middle" fill="hsl(0 0% 24%)">atualiza status + salva XML/PDF</text>
+        </g>
+        <g>
+          <line x1="280" y1="415" x2="80" y2="415" stroke="hsl(254 56% 38%)" stroke-width="1.5" marker-end="url(#arrow)"/>
+          <text x="180" y="409" text-anchor="middle" fill="hsl(254 56% 38%)" font-weight="500">7. Realtime → UI atualiza</text>
+        </g>
+
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="hsl(0 0% 45%)"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <div class="grid grid-3" style="margin-top: 28px;">
+      <div class="card">
+        <h3 style="color: var(--success);">Caminho feliz</h3>
+        <p style="font-size: 13px; color: var(--text-muted);">Rascunho → Em Transmissão → <strong style="color: var(--success);">Autorizada</strong>. Tempo médio esperado: 2-15 segundos.</p>
+      </div>
+      <div class="card">
+        <h3 style="color: var(--warning);">Rejeição</h3>
+        <p style="font-size: 13px; color: var(--text-muted);">Erro de schema, código de serviço inválido, ISS divergente. UI mostra motivo + botão "Corrigir e reemitir". Lançamento volta para pendente.</p>
+      </div>
+      <div class="card">
+        <h3 style="color: var(--info);">Cancelamento</h3>
+        <p style="font-size: 13px; color: var(--text-muted);">Backend valida prazo legal (varia por município, ~24h sem ônus) antes de chamar gateway. Fora do prazo → 422.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Telas -->
+<section id="telas">
+  <div class="wrap">
+    <span class="eyebrow">Mockups</span>
+    <h2>Como ficaria na interface do Imedto</h2>
+    <p class="lead">Mockups exploratórios para validar a UX antes de qualquer linha de Vue. Tudo usa componentes do design system existente (AppPageHeader, AppTable, AppPagination, AppEmptyState).</p>
+
+    <!-- Tela 1: lançamentos a faturar -->
+    <h3 style="margin-top: 32px; margin-bottom: 16px;">1. Lançamentos a faturar</h3>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Lista filtrada por período. Usuário seleciona N lançamentos pendentes e clica em "Emitir NFs". Apenas o que está marcado como pago (e elegível) aparece como "pendente de NF".</p>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <i></i><i></i><i></i>
+        <span class="url">app.imedto.com.br/financeiro/lancamentos</span>
+      </div>
+      <div class="mockup-body">
+        <div class="app">
+          <aside class="app-side">
+            <div class="app-logo">Imedto</div>
+            <ul>
+              <li>Início</li>
+              <li>Agenda</li>
+              <li>Pacientes</li>
+              <li>Prontuário</li>
+              <li class="active">Financeiro</li>
+              <li>Relatórios</li>
+              <li>Configurações</li>
+            </ul>
+          </aside>
+          <main class="app-main">
+            <div class="app-page-header">
+              <div>
+                <h1>Lançamentos a faturar</h1>
+                <p>27 lançamentos elegíveis · R$ 18.420,00 · Maio/2026</p>
+              </div>
+              <button class="btn">Emitir NFs (12 selecionados)</button>
+            </div>
+            <div class="filters">
+              <input type="text" placeholder="Buscar paciente ou procedimento…" value="">
+              <select><option>Todos os profissionais</option></select>
+              <select><option>Pendente de NF</option></select>
+              <select><option>Maio/2026</option></select>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 30px;"><input type="checkbox" checked></th>
+                  <th>Paciente</th>
+                  <th>Procedimento</th>
+                  <th>Profissional</th>
+                  <th>Data</th>
+                  <th style="text-align: right;">Valor</th>
+                  <th>Status NF</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td>
+                    <div class="pat-name">Ana Carolina Mendes</div>
+                    <div class="pat-sub">CPF ···.···.123-45</div>
+                  </td>
+                  <td>Consulta em Cardiologia</td>
+                  <td>Dr. Roberto Lima</td>
+                  <td>02/05/2026</td>
+                  <td style="text-align: right;" class="price">R$ 350,00</td>
+                  <td><span class="status-pill status-pendente">Pendente</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td>
+                    <div class="pat-name">Marcos Silva</div>
+                    <div class="pat-sub">CPF ···.···.456-78</div>
+                  </td>
+                  <td>Consulta em Dermatologia</td>
+                  <td>Dra. Paula Reis</td>
+                  <td>02/05/2026</td>
+                  <td style="text-align: right;" class="price">R$ 280,00</td>
+                  <td><span class="status-pill status-pendente">Pendente</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox"></td>
+                  <td>
+                    <div class="pat-name">Fernanda Costa</div>
+                    <div class="pat-sub">Sem CPF cadastrado</div>
+                  </td>
+                  <td>Consulta em Ginecologia</td>
+                  <td>Dra. Júlia Tavares</td>
+                  <td>03/05/2026</td>
+                  <td style="text-align: right;" class="price">R$ 320,00</td>
+                  <td><span class="status-pill status-pendente">Pendente</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td>
+                    <div class="pat-name">João Pedro Aragão</div>
+                    <div class="pat-sub">CPF ···.···.789-01</div>
+                  </td>
+                  <td>Procedimento — Eletrocardiograma</td>
+                  <td>Dr. Roberto Lima</td>
+                  <td>03/05/2026</td>
+                  <td style="text-align: right;" class="price">R$ 180,00</td>
+                  <td><span class="status-pill status-pendente">Pendente</span></td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td>
+                    <div class="pat-name">Beatriz Almeida</div>
+                    <div class="pat-sub">CPF ···.···.222-33</div>
+                  </td>
+                  <td>Consulta em Pediatria</td>
+                  <td>Dra. Paula Reis</td>
+                  <td>04/05/2026</td>
+                  <td style="text-align: right;" class="price">R$ 290,00</td>
+                  <td><span class="status-pill status-em-trans">Em transmissão</span></td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td>
+                    <div class="pat-name">Rafael Souza</div>
+                    <div class="pat-sub">CPF ···.···.555-66</div>
+                  </td>
+                  <td>Consulta em Ortopedia</td>
+                  <td>Dr. Carlos Pinheiro</td>
+                  <td>04/05/2026</td>
+                  <td style="text-align: right;" class="price">R$ 380,00</td>
+                  <td><span class="status-pill status-autorizada">Autorizada · NF 8421</span></td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td>
+                    <div class="pat-name">Helena Vieira</div>
+                    <div class="pat-sub">CPF ···.···.999-00</div>
+                  </td>
+                  <td>Consulta em Cardiologia</td>
+                  <td>Dr. Roberto Lima</td>
+                  <td>30/04/2026</td>
+                  <td style="text-align: right;" class="price">R$ 350,00</td>
+                  <td><span class="status-pill status-rejeitada">Rejeitada · código 4032</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tela 2: detalhe da NF -->
+    <h3 style="margin-top: 48px; margin-bottom: 16px;">2. Detalhe da nota fiscal autorizada</h3>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Drawer/modal aberto a partir da lista. Mostra dados fiscais da NF, link para XML/PDF e ações conforme estado (cancelar dentro do prazo, reenviar e-mail ao tomador, etc).</p>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <i></i><i></i><i></i>
+        <span class="url">app.imedto.com.br/financeiro/notas-fiscais/8421</span>
+      </div>
+      <div class="mockup-body">
+        <div class="nf-detail">
+          <div class="nf-header">
+            <div>
+              <div class="nf-numero">NFS-e Nº 8421
+                <small>Série E1 · RPS 8512 · Emitida em 04/05/2026 às 14:32</small>
+              </div>
+            </div>
+            <span class="status-pill status-autorizada" style="font-size: 13px; padding: 6px 14px;">✓ Autorizada</span>
+          </div>
+
+          <h3 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em;">Tomador</h3>
+          <dl class="nf-keyvalue">
+            <dt>Nome</dt><dd>Rafael Souza</dd>
+            <dt>CPF</dt><dd>···.···.555-66</dd>
+            <dt>E-mail</dt><dd>rafael.souza@example.com</dd>
+          </dl>
+
+          <h3 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 20px;">Serviço</h3>
+          <dl class="nf-keyvalue">
+            <dt>Discriminação</dt><dd>Consulta em Ortopedia</dd>
+            <dt>Código de serviço</dt><dd>4.01 — Medicina e biomedicina (LC 116/2003)</dd>
+            <dt>Valor dos serviços</dt><dd class="price">R$ 380,00</dd>
+            <dt>Alíquota ISS</dt><dd>2,5%</dd>
+            <dt>Valor ISS</dt><dd class="price">R$ 9,50</dd>
+          </dl>
+
+          <h3 style="font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 20px;">Identificação fiscal</h3>
+          <dl class="nf-keyvalue">
+            <dt>Chave de acesso</dt><dd style="font-family: ui-monospace, monospace; font-size: 12px;">3526 0512 3456 7890 1234 5678 9012 3456 7890 1234 5678</dd>
+            <dt>Código de verificação</dt><dd style="font-family: ui-monospace, monospace;">A8F2-9C13</dd>
+            <dt>Município</dt><dd>São Paulo / SP</dd>
+            <dt>Provedor</dt><dd>Focus NFe (gateway)</dd>
+          </dl>
+
+          <div class="nf-actions">
+            <button class="btn">Baixar XML</button>
+            <button class="btn">Baixar PDF (DANFSE)</button>
+            <button class="btn btn-ghost">Reenviar e-mail ao tomador</button>
+            <button class="btn btn-ghost" style="color: var(--danger); margin-left: auto; border-color: var(--danger);">Cancelar NF (até 05/05 14:32)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tela 3: configuração emissor -->
+    <h3 style="margin-top: 48px; margin-bottom: 16px;">3. Configuração do emissor (por estabelecimento)</h3>
+    <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">Setup feito uma vez por estabelecimento. Dono ou admin configura CNPJ, regime tributário, certificado A1 (upload), série, código de serviço padrão e alíquota ISS. Alertas de expiração de certificado vivem aqui.</p>
+    <div class="mockup">
+      <div class="mockup-bar">
+        <i></i><i></i><i></i>
+        <span class="url">app.imedto.com.br/configuracoes/fiscal</span>
+      </div>
+      <div class="mockup-body">
+        <div style="padding: 28px 32px; max-width: 720px; margin: 0 auto;">
+          <div class="app-page-header">
+            <div>
+              <h1 style="font-size: 22px;">Configuração fiscal</h1>
+              <p style="font-size: 13px; color: var(--text-muted);">Clínica Vida Plena · CNPJ 12.345.678/0001-90</p>
+            </div>
+            <span class="status-pill status-autorizada">Ambiente: produção</span>
+          </div>
+
+          <div style="background: var(--warning-bg); border-left: 3px solid var(--warning); padding: 12px 16px; border-radius: 6px; margin-bottom: 24px; font-size: 13px;">
+            <strong style="color: hsl(45 96% 25%);">⚠ Certificado A1 expira em 47 dias</strong><br>
+            <span style="color: var(--text-muted);">Renove até 19/06/2026 para evitar interrupção da emissão.</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Regime tributário</label>
+              <select style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;"><option>Simples Nacional — Anexo III</option></select>
+            </div>
+            <div>
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Inscrição municipal</label>
+              <input type="text" value="123.456-7" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;">
+            </div>
+            <div>
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Código de serviço padrão</label>
+              <select style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;"><option>4.01 — Medicina e biomedicina</option></select>
+            </div>
+            <div>
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Alíquota ISS</label>
+              <input type="text" value="2,5%" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;">
+            </div>
+            <div>
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Série RPS</label>
+              <input type="text" value="E1" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;">
+            </div>
+            <div>
+              <label style="font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Próximo número RPS</label>
+              <input type="text" value="8512" style="width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px; margin-top: 6px;">
+            </div>
+          </div>
+
+          <div style="margin-top: 24px; padding: 16px; background: var(--bg-muted); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="font-size: 14px;">Certificado digital A1</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">CN=Clinica Vida Plena · Válido até 19/06/2026 · Custodiado no gateway</div>
+            </div>
+            <button class="btn btn-ghost btn-sm">Substituir</button>
+          </div>
+
+          <div style="margin-top: 24px; padding: 16px; background: var(--bg-muted); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="font-size: 14px;">Emissão automática</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Emitir NF automaticamente quando lançamento for marcado como pago</div>
+            </div>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px;"><input type="checkbox"> Ativar</label>
+          </div>
+
+          <div style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-ghost">Cancelar</button>
+            <button class="btn">Salvar alterações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Arquitetura -->
+<section id="arquitetura" class="alt">
+  <div class="wrap">
+    <span class="eyebrow">Arquitetura</span>
+    <h2>Bounded context novo · <code style="font-size: 0.9em; color: var(--primary);">Faturamento</code></h2>
+    <p class="lead">Domínio próprio. Não mistura com Agendamento ou Financeiro. Segue DDD + CQRS já estabelecido no Imedto.</p>
+
+    <div class="arch-grid">
+      <div>
+        <h3 style="margin-bottom: 16px;">Agregados e eventos</h3>
+        <ol class="arch-list" style="counter-reset: step;">
+          <li>
+            <span class="num">1</span>
+            <div class="body">
+              <strong>EmissorFiscal</strong>
+              <span>Configuração por estabelecimento — CNPJ, regime, certificado_id, série RPS, código de serviço padrão, alíquota ISS, gateway.</span>
+            </div>
+          </li>
+          <li>
+            <span class="num">2</span>
+            <div class="body">
+              <strong>LançamentoFaturável</strong>
+              <span>Origem: agendamento concluído + pago. Estado: <code>pendente → faturado / dispensado</code>. Único candidato a virar NF.</span>
+            </div>
+          </li>
+          <li>
+            <span class="num">3</span>
+            <div class="body">
+              <strong>NotaFiscal (aggregate raiz)</strong>
+              <span>Estado-máquina: <code>Rascunho → EmTransmissão → Autorizada / Rejeitada / Cancelada</code>. 1:1 com lançamento. Idempotência travada por <code>lancamento_id</code>.</span>
+            </div>
+          </li>
+          <li>
+            <span class="num">4</span>
+            <div class="body">
+              <strong>Domain events</strong>
+              <span><code>NotaFiscalSolicitada</code> (handler chama gateway), <code>NotaFiscalAutorizada</code> (notifica paciente), <code>NotaFiscalRejeitada</code>, <code>NotaFiscalCancelada</code>.</span>
+            </div>
+          </li>
+          <li>
+            <span class="num">5</span>
+            <div class="body">
+              <strong>Outbox + worker</strong>
+              <span>UI confirma rápido (202). Worker assíncrono dispara o gateway, lida com retry, circuit breaker, DLQ. Webhook do gateway atualiza status.</span>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div>
+        <h3 style="margin-bottom: 16px;">Camada de gateway</h3>
+        <div class="card" style="background: hsl(0 0% 15%); color: hsl(160 30% 85%); font-family: ui-monospace, monospace; font-size: 12.5px; line-height: 1.7;">
+<span style="color: hsl(254 60% 75%);">public interface</span> <span style="color: hsl(45 96% 70%);">INfsEmissaoGateway</span><br>
+{<br>
+&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">Task</span>&lt;<span style="color: hsl(45 96% 70%);">EmissaoResult</span>&gt; <span style="color: hsl(199 89% 70%);">EmitirAsync</span>(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(45 96% 70%);">EmissaoRequest</span> req,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">CancellationToken</span> ct);<br><br>
+&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">Task</span>&lt;<span style="color: hsl(45 96% 70%);">CancelamentoResult</span>&gt; <span style="color: hsl(199 89% 70%);">CancelarAsync</span>(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">string</span> idExterno,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(45 96% 70%);">MotivoCancelamento</span> motivo,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">CancellationToken</span> ct);<br><br>
+&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">Task</span>&lt;<span style="color: hsl(45 96% 70%);">ConsultaResult</span>&gt; <span style="color: hsl(199 89% 70%);">ConsultarAsync</span>(<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">string</span> idExterno,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: hsl(254 60% 75%);">CancellationToken</span> ct);<br>
+}
+        </div>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 12px;">Implementações: <code>FocusNfeGateway</code>, <code>NfeIoGateway</code>, <code>NotaGatewayGateway</code>. Trocar provedor = nova classe + 1 linha no Composition Root.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Mercado -->
+<section id="mercado">
+  <div class="wrap">
+    <span class="eyebrow">Pesquisa de mercado</span>
+    <h2>Comparativo dos principais gateways</h2>
+    <p class="lead">Pesquisa via WebSearch + WebFetch nas fontes primárias dos provedores em 2026-05. Onde marcado <span class="unknown">?</span>, não foi possível confirmar via fonte pública.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Provedor</th>
+            <th>Modelo</th>
+            <th>Entrada</th>
+            <th>1k NF/mês</th>
+            <th>10k NF/mês</th>
+            <th>Custo/NF marginal</th>
+            <th>Custódia A1</th>
+            <th>Saúde</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Focus NFe</strong> <span class="badge-pill recommended">POC</span></td>
+            <td>Assinatura + excedente</td>
+            <td class="price">R$ 89,90</td>
+            <td class="price">~R$ 189,90</td>
+            <td class="price">~R$ 1.089,90</td>
+            <td class="price">R$ 0,10</td>
+            <td class="cross">✕ cliente</td>
+            <td class="unknown">?</td>
+          </tr>
+          <tr>
+            <td><strong>NFE.io</strong> <span class="badge-pill fallback">Fallback</span></td>
+            <td>Assinatura por volume</td>
+            <td class="price">R$ 190</td>
+            <td class="price">R$ 375</td>
+            <td class="unknown">custom</td>
+            <td>tier-based</td>
+            <td class="unknown">?</td>
+            <td class="check">Cuidas</td>
+          </tr>
+          <tr>
+            <td><strong>PlugNotas</strong></td>
+            <td>Pay-per-use</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">?</td>
+            <td class="unknown">?</td>
+            <td class="unknown">Medflynx (?)</td>
+          </tr>
+          <tr>
+            <td><strong>Nota Gateway</strong> <span class="badge-pill" style="background: hsl(45 96% 90%); color: hsl(45 96% 30%);">Wildcard</span></td>
+            <td>Custom</td>
+            <td class="price">~R$ 129</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">~R$ 0,60</td>
+            <td class="check">✓</td>
+            <td class="check"><strong>iClinic, Doctoralia</strong></td>
+          </tr>
+          <tr>
+            <td><strong>eNotas</strong></td>
+            <td>Assinatura + adesão</td>
+            <td class="price">~R$ 347 + plano</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">não pub.</td>
+            <td>R$ 0,77</td>
+            <td class="check">✓</td>
+            <td class="unknown">?</td>
+          </tr>
+          <tr>
+            <td><strong>WebmaniaBR</strong></td>
+            <td>Assinatura</td>
+            <td class="price">R$ 199,90</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">não pub.</td>
+            <td class="unknown">?</td>
+            <td class="unknown">?</td>
+            <td class="unknown">?</td>
+          </tr>
+          <tr>
+            <td><strong>Sistema Nacional NFS-e</strong> <span class="badge-pill gov">Gov</span></td>
+            <td>Gratuito (RFB)</td>
+            <td class="price">R$ 0</td>
+            <td class="price">R$ 0</td>
+            <td class="price">R$ 0</td>
+            <td class="price">R$ 0</td>
+            <td>N/A (direto)</td>
+            <td>N/A</td>
+          </tr>
+          <tr style="opacity: .55;">
+            <td><strong>Nuvem Fiscal</strong> <span class="badge-pill deprecated">Deprecated</span></td>
+            <td colspan="7">Encerra em 31/07/2026 — não construir nada novo aqui</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top: 36px; margin-bottom: 16px;">Pontuação final (0-5) para o caso Imedto</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Provedor</th>
+            <th>Preço</th>
+            <th>Cobertura</th>
+            <th>Qualidade API</th>
+            <th>Saúde fit</th>
+            <th>Risco vendor</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>NFE.io</strong></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td class="score-total">21</td>
+          </tr>
+          <tr>
+            <td><strong>Focus NFe</strong></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td class="score-total">20</td>
+          </tr>
+          <tr>
+            <td><strong>Nota Gateway</strong></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td class="score-total">18</td>
+          </tr>
+          <tr>
+            <td>PlugNotas</td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+            <td class="score-total">17</td>
+          </tr>
+          <tr>
+            <td>eNotas</td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></td>
+            <td class="score-total">13</td>
+          </tr>
+          <tr>
+            <td>SNNFS-e</td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i></i><i></i><i></i><i></i></span></td>
+            <td><span class="score-bar"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></td>
+            <td class="score-total">11</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Riscos -->
+<section id="riscos" class="alt">
+  <div class="wrap">
+    <span class="eyebrow">Antes do POC</span>
+    <h2>Riscos críticos a validar</h2>
+    <p class="lead">Cada item abaixo precisa de confirmação direta com o vendor ou de pesquisa específica. Nenhum bloqueia o discovery, mas alguns bloqueiam a assinatura de contrato.</p>
+
+    <div class="risk-list">
+      <div class="risk-item high">
+        <div class="severity">A</div>
+        <div>
+          <div class="what">Custódia do certificado A1 no Focus NFe</div>
+          <div class="how">Confirmar se o gateway armazena o <code>.pfx</code> server-side ou se o Imedto precisa repassar a cada requisição. Afeta arquitetura de segredos e responsabilidade legal.</div>
+        </div>
+      </div>
+      <div class="risk-item high">
+        <div class="severity">A</div>
+        <div>
+          <div class="what">Reforma Tributária IBS/CBS — road map de cada vendor</div>
+          <div class="how">NFS-e Nacional terá nova NT (NT-004/005 em piloto desde dez/2025). Confirmar plano de adequação antes de assinar contrato.</div>
+        </div>
+      </div>
+      <div class="risk-item med">
+        <div class="severity">M</div>
+        <div>
+          <div class="what">Cobertura SP híbrida (SNNFS-e ↔ Nota Fiscal Paulistana)</div>
+          <div class="how">Validar comportamento do gateway na transição. SP é majoritário no volume esperado.</div>
+        </div>
+      </div>
+      <div class="risk-item med">
+        <div class="severity">M</div>
+        <div>
+          <div class="what">Tabela de preços do PlugNotas e Nota Gateway</div>
+          <div class="how">Exigir proposta numérica escrita para 100/1k/10k NF/mês. Preço opaco é risco contratual e impede comparação.</div>
+        </div>
+      </div>
+      <div class="risk-item med">
+        <div class="severity">M</div>
+        <div>
+          <div class="what">SLA formal do Nota Gateway</div>
+          <div class="how">Solicitar contrato com SLA numérico + histórico de uptime últimos 12 meses (rebranding em 2024).</div>
+        </div>
+      </div>
+      <div class="risk-item low">
+        <div class="severity">B</div>
+        <div>
+          <div class="what">SDK .NET no NFE.io</div>
+          <div class="how">Repo GitHub tem POC em C# mas sem SDK oficial mantido. Confirmar com suporte ou usar <code>HttpClient</code> direto.</div>
+        </div>
+      </div>
+      <div class="risk-item low">
+        <div class="severity">B</div>
+        <div>
+          <div class="what">Webhook + idempotência via <code>external_reference</code></div>
+          <div class="how">Confirmar formato HMAC, retry policy e suporte a chave de idempotência por requisição em todos os candidatos.</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 40px; margin-bottom: 16px;">Próximos passos</h3>
+    <ol style="padding-left: 22px; color: var(--text); font-size: 14px; line-height: 1.9;">
+      <li><strong>Validação com 3-5 clientes-âncora</strong> — como emitem hoje? Provedor? Manual? Contador? Quanto pagam?</li>
+      <li><strong>Levantar municípios da base</strong> via query no banco — <code>distinct(cidade)</code> dos estabelecimentos ativos, ordenado por volume.</li>
+      <li><strong>POC com Focus NFe em homologação</strong> — emitir 5-10 NFs no município com maior volume.</li>
+      <li><strong>Call comercial Nota Gateway</strong> em paralelo — pedir proposta + lista de saúde.</li>
+      <li><strong>Definição de produto</strong> — opt-in, configuração mínima, política de descrição (LGPD), automação on/off.</li>
+      <li><strong>ADR formal</strong> após POC fixando gateway, modelo de custódia e abstração <code>INfsEmissaoGateway</code>.</li>
+      <li><strong>Entrar como Fase nova</strong> em <code>Docs/00_PLANO_MIGRACAO.md</code> (provavelmente Fase 6+; não bloqueia hardening atual).</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <strong>Discovery — Nota Fiscal · Imedto</strong><br>
+    Última atualização 2026-05-03 · Documento exploratório, não é compromisso de implementação<br>
+    <span style="color: rgba(255,255,255,.45); font-size: 11px;">Companion docs: <code>01_discovery.md</code> · <code>02_pesquisa_mercado.md</code></span>
+  </div>
+</footer>
+
+</body>
+</html>
