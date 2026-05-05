@@ -12,20 +12,11 @@ public class ExameFisicoRepository : IExameFisicoRepository
         _context = context;
     }
 
-    public async Task<ExameFisico> ObterPorId(long id)
-    {
-        var e = await _context.ExamesFisicos
-            .Include(x => x.Regioes)
-            .FirstOrDefaultAsync(x => x.Id == id);
-        if (e is null) throw new KeyNotFoundException($"Exame físico {id} não encontrado.");
-        return e;
-    }
-
-    public async Task<ExameFisico?> ObterPorIdOuNulo(long id)
+    public async Task<ExameFisico?> ObterPorIdOuNulo(long id, long estabelecimentoId)
     {
         return await _context.ExamesFisicos
             .Include(x => x.Regioes)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
     }
 
     public async Task Salvar(ExameFisico exame)

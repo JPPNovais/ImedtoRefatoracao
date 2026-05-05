@@ -9,8 +9,8 @@ public class NotificacaoRepository : INotificacaoRepository
 
     public NotificacaoRepository(AppDbContext db) => _db = db;
 
-    public async Task<Notificacao?> ObterPorIdOuNulo(long id)
-        => await _db.Notificacoes.FirstOrDefaultAsync(n => n.Id == id);
+    public async Task<Notificacao?> ObterPorIdOuNulo(long id, Guid usuarioId)
+        => await _db.Notificacoes.FirstOrDefaultAsync(n => n.Id == id && n.UsuarioId == usuarioId);
 
     public async Task Salvar(Notificacao notificacao)
     {

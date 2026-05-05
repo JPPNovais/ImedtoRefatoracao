@@ -36,14 +36,18 @@ public class PlanejarProcedimentoCommandHandler : ICommandHandler<PlanejarProced
         var paciente = await _pacienteRepo.ObterPorIdOuNulo(cmd.PacienteId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Paciente não encontrado.");
 
-        var prontuario = await _prontuarioRepo.ObterPorId(cmd.ProntuarioId);
-        if (prontuario.EstabelecimentoId != cmd.EstabelecimentoId || prontuario.PacienteId != cmd.PacienteId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var prontuario = await _prontuarioRepo.ObterPorIdOuNulo(cmd.ProntuarioId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Prontuário não encontrado.");
+        if (prontuario.PacienteId != cmd.PacienteId)
             throw new BusinessException("Prontuário não encontrado.");
 
         if (cmd.AgendamentoId is { } ag)
         {
-            var agendamento = await _agendamentoRepo.ObterPorId(ag);
-            if (agendamento.EstabelecimentoId != cmd.EstabelecimentoId || agendamento.PacienteId != cmd.PacienteId)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            var agendamento = await _agendamentoRepo.ObterPorIdOuNulo(ag, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Agendamento não encontrado.");
+            if (agendamento.PacienteId != cmd.PacienteId)
                 throw new BusinessException("Agendamento não encontrado.");
         }
 

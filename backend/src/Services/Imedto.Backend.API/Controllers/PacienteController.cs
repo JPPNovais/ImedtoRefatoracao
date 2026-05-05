@@ -84,6 +84,7 @@ public class PacienteController : ControllerBase
             EstabelecimentoId = _tenant.EstabelecimentoId,
             NomeCompleto = request.NomeCompleto,
             Cpf = request.Cpf,
+            DocumentoInternacional = request.DocumentoInternacional,
             DataNascimento = request.DataNascimento,
             Genero = request.Genero,
             Telefone = request.Telefone,
@@ -111,6 +112,7 @@ public class PacienteController : ControllerBase
             SolicitanteUsuarioId = _tenant.UsuarioId,
             NomeCompleto = request.NomeCompleto,
             Cpf = request.Cpf,
+            DocumentoInternacional = request.DocumentoInternacional,
             DataNascimento = request.DataNascimento,
             Genero = request.Genero,
             Telefone = request.Telefone,
@@ -162,6 +164,7 @@ public class PacienteController : ControllerBase
 public record PacienteRequest(
     string NomeCompleto,
     string Cpf,
+    string DocumentoInternacional,
     DateTime? DataNascimento,
     string Genero,
     string Telefone,

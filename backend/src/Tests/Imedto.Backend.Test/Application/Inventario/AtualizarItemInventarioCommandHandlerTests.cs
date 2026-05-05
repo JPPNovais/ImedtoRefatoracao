@@ -41,7 +41,7 @@ public class AtualizarItemInventarioCommandHandlerTests
     public async Task Handle_DoMesmoTenant_AtualizaCampos()
     {
         var item = ItemNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         await _sut.Handle(Cmd());
 
@@ -53,7 +53,7 @@ public class AtualizarItemInventarioCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(ItemNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync((ItemInventario?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Item não encontrado."));
@@ -63,7 +63,7 @@ public class AtualizarItemInventarioCommandHandlerTests
     [Test]
     public void Handle_Inexistente_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync((ItemInventario)null);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync((ItemInventario)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("não encontrado"));

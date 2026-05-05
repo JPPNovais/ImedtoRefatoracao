@@ -14,9 +14,9 @@ public class ObterOrcamentoQueryHandlers : IRequestHandler<ObterOrcamentoQuery, 
 
     public async Task<OrcamentoDto> Handle(ObterOrcamentoQuery query)
     {
-        var dto = await _repo.ObterPorId(query.OrcamentoId);
-        if (dto is null || dto.EstabelecimentoId != query.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var dto = await _repo.ObterPorId(query.OrcamentoId, query.EstabelecimentoId)
+            ?? throw new BusinessException("Orçamento não encontrado.");
         return dto;
     }
 }

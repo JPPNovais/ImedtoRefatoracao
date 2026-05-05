@@ -19,9 +19,10 @@ public class DeletarSalaCommandHandler : ICommandHandler<DeletarSalaCommand>
 
     public async Task Handle(DeletarSalaCommand command)
     {
-        var sala = await _salas.ObterPorIdOuNulo(command.SalaId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var sala = await _salas.ObterPorIdOuNulo(command.SalaId, command.EstabelecimentoId)
             ?? throw new BusinessException("Repartição não encontrada.");
-        var estab = await _estabelecimentos.ObterPorIdOuNulo(sala.EstabelecimentoId)
+        var estab = await _estabelecimentos.ObterPorIdOuNulo(command.EstabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");
 
         if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)

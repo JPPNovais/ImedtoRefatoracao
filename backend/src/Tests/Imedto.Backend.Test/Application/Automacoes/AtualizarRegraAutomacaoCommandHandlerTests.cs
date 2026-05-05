@@ -50,7 +50,7 @@ public class AtualizarRegraAutomacaoCommandHandlerTests
     public async Task Handle_DonoAtualiza_Persiste()
     {
         var regra = RegraNoEstab(EstabelecimentoId);
-        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId)).ReturnsAsync(regra);
+        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId, EstabelecimentoId)).ReturnsAsync(regra);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         await _sut.Handle(Cmd());
@@ -62,7 +62,7 @@ public class AtualizarRegraAutomacaoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenericaSemConsultarEstab()
     {
-        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId)).ReturnsAsync(RegraNoEstab(OutroEstabId));
+        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId, EstabelecimentoId)).ReturnsAsync((RegraAutomacao?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Regra não encontrada."));
@@ -72,7 +72,7 @@ public class AtualizarRegraAutomacaoCommandHandlerTests
     [Test]
     public void Handle_NaoEhDono_LancaBusinessException()
     {
-        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId)).ReturnsAsync(RegraNoEstab(EstabelecimentoId));
+        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId, EstabelecimentoId)).ReturnsAsync(RegraNoEstab(EstabelecimentoId));
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(solicitante: _outroId)));
@@ -82,7 +82,7 @@ public class AtualizarRegraAutomacaoCommandHandlerTests
     [Test]
     public void Handle_RegraInexistente_LancaBusinessException()
     {
-        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId)).ReturnsAsync((RegraAutomacao)null);
+        _regraRepo.Setup(r => r.ObterPorIdOuNulo(RegraId, EstabelecimentoId)).ReturnsAsync((RegraAutomacao)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("não encontrada"));

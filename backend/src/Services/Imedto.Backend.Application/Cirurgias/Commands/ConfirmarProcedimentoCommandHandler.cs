@@ -24,9 +24,9 @@ public class ConfirmarProcedimentoCommandHandler : ICommandHandler<ConfirmarProc
 
     public async Task Handle(ConfirmarProcedimentoCommand cmd)
     {
-        var procedimento = await _repo.ObterPorId(cmd.ProcedimentoId);
-        if (procedimento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Procedimento não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var procedimento = await _repo.ObterPorIdOuNulo(cmd.ProcedimentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Procedimento não encontrado.");
 
         procedimento.Confirmar();
         await _repo.Salvar(procedimento);

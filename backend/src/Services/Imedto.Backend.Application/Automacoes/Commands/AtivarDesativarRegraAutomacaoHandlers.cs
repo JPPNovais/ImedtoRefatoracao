@@ -34,10 +34,9 @@ public class AtivarRegraAutomacaoCommandHandler : ICommandHandler<AtivarRegraAut
         long estabelecimentoId,
         Guid solicitanteId)
     {
-        var regra = await regraRepo.ObterPorIdOuNulo(regraId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var regra = await regraRepo.ObterPorIdOuNulo(regraId, estabelecimentoId)
             ?? throw new BusinessException("Regra não encontrada.");
-        if (regra.EstabelecimentoId != estabelecimentoId)
-            throw new BusinessException("Regra não encontrada.");
 
         var estab = await estabRepo.ObterPorIdOuNulo(estabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");

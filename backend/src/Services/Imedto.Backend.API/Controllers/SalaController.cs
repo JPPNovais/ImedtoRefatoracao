@@ -71,6 +71,7 @@ public class SalaController : ControllerBase
         await _commandBus.Send(new AtualizarSalaCommand
         {
             SalaId = salaId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
             UnidadeId = request.UnidadeId,
             TipoSalaId = request.TipoSalaId,
@@ -91,6 +92,7 @@ public class SalaController : ControllerBase
         await _commandBus.Send(new DeletarSalaCommand
         {
             SalaId = salaId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
         });
 

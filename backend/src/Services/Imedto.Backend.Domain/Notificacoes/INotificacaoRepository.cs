@@ -6,7 +6,13 @@ namespace Imedto.Backend.Domain.Notificacoes;
 /// </summary>
 public interface INotificacaoRepository
 {
-    Task<Notificacao?> ObterPorIdOuNulo(long id);
+    /// <summary>
+    /// Carrega a notificação filtrando por <paramref name="usuarioId"/>
+    /// (Notificacao é per-usuario — defense-in-depth IDOR/LGPD).
+    /// Retorna null se inexistente ou de outro usuário.
+    /// </summary>
+    Task<Notificacao?> ObterPorIdOuNulo(long id, Guid usuarioId);
+
     Task Salvar(Notificacao notificacao);
 
     /// <summary>

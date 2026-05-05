@@ -126,10 +126,11 @@ public class AgendamentoQueryRepository
         });
     }
 
-    public async Task<AgendamentoDto?> ObterPorId(long id)
+    public async Task<AgendamentoDto?> ObterPorId(long id, long estabelecimentoId)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
+        // Filtro por estabelecimento no SQL — defense-in-depth IDOR/LGPD.
         const string sql = """
             SELECT
                 a.id                    AS Id,
@@ -152,8 +153,13 @@ public class AgendamentoQueryRepository
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
             JOIN usuarios     ucri ON ucri.id = a.criado_por_usuario_id
             WHERE a.id = @Id
+              AND a.estabelecimento_id = @EstabelecimentoId
             """;
 
-        return await conn.QuerySingleOrDefaultAsync<AgendamentoDto>(sql, new { Id = id });
+        return await conn.QuerySingleOrDefaultAsync<AgendamentoDto>(sql, new
+        {
+            Id = id,
+            EstabelecimentoId = estabelecimentoId
+        });
     }
 }

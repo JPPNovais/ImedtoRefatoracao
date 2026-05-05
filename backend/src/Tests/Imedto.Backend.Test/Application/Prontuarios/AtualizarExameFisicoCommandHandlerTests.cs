@@ -55,7 +55,7 @@ public class AtualizarExameFisicoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_AtualizaEAudita()
     {
         var exame = ExameNoEstab(EstabelecimentoId);
-        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId)).ReturnsAsync(exame);
+        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId, EstabelecimentoId)).ReturnsAsync(exame);
 
         await _sut.Handle(Cmd());
 
@@ -68,7 +68,7 @@ public class AtualizarExameFisicoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId)).ReturnsAsync(ExameNoEstab(OutroEstabId));
+        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId, EstabelecimentoId)).ReturnsAsync((ExameFisico?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Exame físico não encontrado."));
@@ -81,7 +81,7 @@ public class AtualizarExameFisicoCommandHandlerTests
     public void Handle_JsonInvalido_LancaBusinessException()
     {
         var exame = ExameNoEstab(EstabelecimentoId);
-        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId)).ReturnsAsync(exame);
+        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId, EstabelecimentoId)).ReturnsAsync(exame);
 
         var cmd = Cmd();
         cmd.DadosGeraisJson = "{nao eh json valido";
@@ -94,7 +94,7 @@ public class AtualizarExameFisicoCommandHandlerTests
     public async Task Handle_RegiaoSumiuDaLista_RemoveDoExame()
     {
         var exame = ExameNoEstab(EstabelecimentoId);
-        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId)).ReturnsAsync(exame);
+        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId, EstabelecimentoId)).ReturnsAsync(exame);
 
         var cmd = Cmd();
         cmd.Regioes = Array.Empty<RegiaoExameFisicoInput>(); // remove tudo
@@ -108,7 +108,7 @@ public class AtualizarExameFisicoCommandHandlerTests
     public async Task Handle_NovaRegiao_Adiciona()
     {
         var exame = ExameNoEstab(EstabelecimentoId);
-        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId)).ReturnsAsync(exame);
+        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId, EstabelecimentoId)).ReturnsAsync(exame);
 
         var cmd = Cmd();
         cmd.Regioes = new[]
@@ -126,7 +126,7 @@ public class AtualizarExameFisicoCommandHandlerTests
     public void Handle_RegiaoComCodigoVazio_LancaBusinessException()
     {
         var exame = ExameNoEstab(EstabelecimentoId);
-        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId)).ReturnsAsync(exame);
+        _exameRepo.Setup(r => r.ObterPorIdOuNulo(ExameId, EstabelecimentoId)).ReturnsAsync(exame);
 
         var cmd = Cmd();
         cmd.Regioes = new[] { new RegiaoExameFisicoInput { Codigo = " " } };

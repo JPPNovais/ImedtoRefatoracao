@@ -109,6 +109,43 @@ public class AtualizarPacienteCommandHandlerTests
     }
 
     [Test]
+    public void Handle_DocInternacionalDuplicadoEmOutroPaciente_LancaBusinessException()
+    {
+        var paciente = CriarPaciente();
+        _repo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(paciente);
+        _repo.Setup(r => r.ExisteDocumentoInternacionalNoEstabelecimento(
+                "PASSAPORTE-X", EstabelecimentoId, PacienteId))
+             .ReturnsAsync(true);
+
+        var cmd = Cmd();
+        cmd.Cpf = null;
+        cmd.DocumentoInternacional = "PASSAPORTE-X";
+
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
+        Assert.That(ex.Message, Does.Contain("documento").IgnoreCase);
+        _repo.Verify(r => r.Salvar(It.IsAny<Paciente>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_TrocarCpfPorDocInternacional_AtualizaCorretamente()
+    {
+        var paciente = CriarPaciente();
+        _repo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(paciente);
+        _repo.Setup(r => r.ExisteDocumentoInternacionalNoEstabelecimento(
+                "PASSAPORTE-Z", EstabelecimentoId, PacienteId))
+             .ReturnsAsync(false);
+
+        var cmd = Cmd();
+        cmd.Cpf = null;
+        cmd.DocumentoInternacional = "PASSAPORTE-Z";
+
+        await _sut.Handle(cmd);
+
+        Assert.That(paciente.Cpf, Is.Null);
+        Assert.That(paciente.DocumentoInternacional, Is.EqualTo("PASSAPORTE-Z"));
+    }
+
+    [Test]
     public async Task Handle_GeneroInvalido_AdotaNaoInformado()
     {
         var paciente = CriarPaciente();

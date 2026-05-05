@@ -7,6 +7,7 @@ import { ref, reactive, watch } from "vue"
 import { vMaska } from "maska/vue"
 import { AppDrawer, AppDatePicker, AppButton, AppField, AppInput } from "@/components/ui"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
+import { cpfValido } from "@/utils/cpf"
 
 const props = defineProps<{
     aberto: boolean
@@ -77,12 +78,20 @@ async function salvar() {
         erro.value = "Informe o nome do paciente."
         return
     }
+
+    const docValor = form.documento.trim()
+    if (docValor && form.tipoDocumento === "cpf" && !cpfValido(docValor)) {
+        erro.value = "CPF inválido."
+        return
+    }
+
     salvando.value = true
     erro.value = null
     try {
         await pacienteService.criar({
             nomeCompleto: form.nome.trim(),
-            cpf: form.documento.trim() || undefined,
+            cpf: form.tipoDocumento === "cpf" && docValor ? docValor : undefined,
+            documentoInternacional: form.tipoDocumento === "internacional" && docValor ? docValor : undefined,
             telefone: form.celular.trim() || undefined,
             dataNascimento: form.dataNascimento || undefined,
             genero: form.sexo,

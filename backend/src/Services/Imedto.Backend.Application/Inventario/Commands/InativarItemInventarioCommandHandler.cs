@@ -14,11 +14,9 @@ public class InativarItemInventarioCommandHandler : ICommandHandler<InativarItem
 
     public async Task Handle(InativarItemInventarioCommand cmd)
     {
-        var item = await _repo.ObterPorIdOuNulo(cmd.ItemId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var item = await _repo.ObterPorIdOuNulo(cmd.ItemId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Item não encontrado.");
-        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
-        if (item.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Item não encontrado.");
 
         item.Inativar();
         await _repo.Salvar(item);

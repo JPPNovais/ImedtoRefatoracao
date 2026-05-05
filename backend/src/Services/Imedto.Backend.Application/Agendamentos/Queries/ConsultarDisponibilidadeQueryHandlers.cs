@@ -32,7 +32,12 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
         // Defaults seguros se o estabelecimento não tiver configuração
         var horarioInicio = config?.HorarioInicio ?? new TimeOnly(8, 0);
         var horarioFim = config?.HorarioFim ?? new TimeOnly(18, 0);
-        var duracaoMin = config?.DuracaoConsultaPadraoMinutos ?? 30;
+        // Override do cliente prevalece — quando ausente, usa duracao padrao do estab.
+        // Range valido protege contra valores absurdos (defense-in-depth: front ja limita,
+        // mas backend eh fonte da verdade).
+        var duracaoMin = query.DuracaoMinutos is int d && d >= 5 && d <= 480
+            ? d
+            : config?.DuracaoConsultaPadraoMinutos ?? 30;
         var intervaloMin = config?.IntervaloEntreConsultasMinutos ?? 0;
         var diasFunc = config?.DiasSemanaFuncionamento ?? new List<int> { 1, 2, 3, 4, 5 };
         var bloqueados = config?.HorariosBloqueados ?? new();
@@ -47,7 +52,7 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
         // "Agora" em horário local — usado para marcar slots no passado.
         var agora = DateTime.Now;
 
-        var slots = GerarSlots(horarioInicio, horarioFim, duracaoMin, intervaloMin);
+        var slots = SlotGenerator.Gerar(horarioInicio, horarioFim, duracaoMin, intervaloMin);
 
         var resultado = new DisponibilidadeSemanaDto
         {
@@ -143,22 +148,4 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
         return resultado;
     }
 
-    /// <summary>
-    /// Gera slots em passos de (duração + intervalo) minutos a partir de <paramref name="inicio"/>,
-    /// incluindo apenas slots cujo fim (inicio + duração) caiba até <paramref name="fim"/>.
-    /// </summary>
-    private static List<TimeOnly> GerarSlots(TimeOnly inicio, TimeOnly fim, int duracaoMin, int intervaloMin)
-    {
-        var lista = new List<TimeOnly>();
-        var passo = duracaoMin + intervaloMin;
-        if (passo <= 0) return lista;
-
-        var atual = inicio;
-        while (atual.AddMinutes(duracaoMin) <= fim)
-        {
-            lista.Add(atual);
-            atual = atual.AddMinutes(passo);
-        }
-        return lista;
-    }
 }

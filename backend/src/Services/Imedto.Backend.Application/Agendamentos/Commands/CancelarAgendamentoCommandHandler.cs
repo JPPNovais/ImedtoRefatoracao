@@ -20,10 +20,9 @@ public class CancelarAgendamentoCommandHandler : ICommandHandler<CancelarAgendam
 
     public async Task Handle(CancelarAgendamentoCommand cmd)
     {
-        var agendamento = await _agendamentoRepo.ObterPorId(cmd.AgendamentoId);
-
-        if (agendamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Agendamento não encontrado neste estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var agendamento = await _agendamentoRepo.ObterPorIdOuNulo(cmd.AgendamentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Agendamento não encontrado.");
 
         agendamento.Cancelar(cmd.Motivo);
         await _agendamentoRepo.Salvar(agendamento);

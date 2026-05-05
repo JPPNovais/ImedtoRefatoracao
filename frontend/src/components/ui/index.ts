@@ -1,7 +1,5 @@
 export { default as AppBadge }        from "./AppBadge.vue"
-export { default as AppCalendar }     from "./AppCalendar.vue"
 export { default as AppCheckbox }     from "./AppCheckbox.vue"
-export { default as AppCollapsible }  from "./AppCollapsible.vue"
 export { default as AppDatePicker }   from "./AppDatePicker.vue"
 export { default as AppDateStrip }    from "./AppDateStrip.vue"
 export { default as AppButton }       from "./AppButton.vue"

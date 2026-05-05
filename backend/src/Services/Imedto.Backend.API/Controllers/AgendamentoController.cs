@@ -75,12 +75,15 @@ public class AgendamentoController : ControllerBase
     public async Task<ActionResult<DisponibilidadeSemanaDto>> ConsultarDisponibilidade(
         [FromQuery, Required] Guid profissionalUsuarioId,
         [FromQuery, Required] DateOnly dataInicio,
-        [FromQuery, Required] DateOnly dataFim)
+        [FromQuery, Required] DateOnly dataFim,
+        [FromQuery] int? duracaoMinutos = null)
     {
         if (dataFim < dataInicio)
             return BadRequest("dataFim deve ser maior ou igual a dataInicio.");
         if (dataFim > dataInicio.AddDays(30))
             return BadRequest("Intervalo máximo é de 30 dias.");
+        if (duracaoMinutos is int d && (d < 5 || d > 480))
+            return BadRequest("duracaoMinutos deve estar entre 5 e 480.");
 
         var result = await _query.Query<ConsultarDisponibilidadeQuery, DisponibilidadeSemanaDto>(
             new ConsultarDisponibilidadeQuery
@@ -89,6 +92,7 @@ public class AgendamentoController : ControllerBase
                 ProfissionalUsuarioId = profissionalUsuarioId,
                 DataInicio = dataInicio,
                 DataFim = dataFim,
+                DuracaoMinutos = duracaoMinutos,
             });
         return Ok(result);
     }

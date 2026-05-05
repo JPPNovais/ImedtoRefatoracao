@@ -41,7 +41,7 @@ public class AtualizarVariavelPoolCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Renomeia()
     {
         var item = ItemDoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
         _repo.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, TipoVariavelPool.Alergia, "Atualizado", item.Id))
              .ReturnsAsync(false);
 
@@ -54,7 +54,7 @@ public class AtualizarVariavelPoolCommandHandlerTests
     [Test]
     public void Handle_PadraoSistema_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(ItemPadraoSistema());
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(ItemPadraoSistema());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("padrão"));
@@ -63,7 +63,7 @@ public class AtualizarVariavelPoolCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(ItemDoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync((ProntuarioVariavelPool?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Opção não encontrada."));
@@ -73,7 +73,7 @@ public class AtualizarVariavelPoolCommandHandlerTests
     public void Handle_NomeDuplicado_LancaBusinessException()
     {
         var item = ItemDoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
         _repo.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, TipoVariavelPool.Alergia, "Atualizado", item.Id))
              .ReturnsAsync(true);
 

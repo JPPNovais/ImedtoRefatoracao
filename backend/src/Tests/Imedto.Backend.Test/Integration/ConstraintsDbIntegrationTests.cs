@@ -2,6 +2,7 @@ using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.Domain.Vinculos;
+using Imedto.Backend.Test.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NUnit.Framework;
@@ -135,21 +136,129 @@ public class ConstraintsDbIntegrationTests : IntegrationTestBase
     public async Task UniqueParcialPacientes_MesmoCpfNoMesmoEstab_FalhaNoBanco()
     {
         const long estabId = 1;
+        var cpf = CpfTestData.Validos[0];
+
         await using (var ctx = NewContext())
         {
             await SemearEstabelecimentoAsync(ctx, estabId);
-            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "P1", "11111111111", null,
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "P1", cpf, null,
                 GeneroPaciente.NaoInformado, null, null, null, null));
             await ctx.SaveChangesAsync();
         }
 
         await using (var ctx = NewContext())
         {
-            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "P2", "11111111111", null,
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "P2", cpf, null,
                 GeneroPaciente.NaoInformado, null, null, null, null));
 
             var ex = Assert.ThrowsAsync<DbUpdateException>(() => ctx.SaveChangesAsync());
             Assert.That(((PostgresException)ex.InnerException!).SqlState, Is.EqualTo("23505"));
+        }
+    }
+
+    [Test]
+    public async Task UniqueParcialPacientes_MesmoCpfEmEstabsDiferentes_Permitido()
+    {
+        const long estabA = 1;
+        const long estabB = 2;
+        var cpf = CpfTestData.Validos[1];
+
+        await using (var ctx = NewContext())
+        {
+            await SemearEstabelecimentoAsync(ctx, estabA);
+            await SemearEstabelecimentoAsync(ctx, estabB);
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabA, "P1", cpf, null,
+                GeneroPaciente.NaoInformado, null, null, null, null));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = NewContext())
+        {
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabB, "P1 Outro Estab", cpf, null,
+                GeneroPaciente.NaoInformado, null, null, null, null));
+
+            // Mesmo CPF + estab diferente eh registro independente — index unique parcial
+            // (estabelecimento_id, cpf) nao bloqueia.
+            Assert.DoesNotThrowAsync(() => ctx.SaveChangesAsync());
+        }
+    }
+
+    [Test]
+    public async Task UniqueParcialPacientes_MesmoDocInternacionalNoMesmoEstab_FalhaNoBanco()
+    {
+        const long estabId = 1;
+        const string doc = "PASSAPORTE-AB123456";
+
+        await using (var ctx = NewContext())
+        {
+            await SemearEstabelecimentoAsync(ctx, estabId);
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "Estrangeiro 1", null, null,
+                GeneroPaciente.NaoInformado, null, null, null, null, doc));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = NewContext())
+        {
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "Estrangeiro 2", null, null,
+                GeneroPaciente.NaoInformado, null, null, null, null, doc));
+
+            var ex = Assert.ThrowsAsync<DbUpdateException>(() => ctx.SaveChangesAsync());
+            Assert.That(((PostgresException)ex.InnerException!).SqlState, Is.EqualTo("23505"),
+                "23505 = unique_violation. Confirma que uq_pacientes_estabelecimento_doc_internacional funciona.");
+        }
+    }
+
+    [Test]
+    public async Task UniqueParcialPacientes_MesmoDocInternacionalEmEstabsDiferentes_Permitido()
+    {
+        const long estabA = 1;
+        const long estabB = 2;
+        const string doc = "PASSAPORTE-XY999999";
+
+        await using (var ctx = NewContext())
+        {
+            await SemearEstabelecimentoAsync(ctx, estabA);
+            await SemearEstabelecimentoAsync(ctx, estabB);
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabA, "P", null, null,
+                GeneroPaciente.NaoInformado, null, null, null, null, doc));
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = NewContext())
+        {
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabB, "P Outro Estab", null, null,
+                GeneroPaciente.NaoInformado, null, null, null, null, doc));
+
+            // Mesma logica do CPF: doc internacional eh por estabelecimento.
+            Assert.DoesNotThrowAsync(() => ctx.SaveChangesAsync());
+        }
+    }
+
+    [Test]
+    public async Task UniqueParcialPacientes_DocInternacionalAposSoftDelete_PermiteReuso()
+    {
+        const long estabId = 1;
+        const string doc = "RNE-Z9876543";
+
+        await using (var ctx = NewContext())
+        {
+            await SemearEstabelecimentoAsync(ctx, estabId);
+            var p = Paciente.Cadastrar(estabId, "Antigo", null, null,
+                GeneroPaciente.NaoInformado, null, null, null, null, doc);
+            ctx.Pacientes.Add(p);
+            await ctx.SaveChangesAsync();
+
+            p.MarcarComoDeletado(Guid.NewGuid());
+            await ctx.SaveChangesAsync();
+        }
+
+        await using (var ctx = NewContext())
+        {
+            ctx.Pacientes.Add(Paciente.Cadastrar(estabId, "Novo com mesmo doc", null, null,
+                GeneroPaciente.NaoInformado, null, null, null, null, doc));
+
+            // Index parcial filtra `deletado_em IS NULL` — soft-deleted libera o slot.
+            Assert.DoesNotThrowAsync(() => ctx.SaveChangesAsync());
         }
     }
 

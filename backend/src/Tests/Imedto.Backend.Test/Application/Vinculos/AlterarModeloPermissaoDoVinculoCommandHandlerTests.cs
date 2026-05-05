@@ -57,7 +57,7 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
     public async Task Handle_DonoAlteraModeloDoVinculo_AtualizaModelo()
     {
         var v = VinculoNoEstab(EstabelecimentoId);
-        _vinculoRepo.Setup(r => r.ObterPorIdOuNulo(VinculoId)).ReturnsAsync(v);
+        _vinculoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(VinculoId, EstabelecimentoId)).ReturnsAsync(v);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(Estab());
         _modeloRepo.Setup(r => r.PertenceAoEstabelecimento(NovoModeloId, EstabelecimentoId))
                    .ReturnsAsync(true);
@@ -71,9 +71,10 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
     [Test]
     public void Handle_VinculoCrossTenant_LancaMensagemGenerica()
     {
-        // Vinculo pertence a OUTRO estab — handler deve cortar antes de checar dono.
-        var v = VinculoNoEstab(OutroEstabId);
-        _vinculoRepo.Setup(r => r.ObterPorIdOuNulo(VinculoId)).ReturnsAsync(v);
+        // Vinculo pertence a OUTRO estab — repo filtra por tenant e retorna null,
+        // handler responde "não encontrado" sem consultar estab repo.
+        _vinculoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(VinculoId, EstabelecimentoId))
+            .ReturnsAsync((VinculoProfissionalEstabelecimento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Vínculo não encontrado."));
@@ -85,7 +86,7 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
     public void Handle_NaoEhDono_LancaBusinessException()
     {
         var v = VinculoNoEstab(EstabelecimentoId);
-        _vinculoRepo.Setup(r => r.ObterPorIdOuNulo(VinculoId)).ReturnsAsync(v);
+        _vinculoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(VinculoId, EstabelecimentoId)).ReturnsAsync(v);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(solicitante: _outroId)));
@@ -96,7 +97,7 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
     public void Handle_ModeloDeOutroEstab_LancaBusinessException()
     {
         var v = VinculoNoEstab(EstabelecimentoId);
-        _vinculoRepo.Setup(r => r.ObterPorIdOuNulo(VinculoId)).ReturnsAsync(v);
+        _vinculoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(VinculoId, EstabelecimentoId)).ReturnsAsync(v);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(Estab());
         _modeloRepo.Setup(r => r.PertenceAoEstabelecimento(NovoModeloId, EstabelecimentoId))
                    .ReturnsAsync(false);
@@ -108,8 +109,8 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
     [Test]
     public void Handle_VinculoInexistente_LancaBusinessException()
     {
-        _vinculoRepo.Setup(r => r.ObterPorIdOuNulo(VinculoId))
-                    .ReturnsAsync((VinculoProfissionalEstabelecimento)null);
+        _vinculoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(VinculoId, EstabelecimentoId))
+                    .ReturnsAsync((VinculoProfissionalEstabelecimento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("não encontrado"));

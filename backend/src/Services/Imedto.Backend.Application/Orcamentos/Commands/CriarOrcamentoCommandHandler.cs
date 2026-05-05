@@ -39,8 +39,10 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         // Procedimento cirúrgico (raiz, opcional) precisa pertencer ao mesmo estab + paciente.
         if (cmd.ProcedimentoCirurgicoId is { } procId)
         {
-            var proc = await _procedimentoRepo.ObterPorId(procId);
-            if (proc.EstabelecimentoId != cmd.EstabelecimentoId || proc.PacienteId != cmd.PacienteId)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            var proc = await _procedimentoRepo.ObterPorIdOuNulo(procId, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Procedimento cirúrgico não encontrado.");
+            if (proc.PacienteId != cmd.PacienteId)
                 throw new BusinessException("Procedimento cirúrgico não pertence ao paciente neste estabelecimento.");
         }
 
@@ -85,10 +87,9 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
                            .ToList();
         foreach (var id in ids)
         {
-            var item = await _inventarioRepo.ObterPorIdOuNulo(id)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            _ = await _inventarioRepo.ObterPorIdOuNulo(id, estabelecimentoId)
                 ?? throw new BusinessException($"Item de inventário {id} não encontrado.");
-            if (item.EstabelecimentoId != estabelecimentoId)
-                throw new BusinessException("Item de inventário não pertence a este estabelecimento.");
         }
     }
 
@@ -103,8 +104,10 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
                            .ToList();
         foreach (var id in ids)
         {
-            var proc = await _procedimentoRepo.ObterPorId(id);
-            if (proc.EstabelecimentoId != estabelecimentoId || proc.PacienteId != pacienteId)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            var proc = await _procedimentoRepo.ObterPorIdOuNulo(id, estabelecimentoId)
+                ?? throw new BusinessException($"Procedimento cirúrgico {id} não encontrado.");
+            if (proc.PacienteId != pacienteId)
                 throw new BusinessException($"Procedimento cirúrgico {id} não pertence ao paciente neste estabelecimento.");
         }
     }

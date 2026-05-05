@@ -16,15 +16,13 @@ public class AtualizarModeloDeProntuarioCommandHandler : ICommandHandler<Atualiz
 
     public async Task Handle(AtualizarModeloDeProntuarioCommand command)
     {
-        var modelo = await _repository.ObterPorIdOuNulo(command.ModeloId)
+        // Defense-in-depth multi-tenant: filtro padrao-sistema OR estabelecimento ativo.
+        var modelo = await _repository.ObterVisivelOuNulo(command.ModeloId, command.EstabelecimentoId)
             ?? throw new BusinessException("Modelo não encontrado.");
 
-        // Isolamento: não deixar editar padrão-sistema pelo backend regular nem
-        // modelo de outro estabelecimento (mensagem padronizada — nao vaza existencia).
+        // Padrao-sistema é visível mas só pode ser editado pela ferramenta admin.
         if (modelo.EhPadraoSistema)
             throw new BusinessException("Modelo padrão-sistema só pode ser editado pela ferramenta admin.");
-        if (modelo.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Modelo não encontrado.");
 
         modelo.AtualizarDados(command.Nome, command.Descricao, command.EstruturaJson);
         await _repository.Salvar(modelo);

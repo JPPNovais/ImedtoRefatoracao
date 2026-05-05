@@ -108,9 +108,10 @@ export const agendaService = {
         profissionalUsuarioId: string,
         dataInicio: string,
         dataFim: string,
+        duracaoMinutos?: number,
     ): Promise<DisponibilidadeSemana> {
         const { data } = await httpClient.get<DisponibilidadeSemana>("/agendamentos/disponibilidade", {
-            params: { profissionalUsuarioId, dataInicio, dataFim },
+            params: { profissionalUsuarioId, dataInicio, dataFim, duracaoMinutos },
         })
         return data
     },

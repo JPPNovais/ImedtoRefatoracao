@@ -2,8 +2,12 @@ namespace Imedto.Backend.Domain.Receitas;
 
 public interface IReceitaRepository
 {
-    Task<Receita> ObterPorId(long id);
-    Task<Receita?> ObterPorIdOuNulo(long id);
+    /// <summary>
+    /// Carrega a receita (com itens) filtrando por <paramref name="estabelecimentoId"/>
+    /// (defense-in-depth IDOR/LGPD). Retorna null se inexistente ou de outro tenant.
+    /// </summary>
+    Task<Receita?> ObterPorIdOuNulo(long id, long estabelecimentoId);
+
     Task Salvar(Receita receita);
 }
 

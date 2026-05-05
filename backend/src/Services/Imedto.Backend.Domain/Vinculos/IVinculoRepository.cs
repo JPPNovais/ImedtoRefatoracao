@@ -2,8 +2,22 @@ namespace Imedto.Backend.Domain.Vinculos;
 
 public interface IVinculoRepository
 {
-    Task<VinculoProfissionalEstabelecimento> ObterPorId(long id);
+    /// <summary>
+    /// Carrega o vínculo SEM filtro de tenant — usado em fluxos onde o caller
+    /// é o próprio profissional (Aceitar convite/Inativar pelo profissional)
+    /// e o tenant da request não está disponível. Caller DEVE validar
+    /// <c>vinculo.ProfissionalUsuarioId == solicitante</c>.
+    /// Para fluxos do dono (com tenant ativo), usar <see cref="ObterPorIdNoEstabelecimentoOuNulo"/>.
+    /// </summary>
     Task<VinculoProfissionalEstabelecimento?> ObterPorIdOuNulo(long id);
+
+    /// <summary>
+    /// Carrega o vínculo filtrando por <paramref name="estabelecimentoId"/>
+    /// (defense-in-depth IDOR/LGPD). Usar em fluxos com tenant ativo (admin do dono).
+    /// Retorna null se inexistente ou de outro tenant.
+    /// </summary>
+    Task<VinculoProfissionalEstabelecimento?> ObterPorIdNoEstabelecimentoOuNulo(long id, long estabelecimentoId);
+
     Task<VinculoProfissionalEstabelecimento> ObterVinculoAtivoOuPendente(Guid profissionalUsuarioId, long estabelecimentoId);
 
     /// <summary>

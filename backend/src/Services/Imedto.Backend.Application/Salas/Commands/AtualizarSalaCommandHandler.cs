@@ -25,19 +25,17 @@ public class AtualizarSalaCommandHandler : ICommandHandler<AtualizarSalaCommand>
 
     public async Task Handle(AtualizarSalaCommand command)
     {
-        var sala = await _salas.ObterPorIdOuNulo(command.SalaId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var sala = await _salas.ObterPorIdOuNulo(command.SalaId, command.EstabelecimentoId)
             ?? throw new BusinessException("Repartição não encontrada.");
-        var estab = await _estabelecimentos.ObterPorIdOuNulo(sala.EstabelecimentoId)
+        var estab = await _estabelecimentos.ObterPorIdOuNulo(command.EstabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");
 
         if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)
             throw new BusinessException("Apenas o dono pode editar repartições.");
 
-        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId)
+        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId, command.EstabelecimentoId)
             ?? throw new BusinessException("Unidade não encontrada.");
-
-        if (unidade.EstabelecimentoId != estab.Id)
-            throw new BusinessException("A unidade selecionada não pertence a este estabelecimento.");
 
         if (await _salas.ExisteOutraComMesmoNome(estab.Id, command.Nome ?? string.Empty, sala.Id))
             throw new BusinessException("Já existe uma repartição com esse nome neste estabelecimento.");

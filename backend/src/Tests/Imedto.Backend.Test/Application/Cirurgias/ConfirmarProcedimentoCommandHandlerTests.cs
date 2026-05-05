@@ -48,7 +48,7 @@ public class ConfirmarProcedimentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_ConfirmaPersisteAuditEEvento()
     {
         var proc = Planejado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(proc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId)).ReturnsAsync(proc);
 
         await _sut.Handle(new ConfirmarProcedimentoCommand
         {
@@ -68,7 +68,9 @@ public class ConfirmarProcedimentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessExceptionENaoAudita()
     {
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(Planejado(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null (de outro tenant).
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId))
+            .ReturnsAsync((ProcedimentoCirurgico?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ConfirmarProcedimentoCommand
         {
@@ -76,7 +78,7 @@ public class ConfirmarProcedimentoCommandHandlerTests
             EstabelecimentoId = EstabelecimentoId,
             SolicitanteUsuarioId = _solicitanteId,
         }));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrado"));
         _repo.Verify(r => r.Salvar(It.IsAny<ProcedimentoCirurgico>()), Times.Never);
         _acessoLog.Verify(a => a.RegistrarAsync(
             It.IsAny<long>(), It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<TipoAcessoProntuario>()),
@@ -87,7 +89,7 @@ public class ConfirmarProcedimentoCommandHandlerTests
     public async Task Handle_SolicitanteEmpty_NaoChamaAudit()
     {
         var proc = Planejado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(proc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId)).ReturnsAsync(proc);
 
         await _sut.Handle(new ConfirmarProcedimentoCommand
         {

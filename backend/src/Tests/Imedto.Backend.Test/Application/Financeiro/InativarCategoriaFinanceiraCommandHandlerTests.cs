@@ -31,7 +31,7 @@ public class InativarCategoriaFinanceiraCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Inativa()
     {
         var c = CategoriaNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId)).ReturnsAsync(c);
+        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId, EstabelecimentoId)).ReturnsAsync(c);
 
         await _sut.Handle(new InativarCategoriaFinanceiraCommand
         {
@@ -45,7 +45,7 @@ public class InativarCategoriaFinanceiraCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId)).ReturnsAsync(CategoriaNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId, EstabelecimentoId)).ReturnsAsync((CategoriaFinanceira?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new InativarCategoriaFinanceiraCommand
         {

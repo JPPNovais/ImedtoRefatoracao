@@ -13,10 +13,9 @@ public class EnviarOrcamentoCommandHandler : ICommandHandler<EnviarOrcamentoComm
 
     public async Task Handle(EnviarOrcamentoCommand cmd)
     {
-        var orcamento = await _repo.ObterPorIdCompleto(cmd.OrcamentoId);
-
-        if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var orcamento = await _repo.ObterPorIdCompletoOuNulo(cmd.OrcamentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Orçamento não encontrado.");
 
         orcamento.Enviar();
         await _repo.Salvar(orcamento);

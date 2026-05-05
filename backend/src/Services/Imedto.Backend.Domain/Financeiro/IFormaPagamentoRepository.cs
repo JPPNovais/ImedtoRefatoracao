@@ -2,7 +2,11 @@ namespace Imedto.Backend.Domain.Financeiro;
 
 public interface IFormaPagamentoRepository
 {
-    Task<FormaPagamento> ObterPorId(long id);
-    Task<FormaPagamento?> ObterPorIdOuNulo(long id);
+    /// <summary>
+    /// Carrega a forma de pagamento filtrando por <paramref name="estabelecimentoId"/>
+    /// (defense-in-depth IDOR/LGPD). Retorna null se inexistente ou de outro tenant.
+    /// </summary>
+    Task<FormaPagamento?> ObterPorIdOuNulo(long id, long estabelecimentoId);
+
     Task Salvar(FormaPagamento forma);
 }

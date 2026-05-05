@@ -77,6 +77,7 @@ public class UnidadeController : ControllerBase
         await _commandBus.Send(new AtualizarUnidadeCommand
         {
             UnidadeId = unidadeId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
             Nome = request.Nome,
             IsPrincipal = request.IsPrincipal,
@@ -103,6 +104,7 @@ public class UnidadeController : ControllerBase
         await _commandBus.Send(new DeletarUnidadeCommand
         {
             UnidadeId = unidadeId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
         });
 

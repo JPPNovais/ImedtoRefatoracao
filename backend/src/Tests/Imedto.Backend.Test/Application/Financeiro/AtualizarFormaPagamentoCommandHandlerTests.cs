@@ -40,7 +40,7 @@ public class AtualizarFormaPagamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_AtualizaForma()
     {
         var f = FormaNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId)).ReturnsAsync(f);
+        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId, EstabelecimentoId)).ReturnsAsync(f);
 
         await _sut.Handle(Cmd());
 
@@ -50,7 +50,7 @@ public class AtualizarFormaPagamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId)).ReturnsAsync(FormaNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId, EstabelecimentoId)).ReturnsAsync((FormaPagamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Forma de pagamento não encontrada."));
@@ -59,7 +59,7 @@ public class AtualizarFormaPagamentoCommandHandlerTests
     [Test]
     public void Handle_FormaPadrao_LancaBusinessExceptionDoAggregate()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId)).ReturnsAsync(FormaNoEstab(EstabelecimentoId, padrao: true));
+        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId, EstabelecimentoId)).ReturnsAsync(FormaNoEstab(EstabelecimentoId, padrao: true));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("padrão"));

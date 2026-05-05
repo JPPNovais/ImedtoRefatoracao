@@ -71,13 +71,13 @@ public class AtualizarAgendamentoCommandHandlerTests
         var agendamento = CriarAgendamentoExistente(profissionalId);
 
         _agendamentoRepo
-            .Setup(r => r.ObterPorId(AgendamentoId))
+            .Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId))
             .ReturnsAsync(agendamento);
 
         // ExisteConflito retorna false quando recebe excluirAgendamentoId == AgendamentoId
         _agendamentoRepo
             .Setup(r => r.ExisteConflito(
-                profissionalId, inicio, fim,
+                EstabelecimentoId, profissionalId, inicio, fim,
                 excluirAgendamentoId: AgendamentoId))
             .ReturnsAsync(false);
 
@@ -107,13 +107,13 @@ public class AtualizarAgendamentoCommandHandlerTests
         var agendamento = CriarAgendamentoExistente(profissionalId);
 
         _agendamentoRepo
-            .Setup(r => r.ObterPorId(AgendamentoId))
+            .Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId))
             .ReturnsAsync(agendamento);
 
         // ExisteConflito retorna true — há outro agendamento no horário
         _agendamentoRepo
             .Setup(r => r.ExisteConflito(
-                profissionalId, inicio, fim,
+                EstabelecimentoId, profissionalId, inicio, fim,
                 excluirAgendamentoId: AgendamentoId))
             .ReturnsAsync(true);
 
@@ -143,11 +143,11 @@ public class AtualizarAgendamentoCommandHandlerTests
         var agendamento = CriarAgendamentoExistente(profissionalId);
 
         _agendamentoRepo
-            .Setup(r => r.ObterPorId(AgendamentoId))
+            .Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId))
             .ReturnsAsync(agendamento);
 
         _agendamentoRepo
-            .Setup(r => r.ExisteConflito(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<long?>()))
+            .Setup(r => r.ExisteConflito(It.IsAny<long>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<long?>()))
             .ReturnsAsync(false);
 
         var cmd = new AtualizarAgendamentoCommand
@@ -165,6 +165,7 @@ public class AtualizarAgendamentoCommandHandlerTests
 
         // Assert — verifica que excluirAgendamentoId == cmd.AgendamentoId foi repassado
         _agendamentoRepo.Verify(r => r.ExisteConflito(
+            EstabelecimentoId,
             profissionalId,
             inicio,
             fim,

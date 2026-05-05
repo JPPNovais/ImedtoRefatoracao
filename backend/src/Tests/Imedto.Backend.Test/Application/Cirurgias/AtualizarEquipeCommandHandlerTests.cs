@@ -56,7 +56,7 @@ public class AtualizarEquipeCommandHandlerTests
     public async Task Handle_DoMesmoTenant_SubstituiEquipeEAudita()
     {
         var proc = Planejado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(proc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId)).ReturnsAsync(proc);
 
         await _sut.Handle(Cmd());
 
@@ -68,10 +68,12 @@ public class AtualizarEquipeCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(Planejado(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId))
+            .ReturnsAsync((ProcedimentoCirurgico?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrado"));
         _repo.Verify(r => r.Salvar(It.IsAny<ProcedimentoCirurgico>()), Times.Never);
     }
 
@@ -79,7 +81,7 @@ public class AtualizarEquipeCommandHandlerTests
     public void Handle_PapelInvalido_LancaBusinessException()
     {
         var proc = Planejado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(proc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId)).ReturnsAsync(proc);
 
         var cmd = Cmd();
         cmd.Equipe = new List<EquipeInicialPayload>

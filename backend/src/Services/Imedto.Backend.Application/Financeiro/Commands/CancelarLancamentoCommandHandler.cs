@@ -13,11 +13,9 @@ public class CancelarLancamentoCommandHandler : ICommandHandler<CancelarLancamen
 
     public async Task Handle(CancelarLancamentoCommand cmd)
     {
-        var lancamento = await _repo.ObterPorIdOuNulo(cmd.LancamentoId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var lancamento = await _repo.ObterPorIdOuNulo(cmd.LancamentoId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Lançamento não encontrado.");
-        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
-        if (lancamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Lançamento não encontrado.");
 
         lancamento.Cancelar();
         await _repo.Salvar(lancamento);

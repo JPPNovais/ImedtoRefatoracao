@@ -9,16 +9,9 @@ public class AgendamentoRepository : IAgendamentoRepository
 
     public AgendamentoRepository(AppDbContext db) => _db = db;
 
-    public async Task<Agendamento> ObterPorId(long id)
-    {
-        var agendamento = await ObterPorIdOuNulo(id);
-        if (agendamento is null)
-            throw new KeyNotFoundException($"Agendamento {id} não encontrado.");
-        return agendamento;
-    }
-
-    public async Task<Agendamento?> ObterPorIdOuNulo(long id)
-        => await _db.Agendamentos.FindAsync(id);
+    public async Task<Agendamento?> ObterPorIdOuNulo(long id, long estabelecimentoId)
+        => await _db.Agendamentos
+            .FirstOrDefaultAsync(a => a.Id == id && a.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(Agendamento agendamento)
     {
@@ -30,6 +23,7 @@ public class AgendamentoRepository : IAgendamentoRepository
     }
 
     public async Task<bool> ExisteConflito(
+        long estabelecimentoId,
         Guid profissionalUsuarioId,
         DateTime inicioPrevisto,
         DateTime fimPrevisto,
@@ -37,6 +31,7 @@ public class AgendamentoRepository : IAgendamentoRepository
     {
         return await _db.Agendamentos
             .Where(a =>
+                a.EstabelecimentoId == estabelecimentoId &&
                 a.ProfissionalUsuarioId == profissionalUsuarioId &&
                 a.Status != AgendamentoStatus.Cancelado &&
                 (excluirAgendamentoId == null || a.Id != excluirAgendamentoId) &&

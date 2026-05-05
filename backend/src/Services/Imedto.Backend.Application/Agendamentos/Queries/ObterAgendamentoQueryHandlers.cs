@@ -15,9 +15,9 @@ public class ObterAgendamentoQueryHandlers : IRequestHandler<ObterAgendamentoQue
 
     public async Task<AgendamentoDto> Handle(ObterAgendamentoQuery query)
     {
-        var dto = await _repo.ObterPorId(query.AgendamentoId);
-        if (dto is null || dto.EstabelecimentoId != query.EstabelecimentoId)
-            throw new BusinessException("Agendamento não encontrado.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var dto = await _repo.ObterPorId(query.AgendamentoId, query.EstabelecimentoId)
+            ?? throw new BusinessException("Agendamento não encontrado.");
         return dto;
     }
 }

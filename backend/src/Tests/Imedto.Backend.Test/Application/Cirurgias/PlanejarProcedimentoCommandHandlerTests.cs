@@ -78,7 +78,7 @@ public class PlanejarProcedimentoCommandHandlerTests
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId))
                      .ReturnsAsync(PacienteAtivo());
-        _prontuarioRepo.Setup(r => r.ObterPorId(ProntuarioId))
+        _prontuarioRepo.Setup(r => r.ObterPorIdOuNulo(ProntuarioId, EstabelecimentoId))
                        .ReturnsAsync(ProntuarioDoEstab(EstabelecimentoId, PacienteId));
         _repo.Setup(r => r.Salvar(It.IsAny<ProcedimentoCirurgico>()))
              .Callback<ProcedimentoCirurgico>(p =>
@@ -108,8 +108,9 @@ public class PlanejarProcedimentoCommandHandlerTests
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId))
                      .ReturnsAsync(PacienteAtivo());
-        _prontuarioRepo.Setup(r => r.ObterPorId(ProntuarioId))
-                       .ReturnsAsync(ProntuarioDoEstab(OutroEstabId, PacienteId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _prontuarioRepo.Setup(r => r.ObterPorIdOuNulo(ProntuarioId, EstabelecimentoId))
+                       .ReturnsAsync((Prontuario?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Prontuário não encontrado."));
@@ -120,10 +121,11 @@ public class PlanejarProcedimentoCommandHandlerTests
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId))
                      .ReturnsAsync(PacienteAtivo());
-        _prontuarioRepo.Setup(r => r.ObterPorId(ProntuarioId))
+        _prontuarioRepo.Setup(r => r.ObterPorIdOuNulo(ProntuarioId, EstabelecimentoId))
                        .ReturnsAsync(ProntuarioDoEstab(EstabelecimentoId, PacienteId));
-        _agendaRepo.Setup(r => r.ObterPorId(AgendamentoId))
-                   .ReturnsAsync(AgendamentoNoEstab(OutroEstabId, PacienteId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId))
+                   .ReturnsAsync((Agendamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(agendamentoId: AgendamentoId)));
         Assert.That(ex.Message, Is.EqualTo("Agendamento não encontrado."));
@@ -134,7 +136,7 @@ public class PlanejarProcedimentoCommandHandlerTests
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId))
                      .ReturnsAsync(PacienteAtivo());
-        _prontuarioRepo.Setup(r => r.ObterPorId(ProntuarioId))
+        _prontuarioRepo.Setup(r => r.ObterPorIdOuNulo(ProntuarioId, EstabelecimentoId))
                        .ReturnsAsync(ProntuarioDoEstab(EstabelecimentoId, PacienteId));
 
         var cmd = Cmd();

@@ -12,16 +12,12 @@ public class SolicitacaoVinculoRepository : ISolicitacaoVinculoRepository
         _context = context;
     }
 
-    public async Task<SolicitacaoVinculo> ObterPorId(long id)
-    {
-        var s = await _context.Set<SolicitacaoVinculo>().FindAsync(id);
-        if (s is null)
-            throw new KeyNotFoundException($"Solicitação de vínculo {id} não encontrada.");
-        return s;
-    }
-
-    public Task<SolicitacaoVinculo> ObterPorIdOuNulo(long id) =>
+    public Task<SolicitacaoVinculo?> ObterPorIdOuNulo(long id) =>
         _context.Set<SolicitacaoVinculo>().FirstOrDefaultAsync(s => s.Id == id);
+
+    public Task<SolicitacaoVinculo?> ObterPorIdNoEstabelecimentoOuNulo(long id, long estabelecimentoId) =>
+        _context.Set<SolicitacaoVinculo>()
+            .FirstOrDefaultAsync(s => s.Id == id && s.EstabelecimentoId == estabelecimentoId);
 
     public Task<SolicitacaoVinculo> ObterPendentePorProfissionalEEstab(
         Guid profissionalUsuarioId, long estabelecimentoId) =>

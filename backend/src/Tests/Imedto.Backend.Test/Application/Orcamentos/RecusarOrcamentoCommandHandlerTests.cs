@@ -39,7 +39,7 @@ public class RecusarOrcamentoCommandHandlerTests
     public async Task Handle_OrcamentoEnviadoDoMesmoTenant_Recusa()
     {
         var orc = OrcamentoEnviado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId)).ReturnsAsync(orc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId, EstabelecimentoId)).ReturnsAsync(orc);
 
         await _sut.Handle(new RecusarOrcamentoCommand
         {
@@ -54,7 +54,9 @@ public class RecusarOrcamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId)).ReturnsAsync(OrcamentoEnviado(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId, EstabelecimentoId))
+            .ReturnsAsync((Orcamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new RecusarOrcamentoCommand
         {
@@ -68,7 +70,7 @@ public class RecusarOrcamentoCommandHandlerTests
     [Test]
     public void Handle_Inexistente_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId)).ReturnsAsync((Orcamento)null);
+        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId, EstabelecimentoId)).ReturnsAsync((Orcamento)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new RecusarOrcamentoCommand
         {

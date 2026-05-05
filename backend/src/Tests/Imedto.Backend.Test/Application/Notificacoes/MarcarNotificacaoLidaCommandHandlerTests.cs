@@ -31,7 +31,7 @@ public class MarcarNotificacaoLidaCommandHandlerTests
     public async Task Handle_DoProprioUsuario_MarcaComoLida()
     {
         var notif = NotificacaoDoUsuario(_usuarioId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(NotificacaoId)).ReturnsAsync(notif);
+        _repo.Setup(r => r.ObterPorIdOuNulo(NotificacaoId, _usuarioId)).ReturnsAsync(notif);
 
         await _sut.Handle(new MarcarNotificacaoLidaCommand
         {
@@ -46,7 +46,10 @@ public class MarcarNotificacaoLidaCommandHandlerTests
     [Test]
     public void Handle_DeOutroUsuario_LancaMensagemGenericaENaoSalva()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(NotificacaoId)).ReturnsAsync(NotificacaoDoUsuario(_outroUsuarioId));
+        // Repo filtra por usuario: chamado com _usuarioId, retorna null porque
+        // a notificacao pertence a _outroUsuarioId.
+        _repo.Setup(r => r.ObterPorIdOuNulo(NotificacaoId, _usuarioId))
+            .ReturnsAsync((Notificacao?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new MarcarNotificacaoLidaCommand
         {
@@ -61,7 +64,7 @@ public class MarcarNotificacaoLidaCommandHandlerTests
     [Test]
     public void Handle_Inexistente_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(NotificacaoId)).ReturnsAsync((Notificacao)null);
+        _repo.Setup(r => r.ObterPorIdOuNulo(NotificacaoId, _usuarioId)).ReturnsAsync((Notificacao?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new MarcarNotificacaoLidaCommand
         {

@@ -46,6 +46,7 @@ public class AtualizarUnidadeCommandHandlerTests
     private AtualizarUnidadeCommand Cmd(bool principal = true, Guid? solicitante = null) => new()
     {
         UnidadeId = UnidadeId,
+        EstabelecimentoId = EstabelecimentoId,
         UsuarioSolicitanteId = solicitante ?? _donoId,
         Nome = "Atualizada",
         IsPrincipal = principal,
@@ -58,7 +59,7 @@ public class AtualizarUnidadeCommandHandlerTests
     public async Task Handle_DonoAtualiza_PersisteAlteracoes()
     {
         var unidade = UnidadePrincipal();
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(unidade);
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(unidade);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
         _unidades.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Atualizada", UnidadeId))
                  .ReturnsAsync(false);
@@ -76,7 +77,7 @@ public class AtualizarUnidadeCommandHandlerTests
         var unidade = UnidadePrincipal(principal: false);            // editada
         var anterior = UnidadePrincipal(id: outroId, principal: true); // principal atual
 
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(unidade);
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(unidade);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
         _unidades.Setup(r => r.ExisteOutraComMesmoNome(It.IsAny<long>(), It.IsAny<string>(), UnidadeId))
                  .ReturnsAsync(false);
@@ -94,7 +95,7 @@ public class AtualizarUnidadeCommandHandlerTests
     public void Handle_TentaDesmarcarUnicaPrincipal_LancaBusinessException()
     {
         var unidade = UnidadePrincipal(principal: true);
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(unidade);
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(unidade);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
         _unidades.Setup(r => r.ExisteOutraComMesmoNome(It.IsAny<long>(), It.IsAny<string>(), UnidadeId))
                  .ReturnsAsync(false);
@@ -106,7 +107,7 @@ public class AtualizarUnidadeCommandHandlerTests
     [Test]
     public void Handle_NaoEhDono_LancaBusinessException()
     {
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(UnidadePrincipal());
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(UnidadePrincipal());
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(solicitante: _outroId)));

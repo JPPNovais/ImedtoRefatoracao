@@ -31,7 +31,7 @@ public class InativarFormaPagamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Inativa()
     {
         var f = FormaNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId)).ReturnsAsync(f);
+        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId, EstabelecimentoId)).ReturnsAsync(f);
 
         await _sut.Handle(new InativarFormaPagamentoCommand
         {
@@ -45,7 +45,7 @@ public class InativarFormaPagamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId)).ReturnsAsync(FormaNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(FormaId, EstabelecimentoId)).ReturnsAsync((FormaPagamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new InativarFormaPagamentoCommand
         {

@@ -15,7 +15,7 @@
  *       ficam opcionais e aparecem campos de "Preferência de período" (Manhã /
  *       Tarde / Qualquer horário) e "Urgência" (Rotina / Prioritário / Urgente)
  *     - profissional, tipo, data, duração, slots de horário, convênio + plano,
- *       motivo, observações, lembretes (WhatsApp / SMS / E-mail)
+ *       motivo, observações, lembretes (WhatsApp / E-mail)
  *
  *   Step 3 — Confirmar:
  *     - card com resumo (variantes normal e lista de espera)
@@ -35,6 +35,8 @@ import {
 } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
 import type { ProfissionalVinculado } from "@/services/vinculoService"
+import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
+import { cpfValido, somenteDigitos } from "@/utils/cpf"
 
 const props = defineProps<{
     aberto: boolean
@@ -74,7 +76,7 @@ const pacienteSel = ref<PacienteListaItem | null>(null)
 // Paciente novo (cadastro rápido)
 const novoPac = reactive({
     nome: "",
-    cpf: "",
+    documento: { tipo: "cpf", valor: "" } as DocumentoPacienteValue,
     telefone: "",
     nascimento: "",
     sexo: "",
@@ -112,7 +114,6 @@ const detalhes = reactive({
     motivo: "",
     observacoes: "",
     lembreteWA: true,
-    lembreteSMS: false,
     lembreteEmail: false,
     listaEspera: false,
     preferenciaPeriodo: "Qualquer" as ListaEsperaPreferenciaPeriodo,
@@ -127,7 +128,13 @@ function reset() {
     busca.value = ""
     pacienteSel.value = pacientePre
     erro.value = null
-    Object.assign(novoPac, { nome: "", cpf: "", telefone: "", nascimento: "", sexo: "" })
+    Object.assign(novoPac, {
+        nome: "",
+        documento: { tipo: "cpf", valor: "" } as DocumentoPacienteValue,
+        telefone: "",
+        nascimento: "",
+        sexo: "",
+    })
     Object.assign(detalhes, {
         profissionalUsuarioId:
             props.profissionalPreSelecionadoId
@@ -140,7 +147,6 @@ function reset() {
         motivo: props.motivoPreSelecionado ?? "",
         observacoes: "",
         lembreteWA: true,
-        lembreteSMS: false,
         lembreteEmail: false,
         listaEspera: false,
         preferenciaPeriodo: "Qualquer",
@@ -167,6 +173,7 @@ async function carregarDisponibilidade() {
             detalhes.profissionalUsuarioId,
             detalhes.data,
             detalhes.data,
+            detalhes.duracaoMin,
         )
         if (reqId === dispReqId) disponibilidade.value = r.dias
     } catch {
@@ -194,8 +201,8 @@ const horasValidas = computed<Set<string>>(() => {
 })
 
 watch(
-    () => [detalhes.profissionalUsuarioId, detalhes.data, detalhes.listaEspera] as const,
-    ([prof, data, listaEspera]) => {
+    () => [detalhes.profissionalUsuarioId, detalhes.data, detalhes.duracaoMin, detalhes.listaEspera] as const,
+    ([prof, data, _duracao, listaEspera]) => {
         if (!props.aberto) return
         if (listaEspera) { disponibilidade.value = []; return }
         if (!prof || !data) { disponibilidade.value = []; return }
@@ -221,7 +228,7 @@ const pacienteEfetivo = computed(() => {
         return {
             id: 0,
             nome: novoPac.nome,
-            documento: novoPac.cpf,
+            documento: novoPac.documento.valor,
             telefone: novoPac.telefone,
             iniciais: inic,
             novo: true,
@@ -236,7 +243,7 @@ const pacienteEfetivo = computed(() => {
     return {
         id: p.id,
         nome: p.nomeCompleto,
-        documento: p.cpf ?? "",
+        documento: p.cpf ?? p.documentoInternacional ?? "",
         telefone: p.telefone ?? "",
         iniciais: inic,
         novo: false,
@@ -246,9 +253,25 @@ const pacienteEfetivo = computed(() => {
 // ─── Validações por step ───
 const podeStep1 = computed(() => {
     if (modo.value === "new") {
-        return novoPac.nome.trim().length > 2
-            && novoPac.cpf.replace(/\D/g, "").length >= 11
-            && novoPac.telefone.replace(/\D/g, "").length >= 10
+        if (novoPac.nome.trim().length <= 2) return false
+        if (novoPac.telefone.replace(/\D/g, "").length < 10) return false
+
+        // Documento eh OPCIONAL. Se preenchido, precisa ser valido (CPF com DV)
+        // e nao colidir com paciente existente do estabelecimento.
+        const valor = novoPac.documento.valor.trim()
+        if (!valor) return true
+
+        if (novoPac.documento.tipo === "cpf") {
+            if (!cpfValido(valor)) return false
+            const digitos = somenteDigitos(valor)
+            const dup = props.pacientes.some(p => p.cpf && somenteDigitos(p.cpf) === digitos)
+            if (dup) return false
+        } else {
+            if (valor.length > 30) return false
+            const dup = props.pacientes.some(p => (p.documentoInternacional ?? "").trim() === valor)
+            if (dup) return false
+        }
+        return true
     }
     return !!pacienteSel.value
 })
@@ -290,9 +313,11 @@ async function confirmar() {
         let pacienteCriado: PacienteListaItem | null = null
         if (modo.value === "new") {
             const nomeNovo = novoPac.nome.trim()
+            const docValor = novoPac.documento.valor.trim()
             await pacienteService.criar({
                 nomeCompleto: nomeNovo,
-                cpf: novoPac.cpf || undefined,
+                cpf: novoPac.documento.tipo === "cpf" && docValor ? docValor : undefined,
+                documentoInternacional: novoPac.documento.tipo === "internacional" && docValor ? docValor : undefined,
                 telefone: novoPac.telefone || undefined,
                 dataNascimento: novoPac.nascimento || undefined,
                 genero: novoPac.sexo || undefined,
@@ -475,13 +500,9 @@ const profSelecionado = computed(() =>
                             />
                         </div>
                         <div class="field-group">
-                            <label>Documento (CPF) <em>*</em></label>
-                            <input
-                                type="text"
-                                placeholder="000.000.000-00"
-                                v-model="novoPac.cpf"
-                                v-maska="'###.###.###-##'"
-                                inputmode="numeric"
+                            <DocumentoPacienteField
+                                v-model="novoPac.documento"
+                                :pacientes-existentes="pacientes"
                             />
                         </div>
                         <div class="field-group">
@@ -714,10 +735,6 @@ const profSelecionado = computed(() =>
                                     <input type="checkbox" v-model="detalhes.lembreteWA" />
                                     <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp
                                 </label>
-                                <label class="tg" :class="{ on: detalhes.lembreteSMS }">
-                                    <input type="checkbox" v-model="detalhes.lembreteSMS" />
-                                    <i class="fa-solid fa-comment-sms" aria-hidden="true"></i> SMS
-                                </label>
                                 <label class="tg" :class="{ on: detalhes.lembreteEmail }">
                                     <input type="checkbox" v-model="detalhes.lembreteEmail" />
                                     <i class="fa-solid fa-envelope" aria-hidden="true"></i> E-mail
@@ -803,7 +820,7 @@ const profSelecionado = computed(() =>
                             <div class="kv">
                                 <span>Lembrete</span>
                                 <b>{{
-                                    [detalhes.lembreteWA && "WhatsApp", detalhes.lembreteSMS && "SMS", detalhes.lembreteEmail && "E-mail"]
+                                    [detalhes.lembreteWA && "WhatsApp", detalhes.lembreteEmail && "E-mail"]
                                         .filter(Boolean).join(" + ") || "Não enviar"
                                 }}</b>
                             </div>
@@ -821,7 +838,7 @@ const profSelecionado = computed(() =>
                     <div v-else class="confirm-info">
                         <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
                         Tudo pronto. Ao confirmar, o agendamento será adicionado à agenda{{
-                            (detalhes.lembreteWA || detalhes.lembreteSMS || detalhes.lembreteEmail)
+                            (detalhes.lembreteWA || detalhes.lembreteEmail)
                                 ? " e o lembrete será disparado 24h antes."
                                 : " sem envio de lembrete automático."
                         }}

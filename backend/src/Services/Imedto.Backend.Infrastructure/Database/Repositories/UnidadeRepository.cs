@@ -12,16 +12,9 @@ public class UnidadeRepository : IUnidadeRepository
         _context = context;
     }
 
-    public async Task<UnidadeEstabelecimento> ObterPorId(long id)
-    {
-        var u = await _context.Unidades.FindAsync(id);
-        if (u is null)
-            throw new KeyNotFoundException($"Unidade {id} não encontrada.");
-        return u;
-    }
-
-    public async Task<UnidadeEstabelecimento> ObterPorIdOuNulo(long id) =>
-        await _context.Unidades.FindAsync(id);
+    public async Task<UnidadeEstabelecimento?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _context.Unidades
+            .FirstOrDefaultAsync(u => u.Id == id && u.EstabelecimentoId == estabelecimentoId);
 
     public async Task<IReadOnlyList<UnidadeEstabelecimento>> ListarPorEstabelecimento(long estabelecimentoId) =>
         await _context.Unidades

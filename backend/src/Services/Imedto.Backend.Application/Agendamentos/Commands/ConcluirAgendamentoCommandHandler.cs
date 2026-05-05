@@ -14,10 +14,9 @@ public class ConcluirAgendamentoCommandHandler : ICommandHandler<ConcluirAgendam
 
     public async Task Handle(ConcluirAgendamentoCommand cmd)
     {
-        var agendamento = await _agendamentoRepo.ObterPorId(cmd.AgendamentoId);
-
-        if (agendamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Agendamento não encontrado neste estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var agendamento = await _agendamentoRepo.ObterPorIdOuNulo(cmd.AgendamentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Agendamento não encontrado.");
 
         agendamento.Concluir();
         await _agendamentoRepo.Salvar(agendamento);

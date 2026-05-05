@@ -5,6 +5,7 @@ namespace Imedto.Backend.Contracts.Salas.Commands;
 public class AtualizarSalaCommand : ICommand
 {
     public long SalaId { get; set; }
+    public long EstabelecimentoId { get; set; }
     public Guid UsuarioSolicitanteId { get; set; }
     public long UnidadeId { get; set; }
     public long? TipoSalaId { get; set; }

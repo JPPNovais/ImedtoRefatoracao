@@ -43,7 +43,7 @@ public class AtualizarLancamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_AtualizaCampos()
     {
         var l = LancamentoNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync(l);
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync(l);
 
         await _sut.Handle(Cmd());
 
@@ -55,7 +55,7 @@ public class AtualizarLancamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync(LancamentoNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync((Lancamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Lançamento não encontrado."));

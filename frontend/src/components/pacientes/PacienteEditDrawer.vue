@@ -20,6 +20,9 @@ import {
     type Paciente,
     type PacientePayload,
 } from "@/services/pacienteService"
+import { cpfValido } from "@/utils/cpf"
+
+type TipoDocumento = "cpf" | "internacional"
 
 const props = defineProps<{
     aberto: boolean
@@ -34,7 +37,8 @@ const emit = defineEmits<{
 // ─── Estado do formulário ─────────────────────────────────────────────────────
 const form = reactive({
     nomeCompleto:   "",
-    cpf:            "",
+    tipoDocumento:  "cpf" as TipoDocumento,
+    documento:      "",
     rg:             "",
     dataNascimento: "",
     genero:         "NaoInformado",
@@ -68,7 +72,8 @@ const GENEROS = [
 
 function resetForm() {
     form.nomeCompleto   = ""
-    form.cpf            = ""
+    form.tipoDocumento  = "cpf"
+    form.documento      = ""
     form.rg             = ""
     form.dataNascimento = ""
     form.genero         = "NaoInformado"
@@ -146,7 +151,13 @@ watch(
         resetForm()
         if (p) {
             form.nomeCompleto   = p.nomeCompleto
-            form.cpf            = p.cpf ?? ""
+            if (p.documentoInternacional) {
+                form.tipoDocumento = "internacional"
+                form.documento     = p.documentoInternacional
+            } else {
+                form.tipoDocumento = "cpf"
+                form.documento     = p.cpf ?? ""
+            }
             form.dataNascimento = p.dataNascimento ?? ""
             form.genero         = p.genero || "NaoInformado"
             form.celular        = p.telefone ?? ""
@@ -163,12 +174,19 @@ async function salvar() {
         erro.value = "Nome completo é obrigatório."
         return
     }
+    const docValor = form.documento.trim()
+    if (docValor && form.tipoDocumento === "cpf" && !cpfValido(docValor)) {
+        erro.value = "CPF inválido."
+        return
+    }
+
     salvando.value = true
     erro.value = null
     try {
         const payload: PacientePayload = {
             nomeCompleto:   form.nomeCompleto.trim(),
-            cpf:            form.cpf || undefined,
+            cpf:                    form.tipoDocumento === "cpf" && docValor ? docValor : undefined,
+            documentoInternacional: form.tipoDocumento === "internacional" && docValor ? docValor : undefined,
             dataNascimento: form.dataNascimento || undefined,
             genero:         form.genero || undefined,
             telefone:       form.celular || form.telefoneFixo || undefined,
@@ -215,10 +233,32 @@ async function salvar() {
             </AppField>
 
             <div class="grid-2">
-                <AppField label="CPF">
+                <AppField label="Documento">
+                    <div class="tabs-doc" role="tablist">
+                        <button
+                            type="button"
+                            class="tab"
+                            :class="{ ativa: form.tipoDocumento === 'cpf' }"
+                            @click="form.tipoDocumento = 'cpf'; form.documento = ''"
+                        >CPF</button>
+                        <button
+                            type="button"
+                            class="tab"
+                            :class="{ ativa: form.tipoDocumento === 'internacional' }"
+                            @click="form.tipoDocumento = 'internacional'; form.documento = ''"
+                        >Internacional</button>
+                    </div>
                     <AppInput
-                        v-model="form.cpf" v-maska="'###.###.###-##'"
+                        v-if="form.tipoDocumento === 'cpf'"
+                        v-model="form.documento" v-maska="'###.###.###-##'"
                         placeholder="000.000.000-00"
+                        :disabled="salvando"
+                    />
+                    <AppInput
+                        v-else
+                        v-model="form.documento"
+                        placeholder="Nº do documento (passaporte, RNE...)"
+                        maxlength="30"
                         :disabled="salvando"
                     />
                 </AppField>
@@ -362,6 +402,34 @@ async function salvar() {
     color: hsl(var(--error));
     font-size: 0.875rem;
     margin: 0;
+}
+
+.tabs-doc {
+    display: flex;
+    gap: 0.25rem;
+    background: hsl(var(--primary-light));
+    border-radius: var(--radius);
+    padding: 0.2rem;
+    margin-bottom: 0.4rem;
+}
+.tab {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-radius: calc(var(--radius) - 2px);
+    transition: all 0.15s;
+}
+.tab:hover:not(.ativa) { color: var(--text); }
+.tab.ativa {
+    background: var(--bg-card);
+    color: hsl(var(--primary-dark));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 @media (max-width: 720px) {

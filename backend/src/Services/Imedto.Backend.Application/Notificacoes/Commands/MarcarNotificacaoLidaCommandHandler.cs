@@ -13,12 +13,9 @@ public class MarcarNotificacaoLidaCommandHandler : ICommandHandler<MarcarNotific
 
     public async Task Handle(MarcarNotificacaoLidaCommand command)
     {
-        var notif = await _repo.ObterPorIdOuNulo(command.NotificacaoId)
+        // Defense-in-depth IDOR: notificacoes sao per-usuario, filtro feito no proprio repo.
+        var notif = await _repo.ObterPorIdOuNulo(command.NotificacaoId, command.UsuarioId)
             ?? throw new BusinessException("Notificação não encontrada.");
-
-        // Mensagem genérica para evitar enumeração: mesmo erro para "não existe" e "não é sua".
-        if (notif.UsuarioId != command.UsuarioId)
-            throw new BusinessException("Notificação não encontrada.");
 
         notif.MarcarComoLida();
         await _repo.Salvar(notif);

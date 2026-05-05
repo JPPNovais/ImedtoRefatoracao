@@ -12,15 +12,9 @@ public class ProntuarioVariavelPoolRepository : IProntuarioVariavelPoolRepositor
         _context = context;
     }
 
-    public async Task<ProntuarioVariavelPool> ObterPorId(long id)
-    {
-        var p = await _context.ProntuarioVariaveisPool.FindAsync(id);
-        if (p is null) throw new KeyNotFoundException($"Item do pool {id} não encontrado.");
-        return p;
-    }
-
-    public async Task<ProntuarioVariavelPool> ObterPorIdOuNulo(long id) =>
-        await _context.ProntuarioVariaveisPool.FindAsync(id);
+    public async Task<ProntuarioVariavelPool?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _context.ProntuarioVariaveisPool
+            .FirstOrDefaultAsync(p => p.Id == id && p.EstabelecimentoId == estabelecimentoId);
 
     public async Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, TipoVariavelPool tipo, string nome, long ignorarId) =>
         await _context.ProntuarioVariaveisPool

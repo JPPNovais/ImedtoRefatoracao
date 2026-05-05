@@ -1,5 +1,6 @@
 using Imedto.Backend.Domain.Pacientes.Events;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Text;
 
 namespace Imedto.Backend.Domain.Pacientes;
 
@@ -7,12 +8,17 @@ namespace Imedto.Backend.Domain.Pacientes;
 /// Aggregate root de Paciente. Sempre escopado a 1 estabelecimento — o mesmo CPF
 /// pode aparecer em estabelecimentos diferentes (registros independentes) mas nunca
 /// duas vezes no mesmo. Dados sensíveis de saúde → LGPD Art. 5º II.
+/// Documento: CPF (com validação de dígito verificador) ou DocumentoInternacional
+/// (passaporte/RNE/etc) — nunca os dois ao mesmo tempo.
 /// </summary>
 public class Paciente : Entity, ISoftDeletable
 {
+    public const int DocumentoInternacionalMaxLen = 30;
+
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual string NomeCompleto { get; protected set; }
     public virtual string Cpf { get; protected set; }
+    public virtual string DocumentoInternacional { get; protected set; }
     public virtual DateTime? DataNascimento { get; protected set; }
     public virtual GeneroPaciente Genero { get; protected set; }
     public virtual string Telefone { get; protected set; }
@@ -45,16 +51,15 @@ public class Paciente : Entity, ISoftDeletable
         string telefone,
         string email,
         string endereco,
-        string observacoes)
+        string observacoes,
+        string documentoInternacional = null)
     {
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
         if (string.IsNullOrWhiteSpace(nomeCompleto))
             throw new BusinessException("Nome do paciente é obrigatório.");
 
-        var cpfDigitos = string.IsNullOrWhiteSpace(cpf) ? null : SomenteDigitos(cpf);
-        if (cpfDigitos is { Length: > 0 and not 11 })
-            throw new BusinessException("CPF deve conter 11 dígitos.");
+        var (cpfNormalizado, docInternacionalNormalizado) = NormalizarDocumentos(cpf, documentoInternacional);
 
         if (dataNascimento.HasValue && dataNascimento.Value > DateTime.UtcNow.Date)
             throw new BusinessException("Data de nascimento não pode estar no futuro.");
@@ -63,7 +68,8 @@ public class Paciente : Entity, ISoftDeletable
         {
             EstabelecimentoId = estabelecimentoId,
             NomeCompleto = nomeCompleto.Trim(),
-            Cpf = cpfDigitos,
+            Cpf = cpfNormalizado,
+            DocumentoInternacional = docInternacionalNormalizado,
             DataNascimento = dataNascimento,
             Genero = genero,
             Telefone = SanitizeOpt(telefone, digitsOnly: true),
@@ -90,22 +96,22 @@ public class Paciente : Entity, ISoftDeletable
         string telefone,
         string email,
         string endereco,
-        string observacoes)
+        string observacoes,
+        string documentoInternacional = null)
     {
         if (EstaDeletado)
             throw new BusinessException("Paciente deletado não pode ser editado.");
         if (string.IsNullOrWhiteSpace(nomeCompleto))
             throw new BusinessException("Nome do paciente é obrigatório.");
 
-        var cpfDigitos = string.IsNullOrWhiteSpace(cpf) ? null : SomenteDigitos(cpf);
-        if (cpfDigitos is { Length: > 0 and not 11 })
-            throw new BusinessException("CPF deve conter 11 dígitos.");
+        var (cpfNormalizado, docInternacionalNormalizado) = NormalizarDocumentos(cpf, documentoInternacional);
 
         if (dataNascimento.HasValue && dataNascimento.Value > DateTime.UtcNow.Date)
             throw new BusinessException("Data de nascimento não pode estar no futuro.");
 
         NomeCompleto = nomeCompleto.Trim();
-        Cpf = cpfDigitos;
+        Cpf = cpfNormalizado;
+        DocumentoInternacional = docInternacionalNormalizado;
         DataNascimento = dataNascimento;
         Genero = genero;
         Telefone = SanitizeOpt(telefone, digitsOnly: true);
@@ -128,6 +134,7 @@ public class Paciente : Entity, ISoftDeletable
         // LGPD: substitui PII. Nunca logar os valores originais.
         NomeCompleto = $"Paciente Anonimizado #{Id}";
         Cpf = null;
+        DocumentoInternacional = null;
         Email = null;
         Telefone = null;
         DataNascimento = null;
@@ -151,12 +158,39 @@ public class Paciente : Entity, ISoftDeletable
         DeletadoPorUsuarioId = usuarioId;
     }
 
-    private static string SomenteDigitos(string valor) =>
-        new(valor.Where(char.IsDigit).ToArray());
-
-    private static string SanitizeOpt(string valor, bool digitsOnly)
+    /// <summary>
+    /// Normaliza CPF e DocumentoInternacional, garantindo que apenas um esteja
+    /// preenchido. CPF passa por validação de dígito verificador.
+    /// </summary>
+    private static (string cpf, string docInternacional) NormalizarDocumentos(
+        string cpf,
+        string documentoInternacional)
     {
-        if (string.IsNullOrWhiteSpace(valor)) return null;
-        return digitsOnly ? SomenteDigitos(valor) : valor.Trim();
+        var cpfPreenchido = !string.IsNullOrWhiteSpace(cpf);
+        var docPreenchido = !string.IsNullOrWhiteSpace(documentoInternacional);
+
+        if (cpfPreenchido && docPreenchido)
+            throw new BusinessException("Informe apenas um documento: CPF ou documento internacional.");
+
+        string cpfNormalizado = null;
+        if (cpfPreenchido)
+        {
+            if (!CpfValidator.EhValido(cpf))
+                throw new BusinessException("CPF inválido.");
+            cpfNormalizado = TextSanitizer.SomenteDigitos(cpf);
+        }
+
+        string docNormalizado = null;
+        if (docPreenchido)
+        {
+            docNormalizado = documentoInternacional.Trim();
+            if (docNormalizado.Length > DocumentoInternacionalMaxLen)
+                throw new BusinessException($"Documento internacional excede {DocumentoInternacionalMaxLen} caracteres.");
+        }
+
+        return (cpfNormalizado, docNormalizado);
     }
+
+    private static string SanitizeOpt(string valor, bool digitsOnly) =>
+        digitsOnly ? TextSanitizer.DigitosOuNulo(valor) : TextSanitizer.TrimOuNulo(valor);
 }

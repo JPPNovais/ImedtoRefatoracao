@@ -39,7 +39,7 @@ public class CancelarAgendamentoCommandHandlerTests
     public async Task Handle_AgendamentoDoMesmoTenant_CancelaEPublicaEvento()
     {
         var ag = CriarAgendamentoNoEstab(EstabelecimentoId);
-        _agendaRepo.Setup(r => r.ObterPorId(AgendamentoId)).ReturnsAsync(ag);
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
 
         await _sut.Handle(new CancelarAgendamentoCommand
         {
@@ -57,8 +57,10 @@ public class CancelarAgendamentoCommandHandlerTests
     [Test]
     public void Handle_AgendamentoDeOutroTenant_LancaMensagemGenericaENaoSalva()
     {
-        var ag = CriarAgendamentoNoEstab(OutroEstabId); // pertence a outro estab
-        _agendaRepo.Setup(r => r.ObterPorId(AgendamentoId)).ReturnsAsync(ag);
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null porque
+        // o registro pertence a OutroEstabId.
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId))
+            .ReturnsAsync((Agendamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarAgendamentoCommand
         {
@@ -74,7 +76,7 @@ public class CancelarAgendamentoCommandHandlerTests
     public void Handle_MotivoVazio_LancaBusinessExceptionDoAggregate()
     {
         var ag = CriarAgendamentoNoEstab(EstabelecimentoId);
-        _agendaRepo.Setup(r => r.ObterPorId(AgendamentoId)).ReturnsAsync(ag);
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarAgendamentoCommand
         {

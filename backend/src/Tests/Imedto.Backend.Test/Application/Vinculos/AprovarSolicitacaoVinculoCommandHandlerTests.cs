@@ -52,7 +52,7 @@ public class AprovarSolicitacaoVinculoCommandHandlerTests
     public async Task Handle_DonoAprovaSolicitacaoDoSeuEstab_AprovaEPublicaEvento()
     {
         var s = SolicitacaoNoEstab(EstabelecimentoId);
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId)).ReturnsAsync(s);
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId)).ReturnsAsync(s);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(EstabDoDono());
 
         await _sut.Handle(Cmd());
@@ -67,7 +67,8 @@ public class AprovarSolicitacaoVinculoCommandHandlerTests
     [Test]
     public void Handle_SolicitacaoInexistente_LancaBusinessException()
     {
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId)).ReturnsAsync((SolicitacaoVinculo)null);
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId))
+            .ReturnsAsync((SolicitacaoVinculo?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("não encontrada"));
@@ -76,8 +77,10 @@ public class AprovarSolicitacaoVinculoCommandHandlerTests
     [Test]
     public void Handle_SolicitacaoDeOutroTenant_LancaMensagemGenericaENaoVazaExistencia()
     {
-        var s = SolicitacaoNoEstab(OutroEstabId); // solicitacao pertence a OUTRO estab
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId)).ReturnsAsync(s);
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null porque
+        // a solicitacao pertence a OutroEstabId.
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId))
+            .ReturnsAsync((SolicitacaoVinculo?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Solicitação não encontrada."),
@@ -90,7 +93,7 @@ public class AprovarSolicitacaoVinculoCommandHandlerTests
     public void Handle_AprovadoPorNaoEhDono_LancaBusinessException()
     {
         var s = SolicitacaoNoEstab(EstabelecimentoId);
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId)).ReturnsAsync(s);
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId)).ReturnsAsync(s);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(EstabDoDono());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(aprovador: _outroUsuarioId)));

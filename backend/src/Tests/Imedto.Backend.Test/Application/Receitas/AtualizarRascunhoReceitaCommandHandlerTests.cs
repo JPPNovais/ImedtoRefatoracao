@@ -47,7 +47,7 @@ public class AtualizarRascunhoReceitaCommandHandlerTests
     public async Task Handle_ProprioProfissional_AtualizaRascunho()
     {
         var receita = Rascunho(EstabelecimentoId, _profissionalId);
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync(receita);
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync(receita);
 
         await _sut.Handle(Cmd());
 
@@ -58,17 +58,17 @@ public class AtualizarRascunhoReceitaCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId))
-                    .ReturnsAsync(Rascunho(OutroEstabId, _profissionalId));
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId))
+                    .ReturnsAsync((Receita?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrada"));
     }
 
     [Test]
     public void Handle_OutroProfissional_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId))
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId))
                     .ReturnsAsync(Rascunho(EstabelecimentoId, _profissionalId));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(solicitante: _outroProfissional)));

@@ -16,6 +16,9 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.Property(p => p.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
         builder.Property(p => p.NomeCompleto).HasColumnName("nome_completo").IsRequired().HasMaxLength(200);
         builder.Property(p => p.Cpf).HasColumnName("cpf").HasMaxLength(11);
+        builder.Property(p => p.DocumentoInternacional)
+            .HasColumnName("documento_internacional")
+            .HasMaxLength(Paciente.DocumentoInternacionalMaxLen);
         builder.Property(p => p.DataNascimento).HasColumnName("data_nascimento").HasColumnType("date");
         builder.Property(p => p.Genero).HasColumnName("genero").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(p => p.Telefone).HasColumnName("telefone").HasMaxLength(20);
@@ -39,6 +42,12 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
             .IsUnique()
             .HasDatabaseName("uq_pacientes_estabelecimento_cpf")
             .HasFilter("cpf IS NOT NULL AND deletado_em IS NULL");
+
+        // Unique por (estabelecimento, documento_internacional) — mesmo critério do CPF.
+        builder.HasIndex(p => new { p.EstabelecimentoId, p.DocumentoInternacional })
+            .IsUnique()
+            .HasDatabaseName("uq_pacientes_estabelecimento_doc_internacional")
+            .HasFilter("documento_internacional IS NOT NULL AND deletado_em IS NULL");
 
         builder.Ignore(p => p.DomainEvents);
         builder.Ignore(p => p.EstaDeletado);

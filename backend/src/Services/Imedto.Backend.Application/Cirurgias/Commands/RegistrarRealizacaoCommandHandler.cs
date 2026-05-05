@@ -23,9 +23,9 @@ public class RegistrarRealizacaoCommandHandler : ICommandHandler<RegistrarRealiz
 
     public async Task Handle(RegistrarRealizacaoCommand cmd)
     {
-        var procedimento = await _repo.ObterPorId(cmd.ProcedimentoId);
-        if (procedimento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Procedimento não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var procedimento = await _repo.ObterPorIdOuNulo(cmd.ProcedimentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Procedimento não encontrado.");
 
         procedimento.RegistrarRealizacao(
             cmd.DataRealizada,

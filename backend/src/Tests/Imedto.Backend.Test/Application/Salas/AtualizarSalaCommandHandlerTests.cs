@@ -57,6 +57,7 @@ public class AtualizarSalaCommandHandlerTests
     private AtualizarSalaCommand Cmd(Guid? solicitante = null) => new()
     {
         SalaId = SalaId,
+        EstabelecimentoId = EstabelecimentoId,
         UsuarioSolicitanteId = solicitante ?? _donoId,
         UnidadeId = UnidadeId,
         Nome = "Atualizada",
@@ -66,9 +67,9 @@ public class AtualizarSalaCommandHandlerTests
     public async Task Handle_DonoAtualiza_PersisteAlteracoes()
     {
         var sala = SalaExistente();
-        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId)).ReturnsAsync(sala);
+        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync(sala);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(Unidade());
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(Unidade());
         _salas.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Atualizada", SalaId)).ReturnsAsync(false);
 
         await _sut.Handle(Cmd());
@@ -80,7 +81,7 @@ public class AtualizarSalaCommandHandlerTests
     [Test]
     public void Handle_NaoEhDono_LancaBusinessException()
     {
-        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId)).ReturnsAsync(SalaExistente());
+        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync(SalaExistente());
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(solicitante: _outroId)));
@@ -90,7 +91,7 @@ public class AtualizarSalaCommandHandlerTests
     [Test]
     public void Handle_SalaInexistente_LancaBusinessException()
     {
-        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId)).ReturnsAsync((Sala)null);
+        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync((Sala)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("Repartição"));

@@ -35,7 +35,7 @@ public class CancelarOrcamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Cancela()
     {
         var orc = OrcamentoRascunho(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId)).ReturnsAsync(orc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId, EstabelecimentoId)).ReturnsAsync(orc);
 
         await _sut.Handle(new CancelarOrcamentoCommand
         {
@@ -50,7 +50,9 @@ public class CancelarOrcamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId)).ReturnsAsync(OrcamentoRascunho(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _repo.Setup(r => r.ObterPorIdOuNulo(OrcamentoId, EstabelecimentoId))
+            .ReturnsAsync((Orcamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarOrcamentoCommand
         {

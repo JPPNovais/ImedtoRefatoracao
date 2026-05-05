@@ -69,7 +69,7 @@ public class ConverterOrcamentoEmCirurgiaCommandHandlerTests
     [Test]
     public async Task Handle_OrcamentoAprovado_CriaProcedimentoEVincula()
     {
-        _orcRepo.Setup(r => r.ObterPorIdCompleto(OrcamentoId)).ReturnsAsync(OrcamentoAprovado(EstabelecimentoId));
+        _orcRepo.Setup(r => r.ObterPorIdCompletoOuNulo(OrcamentoId, EstabelecimentoId)).ReturnsAsync(OrcamentoAprovado(EstabelecimentoId));
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync(ProntuarioJaIniciado());
         _procRepo.Setup(r => r.Salvar(It.IsAny<ProcedimentoCirurgico>()))
@@ -88,7 +88,9 @@ public class ConverterOrcamentoEmCirurgiaCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _orcRepo.Setup(r => r.ObterPorIdCompleto(OrcamentoId)).ReturnsAsync(OrcamentoAprovado(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _orcRepo.Setup(r => r.ObterPorIdCompletoOuNulo(OrcamentoId, EstabelecimentoId))
+            .ReturnsAsync((Orcamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Orçamento não encontrado."));
@@ -103,7 +105,7 @@ public class ConverterOrcamentoEmCirurgiaCommandHandlerTests
             DateOnly.FromDateTime(DateTime.Today.AddDays(30)),
             null, Guid.NewGuid(), null,
             itens: new[] { new Orcamento.ItemPayload("X", 1, 100m, 0m) }); // Rascunho
-        _orcRepo.Setup(r => r.ObterPorIdCompleto(OrcamentoId)).ReturnsAsync(orc);
+        _orcRepo.Setup(r => r.ObterPorIdCompletoOuNulo(OrcamentoId, EstabelecimentoId)).ReturnsAsync(orc);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("aprovados"));
@@ -112,7 +114,7 @@ public class ConverterOrcamentoEmCirurgiaCommandHandlerTests
     [Test]
     public void Handle_OrcamentoSemCirurgias_LancaBusinessException()
     {
-        _orcRepo.Setup(r => r.ObterPorIdCompleto(OrcamentoId))
+        _orcRepo.Setup(r => r.ObterPorIdCompletoOuNulo(OrcamentoId, EstabelecimentoId))
                 .ReturnsAsync(OrcamentoAprovado(EstabelecimentoId, comCirurgias: false));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));

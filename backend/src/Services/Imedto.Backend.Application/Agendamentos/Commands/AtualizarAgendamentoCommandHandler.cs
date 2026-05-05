@@ -25,10 +25,9 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
 
     public async Task Handle(AtualizarAgendamentoCommand cmd)
     {
-        var agendamento = await _agendamentoRepo.ObterPorId(cmd.AgendamentoId);
-
-        if (agendamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Agendamento não encontrado neste estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var agendamento = await _agendamentoRepo.ObterPorIdOuNulo(cmd.AgendamentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Agendamento não encontrado.");
 
         if (cmd.ProfissionalUsuarioId != agendamento.ProfissionalUsuarioId)
         {
@@ -45,6 +44,7 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
             DateTime.Now);
 
         if (await _agendamentoRepo.ExisteConflito(
+                cmd.EstabelecimentoId,
                 cmd.ProfissionalUsuarioId,
                 cmd.InicioPrevisto,
                 cmd.FimPrevisto,

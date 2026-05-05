@@ -12,12 +12,9 @@ public class ProntuarioRepository : IProntuarioRepository
         _context = context;
     }
 
-    public async Task<Prontuario> ObterPorId(long id)
-    {
-        var p = await _context.Prontuarios.FindAsync(id);
-        if (p is null) throw new KeyNotFoundException($"Prontuário {id} não encontrado.");
-        return p;
-    }
+    public async Task<Prontuario?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _context.Prontuarios
+            .FirstOrDefaultAsync(p => p.Id == id && p.EstabelecimentoId == estabelecimentoId);
 
     public async Task<Prontuario> ObterPorPaciente(long pacienteId, long estabelecimentoId) =>
         await _context.Prontuarios

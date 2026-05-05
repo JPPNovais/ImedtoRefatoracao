@@ -2,7 +2,11 @@ namespace Imedto.Backend.Domain.Financeiro;
 
 public interface ILancamentoRepository
 {
-    Task<Lancamento> ObterPorId(long id);
-    Task<Lancamento?> ObterPorIdOuNulo(long id);
+    /// <summary>
+    /// Carrega o lançamento filtrando por <paramref name="estabelecimentoId"/>
+    /// (defense-in-depth IDOR/LGPD). Retorna null se inexistente ou de outro tenant.
+    /// </summary>
+    Task<Lancamento?> ObterPorIdOuNulo(long id, long estabelecimentoId);
+
     Task Salvar(Lancamento lancamento);
 }

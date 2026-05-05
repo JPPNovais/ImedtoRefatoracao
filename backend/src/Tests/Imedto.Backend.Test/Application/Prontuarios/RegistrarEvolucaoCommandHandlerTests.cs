@@ -78,7 +78,7 @@ public class RegistrarEvolucaoCommandHandlerTests
                      .ReturnsAsync(PacienteAtivo());
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync(ProntuarioJaIniciado());
-        _modeloRepo.Setup(r => r.ObterPorIdOuNulo(ProntuarioModeloId))
+        _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ProntuarioModeloId, EstabelecimentoId))
                    .ReturnsAsync(ModeloDoEstab(EstabelecimentoId));
         _evolucaoRepo.Setup(r => r.Salvar(It.IsAny<ProntuarioEvolucao>()))
                      .Callback<ProntuarioEvolucao>(e =>
@@ -133,7 +133,7 @@ public class RegistrarEvolucaoCommandHandlerTests
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync(ProntuarioJaIniciado());
-        _modeloRepo.Setup(r => r.ObterPorIdOuNulo(ProntuarioModeloId))
+        _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ProntuarioModeloId, EstabelecimentoId))
                    .ReturnsAsync(ModeloDoEstab(EstabelecimentoId, ativo: false));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));

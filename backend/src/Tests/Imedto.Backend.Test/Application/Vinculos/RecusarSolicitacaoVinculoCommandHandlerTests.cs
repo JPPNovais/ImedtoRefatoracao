@@ -52,7 +52,7 @@ public class RecusarSolicitacaoVinculoCommandHandlerTests
     [Test]
     public async Task Handle_DonoRecusa_TransicionaParaRecusadaEPublicaEvento()
     {
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId))
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId))
                         .ReturnsAsync(SolicitacaoNoEstab(EstabelecimentoId));
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(Estab());
 
@@ -66,8 +66,8 @@ public class RecusarSolicitacaoVinculoCommandHandlerTests
     [Test]
     public void Handle_SolicitacaoInexistente_LancaBusinessException()
     {
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId))
-                        .ReturnsAsync((SolicitacaoVinculo)null);
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId))
+                        .ReturnsAsync((SolicitacaoVinculo?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("não encontrada"));
@@ -76,8 +76,9 @@ public class RecusarSolicitacaoVinculoCommandHandlerTests
     [Test]
     public void Handle_CrossTenant_LancaMensagemGenericaSemConsultarEstab()
     {
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId))
-                        .ReturnsAsync(SolicitacaoNoEstab(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId))
+                        .ReturnsAsync((SolicitacaoVinculo?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Solicitação não encontrada."));
@@ -87,7 +88,7 @@ public class RecusarSolicitacaoVinculoCommandHandlerTests
     [Test]
     public void Handle_NaoEhDono_LancaBusinessException()
     {
-        _solicitacaoRepo.Setup(r => r.ObterPorIdOuNulo(SolicitacaoId))
+        _solicitacaoRepo.Setup(r => r.ObterPorIdNoEstabelecimentoOuNulo(SolicitacaoId, EstabelecimentoId))
                         .ReturnsAsync(SolicitacaoNoEstab(EstabelecimentoId));
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(Estab());
 

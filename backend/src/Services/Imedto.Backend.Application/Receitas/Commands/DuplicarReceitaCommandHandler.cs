@@ -32,11 +32,9 @@ public class DuplicarReceitaCommandHandler : ICommandHandler<DuplicarReceitaComm
 
     public async Task Handle(DuplicarReceitaCommand cmd)
     {
-        var origem = await _receitaRepo.ObterPorIdOuNulo(cmd.ReceitaIdOrigem)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var origem = await _receitaRepo.ObterPorIdOuNulo(cmd.ReceitaIdOrigem, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Receita não encontrada.");
-
-        if (origem.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Receita não pertence a este estabelecimento.");
 
         if (origem.DeletadoEm is not null)
             throw new BusinessException("Receita não encontrada.");

@@ -21,13 +21,9 @@ public class CancelarReceitaCommandHandler : ICommandHandler<CancelarReceitaComm
 
     public async Task Handle(CancelarReceitaCommand cmd)
     {
-        var receita = await _receitaRepo.ObterPorIdOuNulo(cmd.ReceitaId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var receita = await _receitaRepo.ObterPorIdOuNulo(cmd.ReceitaId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Receita não encontrada.");
-
-        // Defense-in-depth multi-tenant: o RequiresEstabelecimento já valida o header,
-        // mas a receita carrega um EstabelecimentoId próprio — checar é barato.
-        if (receita.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Receita não pertence a este estabelecimento.");
 
         if (receita.DeletadoEm is not null)
             throw new BusinessException("Receita não encontrada.");

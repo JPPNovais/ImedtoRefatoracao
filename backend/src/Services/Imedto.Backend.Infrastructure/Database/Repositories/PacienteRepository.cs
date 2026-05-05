@@ -30,6 +30,15 @@ public class PacienteRepository : IPacienteRepository
                 p.DeletadoEm == null &&
                 p.Id != ignorarPacienteId);
 
+    public async Task<bool> ExisteDocumentoInternacionalNoEstabelecimento(string documento, long estabelecimentoId, long ignorarPacienteId) =>
+        await _context.Pacientes
+            .AsNoTracking()
+            .AnyAsync(p =>
+                p.DocumentoInternacional == documento &&
+                p.EstabelecimentoId == estabelecimentoId &&
+                p.DeletadoEm == null &&
+                p.Id != ignorarPacienteId);
+
     public async Task Salvar(Paciente paciente)
     {
         if (paciente.Id == 0)

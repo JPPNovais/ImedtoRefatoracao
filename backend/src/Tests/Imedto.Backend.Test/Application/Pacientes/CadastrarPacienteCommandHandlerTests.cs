@@ -122,6 +122,65 @@ public class CadastrarPacienteCommandHandlerTests
     }
 
     [Test]
+    public void Handle_DocInternacionalDuplicadoNoMesmoEstabelecimento_LancaBusinessException()
+    {
+        var cmd = Cmd();
+        cmd.Cpf = null;
+        cmd.DocumentoInternacional = "PASSAPORTE-AB123456";
+
+        _repo.Setup(r => r.ExisteDocumentoInternacionalNoEstabelecimento(
+                "PASSAPORTE-AB123456", EstabelecimentoId, 0))
+             .ReturnsAsync(true);
+
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
+        Assert.That(ex.Message, Does.Contain("documento").IgnoreCase);
+        _repo.Verify(r => r.Salvar(It.IsAny<Paciente>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_ComDocInternacional_SalvaSemChecarCpf()
+    {
+        var cmd = Cmd();
+        cmd.Cpf = null;
+        cmd.DocumentoInternacional = "PASSAPORTE-AB123456";
+
+        Paciente capturado = null;
+        _repo.Setup(r => r.ExisteDocumentoInternacionalNoEstabelecimento(
+                "PASSAPORTE-AB123456", EstabelecimentoId, 0))
+             .ReturnsAsync(false);
+        _repo.Setup(r => r.Salvar(It.IsAny<Paciente>()))
+             .Callback<Paciente>(p =>
+             {
+                 typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, 99L);
+                 capturado = p;
+             })
+             .Returns(Task.CompletedTask);
+
+        await _sut.Handle(cmd);
+
+        _repo.Verify(r => r.ExisteCpfNoEstabelecimento(It.IsAny<string>(),
+            It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+        Assert.That(capturado.DocumentoInternacional, Is.EqualTo("PASSAPORTE-AB123456"));
+        Assert.That(capturado.Cpf, Is.Null);
+    }
+
+    [Test]
+    public void Handle_CpfInvalido_LancaBusinessExceptionDoDominio()
+    {
+        // Backend eh fonte da verdade — nao confia no front. CPF com DV errado
+        // deve ser rejeitado no aggregate (BusinessException → 422 no controller).
+        var cmd = Cmd();
+        cmd.Cpf = "99999999999"; // sequencia repetida — invalido
+
+        _repo.Setup(r => r.ExisteCpfNoEstabelecimento(It.IsAny<string>(), EstabelecimentoId, 0))
+             .ReturnsAsync(false);
+
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
+        Assert.That(ex.Message, Does.Contain("CPF").IgnoreCase);
+        _repo.Verify(r => r.Salvar(It.IsAny<Paciente>()), Times.Never);
+    }
+
+    [Test]
     public async Task Handle_RespeitaTenancyDoCommand_SalvaComMesmoEstabelecimento()
     {
         Paciente capturado = null;

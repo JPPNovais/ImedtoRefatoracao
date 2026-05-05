@@ -59,7 +59,7 @@ public class CriarSalaCommandHandlerTests
     public async Task Handle_DonoComUnidadeDoMesmoEstab_CriaSala()
     {
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
         _salas.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Sala 1", 0)).ReturnsAsync(false);
 
         await _sut.Handle(Cmd());
@@ -80,18 +80,19 @@ public class CriarSalaCommandHandlerTests
     [Test]
     public void Handle_UnidadeDeOutroEstab_LancaBusinessException()
     {
+        // Repo filtra por tenant: unidade de OutroEstabId não é retornada para EstabelecimentoId.
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(UnidadeNoEstab(OutroEstabId));
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync((UnidadeEstabelecimento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("Unidade"));
     }
 
     [Test]
     public void Handle_NomeDuplicadoNoEstab_LancaBusinessException()
     {
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
         _salas.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Sala 1", 0)).ReturnsAsync(true);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
@@ -111,7 +112,7 @@ public class CriarSalaCommandHandlerTests
     public void Handle_UnidadeInexistente_LancaBusinessException()
     {
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync((UnidadeEstabelecimento)null);
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync((UnidadeEstabelecimento)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("Unidade"));

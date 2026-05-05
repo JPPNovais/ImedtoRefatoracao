@@ -14,11 +14,9 @@ public class AtualizarItemInventarioCommandHandler : ICommandHandler<AtualizarIt
 
     public async Task Handle(AtualizarItemInventarioCommand cmd)
     {
-        var item = await _repo.ObterPorIdOuNulo(cmd.ItemId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var item = await _repo.ObterPorIdOuNulo(cmd.ItemId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Item não encontrado.");
-        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
-        if (item.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Item não encontrado.");
 
         item.Atualizar(cmd.Nome, cmd.Categoria, cmd.UnidadeMedida, cmd.QuantidadeMinima);
         await _repo.Salvar(item);

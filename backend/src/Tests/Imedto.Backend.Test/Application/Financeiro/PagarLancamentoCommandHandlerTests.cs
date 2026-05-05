@@ -36,7 +36,7 @@ public class PagarLancamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_MarcaComoPago()
     {
         var l = LancamentoNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync(l);
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync(l);
 
         await _sut.Handle(new PagarLancamentoCommand
         {
@@ -52,7 +52,7 @@ public class PagarLancamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync(LancamentoNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync((Lancamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new PagarLancamentoCommand
         {
@@ -66,7 +66,7 @@ public class PagarLancamentoCommandHandlerTests
     [Test]
     public void Handle_LancamentoInexistente_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync((Lancamento)null);
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync((Lancamento)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new PagarLancamentoCommand
         {

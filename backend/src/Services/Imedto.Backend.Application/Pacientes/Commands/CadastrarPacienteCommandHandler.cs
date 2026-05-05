@@ -3,6 +3,7 @@ using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Text;
 
 namespace Imedto.Backend.Application.Pacientes.Commands;
 
@@ -27,11 +28,18 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
         if (await _assinaturaService.LimiteAtingidoAsync(command.EstabelecimentoId, "pacientes"))
             throw new BusinessException("Plano não permite mais pacientes. Faça upgrade.");
 
-        var cpfDigitos = new string((command.Cpf ?? "").Where(char.IsDigit).ToArray());
-        if (!string.IsNullOrEmpty(cpfDigitos) &&
+        var cpfDigitos = TextSanitizer.DigitosOuNulo(command.Cpf);
+        if (cpfDigitos != null &&
             await _repository.ExisteCpfNoEstabelecimento(cpfDigitos, command.EstabelecimentoId, ignorarPacienteId: 0))
         {
             throw new BusinessException("Já existe um paciente com este CPF neste estabelecimento.");
+        }
+
+        var docInternacional = TextSanitizer.TrimOuNulo(command.DocumentoInternacional);
+        if (docInternacional != null &&
+            await _repository.ExisteDocumentoInternacionalNoEstabelecimento(docInternacional, command.EstabelecimentoId, ignorarPacienteId: 0))
+        {
+            throw new BusinessException("Já existe um paciente com este documento neste estabelecimento.");
         }
 
         if (!Enum.TryParse<GeneroPaciente>(command.Genero, ignoreCase: true, out var genero))
@@ -46,7 +54,8 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
             command.Telefone,
             command.Email,
             command.Endereco,
-            command.Observacoes);
+            command.Observacoes,
+            command.DocumentoInternacional);
 
         await _repository.Salvar(paciente);
         paciente.MarcarComoCadastrado();

@@ -31,7 +31,7 @@ public class ExcluirVariavelPoolCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Exclui()
     {
         var item = ItemDoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         await _sut.Handle(new ExcluirVariavelPoolCommand
         {
@@ -45,7 +45,7 @@ public class ExcluirVariavelPoolCommandHandlerTests
     [Test]
     public void Handle_PadraoSistema_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId))
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId))
              .ReturnsAsync(ProntuarioVariavelPool.CriarPadraoSistema(TipoVariavelPool.Alergia, "Padrao"));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ExcluirVariavelPoolCommand
@@ -59,7 +59,7 @@ public class ExcluirVariavelPoolCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(ItemDoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync((ProntuarioVariavelPool?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ExcluirVariavelPoolCommand
         {

@@ -1,6 +1,7 @@
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Database.Repositories;
+using Imedto.Backend.Test.Helpers;
 using NUnit.Framework;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,22 +39,23 @@ public class PacienteQueryRepositoryIntegrationTests : IntegrationTestBase
             "       (2, gen_random_uuid(), 'B', 0, now(), '08:00', '18:00', '[1,2,3,4,5]'::jsonb, '[]'::jsonb, '[]'::jsonb);");
 #pragma warning restore EF1002
 
-        // Insere 5 pacientes em A (1 deletado), 2 em B.
-        var pAJoao = Paciente.Cadastrar(EstabA, "João Silva", "11111111111", null,
+        // Insere 5 pacientes em A (1 deletado), 2 em B. Uso CpfTestData (CPFs com DV
+        // valido) — a regra nova de validacao rejeita as sequencias 111..., 222...
+        var pAJoao = Paciente.Cadastrar(EstabA, "João Silva", CpfTestData.Validos[0], null,
             GeneroPaciente.Masculino, null, null, null, null);
-        var pAMaria = Paciente.Cadastrar(EstabA, "Maria Souza", "22222222222", null,
+        var pAMaria = Paciente.Cadastrar(EstabA, "Maria Souza", CpfTestData.Validos[1], null,
             GeneroPaciente.Feminino, null, null, null, null);
-        var pAJose = Paciente.Cadastrar(EstabA, "José Pedro", "33333333333", null,
+        var pAJose = Paciente.Cadastrar(EstabA, "José Pedro", CpfTestData.Validos[2], null,
             GeneroPaciente.Masculino, null, null, null, null);
-        var pAAna = Paciente.Cadastrar(EstabA, "Ana Lúcia", "44444444444", null,
+        var pAAna = Paciente.Cadastrar(EstabA, "Ana Lúcia", CpfTestData.Validos[3], null,
             GeneroPaciente.Feminino, null, null, null, null);
-        var pADeletado = Paciente.Cadastrar(EstabA, "Deletado", "55555555555", null,
+        var pADeletado = Paciente.Cadastrar(EstabA, "Deletado", CpfTestData.Validos[4], null,
             GeneroPaciente.Masculino, null, null, null, null);
         pADeletado.MarcarComoDeletado(Guid.NewGuid());
 
-        var pBOutro = Paciente.Cadastrar(EstabB, "Outro Estab Maria", "66666666666", null,
+        var pBOutro = Paciente.Cadastrar(EstabB, "Outro Estab Maria", CpfTestData.Validos[5], null,
             GeneroPaciente.Feminino, null, null, null, null);
-        var pBOutro2 = Paciente.Cadastrar(EstabB, "B Joao", "77777777777", null,
+        var pBOutro2 = Paciente.Cadastrar(EstabB, "B Joao", CpfTestData.Validos[6], null,
             GeneroPaciente.Masculino, null, null, null, null);
 
         ctx.Pacientes.AddRange(pAJoao, pAMaria, pAJose, pAAna, pADeletado, pBOutro, pBOutro2);
@@ -105,10 +107,11 @@ public class PacienteQueryRepositoryIntegrationTests : IntegrationTestBase
     [Test]
     public async Task Listar_BuscaPorCpfPrefixo_MatchesPorPrefixoNumerico()
     {
-        var resultado = await _sut.Listar(EstabA, busca: "111.111", pagina: 1, tamanhoPagina: 100);
+        // pAJoao usa CpfTestData.Validos[0] = "12345678909" — buscamos pelo prefixo formatado.
+        var resultado = await _sut.Listar(EstabA, busca: "123.456", pagina: 1, tamanhoPagina: 100);
 
         Assert.That(resultado.Total, Is.EqualTo(1));
-        Assert.That(resultado.Itens.Single().Cpf, Is.EqualTo("11111111111"));
+        Assert.That(resultado.Itens.Single().Cpf, Is.EqualTo(CpfTestData.Validos[0]));
     }
 
     [Test]

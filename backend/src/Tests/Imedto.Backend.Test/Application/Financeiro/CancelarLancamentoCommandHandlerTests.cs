@@ -33,7 +33,7 @@ public class CancelarLancamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Cancela()
     {
         var l = LancamentoNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync(l);
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync(l);
 
         await _sut.Handle(new CancelarLancamentoCommand
         {
@@ -48,7 +48,7 @@ public class CancelarLancamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId)).ReturnsAsync(LancamentoNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(LancamentoId, EstabelecimentoId)).ReturnsAsync((Lancamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarLancamentoCommand
         {

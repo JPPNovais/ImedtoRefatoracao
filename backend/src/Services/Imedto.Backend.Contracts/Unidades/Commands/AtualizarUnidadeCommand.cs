@@ -5,6 +5,7 @@ namespace Imedto.Backend.Contracts.Unidades.Commands;
 public class AtualizarUnidadeCommand : ICommand
 {
     public long UnidadeId { get; set; }
+    public long EstabelecimentoId { get; set; }
     public Guid UsuarioSolicitanteId { get; set; }
     public string Nome { get; set; }
     public bool IsPrincipal { get; set; }

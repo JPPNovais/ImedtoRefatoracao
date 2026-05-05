@@ -24,12 +24,9 @@ public class RecusarSolicitacaoVinculoCommandHandler : ICommandHandler<RecusarSo
 
     public async Task Handle(RecusarSolicitacaoVinculoCommand command)
     {
-        var solicitacao = await _solicitacaoRepo.ObterPorIdOuNulo(command.SolicitacaoId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var solicitacao = await _solicitacaoRepo.ObterPorIdNoEstabelecimentoOuNulo(command.SolicitacaoId, command.EstabelecimentoId)
             ?? throw new BusinessException("Solicitação não encontrada.");
-
-        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
-        if (solicitacao.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Solicitação não encontrada.");
 
         var estab = await _estabelecimentoRepo.ObterPorId(command.EstabelecimentoId);
         if (estab.DonoUsuarioId != command.RecusadoPorUsuarioId)

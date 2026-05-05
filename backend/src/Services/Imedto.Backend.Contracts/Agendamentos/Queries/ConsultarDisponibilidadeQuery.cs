@@ -9,4 +9,10 @@ public class ConsultarDisponibilidadeQuery : IQuery<DisponibilidadeSemanaDto>
     public Guid ProfissionalUsuarioId { get; set; }
     public DateOnly DataInicio { get; set; }
     public DateOnly DataFim { get; set; }
+    /// <summary>
+    /// Duracao desejada do agendamento em minutos. Quando null, usa a duracao
+    /// padrao do estabelecimento. Permite que o cliente regenere os slots
+    /// conforme o usuario muda a duracao no formulario.
+    /// </summary>
+    public int? DuracaoMinutos { get; set; }
 }

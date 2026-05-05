@@ -13,11 +13,9 @@ public class CancelarOrcamentoCommandHandler : ICommandHandler<CancelarOrcamento
 
     public async Task Handle(CancelarOrcamentoCommand cmd)
     {
-        var orcamento = await _repo.ObterPorIdOuNulo(cmd.OrcamentoId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var orcamento = await _repo.ObterPorIdOuNulo(cmd.OrcamentoId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Orçamento não encontrado.");
-        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
-        if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado.");
 
         orcamento.Cancelar();
         await _repo.Salvar(orcamento);

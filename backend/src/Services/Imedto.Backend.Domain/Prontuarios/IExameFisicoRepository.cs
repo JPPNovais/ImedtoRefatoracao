@@ -7,11 +7,12 @@ namespace Imedto.Backend.Domain.Prontuarios;
 /// </summary>
 public interface IExameFisicoRepository
 {
-    /// <summary>Carrega o aggregate completo (com regiões). Lança se não encontrado.</summary>
-    Task<ExameFisico> ObterPorId(long id);
-
-    /// <summary>Carrega o aggregate completo (com regiões) ou retorna null.</summary>
-    Task<ExameFisico?> ObterPorIdOuNulo(long id);
+    /// <summary>
+    /// Carrega o aggregate completo (com regiões) filtrando por
+    /// <paramref name="estabelecimentoId"/> (defense-in-depth IDOR/LGPD).
+    /// Retorna null se inexistente ou de outro tenant.
+    /// </summary>
+    Task<ExameFisico?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
     Task Salvar(ExameFisico exame);
 }

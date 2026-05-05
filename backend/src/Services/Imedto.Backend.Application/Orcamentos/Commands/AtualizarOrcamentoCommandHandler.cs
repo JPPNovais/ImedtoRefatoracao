@@ -25,14 +25,15 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
 
     public async Task Handle(AtualizarOrcamentoCommand cmd)
     {
-        var orcamento = await _repo.ObterPorIdCompleto(cmd.OrcamentoId);
-        if (orcamento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Orçamento não encontrado.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var orcamento = await _repo.ObterPorIdCompletoOuNulo(cmd.OrcamentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Orçamento não encontrado.");
 
         if (cmd.ProcedimentoCirurgicoId is { } procId)
         {
-            var proc = await _procedimentoRepo.ObterPorId(procId);
-            if (proc.EstabelecimentoId != cmd.EstabelecimentoId || proc.PacienteId != orcamento.PacienteId)
+            var proc = await _procedimentoRepo.ObterPorIdOuNulo(procId, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Procedimento cirúrgico não encontrado.");
+            if (proc.PacienteId != orcamento.PacienteId)
                 throw new BusinessException("Procedimento cirúrgico não pertence ao paciente neste estabelecimento.");
         }
 
@@ -66,10 +67,9 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
                            .ToList();
         foreach (var id in ids)
         {
-            var item = await _inventarioRepo.ObterPorIdOuNulo(id)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            _ = await _inventarioRepo.ObterPorIdOuNulo(id, estabelecimentoId)
                 ?? throw new BusinessException($"Item de inventário {id} não encontrado.");
-            if (item.EstabelecimentoId != estabelecimentoId)
-                throw new BusinessException("Item de inventário não pertence a este estabelecimento.");
         }
     }
 
@@ -84,8 +84,10 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
                            .ToList();
         foreach (var id in ids)
         {
-            var proc = await _procedimentoRepo.ObterPorId(id);
-            if (proc.EstabelecimentoId != estabelecimentoId || proc.PacienteId != pacienteId)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            var proc = await _procedimentoRepo.ObterPorIdOuNulo(id, estabelecimentoId)
+                ?? throw new BusinessException($"Procedimento cirúrgico {id} não encontrado.");
+            if (proc.PacienteId != pacienteId)
                 throw new BusinessException($"Procedimento cirúrgico {id} não pertence ao paciente neste estabelecimento.");
         }
     }

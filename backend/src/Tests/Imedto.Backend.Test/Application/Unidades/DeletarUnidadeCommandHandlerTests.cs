@@ -47,12 +47,13 @@ public class DeletarUnidadeCommandHandlerTests
     public async Task Handle_DonoExcluiNaoPrincipal_RemoveUnidade()
     {
         var unidade = Unidade(principal: false);
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(unidade);
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(unidade);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         await _sut.Handle(new DeletarUnidadeCommand
         {
             UnidadeId = UnidadeId,
+            EstabelecimentoId = EstabelecimentoId,
             UsuarioSolicitanteId = _donoId,
         });
 
@@ -62,12 +63,13 @@ public class DeletarUnidadeCommandHandlerTests
     [Test]
     public void Handle_TentaExcluirPrincipal_LancaBusinessException()
     {
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(Unidade(principal: true));
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(Unidade(principal: true));
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new DeletarUnidadeCommand
         {
             UnidadeId = UnidadeId,
+            EstabelecimentoId = EstabelecimentoId,
             UsuarioSolicitanteId = _donoId,
         }));
         Assert.That(ex.Message, Does.Contain("principal"));
@@ -77,12 +79,13 @@ public class DeletarUnidadeCommandHandlerTests
     [Test]
     public void Handle_NaoEhDono_LancaBusinessException()
     {
-        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId)).ReturnsAsync(Unidade());
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(Unidade());
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new DeletarUnidadeCommand
         {
             UnidadeId = UnidadeId,
+            EstabelecimentoId = EstabelecimentoId,
             UsuarioSolicitanteId = _outroId,
         }));
         Assert.That(ex.Message, Does.Contain("dono"));

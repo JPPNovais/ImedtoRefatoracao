@@ -23,16 +23,24 @@ public static class PiiSanitizer
         @"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b",
         RegexOptions.Compiled);
 
+    // Celular: DDD + dígito 9 obrigatório (regra ANATEL pós-2014) + 8 dígitos.
+    // Casa "(11) 99999-8888" e "11999998888" mas NÃO casa "12345678909" (CPF cru sem 9 no 3º dígito).
+    private static readonly Regex TelefoneCelularRegex = new(
+        @"\(?\d{2}\)?[\s\-]?9\d{4}-?\d{4}",
+        RegexOptions.Compiled);
+
+    // Fixo: exige máscara (parênteses no DDD OU hífen entre os blocos 4+4) — sem
+    // máscara seria indistinguível de outros números de 10 dígitos (RG, ID, etc.).
+    private static readonly Regex TelefoneFixoRegex = new(
+        @"\(\d{2}\)\s?\d{4}-?\d{4}|\b\d{2}\s\d{4}-\d{4}\b",
+        RegexOptions.Compiled);
+
     private static readonly Regex CpfRegex = new(
         @"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b",
         RegexOptions.Compiled);
 
     private static readonly Regex EmailRegex = new(
         @"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}",
-        RegexOptions.Compiled);
-
-    private static readonly Regex TelefoneRegex = new(
-        @"\(?\d{2}\)?\s?9?\d{4}-?\d{4}",
         RegexOptions.Compiled);
 
     private static readonly Regex CepRegex = new(
@@ -55,11 +63,15 @@ public static class PiiSanitizer
 
         var saida = entrada;
 
-        // Ordem: documentos primeiro (mais distintivos), depois contato, depois endereço/identidade.
+        // Ordem importa: CNPJ (14 dígitos, mais distintivo) > telefone (estrito, evita
+        // colidir com CPF cru) > CPF > demais. Telefone vem ANTES de CPF para que
+        // celulares de 11 dígitos (com 9 fixo no 3º dígito) sejam corretamente
+        // identificados como [TELEFONE_REDACTED] e não como [CPF_REDACTED].
         saida = CnpjRegex.Replace(saida, "[CNPJ_REDACTED]");
+        saida = TelefoneCelularRegex.Replace(saida, "[TELEFONE_REDACTED]");
+        saida = TelefoneFixoRegex.Replace(saida, "[TELEFONE_REDACTED]");
         saida = CpfRegex.Replace(saida, "[CPF_REDACTED]");
         saida = EmailRegex.Replace(saida, "[EMAIL_REDACTED]");
-        saida = TelefoneRegex.Replace(saida, "[TELEFONE_REDACTED]");
         saida = CepRegex.Replace(saida, "[CEP_REDACTED]");
         saida = RgRegex.Replace(saida, "[RG_REDACTED]");
 

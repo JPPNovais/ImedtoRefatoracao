@@ -59,7 +59,7 @@ public class IniciarProntuarioCommandHandlerTests
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId))
                      .ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(ModeloDoEstab(EstabelecimentoId));
+        _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(ModeloDoEstab(EstabelecimentoId));
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync((Prontuario)null);
         _prontuarioRepo.Setup(r => r.Salvar(It.IsAny<Prontuario>()))
@@ -102,8 +102,9 @@ public class IniciarProntuarioCommandHandlerTests
     [Test]
     public void Handle_ModeloDeOutroEstabENaoPadraoSistema_LancaBusinessException()
     {
+        // Repo filtra padrao-sistema OR estabelecimento ativo: modelo de outro tenant retorna null.
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(ModeloDoEstab(OutroEstabId));
+        _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync((ModeloDeProntuario?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("Modelo"));
@@ -114,7 +115,7 @@ public class IniciarProntuarioCommandHandlerTests
     {
         var modeloPadrao = ModeloDeProntuario.CriarPadraoSistema("Padrao", null, "{}");
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(modeloPadrao);
+        _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(modeloPadrao);
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync((Prontuario)null);
         _prontuarioRepo.Setup(r => r.Salvar(It.IsAny<Prontuario>()))
@@ -131,7 +132,7 @@ public class IniciarProntuarioCommandHandlerTests
     public void Handle_ProntuarioJaExiste_LancaBusinessException()
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(ModeloDoEstab(EstabelecimentoId));
+        _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(ModeloDoEstab(EstabelecimentoId));
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync(Prontuario.Iniciar(PacienteId, EstabelecimentoId, ModeloId));
 

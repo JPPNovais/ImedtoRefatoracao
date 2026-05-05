@@ -38,12 +38,11 @@ public class IniciarProntuarioCommandHandler : ICommandHandler<IniciarProntuario
             throw new BusinessException("Paciente deletado — não é possível iniciar prontuário.");
 
         // Valida que o modelo é visível para o tenant (padrão-sistema ou próprio).
-        var modelo = await _modeloRepo.ObterPorIdOuNulo(command.ModeloDeProntuarioId)
+        // Defense-in-depth multi-tenant: filtro padrao-sistema OR estabelecimento ativo no proprio repo.
+        var modelo = await _modeloRepo.ObterVisivelOuNulo(command.ModeloDeProntuarioId, command.EstabelecimentoId)
             ?? throw new BusinessException("Modelo não encontrado.");
         if (!modelo.Ativo)
             throw new BusinessException("Modelo inativo.");
-        if (!modelo.EhPadraoSistema && modelo.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Modelo não disponível para este estabelecimento.");
 
         // Já existe?
         var existente = await _prontuarioRepo.ObterPorPaciente(command.PacienteId, command.EstabelecimentoId);

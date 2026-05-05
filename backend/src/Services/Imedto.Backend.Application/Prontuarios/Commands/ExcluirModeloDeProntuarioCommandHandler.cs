@@ -16,13 +16,12 @@ public class ExcluirModeloDeProntuarioCommandHandler : ICommandHandler<ExcluirMo
 
     public async Task Handle(ExcluirModeloDeProntuarioCommand command)
     {
-        var modelo = await _repository.ObterPorIdOuNulo(command.ModeloId)
+        // Defense-in-depth multi-tenant: filtro padrao-sistema OR estabelecimento ativo.
+        var modelo = await _repository.ObterVisivelOuNulo(command.ModeloId, command.EstabelecimentoId)
             ?? throw new BusinessException("Modelo não encontrado.");
 
         if (modelo.EhPadraoSistema)
             throw new BusinessException("Modelos padrão do sistema não podem ser excluídos.");
-        if (modelo.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Modelo não encontrado.");
 
         await _repository.Excluir(modelo);
     }

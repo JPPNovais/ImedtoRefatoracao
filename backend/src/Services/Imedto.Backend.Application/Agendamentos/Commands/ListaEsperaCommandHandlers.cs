@@ -51,11 +51,9 @@ public class RemoverListaEsperaCommandHandler : ICommandHandler<RemoverListaEspe
 
     public async Task Handle(RemoverListaEsperaCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Entrada da lista de espera não encontrada.");
-        // Mensagem padronizada (defense-in-depth: nao vaza existencia cross-tenant).
-        if (entity.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Entrada da lista de espera não encontrada.");
         await _repo.Remover(entity);
     }
 }

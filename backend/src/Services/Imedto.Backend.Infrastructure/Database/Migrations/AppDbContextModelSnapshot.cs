@@ -2613,6 +2613,11 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("deletado_por_usuario_id");
 
+                    b.Property<string>("DocumentoInternacional")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("documento_internacional");
+
                     b.Property<string>("Email")
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)")
@@ -2658,6 +2663,11 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
                     b.HasIndex("EstabelecimentoId", "DeletadoEm")
                         .HasDatabaseName("ix_pacientes_estabelecimento");
+
+                    b.HasIndex("EstabelecimentoId", "DocumentoInternacional")
+                        .IsUnique()
+                        .HasDatabaseName("uq_pacientes_estabelecimento_doc_internacional")
+                        .HasFilter("documento_internacional IS NOT NULL AND deletado_em IS NULL");
 
                     b.ToTable("pacientes", "public");
                 });

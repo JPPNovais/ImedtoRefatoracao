@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Orcamentos;
-using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
 
@@ -10,22 +9,15 @@ public class OrcamentoRepository : IOrcamentoRepository
 
     public OrcamentoRepository(AppDbContext db) => _db = db;
 
-    public async Task<Orcamento> ObterPorId(long id)
-    {
-        var orc = await _db.Orcamentos.FindAsync(id);
-        if (orc is null)
-            throw new BusinessException("Orçamento não encontrado.");
-        return orc;
-    }
+    public async Task<Orcamento?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _db.Orcamentos
+            .FirstOrDefaultAsync(o => o.Id == id && o.EstabelecimentoId == estabelecimentoId);
 
-    public async Task<Orcamento?> ObterPorIdOuNulo(long id) =>
-        await _db.Orcamentos.FindAsync(id);
-
-    public async Task<Orcamento> ObterPorIdCompleto(long id)
+    public async Task<Orcamento?> ObterPorIdCompletoOuNulo(long id, long estabelecimentoId)
     {
         // AsSplitQuery evita explosão cartesiana — Postgres faz uma SELECT por collection
         // (1 root + 5 collections + 2 relações 1:1) em vez de uma só com produto cartesiano.
-        var orc = await _db.Orcamentos
+        return await _db.Orcamentos
             .Include(o => o.Itens)
             .Include(o => o.Equipe)
             .Include(o => o.Implantes)
@@ -34,10 +26,7 @@ public class OrcamentoRepository : IOrcamentoRepository
             .Include(o => o.Internacao)
             .Include(o => o.Anestesia)
             .AsSplitQuery()
-            .FirstOrDefaultAsync(o => o.Id == id);
-        if (orc is null)
-            throw new BusinessException("Orçamento não encontrado.");
-        return orc;
+            .FirstOrDefaultAsync(o => o.Id == id && o.EstabelecimentoId == estabelecimentoId);
     }
 
     public async Task Salvar(Orcamento orcamento)

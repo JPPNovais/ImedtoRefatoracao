@@ -62,10 +62,11 @@ public class OrcamentoQueryRepository
         });
     }
 
-    public async Task<OrcamentoDto?> ObterPorId(long id)
+    public async Task<OrcamentoDto?> ObterPorId(long id, long estabelecimentoId)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
+        // Filtro por estabelecimento no SQL — defense-in-depth IDOR/LGPD.
         const string sqlOrc = """
             SELECT
                 o.id                          AS Id,
@@ -85,6 +86,7 @@ public class OrcamentoQueryRepository
             JOIN pacientes pac ON pac.id = o.paciente_id
             JOIN usuarios   u   ON u.id  = o.criado_por_usuario_id
             WHERE o.id = @Id
+              AND o.estabelecimento_id = @EstabelecimentoId
             """;
 
         const string sqlItens = """
@@ -177,7 +179,11 @@ public class OrcamentoQueryRepository
             WHERE orcamento_id = @Id
             """;
 
-        var orc = await conn.QuerySingleOrDefaultAsync<OrcamentoDto>(sqlOrc, new { Id = id });
+        var orc = await conn.QuerySingleOrDefaultAsync<OrcamentoDto>(sqlOrc, new
+        {
+            Id = id,
+            EstabelecimentoId = estabelecimentoId
+        });
         if (orc is null) return null;
 
         var itens = await conn.QueryAsync<ItemOrcamentoDto>(sqlItens, new { Id = id });

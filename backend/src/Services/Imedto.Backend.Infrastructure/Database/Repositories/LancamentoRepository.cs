@@ -1,5 +1,5 @@
+using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Financeiro;
-using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
 
@@ -9,16 +9,9 @@ public class LancamentoRepository : ILancamentoRepository
 
     public LancamentoRepository(AppDbContext db) => _db = db;
 
-    public async Task<Lancamento> ObterPorId(long id)
-    {
-        var lancamento = await _db.Lancamentos.FindAsync(id);
-        if (lancamento is null)
-            throw new BusinessException("Lançamento não encontrado.");
-        return lancamento;
-    }
-
-    public async Task<Lancamento?> ObterPorIdOuNulo(long id) =>
-        await _db.Lancamentos.FindAsync(id);
+    public async Task<Lancamento?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _db.Lancamentos
+            .FirstOrDefaultAsync(l => l.Id == id && l.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(Lancamento lancamento)
     {

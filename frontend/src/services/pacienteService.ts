@@ -4,6 +4,7 @@ export interface PacienteListaItem {
     id: number
     nomeCompleto: string
     cpf: string | null
+    documentoInternacional: string | null
     dataNascimento: string | null
     telefone: string | null
     criadoEm: string
@@ -21,6 +22,7 @@ export interface Paciente {
     estabelecimentoId: number
     nomeCompleto: string
     cpf: string | null
+    documentoInternacional: string | null
     dataNascimento: string | null
     genero: string
     telefone: string | null
@@ -34,6 +36,7 @@ export interface Paciente {
 export interface PacientePayload {
     nomeCompleto: string
     cpf?: string
+    documentoInternacional?: string
     dataNascimento?: string
     genero?: string
     telefone?: string

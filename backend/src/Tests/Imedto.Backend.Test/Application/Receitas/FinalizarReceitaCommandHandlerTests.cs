@@ -56,7 +56,7 @@ public class FinalizarReceitaCommandHandlerTests
     public async Task Handle_ProfissionalResponsavelFinaliza_TransicionaPersisteFavoritoEvento()
     {
         var receita = Rascunho(EstabelecimentoId, _profissionalId);
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync(receita);
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync(receita);
 
         await _sut.Handle(new FinalizarReceitaCommand
         {
@@ -76,7 +76,7 @@ public class FinalizarReceitaCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync(Rascunho(OutroEstabId, _profissionalId));
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync((Receita?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new FinalizarReceitaCommand
         {
@@ -84,7 +84,7 @@ public class FinalizarReceitaCommandHandlerTests
             EstabelecimentoId = EstabelecimentoId,
             SolicitanteUsuarioId = _profissionalId,
         }));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrada"));
         _favRepo.Verify(f => f.RegistrarUso(
             It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ViaAdministracao?>()),
             Times.Never);
@@ -93,7 +93,7 @@ public class FinalizarReceitaCommandHandlerTests
     [Test]
     public void Handle_OutroProfissionalTentaFinalizar_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync(Rascunho(EstabelecimentoId, _profissionalId));
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync(Rascunho(EstabelecimentoId, _profissionalId));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new FinalizarReceitaCommand
         {

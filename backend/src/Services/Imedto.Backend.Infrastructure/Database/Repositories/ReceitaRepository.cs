@@ -12,19 +12,10 @@ public class ReceitaRepository : IReceitaRepository
         _context = context;
     }
 
-    public async Task<Receita> ObterPorId(long id)
-    {
-        var r = await _context.Receitas
-            .Include(x => x.Itens)
-            .FirstOrDefaultAsync(x => x.Id == id);
-        if (r is null) throw new KeyNotFoundException($"Receita {id} não encontrada.");
-        return r;
-    }
-
-    public async Task<Receita?> ObterPorIdOuNulo(long id) =>
+    public async Task<Receita?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
         await _context.Receitas
             .Include(x => x.Itens)
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(Receita receita)
     {

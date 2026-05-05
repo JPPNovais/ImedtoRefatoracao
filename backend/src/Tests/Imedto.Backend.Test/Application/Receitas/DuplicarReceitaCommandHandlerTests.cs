@@ -52,7 +52,7 @@ public class DuplicarReceitaCommandHandlerTests
     public async Task Handle_DoMesmoTenant_DuplicaReceitaEAudita()
     {
         var origem = ReceitaEmitida(EstabelecimentoId, _profissionalId);
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync(origem);
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync(origem);
         _receitaRepo.Setup(r => r.Salvar(It.IsAny<Receita>()))
                     .Callback<Receita>(rc =>
                         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(rc, 1234L))
@@ -71,17 +71,17 @@ public class DuplicarReceitaCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId))
-                    .ReturnsAsync(ReceitaEmitida(OutroEstabId, _profissionalId));
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId))
+                    .ReturnsAsync((Receita?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrada"));
     }
 
     [Test]
     public void Handle_Inexistente_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync((Receita)null);
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync((Receita)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("não encontrada"));

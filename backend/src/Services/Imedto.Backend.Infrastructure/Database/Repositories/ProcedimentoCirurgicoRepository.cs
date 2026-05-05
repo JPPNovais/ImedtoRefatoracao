@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Cirurgias;
-using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
 
@@ -10,20 +9,12 @@ public class ProcedimentoCirurgicoRepository : IProcedimentoCirurgicoRepository
 
     public ProcedimentoCirurgicoRepository(AppDbContext db) => _db = db;
 
-    public async Task<ProcedimentoCirurgico> ObterPorId(long id)
-    {
-        var proc = await _db.ProcedimentosCirurgicos
-            .Include(p => p.Equipe)
-            .FirstOrDefaultAsync(p => p.Id == id && p.DeletadoEm == null);
-        if (proc is null)
-            throw new BusinessException("Procedimento não encontrado.");
-        return proc;
-    }
-
-    public async Task<ProcedimentoCirurgico?> ObterPorIdOuNulo(long id) =>
+    public async Task<ProcedimentoCirurgico?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
         await _db.ProcedimentosCirurgicos
             .Include(p => p.Equipe)
-            .FirstOrDefaultAsync(p => p.Id == id && p.DeletadoEm == null);
+            .FirstOrDefaultAsync(p => p.Id == id
+                                   && p.EstabelecimentoId == estabelecimentoId
+                                   && p.DeletadoEm == null);
 
     public async Task Salvar(ProcedimentoCirurgico procedimento)
     {

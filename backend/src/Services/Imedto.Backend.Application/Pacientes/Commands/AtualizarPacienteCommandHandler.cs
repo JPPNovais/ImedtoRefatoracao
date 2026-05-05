@@ -2,6 +2,7 @@ using Imedto.Backend.Contracts.Pacientes.Commands;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Text;
 
 namespace Imedto.Backend.Application.Pacientes.Commands;
 
@@ -25,11 +26,18 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
         var paciente = await _repository.ObterPorIdOuNulo(command.PacienteId, command.EstabelecimentoId)
             ?? throw new BusinessException("Paciente não encontrado.");
 
-        var cpfDigitos = new string((command.Cpf ?? "").Where(char.IsDigit).ToArray());
-        if (!string.IsNullOrEmpty(cpfDigitos) &&
+        var cpfDigitos = TextSanitizer.DigitosOuNulo(command.Cpf);
+        if (cpfDigitos != null &&
             await _repository.ExisteCpfNoEstabelecimento(cpfDigitos, command.EstabelecimentoId, ignorarPacienteId: command.PacienteId))
         {
             throw new BusinessException("Já existe outro paciente com este CPF neste estabelecimento.");
+        }
+
+        var docInternacional = TextSanitizer.TrimOuNulo(command.DocumentoInternacional);
+        if (docInternacional != null &&
+            await _repository.ExisteDocumentoInternacionalNoEstabelecimento(docInternacional, command.EstabelecimentoId, ignorarPacienteId: command.PacienteId))
+        {
+            throw new BusinessException("Já existe outro paciente com este documento neste estabelecimento.");
         }
 
         if (!Enum.TryParse<GeneroPaciente>(command.Genero, ignoreCase: true, out var genero))
@@ -43,7 +51,8 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
             command.Telefone,
             command.Email,
             command.Endereco,
-            command.Observacoes);
+            command.Observacoes,
+            command.DocumentoInternacional);
 
         await _repository.Salvar(paciente);
 

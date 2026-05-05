@@ -31,11 +31,8 @@ public class CriarSalaCommandHandler : ICommandHandler<CriarSalaCommand>
         if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)
             throw new BusinessException("Apenas o dono pode cadastrar repartições.");
 
-        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId)
+        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId, command.EstabelecimentoId)
             ?? throw new BusinessException("Unidade não encontrada.");
-
-        if (unidade.EstabelecimentoId != estab.Id)
-            throw new BusinessException("A unidade selecionada não pertence a este estabelecimento.");
 
         if (await _salas.ExisteOutraComMesmoNome(estab.Id, command.Nome ?? string.Empty, 0))
             throw new BusinessException("Já existe uma repartição com esse nome neste estabelecimento.");

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Prontuarios;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -11,15 +12,10 @@ public class ModeloDeProntuarioRepository : IModeloDeProntuarioRepository
         _context = context;
     }
 
-    public async Task<ModeloDeProntuario> ObterPorId(long id)
-    {
-        var m = await _context.ModelosDeProntuario.FindAsync(id);
-        if (m is null) throw new KeyNotFoundException($"Modelo de prontuário {id} não encontrado.");
-        return m;
-    }
-
-    public async Task<ModeloDeProntuario> ObterPorIdOuNulo(long id) =>
-        await _context.ModelosDeProntuario.FindAsync(id);
+    public async Task<ModeloDeProntuario?> ObterVisivelOuNulo(long id, long estabelecimentoId) =>
+        await _context.ModelosDeProntuario
+            .FirstOrDefaultAsync(m => m.Id == id
+                                   && (m.EhPadraoSistema || m.EstabelecimentoId == estabelecimentoId));
 
     public async Task Salvar(ModeloDeProntuario modelo)
     {

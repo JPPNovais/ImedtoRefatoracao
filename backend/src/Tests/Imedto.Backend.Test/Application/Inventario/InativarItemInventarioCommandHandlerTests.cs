@@ -31,7 +31,7 @@ public class InativarItemInventarioCommandHandlerTests
     public async Task Handle_DoMesmoTenant_Inativa()
     {
         var item = ItemNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         await _sut.Handle(new InativarItemInventarioCommand
         {
@@ -46,7 +46,7 @@ public class InativarItemInventarioCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(ItemNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync((ItemInventario?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new InativarItemInventarioCommand
         {

@@ -74,8 +74,10 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
             cmd.FimPrevisto.ToLocalTime(),
             DateTime.Now);
 
-        // Conflito com agendamento existente do mesmo profissional
+        // Conflito com agendamento existente do mesmo profissional NESTE estabelecimento
+        // (profissional que atua em 2 estabs tem agendas independentes — defense-in-depth IDOR).
         var temConflito = await _agendamentoRepo.ExisteConflito(
+            cmd.EstabelecimentoId,
             cmd.ProfissionalUsuarioId,
             cmd.InicioPrevisto,
             cmd.FimPrevisto);

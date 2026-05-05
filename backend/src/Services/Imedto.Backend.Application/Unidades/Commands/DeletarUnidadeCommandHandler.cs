@@ -19,9 +19,10 @@ public class DeletarUnidadeCommandHandler : ICommandHandler<DeletarUnidadeComman
 
     public async Task Handle(DeletarUnidadeCommand command)
     {
-        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId, command.EstabelecimentoId)
             ?? throw new BusinessException("Unidade não encontrada.");
-        var estab = await _estabelecimentos.ObterPorIdOuNulo(unidade.EstabelecimentoId)
+        var estab = await _estabelecimentos.ObterPorIdOuNulo(command.EstabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");
 
         if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)

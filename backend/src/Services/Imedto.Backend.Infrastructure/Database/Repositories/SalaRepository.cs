@@ -12,16 +12,9 @@ public class SalaRepository : ISalaRepository
         _context = context;
     }
 
-    public async Task<Sala> ObterPorId(long id)
-    {
-        var sala = await _context.Salas.FindAsync(id);
-        if (sala is null)
-            throw new KeyNotFoundException($"Repartição {id} não encontrada.");
-        return sala;
-    }
-
-    public async Task<Sala?> ObterPorIdOuNulo(long id) =>
-        await _context.Salas.FindAsync(id);
+    public async Task<Sala?> ObterPorIdOuNulo(long id, long estabelecimentoId) =>
+        await _context.Salas
+            .FirstOrDefaultAsync(s => s.Id == id && s.EstabelecimentoId == estabelecimentoId);
 
     public async Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, string nome, long ignorarId) =>
         await _context.Salas

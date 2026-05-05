@@ -44,7 +44,7 @@ public class CancelarProcedimentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_CancelaEAudita()
     {
         var proc = Planejado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(proc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId)).ReturnsAsync(proc);
 
         await _sut.Handle(new CancelarProcedimentoCommand
         {
@@ -62,7 +62,9 @@ public class CancelarProcedimentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(Planejado(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId))
+            .ReturnsAsync((ProcedimentoCirurgico?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarProcedimentoCommand
         {
@@ -71,7 +73,7 @@ public class CancelarProcedimentoCommandHandlerTests
             SolicitanteUsuarioId = _solicitanteId,
             Motivo = "tentativa cross-tenant",
         }));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrado"));
         _repo.Verify(r => r.Salvar(It.IsAny<ProcedimentoCirurgico>()), Times.Never);
     }
 
@@ -79,7 +81,7 @@ public class CancelarProcedimentoCommandHandlerTests
     public void Handle_MotivoVazio_LancaBusinessExceptionDoAggregate()
     {
         var proc = Planejado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorId(ProcedimentoId)).ReturnsAsync(proc);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ProcedimentoId, EstabelecimentoId)).ReturnsAsync(proc);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarProcedimentoCommand
         {

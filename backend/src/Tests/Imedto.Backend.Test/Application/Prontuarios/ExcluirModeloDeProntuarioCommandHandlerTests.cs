@@ -34,7 +34,7 @@ public class ExcluirModeloDeProntuarioCommandHandlerTests
     public async Task Handle_DoMesmoTenant_RemoveModelo()
     {
         var modelo = ModeloDoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(modelo);
+        _repo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(modelo);
 
         await _sut.Handle(new ExcluirModeloDeProntuarioCommand
         {
@@ -48,7 +48,7 @@ public class ExcluirModeloDeProntuarioCommandHandlerTests
     [Test]
     public void Handle_PadraoSistema_LancaBusinessException()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(ModeloPadrao());
+        _repo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(ModeloPadrao());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ExcluirModeloDeProntuarioCommand
         {
@@ -62,7 +62,8 @@ public class ExcluirModeloDeProntuarioCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ModeloId)).ReturnsAsync(ModeloDoEstab(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _repo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync((ModeloDeProntuario?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ExcluirModeloDeProntuarioCommand
         {

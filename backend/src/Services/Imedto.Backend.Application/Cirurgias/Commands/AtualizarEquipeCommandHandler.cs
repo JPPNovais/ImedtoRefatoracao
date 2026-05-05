@@ -21,9 +21,9 @@ public class AtualizarEquipeCommandHandler : ICommandHandler<AtualizarEquipeComm
 
     public async Task Handle(AtualizarEquipeCommand cmd)
     {
-        var procedimento = await _repo.ObterPorId(cmd.ProcedimentoId);
-        if (procedimento.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Procedimento não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var procedimento = await _repo.ObterPorIdOuNulo(cmd.ProcedimentoId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Procedimento não encontrado.");
 
         var nova = cmd.Equipe.Select(m =>
             new ProcedimentoCirurgico.EquipeInicialPayload(

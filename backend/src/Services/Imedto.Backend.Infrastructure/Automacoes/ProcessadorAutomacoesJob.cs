@@ -72,7 +72,9 @@ public class ProcessadorAutomacoesJob : IJobHandler
         // Resolve regra + executa ações
         try
         {
-            var regra = await _regraRepo.ObterPorIdOuNulo(evento.RegraId);
+#pragma warning disable CS0618 // job cross-tenant legitimo: nao tem tenant ativo na request
+            var regra = await _regraRepo.ObterPorIdOuNuloSemTenant(evento.RegraId);
+#pragma warning restore CS0618
             if (regra is null)
                 throw new InvalidOperationException($"Regra {evento.RegraId} não existe — evento órfão.");
             if (!regra.Ativa)

@@ -46,12 +46,13 @@ public class DeletarSalaCommandHandlerTests
     public async Task Handle_DonoExclui_RemoveSala()
     {
         var sala = SalaExistente();
-        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId)).ReturnsAsync(sala);
+        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync(sala);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         await _sut.Handle(new DeletarSalaCommand
         {
             SalaId = SalaId,
+            EstabelecimentoId = EstabelecimentoId,
             UsuarioSolicitanteId = _donoId,
         });
 
@@ -61,12 +62,13 @@ public class DeletarSalaCommandHandlerTests
     [Test]
     public void Handle_NaoEhDono_LancaBusinessException()
     {
-        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId)).ReturnsAsync(SalaExistente());
+        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync(SalaExistente());
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new DeletarSalaCommand
         {
             SalaId = SalaId,
+            EstabelecimentoId = EstabelecimentoId,
             UsuarioSolicitanteId = _outroId,
         }));
         Assert.That(ex.Message, Does.Contain("dono"));
@@ -76,11 +78,12 @@ public class DeletarSalaCommandHandlerTests
     [Test]
     public void Handle_SalaInexistente_LancaBusinessException()
     {
-        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId)).ReturnsAsync((Sala)null);
+        _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync((Sala)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new DeletarSalaCommand
         {
             SalaId = SalaId,
+            EstabelecimentoId = EstabelecimentoId,
             UsuarioSolicitanteId = _donoId,
         }));
         Assert.That(ex.Message, Does.Contain("Repartição"));

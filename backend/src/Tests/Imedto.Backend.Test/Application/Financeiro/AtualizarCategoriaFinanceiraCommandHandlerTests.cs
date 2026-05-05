@@ -41,7 +41,7 @@ public class AtualizarCategoriaFinanceiraCommandHandlerTests
     public async Task Handle_DoMesmoTenant_AtualizaCategoria()
     {
         var c = CategoriaNoEstab(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId)).ReturnsAsync(c);
+        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId, EstabelecimentoId)).ReturnsAsync(c);
 
         await _sut.Handle(Cmd());
 
@@ -61,7 +61,7 @@ public class AtualizarCategoriaFinanceiraCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId)).ReturnsAsync(CategoriaNoEstab(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId, EstabelecimentoId)).ReturnsAsync((CategoriaFinanceira?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Is.EqualTo("Categoria não encontrada."));
@@ -70,7 +70,7 @@ public class AtualizarCategoriaFinanceiraCommandHandlerTests
     [Test]
     public void Handle_CategoriaPadrao_LancaBusinessExceptionDoAggregate()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId)).ReturnsAsync(CategoriaNoEstab(EstabelecimentoId, padrao: true));
+        _repo.Setup(r => r.ObterPorIdOuNulo(CategoriaId, EstabelecimentoId)).ReturnsAsync(CategoriaNoEstab(EstabelecimentoId, padrao: true));
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("padrão"));

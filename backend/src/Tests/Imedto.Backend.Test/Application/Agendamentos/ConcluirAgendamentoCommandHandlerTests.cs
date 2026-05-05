@@ -35,7 +35,7 @@ public class ConcluirAgendamentoCommandHandlerTests
     public async Task Handle_DoMesmoTenant_TransicionaParaConcluido()
     {
         var ag = CriarAgendamentoNoEstab(EstabelecimentoId);
-        _agendaRepo.Setup(r => r.ObterPorId(AgendamentoId)).ReturnsAsync(ag);
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
 
         await _sut.Handle(new ConcluirAgendamentoCommand
         {
@@ -50,8 +50,9 @@ public class ConcluirAgendamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        var ag = CriarAgendamentoNoEstab(OutroEstabId);
-        _agendaRepo.Setup(r => r.ObterPorId(AgendamentoId)).ReturnsAsync(ag);
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId))
+            .ReturnsAsync((Agendamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ConcluirAgendamentoCommand
         {

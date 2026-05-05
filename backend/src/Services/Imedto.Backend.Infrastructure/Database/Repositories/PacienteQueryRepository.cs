@@ -45,21 +45,24 @@ public class PacienteQueryRepository
             WHERE  estabelecimento_id = @EstabelecimentoId
               AND  deletado_em IS NULL
               AND  (@Busca::text IS NULL OR public.imutable_unaccent(lower(nome_completo)) ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%'
-                                    OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%'))
+                                    OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%')
+                                    OR (@Busca IS NOT NULL AND lower(documento_internacional) LIKE lower(@Busca) || '%'))
             """;
 
         const string sqlItens = """
-            SELECT  id               AS Id,
-                    nome_completo    AS NomeCompleto,
-                    cpf              AS Cpf,
-                    data_nascimento  AS DataNascimento,
-                    telefone         AS Telefone,
-                    criado_em        AS CriadoEm
+            SELECT  id                      AS Id,
+                    nome_completo           AS NomeCompleto,
+                    cpf                     AS Cpf,
+                    documento_internacional AS DocumentoInternacional,
+                    data_nascimento         AS DataNascimento,
+                    telefone                AS Telefone,
+                    criado_em               AS CriadoEm
             FROM    public.pacientes
             WHERE   estabelecimento_id = @EstabelecimentoId
               AND   deletado_em IS NULL
               AND   (@Busca IS NULL OR public.imutable_unaccent(lower(nome_completo)) ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%'
-                                     OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%'))
+                                     OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%')
+                                     OR (@Busca IS NOT NULL AND lower(documento_internacional) LIKE lower(@Busca) || '%'))
             ORDER BY nome_completo
             LIMIT  @Tamanho
             OFFSET @Offset
@@ -98,6 +101,7 @@ public class PacienteQueryRepository
             SELECT  id                          AS Id,
                     nome_completo               AS NomeCompleto,
                     cpf                         AS Cpf,
+                    documento_internacional     AS DocumentoInternacional,
                     data_nascimento             AS DataNascimento,
                     genero                      AS Genero,
                     telefone                    AS Telefone,
@@ -128,16 +132,17 @@ public class PacienteQueryRepository
         // Minimizado (LGPD): sem estabelecimento_id (front nao usa, amplia IDOR)
         // e sem atualizado_em (sem uso no front).
         const string sql = """
-            SELECT  id                  AS Id,
-                    nome_completo       AS NomeCompleto,
-                    cpf                 AS Cpf,
-                    data_nascimento     AS DataNascimento,
-                    genero              AS Genero,
-                    telefone            AS Telefone,
-                    email               AS Email,
-                    endereco            AS Endereco,
-                    observacoes         AS Observacoes,
-                    criado_em           AS CriadoEm
+            SELECT  id                      AS Id,
+                    nome_completo           AS NomeCompleto,
+                    cpf                     AS Cpf,
+                    documento_internacional AS DocumentoInternacional,
+                    data_nascimento         AS DataNascimento,
+                    genero                  AS Genero,
+                    telefone                AS Telefone,
+                    email                   AS Email,
+                    endereco                AS Endereco,
+                    observacoes             AS Observacoes,
+                    criado_em               AS CriadoEm
             FROM    public.pacientes
             WHERE   id = @PacienteId
               AND   estabelecimento_id = @EstabelecimentoId

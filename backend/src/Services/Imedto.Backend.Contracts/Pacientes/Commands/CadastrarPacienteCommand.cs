@@ -7,6 +7,7 @@ public class CadastrarPacienteCommand : ICommand
     public long EstabelecimentoId { get; set; }
     public string NomeCompleto { get; set; }
     public string Cpf { get; set; }
+    public string DocumentoInternacional { get; set; }
     public DateTime? DataNascimento { get; set; }
     public string Genero { get; set; }
     public string Telefone { get; set; }

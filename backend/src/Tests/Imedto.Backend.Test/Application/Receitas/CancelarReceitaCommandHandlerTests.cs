@@ -43,7 +43,7 @@ public class CancelarReceitaCommandHandlerTests
     public async Task Handle_DoMesmoTenant_CancelaEAudita()
     {
         var receita = ReceitaEmitida(EstabelecimentoId, _solicitanteId);
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync(receita);
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync(receita);
 
         await _sut.Handle(new CancelarReceitaCommand
         {
@@ -62,8 +62,9 @@ public class CancelarReceitaCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaBusinessExceptionENaoAudita()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId))
-                    .ReturnsAsync(ReceitaEmitida(OutroEstabId, _solicitanteId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId))
+                    .ReturnsAsync((Receita?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarReceitaCommand
         {
@@ -72,7 +73,7 @@ public class CancelarReceitaCommandHandlerTests
             SolicitanteUsuarioId = _solicitanteId,
             Motivo = "tentativa cross-tenant",
         }));
-        Assert.That(ex.Message, Does.Contain("não pertence"));
+        Assert.That(ex.Message, Does.Contain("não encontrada"));
         _acessoLog.Verify(a => a.RegistrarAsync(
             It.IsAny<long>(), It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<TipoAcessoProntuario>()),
             Times.Never);
@@ -81,7 +82,7 @@ public class CancelarReceitaCommandHandlerTests
     [Test]
     public void Handle_Inexistente_LancaBusinessException()
     {
-        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId)).ReturnsAsync((Receita)null);
+        _receitaRepo.Setup(r => r.ObterPorIdOuNulo(ReceitaId, EstabelecimentoId)).ReturnsAsync((Receita)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new CancelarReceitaCommand
         {

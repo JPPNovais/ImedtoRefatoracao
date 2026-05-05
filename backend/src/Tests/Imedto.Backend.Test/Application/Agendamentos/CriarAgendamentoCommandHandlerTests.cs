@@ -75,7 +75,7 @@ public class CriarAgendamentoCommandHandlerTests
         _vinculoRepo.Setup(r => r.PodeAtuarComoProfissional(_profissionalId, EstabelecimentoId))
                     .ReturnsAsync(true);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(EstabFuncionando());
-        _agendaRepo.Setup(r => r.ExisteConflito(_profissionalId,
+        _agendaRepo.Setup(r => r.ExisteConflito(EstabelecimentoId, _profissionalId,
                 It.IsAny<DateTime>(), It.IsAny<DateTime>(), null))
                    .ReturnsAsync(false);
         _agendaRepo.Setup(r => r.Salvar(It.IsAny<Agendamento>()))
@@ -136,7 +136,7 @@ public class CriarAgendamentoCommandHandlerTests
         _vinculoRepo.Setup(r => r.PodeAtuarComoProfissional(_profissionalId, EstabelecimentoId))
                     .ReturnsAsync(true);
         _estabRepo.Setup(r => r.ObterPorId(EstabelecimentoId)).ReturnsAsync(EstabFuncionando());
-        _agendaRepo.Setup(r => r.ExisteConflito(_profissionalId,
+        _agendaRepo.Setup(r => r.ExisteConflito(EstabelecimentoId, _profissionalId,
                 It.IsAny<DateTime>(), It.IsAny<DateTime>(), null))
                    .ReturnsAsync(true);
 

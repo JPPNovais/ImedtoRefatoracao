@@ -21,12 +21,9 @@ public class AtualizarRegraAutomacaoCommandHandler : ICommandHandler<AtualizarRe
 
     public async Task Handle(AtualizarRegraAutomacaoCommand command)
     {
-        var regra = await _regraRepo.ObterPorIdOuNulo(command.RegraId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var regra = await _regraRepo.ObterPorIdOuNulo(command.RegraId, command.EstabelecimentoId)
             ?? throw new BusinessException("Regra não encontrada.");
-
-        // Genérico para evitar enumeração: mensagem igual a "não encontrado".
-        if (regra.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Regra não encontrada.");
 
         var estab = await _estabelecimentoRepo.ObterPorIdOuNulo(command.EstabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");

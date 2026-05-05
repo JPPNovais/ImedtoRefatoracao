@@ -42,7 +42,7 @@ public class RegistrarMovimentacaoEstoqueCommandHandlerTests
     public async Task Handle_EntradaValida_RegistraMovimentacaoEAtualizaEstoque()
     {
         var item = ItemComEstoque(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         await _sut.Handle(new RegistrarMovimentacaoEstoqueCommand
         {
@@ -62,7 +62,7 @@ public class RegistrarMovimentacaoEstoqueCommandHandlerTests
     public async Task Handle_SaidaValida_RegistraMovimentacao()
     {
         var item = ItemComEstoque(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         await _sut.Handle(new RegistrarMovimentacaoEstoqueCommand
         {
@@ -80,7 +80,7 @@ public class RegistrarMovimentacaoEstoqueCommandHandlerTests
     public void Handle_EntradaSemCustoUnitario_LancaBusinessException()
     {
         var item = ItemComEstoque(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new RegistrarMovimentacaoEstoqueCommand
         {
@@ -98,7 +98,7 @@ public class RegistrarMovimentacaoEstoqueCommandHandlerTests
     public void Handle_TipoInvalido_LancaBusinessException()
     {
         var item = ItemComEstoque(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(item);
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync(item);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new RegistrarMovimentacaoEstoqueCommand
         {
@@ -114,7 +114,7 @@ public class RegistrarMovimentacaoEstoqueCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenerica()
     {
-        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId)).ReturnsAsync(ItemComEstoque(OutroEstabId));
+        _repo.Setup(r => r.ObterPorIdOuNulo(ItemId, EstabelecimentoId)).ReturnsAsync((ItemInventario?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new RegistrarMovimentacaoEstoqueCommand
         {

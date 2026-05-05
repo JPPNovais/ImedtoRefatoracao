@@ -318,7 +318,7 @@ const dias = ref<DiaConfig[]>([
 ])
 
 const duracaoConsulta = ref("30")
-const intervaloConsulta = ref("5")
+const intervaloConsulta = ref("0")
 
 function copiarParaTodos(idx: number) {
     const d = dias.value[idx]

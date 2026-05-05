@@ -44,12 +44,10 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
             ?? throw new BusinessException("Prontuário ainda não foi iniciado para este paciente.");
 
         // Snapshot do template — usa override se fornecido, senão usa o modelo do prontuário.
+        // Defense-in-depth multi-tenant: filtro padrao-sistema OR estabelecimento ativo.
         var modeloId = command.ModeloDeProntuarioId ?? prontuario.ModeloDeProntuarioId;
-        var modeloAtual = await _modeloRepo.ObterPorIdOuNulo(modeloId)
+        var modeloAtual = await _modeloRepo.ObterVisivelOuNulo(modeloId, command.EstabelecimentoId)
             ?? throw new BusinessException("Modelo não encontrado.");
-
-        if (!modeloAtual.EhPadraoSistema && modeloAtual.EstabelecimentoId != command.EstabelecimentoId)
-            throw new BusinessException("Modelo não encontrado.");
 
         if (!modeloAtual.Ativo)
             throw new BusinessException("O modelo selecionado está inativo.");

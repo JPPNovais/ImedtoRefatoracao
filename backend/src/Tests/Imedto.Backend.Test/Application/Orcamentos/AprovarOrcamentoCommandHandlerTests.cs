@@ -43,7 +43,7 @@ public class AprovarOrcamentoCommandHandlerTests
     public async Task Handle_OrcamentoEnviadoDoMesmoTenant_AprovaEPublicaEvento()
     {
         var orc = OrcamentoEnviado(EstabelecimentoId);
-        _repo.Setup(r => r.ObterPorIdCompleto(OrcamentoId)).ReturnsAsync(orc);
+        _repo.Setup(r => r.ObterPorIdCompletoOuNulo(OrcamentoId, EstabelecimentoId)).ReturnsAsync(orc);
 
         await _sut.Handle(new AprovarOrcamentoCommand
         {
@@ -60,7 +60,9 @@ public class AprovarOrcamentoCommandHandlerTests
     [Test]
     public void Handle_DeOutroTenant_LancaMensagemGenericaENaoSalva()
     {
-        _repo.Setup(r => r.ObterPorIdCompleto(OrcamentoId)).ReturnsAsync(OrcamentoEnviado(OutroEstabId));
+        // Repo filtra por tenant: chamado com EstabelecimentoId, retorna null.
+        _repo.Setup(r => r.ObterPorIdCompletoOuNulo(OrcamentoId, EstabelecimentoId))
+            .ReturnsAsync((Orcamento?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new AprovarOrcamentoCommand
         {

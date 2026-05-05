@@ -195,10 +195,9 @@ public class CriarCatalogoImplanteCommandHandler : ICommandHandler<CriarCatalogo
     {
         if (cmd.ItemInventarioId is { } invId)
         {
-            var item = await _inventarioRepo.ObterPorIdOuNulo(invId)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            _ = await _inventarioRepo.ObterPorIdOuNulo(invId, cmd.EstabelecimentoId)
                 ?? throw new BusinessException($"Item de inventário {invId} não encontrado.");
-            if (item.EstabelecimentoId != cmd.EstabelecimentoId)
-                throw new BusinessException("Item de inventário não pertence a este estabelecimento.");
         }
 
         var entity = CatalogoImplante.Criar(cmd.EstabelecimentoId, cmd.ItemInventarioId, cmd.Descricao, cmd.CustoUnitario);
@@ -224,10 +223,9 @@ public class AtualizarCatalogoImplanteCommandHandler : ICommandHandler<Atualizar
 
         if (cmd.ItemInventarioId is { } invId)
         {
-            var item = await _inventarioRepo.ObterPorIdOuNulo(invId)
+            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+            _ = await _inventarioRepo.ObterPorIdOuNulo(invId, cmd.EstabelecimentoId)
                 ?? throw new BusinessException($"Item de inventário {invId} não encontrado.");
-            if (item.EstabelecimentoId != cmd.EstabelecimentoId)
-                throw new BusinessException("Item de inventário não pertence a este estabelecimento.");
         }
 
         entity.Atualizar(cmd.ItemInventarioId, cmd.Descricao, cmd.CustoUnitario);
