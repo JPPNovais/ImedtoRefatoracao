@@ -1,6 +1,3 @@
-import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
-import html2canvas from "html2canvas"
 import type { ProntuarioCompleto } from "@/services/prontuarioService"
 
 function dataFmt(s: string) {
@@ -9,6 +6,11 @@ function dataFmt(s: string) {
 
 export function useProntuarioPdf() {
     async function gerarPdf(pront: ProntuarioCompleto, pacienteNome: string) {
+        // Lazy: jsPDF + autotable (~600 KB) só carregam ao clicar "Baixar PDF".
+        const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ])
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
         const pageW = doc.internal.pageSize.getWidth()
 
@@ -93,6 +95,11 @@ export function useProntuarioPdf() {
 
     // Captura visual da seção de prontuário usando html2canvas
     async function capturarImagemPdf(elemento: HTMLElement, pacienteNome: string) {
+        // Lazy: html2canvas (~200 KB) + jsPDF (~150 KB) só carregam ao usar a captura visual.
+        const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+            import("html2canvas"),
+            import("jspdf"),
+        ])
         const canvas = await html2canvas(elemento, {
             scale: 2,
             useCORS: true,

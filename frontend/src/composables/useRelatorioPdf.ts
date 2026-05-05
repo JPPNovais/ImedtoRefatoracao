@@ -1,12 +1,11 @@
-import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
+import type { jsPDF as JsPdfType } from "jspdf"
 import type { FaturamentoCategoria, RelatorioAgendamentos } from "@/services/dashboardService"
 
 function moeda(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 }
 
-function rodape(doc: jsPDF, titulo: string) {
+function rodape(doc: JsPdfType, titulo: string) {
     const y = doc.internal.pageSize.getHeight() - 10
     const w = doc.internal.pageSize.getWidth()
     doc.setFontSize(8)
@@ -16,10 +15,15 @@ function rodape(doc: jsPDF, titulo: string) {
 }
 
 export function useRelatorioPdf() {
-    function gerarFaturamentoPdf(
+    async function gerarFaturamentoPdf(
         dados: FaturamentoCategoria[],
         periodo: { dataInicio: string; dataFim: string },
     ) {
+        // Lazy: jsPDF + autotable (~600 KB) só carregam ao clicar "Baixar PDF".
+        const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ])
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
 
         doc.setFontSize(18)
@@ -70,10 +74,15 @@ export function useRelatorioPdf() {
         doc.save("relatorio-faturamento.pdf")
     }
 
-    function gerarAgendamentosPdf(
+    async function gerarAgendamentosPdf(
         dados: RelatorioAgendamentos,
         periodo: { dataInicio: string; dataFim: string },
     ) {
+        // Lazy: jsPDF + autotable (~600 KB) só carregam ao clicar "Baixar PDF".
+        const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ])
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
 
         doc.setFontSize(18)

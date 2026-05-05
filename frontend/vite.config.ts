@@ -32,4 +32,20 @@ export default defineConfig({
     optimizeDeps: {
         include: ["reka-ui", "@vueuse/core", "lucide-vue-next"],
     },
+    build: {
+        target: "es2022",
+        chunkSizeWarningLimit: 600,
+        rollupOptions: {
+            output: {
+                // Vendor chunking: deps mudam pouco → cache longo do browser.
+                // App code (chunk default) muda toda release; vendor fica estável.
+                manualChunks: {
+                    "vendor-vue": ["vue", "vue-router", "pinia"],
+                    "vendor-axios": ["axios"],
+                    "vendor-realtime": ["@microsoft/signalr"],
+                    "vendor-ui": ["reka-ui", "lucide-vue-next", "@vueuse/core"],
+                },
+            },
+        },
+    },
 })

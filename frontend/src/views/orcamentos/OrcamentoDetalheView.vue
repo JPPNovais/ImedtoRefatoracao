@@ -74,8 +74,8 @@ async function converter() {
     )
 }
 
-function baixarPdf() {
-    if (orcamento.value) gerarPdf(orcamento.value)
+async function baixarPdf() {
+    if (orcamento.value) await gerarPdf(orcamento.value)
 }
 
 function fmtMoeda(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }

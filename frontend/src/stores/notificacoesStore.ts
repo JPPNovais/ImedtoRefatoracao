@@ -73,6 +73,9 @@ export const useNotificacoesStore = defineStore("notificacoes", () => {
     function bindRealtime() {
         if (handlerRegistrado) return
         handlerRegistrado = true
+        // Baseline do badge: realtime só empurra novidades, então sem 1 fetch inicial
+        // o usuário que abre a app sem novas notificações vê 0 mesmo com não-lidas pendentes.
+        void atualizarContador()
         realtimeService.on<Notificacao>("notificacao-recebida", (n) => {
             // Evita duplicar caso a notificação também tenha vindo via REST por race.
             if (notificacoes.value.some((existente) => existente.id === n.id)) return

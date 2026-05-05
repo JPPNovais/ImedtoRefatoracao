@@ -26,6 +26,9 @@ const httpClient = axios.create({
     baseURL: apiBaseUrl,
     headers: { "Content-Type": "application/json" },
     withCredentials: true,
+    // Sem timeout, requests em rede ruim ficam pendurados indefinidamente.
+    // 30s cobre uploads grandes; ajustar via second-arg em chamadas pontuais se preciso.
+    timeout: 30_000,
 })
 
 httpClient.interceptors.request.use((config) => {

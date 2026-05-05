@@ -122,6 +122,9 @@ public static class InfrastructureExtensions
         {
             var opts = sp.GetRequiredService<IOptions<SupabaseOptions>>().Value;
             client.BaseAddress = new Uri(opts.Url);
+            // Login/refresh são <2s normalmente; default de 100s deixa request travado em
+            // glitch de rede ocupando thread/socket por muito tempo. 10s fecha rápido.
+            client.Timeout = TimeSpan.FromSeconds(10);
             // Default 'apikey' eh o anon_key (publica) — endpoints publicos (signup,
             // login, refresh, recover) usam so isso. Endpoints admin (delete user,
             // generate_link, admin/users) passam ServiceRoleKey explicitamente em
@@ -132,7 +135,11 @@ public static class InfrastructureExtensions
             // runtime real essa chamada vai falhar com 401 do Supabase, que eh
             // muito mais seguro do que rodar com service_role default.
             client.DefaultRequestHeaders.Add("apikey", opts.AnonKey ?? string.Empty);
-        });
+        })
+        // Resilience: retry leve para 5xx/timeout/network + circuit breaker.
+        // Polly v8 nativo do .NET 10 — protege fluxo de auth de glitches transientes
+        // do Supabase Auth sem empilhar threads.
+        .AddStandardResilienceHandler();
 
         services.AddScoped<IAuthService, SupabaseAuthService>();
     }

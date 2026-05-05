@@ -1,5 +1,3 @@
-import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
 import type { Orcamento } from "@/services/orcamentoService"
 
 function moeda(n: number) {
@@ -25,7 +23,12 @@ const STATUS_COR: Record<string, [number, number, number]> = {
  * resumo final. Usa jsPDF + jspdf-autotable.
  */
 export function useOrcamentoPdf() {
-    function gerarPdf(orc: Orcamento) {
+    async function gerarPdf(orc: Orcamento) {
+        // Lazy: jsPDF + autotable (~600 KB) só carregam quando o usuário clica em "Baixar PDF".
+        const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ])
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
         const pageW = doc.internal.pageSize.getWidth()
         const margem = 14
