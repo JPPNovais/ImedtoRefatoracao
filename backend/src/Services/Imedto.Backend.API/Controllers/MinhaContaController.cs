@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Imedto.Backend.Contracts.Lgpd.Commands;
 using Imedto.Backend.Contracts.Lgpd.Queries;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -18,11 +19,13 @@ public class MinhaContaController : ControllerBase
 {
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
+    private readonly IMemoryCache _cache;
 
-    public MinhaContaController(ICommandBus commandBus, IRequestBus requestBus)
+    public MinhaContaController(ICommandBus commandBus, IRequestBus requestBus, IMemoryCache cache)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
+        _cache = cache;
     }
 
     /// <summary>
@@ -51,10 +54,15 @@ public class MinhaContaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AnonimizarConta()
     {
+        var userId = ObterUsuarioId();
+
         await _commandBus.Send(new AnonimizarMinhaContaCommand
         {
-            UsuarioId = ObterUsuarioId()
+            UsuarioId = userId
         });
+
+        // Invalida o cache de /auth/me — nome/telefone foram zerados pela anonimização.
+        _cache.Remove(AuthController.AuthMeCacheKey(userId));
 
         // 204 sem corpo. O frontend interpreta este status como sinal para revogar a sessão
         // no Supabase e redirecionar para /login — o token ainda é válido até expirar ou revoke.

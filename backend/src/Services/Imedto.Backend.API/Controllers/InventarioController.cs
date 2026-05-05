@@ -28,18 +28,22 @@ public class InventarioController : ControllerBase
     }
 
     [HttpGet("itens")]
-    public async Task<ActionResult<IEnumerable<ItemInventarioDto>>> ListarItens(
+    public async Task<ActionResult<PaginaItensInventarioDto>> ListarItens(
         [FromQuery] string? categoria,
         [FromQuery] bool? apenasAbaixoMinimo,
-        [FromQuery] bool? apenasAtivos)
+        [FromQuery] bool? apenasAtivos,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var result = await _query.Query<ListarItensInventarioQuery, IEnumerable<ItemInventarioDto>>(
+        var result = await _query.Query<ListarItensInventarioQuery, PaginaItensInventarioDto>(
             new ListarItensInventarioQuery
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 Categoria = categoria,
                 ApenasAbaixoMinimo = apenasAbaixoMinimo,
-                ApenasAtivos = apenasAtivos ?? true
+                ApenasAtivos = apenasAtivos ?? true,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
             });
         return Ok(result);
     }
@@ -91,20 +95,22 @@ public class InventarioController : ControllerBase
     }
 
     [HttpGet("movimentacoes")]
-    public async Task<ActionResult<IEnumerable<MovimentacaoEstoqueDto>>> ListarMovimentacoes(
+    public async Task<ActionResult<PaginaMovimentacoesEstoqueDto>> ListarMovimentacoes(
         [FromQuery] long? itemInventarioId,
         [FromQuery] DateOnly? dataInicio,
         [FromQuery] DateOnly? dataFim,
-        [FromQuery] int? limite)
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var result = await _query.Query<ListarMovimentacoesQuery, IEnumerable<MovimentacaoEstoqueDto>>(
+        var result = await _query.Query<ListarMovimentacoesQuery, PaginaMovimentacoesEstoqueDto>(
             new ListarMovimentacoesQuery
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 ItemInventarioId = itemInventarioId,
                 DataInicio = dataInicio,
                 DataFim = dataFim,
-                Limite = limite ?? 100
+                Pagina = pagina,
+                TamanhoPagina = tamanho
             });
         return Ok(result);
     }

@@ -56,7 +56,7 @@ public class OnboardingCompletadoFilter : IAsyncActionFilter
         var cacheKey = $"onboarding:{usuarioId}";
         if (!_cache.TryGetValue(cacheKey, out bool onboardingCompleto))
         {
-            var usuario = await _usuarioRepository.ObterPorIdOuNulo(usuarioId);
+            var usuario = await _usuarioRepository.ObterPorIdParaLeitura(usuarioId);
             onboardingCompleto = usuario?.OnboardingCompleto ?? false;
             _cache.Set(cacheKey, onboardingCompleto, CacheTtl);
         }

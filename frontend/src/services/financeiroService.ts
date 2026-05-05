@@ -24,6 +24,13 @@ export interface ResumoFinanceiro {
     despesasPendentes: number
 }
 
+export interface PaginaLancamentos {
+    itens: Lancamento[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 export const financeiroService = {
     async listar(params?: {
         tipo?: string
@@ -31,8 +38,10 @@ export const financeiroService = {
         categoria?: string
         dataInicio?: string
         dataFim?: string
-    }): Promise<Lancamento[]> {
-        const { data } = await httpClient.get<Lancamento[]>("/financeiro/lancamentos", { params })
+        pagina?: number
+        tamanho?: number
+    }): Promise<PaginaLancamentos> {
+        const { data } = await httpClient.get<PaginaLancamentos>("/financeiro/lancamentos", { params })
         return data
     },
 

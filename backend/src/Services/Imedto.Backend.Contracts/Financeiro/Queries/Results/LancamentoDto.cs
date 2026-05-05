@@ -1,5 +1,13 @@
 namespace Imedto.Backend.Contracts.Financeiro.Queries.Results;
 
+public class PaginaLancamentosDto
+{
+    public IEnumerable<LancamentoDto> Itens { get; set; } = Array.Empty<LancamentoDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
 public class LancamentoDto
 {
     public long Id { get; set; }

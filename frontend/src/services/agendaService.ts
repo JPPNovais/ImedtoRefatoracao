@@ -56,6 +56,13 @@ export interface AtualizarAgendamentoPayload {
     observacoes?: string | null
 }
 
+export interface PaginaAgendamentos {
+    itens: Agendamento[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 export const agendaService = {
     async listar(params?: {
         dataInicio?: string
@@ -63,8 +70,10 @@ export const agendaService = {
         profissionalUsuarioId?: string
         pacienteId?: number
         status?: string
-    }): Promise<Agendamento[]> {
-        const { data } = await httpClient.get<Agendamento[]>("/agendamentos", { params })
+        pagina?: number
+        tamanho?: number
+    }): Promise<PaginaAgendamentos> {
+        const { data } = await httpClient.get<PaginaAgendamentos>("/agendamentos", { params })
         return data
     },
 

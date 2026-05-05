@@ -7,7 +7,7 @@
  * Por ora, esta view é só um caminho funcional para que o usuário consiga povoar os
  * catálogos enquanto a UX final ainda não está pronta.
  */
-import { ref, onMounted, computed } from "vue"
+import { ref, onMounted, computed, watch } from "vue"
 import {
     AppPageHeader, AppTabs, AppButton, AppCard, AppEmptyState, AppField,
     AppInput, AppSelect, AppCheckbox, AppModal,
@@ -375,21 +375,26 @@ const produtosNaoVinculados = computed(() =>
     produtos.value.filter(p => p.ativo && !vinculosCirurgia.value.some(v => v.catalogoProdutoId === p.id))
 )
 
-async function carregarTudo() {
+// ─────────────────────────── Carregamento sob demanda por aba
+const abasCarregadas = new Set<AbaKey>()
+
+const carregadoresPorAba: Record<AbaKey, () => Promise<void>> = {
+    cirurgias:          carregarCirurgias,
+    valoresProfissional: carregarValores,
+    local:              carregarLocais,
+    equipes:            carregarEquipes,
+    implantes:          carregarImplantes,
+    produtos:           carregarProdutos,
+    pagamento:          carregarConfigsPagamento,
+}
+
+async function garantirAba(a: AbaKey) {
+    if (abasCarregadas.has(a)) return
     carregando.value = true
     erro.value = null
     try {
-        const [, , , , , , , fps] = await Promise.all([
-            carregarCirurgias(),
-            carregarValores(),
-            carregarLocais(),
-            carregarEquipes(),
-            carregarImplantes(),
-            carregarProdutos(),
-            carregarConfigsPagamento(),
-            formaPagamentoService.listar(),
-        ])
-        formasPagamento.value = fps
+        await carregadoresPorAba[a]()
+        abasCarregadas.add(a)
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar configurações."
     } finally {
@@ -397,7 +402,13 @@ async function carregarTudo() {
     }
 }
 
-onMounted(carregarTudo)
+watch(aba, garantirAba, { immediate: true })
+
+onMounted(async () => {
+    try {
+        formasPagamento.value = await formaPagamentoService.listar()
+    } catch { /* formas de pagamento não bloqueiam a view */ }
+})
 </script>
 
 <template>

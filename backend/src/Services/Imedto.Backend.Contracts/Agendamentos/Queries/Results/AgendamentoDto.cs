@@ -1,5 +1,13 @@
 namespace Imedto.Backend.Contracts.Agendamentos.Queries.Results;
 
+public class PaginaAgendamentosDto
+{
+    public IEnumerable<AgendamentoDto> Itens { get; set; } = Array.Empty<AgendamentoDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
 public class AgendamentoDto
 {
     public long Id { get; set; }

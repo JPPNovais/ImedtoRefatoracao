@@ -1,5 +1,13 @@
 namespace Imedto.Backend.Contracts.Agendamentos.Queries.Results;
 
+public class PaginaListaEsperaDto
+{
+    public IEnumerable<ListaEsperaItemDto> Itens { get; set; } = Array.Empty<ListaEsperaItemDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
 public class ListaEsperaItemDto
 {
     public long Id { get; set; }

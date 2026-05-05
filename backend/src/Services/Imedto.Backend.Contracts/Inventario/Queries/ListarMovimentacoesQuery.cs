@@ -3,11 +3,12 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Contracts.Inventario.Queries;
 
-public class ListarMovimentacoesQuery : IQuery<IEnumerable<MovimentacaoEstoqueDto>>
+public class ListarMovimentacoesQuery : IQuery<PaginaMovimentacoesEstoqueDto>
 {
     public long EstabelecimentoId { get; set; }
     public long? ItemInventarioId { get; set; }
     public DateOnly? DataInicio { get; set; }
     public DateOnly? DataFim { get; set; }
-    public int Limite { get; set; } = 100;
+    public int Pagina { get; set; } = 1;
+    public int TamanhoPagina { get; set; } = 20;
 }

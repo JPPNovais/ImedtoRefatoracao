@@ -5,10 +5,10 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Application.Agendamentos.Queries;
 
-public class ListarListaEsperaQueryHandler : IRequestHandler<ListarListaEsperaQuery, IEnumerable<ListaEsperaItemDto>>
+public class ListarListaEsperaQueryHandler : IRequestHandler<ListarListaEsperaQuery, PaginaListaEsperaDto>
 {
     private readonly ListaEsperaQueryRepository _repo;
     public ListarListaEsperaQueryHandler(ListaEsperaQueryRepository repo) => _repo = repo;
-    public Task<IEnumerable<ListaEsperaItemDto>> Handle(ListarListaEsperaQuery q)
-        => _repo.Listar(q.EstabelecimentoId);
+    public Task<PaginaListaEsperaDto> Handle(ListarListaEsperaQuery q)
+        => _repo.Listar(q.EstabelecimentoId, q.Pagina, q.TamanhoPagina);
 }

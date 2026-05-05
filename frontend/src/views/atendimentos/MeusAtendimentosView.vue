@@ -37,10 +37,11 @@ async function carregar() {
     carregando.value = true
     erro.value = null
     try {
-        agendamentos.value = await agendaService.listar({
+        const pg = await agendaService.listar({
             dataInicio: dataSel.value,
             dataFim:    dataSel.value,
         })
+        agendamentos.value = pg.itens
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar atendimentos."
     } finally {

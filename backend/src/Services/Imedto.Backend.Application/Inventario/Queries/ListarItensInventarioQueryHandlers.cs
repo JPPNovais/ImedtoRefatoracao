@@ -5,13 +5,19 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Application.Inventario.Queries;
 
-public class ListarItensInventarioQueryHandlers : IRequestHandler<ListarItensInventarioQuery, IEnumerable<ItemInventarioDto>>
+public class ListarItensInventarioQueryHandlers : IRequestHandler<ListarItensInventarioQuery, PaginaItensInventarioDto>
 {
     private readonly InventarioQueryRepository _repo;
 
     public ListarItensInventarioQueryHandlers(InventarioQueryRepository repo)
         => _repo = repo;
 
-    public Task<IEnumerable<ItemInventarioDto>> Handle(ListarItensInventarioQuery query)
-        => _repo.ListarItens(query.EstabelecimentoId, query.Categoria, query.ApenasAbaixoMinimo, query.ApenasAtivos);
+    public Task<PaginaItensInventarioDto> Handle(ListarItensInventarioQuery query)
+        => _repo.ListarItens(
+            query.EstabelecimentoId,
+            query.Categoria,
+            query.ApenasAbaixoMinimo,
+            query.ApenasAtivos,
+            query.Pagina,
+            query.TamanhoPagina);
 }

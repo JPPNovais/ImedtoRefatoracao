@@ -5,19 +5,21 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Application.Agendamentos.Queries;
 
-public class ListarAgendamentosQueryHandlers : IRequestHandler<ListarAgendamentosQuery, IEnumerable<AgendamentoDto>>
+public class ListarAgendamentosQueryHandlers : IRequestHandler<ListarAgendamentosQuery, PaginaAgendamentosDto>
 {
     private readonly AgendamentoQueryRepository _repo;
 
     public ListarAgendamentosQueryHandlers(AgendamentoQueryRepository repo)
         => _repo = repo;
 
-    public Task<IEnumerable<AgendamentoDto>> Handle(ListarAgendamentosQuery query)
+    public Task<PaginaAgendamentosDto> Handle(ListarAgendamentosQuery query)
         => _repo.Listar(
             query.EstabelecimentoId,
             query.DataInicio,
             query.DataFim,
             query.ProfissionalUsuarioId,
             query.PacienteId,
-            query.Status);
+            query.Status,
+            query.Pagina,
+            query.TamanhoPagina);
 }

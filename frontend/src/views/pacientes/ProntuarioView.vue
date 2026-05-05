@@ -77,20 +77,22 @@ async function carregar() {
     carregando.value = true
     erro.value = null
     try {
-        paciente.value = await pacienteService.obter(pacienteId.value)
-        if (eventoId.value) {
-            try { agendamento.value = await agendaService.obter(eventoId.value) }
-            catch { agendamento.value = null }
-        }
-        const [prontuarioCarregado, modelos] = await Promise.all([
+        // Paraleliza todos os fetches independentes: paciente, agendamento (se houver),
+        // prontuário e modelos rodam ao mesmo tempo.
+        const [pacienteCarregado, agendamentoCarregado, prontuarioCarregado, modelos] = await Promise.all([
+            pacienteService.obter(pacienteId.value),
+            eventoId.value
+                ? agendaService.obter(eventoId.value).catch(() => null)
+                : Promise.resolve(null),
             prontuarioService.obter(pacienteId.value),
             prontuarioService.listarModelos(),
         ])
+        paciente.value    = pacienteCarregado
+        agendamento.value = agendamentoCarregado
         modelosDisponiveis.value = modelos
         pront.value = prontuarioCarregado
         if (pront.value) {
             modeloConsultaAtual.value = pront.value.prontuario.modeloDeProntuarioId
-            anexos.value = await prontuarioService.listarAnexos(pacienteId.value)
             inicializarFormEvolucao()
         } else {
             modeloEscolhido.value = modelos.length > 0 ? modelos[0].id : null
@@ -101,6 +103,21 @@ async function carregar() {
         carregando.value = false
     }
 }
+
+// ─── Carregamento de anexos sob demanda (aba "anteriores") ────────────────────
+const abasCarregadas = new Set<AbaProntuario>()
+
+async function garantirAba(a: AbaProntuario) {
+    if (abasCarregadas.has(a)) return
+    if (a === "anteriores" && pront.value) {
+        try {
+            anexos.value = await prontuarioService.listarAnexos(pacienteId.value)
+        } catch { /* sem anexos */ }
+        abasCarregadas.add("anteriores")
+    }
+}
+
+watch(abaAtiva, garantirAba, { immediate: true })
 
 function inicializarFormEvolucao() {
     for (const k of Object.keys(novaEvolucao)) delete novaEvolucao[k]

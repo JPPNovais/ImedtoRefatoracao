@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { AppCard, AppButton, AppEmptyState } from "@/components/ui"
 import PacienteEditDrawer from "@/components/pacientes/PacienteEditDrawer.vue"
@@ -34,20 +34,32 @@ async function carregar() {
     } finally {
         carregando.value = false
     }
-
-    // Prontuário (existente ou não) — se existir, contar evoluções.
-    try {
-        const p = await prontuarioService.obter(pacienteId.value)
-        totalProntuarios.value = p?.evolucoes?.length ?? 0
-    } catch { /* sem prontuário ainda */ }
-
-    // Orçamentos desse paciente
-    carregandoOrc.value = true
-    try {
-        orcamentos.value = await orcamentoService.listar({ pacienteId: pacienteId.value })
-    } catch { /* ok */ }
-    finally { carregandoOrc.value = false }
 }
+
+// ─── Carregamento sob demanda por aba ─────────────────────────────────────────
+const abasCarregadas = new Set<Aba>()
+
+async function garantirAba(a: Aba) {
+    if (abasCarregadas.has(a)) return
+    if (a === "prontuarios") {
+        // TODO: criar endpoint GET /prontuario/{id}/contagem para evitar baixar o prontuário
+        // completo apenas para exibir o badge de totalProntuarios.
+        try {
+            const p = await prontuarioService.obter(pacienteId.value)
+            totalProntuarios.value = p?.evolucoes?.length ?? 0
+        } catch { /* sem prontuário ainda */ }
+        abasCarregadas.add("prontuarios")
+    } else if (a === "orcamentos") {
+        carregandoOrc.value = true
+        try {
+            orcamentos.value = await orcamentoService.listar({ pacienteId: pacienteId.value })
+        } catch { /* ok */ }
+        finally { carregandoOrc.value = false }
+        abasCarregadas.add("orcamentos")
+    }
+}
+
+watch(aba, garantirAba, { immediate: true })
 
 onMounted(carregar)
 

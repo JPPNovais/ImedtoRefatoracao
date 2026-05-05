@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, watch } from "vue"
 import { financeiroService, type Lancamento, type ResumoFinanceiro } from "@/services/financeiroService"
-import { AppButton, AppField, AppInput, AppModal, AppSelect } from "@/components/ui"
+import { AppButton, AppField, AppInput, AppModal, AppPagination, AppSelect } from "@/components/ui"
 
 const lancamentos = ref<Lancamento[]>([])
+const total = ref(0)
+const pagina = ref(1)
+const tamanho = ref(20)
 const resumo = ref<ResumoFinanceiro>({ totalReceitasPagas: 0, totalDespesasPagas: 0, saldo: 0, receitasPendentes: 0, despesasPendentes: 0 })
 const carregando = ref(false)
 const erro = ref<string | null>(null)
@@ -35,14 +38,19 @@ async function carregar() {
             status: filtroStatus.value || undefined,
             dataInicio: filtroDataInicio.value || undefined,
             dataFim: filtroDataFim.value || undefined,
+            pagina: pagina.value,
+            tamanho: tamanho.value,
         }
-        ;[lancamentos.value, resumo.value] = await Promise.all([
+        const [pg, res] = await Promise.all([
             financeiroService.listar(params),
             financeiroService.resumo({
                 dataInicio: filtroDataInicio.value || undefined,
                 dataFim: filtroDataFim.value || undefined,
             }),
         ])
+        lancamentos.value = pg.itens
+        total.value = pg.total
+        resumo.value = res
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar dados financeiros."
     } finally {
@@ -50,8 +58,10 @@ async function carregar() {
     }
 }
 
-onMounted(carregar)
-watch([filtroTipo, filtroStatus, filtroDataInicio, filtroDataFim], carregar)
+watch([filtroTipo, filtroStatus, filtroDataInicio, filtroDataFim], () => {
+    pagina.value = 1
+})
+watch([filtroTipo, filtroStatus, filtroDataInicio, filtroDataFim, pagina, tamanho], carregar, { immediate: true })
 
 function abrirModalCriar() {
     formCriar.value = { tipo: "Receita", descricao: "", valor: 0, dataVencimento: "", categoria: "" }
@@ -221,6 +231,17 @@ const vencidoPendente = (l: Lancamento) =>
         </table>
         <p v-else-if="!carregando" class="vazio">Nenhum lançamento encontrado.</p>
 
+        <AppPagination
+            v-if="total > 0"
+            :pagina="pagina"
+            :tamanho="tamanho"
+            :total="total"
+            rotulo-itens="lançamentos"
+            class="paginacao"
+            @update:pagina="pagina = $event"
+            @update:tamanho="tamanho = $event"
+        />
+
         <!-- Modal criar -->
         <AppModal
             :aberto="modalCriar"
@@ -335,4 +356,5 @@ tr.cancelado { opacity: 0.5; }
 .erro { color: #b00020; font-size: 0.9em; }
 .info { color: #6b7280; }
 .vazio { color: #9ca3af; font-style: italic; margin-top: 1.5rem; }
+.paginacao { margin-top: 1rem; }
 </style>

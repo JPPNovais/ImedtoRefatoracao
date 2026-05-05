@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Financeiro.Queries.Results;
+using Imedto.Backend.SharedKernel.Domain;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -10,18 +11,36 @@ public class FinanceiroQueryRepository
 
     public FinanceiroQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
 
-    public async Task<IEnumerable<LancamentoDto>> Listar(
+    public async Task<PaginaLancamentosDto> Listar(
         long estabelecimentoId,
         string? tipo,
         string? status,
         string? categoria,
         DateOnly? dataInicio,
-        DateOnly? dataFim)
+        DateOnly? dataFim,
+        int pagina,
+        int tamanhoPagina)
     {
+        if (pagina < 1) throw new BusinessException("Página deve ser maior ou igual a 1.");
+        if (tamanhoPagina < 1 || tamanhoPagina > 100)
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
+
+        var offset = (pagina - 1) * tamanhoPagina;
+
         await using var conn = new NpgsqlConnection(_connStr);
 
         // SELECT minimizado (LGPD): l.estabelecimento_id removido (vem da rota).
+        // Count + página em um único round-trip via QueryMultiple.
         const string sql = """
+            SELECT count(*)
+            FROM   lancamentos l
+            WHERE  l.estabelecimento_id = @EstabelecimentoId
+              AND  (@Tipo::text      IS NULL OR l.tipo = @Tipo::text)
+              AND  (@Status::text    IS NULL OR l.status = @Status::text)
+              AND  (@Categoria::text IS NULL OR l.categoria = @Categoria::text)
+              AND  (@DataInicio::date IS NULL OR l.data_vencimento >= @DataInicio::date)
+              AND  (@DataFim::date    IS NULL OR l.data_vencimento <= @DataFim::date);
+
             SELECT
                 l.id                    AS Id,
                 l.tipo                  AS Tipo,
@@ -45,17 +64,33 @@ public class FinanceiroQueryRepository
               AND (@DataInicio::date IS NULL OR l.data_vencimento >= @DataInicio::date)
               AND (@DataFim::date    IS NULL OR l.data_vencimento <= @DataFim::date)
             ORDER BY l.data_vencimento DESC, l.id DESC
+            LIMIT  @Tamanho
+            OFFSET @Offset;
             """;
 
-        return await conn.QueryAsync<LancamentoDto>(sql, new
+        var parametros = new
         {
             EstabelecimentoId = estabelecimentoId,
             Tipo = tipo,
             Status = status,
             Categoria = categoria,
             DataInicio = dataInicio.HasValue ? (DateTime?)dataInicio.Value.ToDateTime(TimeOnly.MinValue) : null,
-            DataFim = dataFim.HasValue ? (DateTime?)dataFim.Value.ToDateTime(TimeOnly.MinValue) : null
-        });
+            DataFim = dataFim.HasValue ? (DateTime?)dataFim.Value.ToDateTime(TimeOnly.MinValue) : null,
+            Tamanho = tamanhoPagina,
+            Offset = offset
+        };
+
+        await using var multi = await conn.QueryMultipleAsync(sql, parametros);
+        var total = await multi.ReadSingleAsync<int>();
+        var itens = await multi.ReadAsync<LancamentoDto>();
+
+        return new PaginaLancamentosDto
+        {
+            Itens = itens.ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina
+        };
     }
 
     public async Task<ResumoFinanceiroDto> ObterResumo(

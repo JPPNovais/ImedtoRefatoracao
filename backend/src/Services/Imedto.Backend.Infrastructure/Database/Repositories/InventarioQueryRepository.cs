@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Inventario.Queries.Results;
+using Imedto.Backend.SharedKernel.Domain;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -10,17 +11,32 @@ public class InventarioQueryRepository
 
     public InventarioQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
 
-    public async Task<IEnumerable<ItemInventarioDto>> ListarItens(
+    public async Task<PaginaItensInventarioDto> ListarItens(
         long estabelecimentoId,
         string? categoria,
         bool? apenasAbaixoMinimo,
-        bool? apenasAtivos)
+        bool? apenasAtivos,
+        int pagina,
+        int tamanhoPagina)
     {
+        if (pagina < 1) throw new BusinessException("Página deve ser maior ou igual a 1.");
+        if (tamanhoPagina < 1 || tamanhoPagina > 100)
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
+
+        var offset = (pagina - 1) * tamanhoPagina;
+
         await using var conn = new NpgsqlConnection(_connStr);
 
         // SELECT minimizado (LGPD): estabelecimento_id e atualizado_em removidos —
         // front nao consome (so estavam na interface TS).
         const string sql = """
+            SELECT count(*)
+            FROM   itens_inventario i
+            WHERE  i.estabelecimento_id = @EstabelecimentoId
+              AND  (@Categoria::text          IS NULL OR i.categoria = @Categoria::text)
+              AND  (@ApenasAbaixoMinimo::boolean IS NULL OR NOT @ApenasAbaixoMinimo::boolean OR i.quantidade_atual < i.quantidade_minima)
+              AND  (@ApenasAtivos::boolean       IS NULL OR i.ativo = @ApenasAtivos::boolean);
+
             SELECT
                 i.id                                        AS Id,
                 i.codigo                                    AS Codigo,
@@ -39,27 +55,58 @@ public class InventarioQueryRepository
               AND (@ApenasAbaixoMinimo::boolean IS NULL OR NOT @ApenasAbaixoMinimo::boolean OR i.quantidade_atual < i.quantidade_minima)
               AND (@ApenasAtivos::boolean       IS NULL OR i.ativo = @ApenasAtivos::boolean)
             ORDER BY i.categoria, i.nome
+            LIMIT  @Tamanho
+            OFFSET @Offset;
             """;
 
-        return await conn.QueryAsync<ItemInventarioDto>(sql, new
+        var parametros = new
         {
             EstabelecimentoId = estabelecimentoId,
             Categoria = categoria,
             ApenasAbaixoMinimo = apenasAbaixoMinimo,
-            ApenasAtivos = apenasAtivos
-        });
+            ApenasAtivos = apenasAtivos,
+            Tamanho = tamanhoPagina,
+            Offset = offset
+        };
+
+        await using var multi = await conn.QueryMultipleAsync(sql, parametros);
+        var total = await multi.ReadSingleAsync<int>();
+        var itens = await multi.ReadAsync<ItemInventarioDto>();
+
+        return new PaginaItensInventarioDto
+        {
+            Itens = itens.ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina
+        };
     }
 
-    public async Task<IEnumerable<MovimentacaoEstoqueDto>> ListarMovimentacoes(
+    public async Task<PaginaMovimentacoesEstoqueDto> ListarMovimentacoes(
         long estabelecimentoId,
         long? itemInventarioId,
         DateOnly? dataInicio,
         DateOnly? dataFim,
-        int? limite)
+        int pagina,
+        int tamanhoPagina)
     {
+        if (pagina < 1) throw new BusinessException("Página deve ser maior ou igual a 1.");
+        if (tamanhoPagina < 1 || tamanhoPagina > 100)
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
+
+        var offset = (pagina - 1) * tamanhoPagina;
+
         await using var conn = new NpgsqlConnection(_connStr);
 
-        var sql = $"""
+        const string sql = """
+            SELECT count(*)
+            FROM   movimentacoes_estoque m
+            WHERE  m.estabelecimento_id = @EstabelecimentoId
+              AND  m.deletado_em IS NULL
+              AND  (@ItemInventarioId::bigint IS NULL OR m.item_inventario_id = @ItemInventarioId::bigint)
+              AND  (@DataInicio::timestamptz  IS NULL OR m.criado_em >= @DataInicio::timestamptz)
+              AND  (@DataFim::timestamptz     IS NULL OR m.criado_em <= @DataFim::timestamptz);
+
             SELECT
                 m.id                    AS Id,
                 m.item_inventario_id    AS ItemInventarioId,
@@ -82,15 +129,30 @@ public class InventarioQueryRepository
               AND (@DataInicio::timestamptz  IS NULL OR m.criado_em >= @DataInicio::timestamptz)
               AND (@DataFim::timestamptz     IS NULL OR m.criado_em <= @DataFim::timestamptz)
             ORDER BY m.criado_em DESC
-            {(limite.HasValue ? $"LIMIT {limite.Value}" : "")}
+            LIMIT  @Tamanho
+            OFFSET @Offset;
             """;
 
-        return await conn.QueryAsync<MovimentacaoEstoqueDto>(sql, new
+        var parametros = new
         {
             EstabelecimentoId = estabelecimentoId,
             ItemInventarioId = itemInventarioId,
             DataInicio = dataInicio.HasValue ? (DateTime?)dataInicio.Value.ToDateTime(TimeOnly.MinValue) : null,
-            DataFim = dataFim.HasValue ? (DateTime?)dataFim.Value.ToDateTime(TimeOnly.MaxValue) : null
-        });
+            DataFim = dataFim.HasValue ? (DateTime?)dataFim.Value.ToDateTime(TimeOnly.MaxValue) : null,
+            Tamanho = tamanhoPagina,
+            Offset = offset
+        };
+
+        await using var multi = await conn.QueryMultipleAsync(sql, parametros);
+        var total = await multi.ReadSingleAsync<int>();
+        var itens = await multi.ReadAsync<MovimentacaoEstoqueDto>();
+
+        return new PaginaMovimentacoesEstoqueDto
+        {
+            Itens = itens.ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina
+        };
     }
 }

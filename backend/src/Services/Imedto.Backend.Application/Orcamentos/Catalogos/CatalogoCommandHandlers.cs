@@ -7,15 +7,6 @@ using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Application.Orcamentos.Catalogos;
 
-internal static class CatalogoTenantGuard
-{
-    public static void Verificar<T>(long entidadeEstabId, long requestEstabId)
-    {
-        if (entidadeEstabId != requestEstabId)
-            throw new BusinessException("Registro não encontrado neste estabelecimento.");
-    }
-}
-
 // ──────────── Cirurgias ────────────
 
 public class CriarCatalogoCirurgiaCommandHandler : ICommandHandler<CriarCatalogoCirurgiaCommand>
@@ -38,8 +29,9 @@ public class AtualizarCatalogoCirurgiaCommandHandler : ICommandHandler<Atualizar
 
     public async Task Handle(AtualizarCatalogoCirurgiaCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Cirurgia não encontrada.");
-        CatalogoTenantGuard.Verificar<CatalogoCirurgia>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Cirurgia não encontrada.");
         entity.Atualizar(cmd.Descricao, cmd.ValorBase, cmd.DuracaoPadraoMinutos);
         await _repo.Salvar(entity);
     }
@@ -52,8 +44,9 @@ public class RemoverCatalogoCirurgiaCommandHandler : ICommandHandler<RemoverCata
 
     public async Task Handle(RemoverCatalogoCirurgiaCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Cirurgia não encontrada.");
-        CatalogoTenantGuard.Verificar<CatalogoCirurgia>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Cirurgia não encontrada.");
         // Soft-delete via Inativar — preserva histórico de orçamentos antigos.
         entity.Inativar();
         await _repo.Salvar(entity);
@@ -85,8 +78,9 @@ public class AtualizarValorProfissionalCommandHandler : ICommandHandler<Atualiza
 
     public async Task Handle(AtualizarValorProfissionalCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Valor profissional não encontrado.");
-        CatalogoTenantGuard.Verificar<ValorProfissionalOrcamento>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Valor profissional não encontrado.");
         entity.Atualizar(cmd.Funcao, cmd.TempoBaseMinutos, cmd.ValorTempoBase,
             cmd.TempoAdicionalMinutos, cmd.ValorAdicional, cmd.ValorPlus);
         await _repo.Salvar(entity);
@@ -100,8 +94,9 @@ public class RemoverValorProfissionalCommandHandler : ICommandHandler<RemoverVal
 
     public async Task Handle(RemoverValorProfissionalCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Valor profissional não encontrado.");
-        CatalogoTenantGuard.Verificar<ValorProfissionalOrcamento>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Valor profissional não encontrado.");
         entity.Inativar();
         await _repo.Salvar(entity);
     }
@@ -158,8 +153,9 @@ public class AtualizarCatalogoEquipeCommandHandler : ICommandHandler<AtualizarCa
 
     public async Task Handle(AtualizarCatalogoEquipeCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Equipe não encontrada.");
-        CatalogoTenantGuard.Verificar<CatalogoEquipeEspecializada>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Equipe não encontrada.");
         entity.Atualizar(cmd.Descricao, cmd.ValorPadrao);
         await _repo.Salvar(entity);
     }
@@ -172,8 +168,9 @@ public class RemoverCatalogoEquipeCommandHandler : ICommandHandler<RemoverCatalo
 
     public async Task Handle(RemoverCatalogoEquipeCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Equipe não encontrada.");
-        CatalogoTenantGuard.Verificar<CatalogoEquipeEspecializada>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Equipe não encontrada.");
         entity.Inativar();
         await _repo.Salvar(entity);
     }
@@ -218,8 +215,9 @@ public class AtualizarCatalogoImplanteCommandHandler : ICommandHandler<Atualizar
 
     public async Task Handle(AtualizarCatalogoImplanteCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Implante não encontrado.");
-        CatalogoTenantGuard.Verificar<CatalogoImplante>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Implante não encontrado.");
 
         if (cmd.ItemInventarioId is { } invId)
         {
@@ -240,8 +238,9 @@ public class RemoverCatalogoImplanteCommandHandler : ICommandHandler<RemoverCata
 
     public async Task Handle(RemoverCatalogoImplanteCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Implante não encontrado.");
-        CatalogoTenantGuard.Verificar<CatalogoImplante>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Implante não encontrado.");
         entity.Inativar();
         await _repo.Salvar(entity);
     }
@@ -272,9 +271,9 @@ public class AtualizarConfiguracaoPagamentoCommandHandler : ICommandHandler<Atua
 
     public async Task Handle(AtualizarConfiguracaoPagamentoCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Configuração de pagamento não encontrada.");
-        CatalogoTenantGuard.Verificar<ConfiguracaoPagamentoCatalogo>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
         entity.Atualizar(cmd.AcrescimoPercentual, cmd.EntradaPercentualPadrao, cmd.TaxaParcela, cmd.ParcelasMaximas);
         await _repo.Salvar(entity);
     }
@@ -302,8 +301,9 @@ public class AtualizarCatalogoProdutoCommandHandler : ICommandHandler<AtualizarC
 
     public async Task Handle(AtualizarCatalogoProdutoCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Produto não encontrado.");
-        CatalogoTenantGuard.Verificar<CatalogoProduto>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Produto não encontrado.");
         entity.Atualizar(cmd.Nome, cmd.Descricao, cmd.ValorReferencia, cmd.UsoUnico);
         await _repo.Salvar(entity);
     }
@@ -316,8 +316,9 @@ public class RemoverCatalogoProdutoCommandHandler : ICommandHandler<RemoverCatal
 
     public async Task Handle(RemoverCatalogoProdutoCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id) ?? throw new BusinessException("Produto não encontrado.");
-        CatalogoTenantGuard.Verificar<CatalogoProduto>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Produto não encontrado.");
         entity.Inativar();
         await _repo.Salvar(entity);
     }
@@ -342,16 +343,14 @@ public class VincularProdutoCirurgiaCommandHandler : ICommandHandler<VincularPro
 
     public async Task Handle(VincularProdutoCirurgiaCommand cmd)
     {
-        // Tenant guard via cirurgia + produto.
-        var cirurgia = await _cirRepo.ObterPorIdOuNulo(cmd.CatalogoCirurgiaId)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId nos proprios repos.
+        // Como Cirurgia e Produto sao per-tenant, o filtro la ja garante o isolamento do
+        // vinculo (que e associativo e nao tem EstabelecimentoId proprio).
+        _ = await _cirRepo.ObterPorIdOuNulo(cmd.CatalogoCirurgiaId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Cirurgia não encontrada.");
-        if (cirurgia.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Cirurgia não pertence a este estabelecimento.");
 
-        var produto = await _prodRepo.ObterPorIdOuNulo(cmd.CatalogoProdutoId)
+        _ = await _prodRepo.ObterPorIdOuNulo(cmd.CatalogoProdutoId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Produto não encontrado.");
-        if (produto.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Produto não pertence a este estabelecimento.");
 
         // Idempotência: se já existe o vínculo, atualiza qtd em vez de duplicar.
         var existente = await _vincRepo.ObterPorCirurgiaProduto(cmd.CatalogoCirurgiaId, cmd.CatalogoProdutoId);
@@ -385,10 +384,10 @@ public class AtualizarVinculoProdutoCirurgiaCommandHandler : ICommandHandler<Atu
     {
         var vinc = await _vincRepo.ObterPorIdOuNulo(cmd.VinculoId)
             ?? throw new BusinessException("Vínculo não encontrado.");
-        var cirurgia = await _cirRepo.ObterPorIdOuNulo(vinc.CatalogoCirurgiaId)
-            ?? throw new BusinessException("Cirurgia não encontrada.");
-        if (cirurgia.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Vínculo não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: cirurgia carregada com filtro de estabelecimento;
+        // se o vinculo aponta para cirurgia de outro tenant, retorna null e mensagem padronizada.
+        _ = await _cirRepo.ObterPorIdOuNulo(vinc.CatalogoCirurgiaId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Vínculo não encontrado.");
 
         vinc.AtualizarQuantidade(cmd.QuantidadePadrao, cmd.Obrigatorio);
         await _vincRepo.Salvar(vinc);
@@ -411,10 +410,9 @@ public class DesvincularProdutoCirurgiaCommandHandler : ICommandHandler<Desvincu
     {
         var vinc = await _vincRepo.ObterPorIdOuNulo(cmd.VinculoId)
             ?? throw new BusinessException("Vínculo não encontrado.");
-        var cirurgia = await _cirRepo.ObterPorIdOuNulo(vinc.CatalogoCirurgiaId)
-            ?? throw new BusinessException("Cirurgia não encontrada.");
-        if (cirurgia.EstabelecimentoId != cmd.EstabelecimentoId)
-            throw new BusinessException("Vínculo não pertence a este estabelecimento.");
+        // Defense-in-depth multi-tenant: cirurgia carregada com filtro de estabelecimento.
+        _ = await _cirRepo.ObterPorIdOuNulo(vinc.CatalogoCirurgiaId, cmd.EstabelecimentoId)
+            ?? throw new BusinessException("Vínculo não encontrado.");
         await _vincRepo.Remover(vinc);
     }
 }
@@ -426,9 +424,9 @@ public class RemoverConfiguracaoPagamentoCommandHandler : ICommandHandler<Remove
 
     public async Task Handle(RemoverConfiguracaoPagamentoCommand cmd)
     {
-        var entity = await _repo.ObterPorIdOuNulo(cmd.Id)
+        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
+        var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Configuração de pagamento não encontrada.");
-        CatalogoTenantGuard.Verificar<ConfiguracaoPagamentoCatalogo>(entity.EstabelecimentoId, cmd.EstabelecimentoId);
         entity.Inativar();
         await _repo.Salvar(entity);
     }

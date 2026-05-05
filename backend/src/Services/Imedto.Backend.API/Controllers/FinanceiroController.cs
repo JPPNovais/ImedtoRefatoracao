@@ -28,14 +28,16 @@ public class FinanceiroController : ControllerBase
     }
 
     [HttpGet("lancamentos")]
-    public async Task<ActionResult<IEnumerable<LancamentoDto>>> Listar(
+    public async Task<ActionResult<PaginaLancamentosDto>> Listar(
         [FromQuery] string? tipo,
         [FromQuery] string? status,
         [FromQuery] string? categoria,
         [FromQuery] DateOnly? dataInicio,
-        [FromQuery] DateOnly? dataFim)
+        [FromQuery] DateOnly? dataFim,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var result = await _query.Query<ListarLancamentosQuery, IEnumerable<LancamentoDto>>(
+        var result = await _query.Query<ListarLancamentosQuery, PaginaLancamentosDto>(
             new ListarLancamentosQuery
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
@@ -43,7 +45,9 @@ public class FinanceiroController : ControllerBase
                 Status = status,
                 Categoria = categoria,
                 DataInicio = dataInicio,
-                DataFim = dataFim
+                DataFim = dataFim,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
             });
         return Ok(result);
     }

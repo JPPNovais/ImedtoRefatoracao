@@ -1,5 +1,21 @@
 namespace Imedto.Backend.Contracts.Inventario.Queries.Results;
 
+public class PaginaItensInventarioDto
+{
+    public IEnumerable<ItemInventarioDto> Itens { get; set; } = Array.Empty<ItemInventarioDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
+public class PaginaMovimentacoesEstoqueDto
+{
+    public IEnumerable<MovimentacaoEstoqueDto> Itens { get; set; } = Array.Empty<MovimentacaoEstoqueDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
 public class ItemInventarioDto
 {
     public long Id { get; set; }

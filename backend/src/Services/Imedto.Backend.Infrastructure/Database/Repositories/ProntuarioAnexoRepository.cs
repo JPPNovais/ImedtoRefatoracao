@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Prontuarios;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -11,12 +12,9 @@ public class ProntuarioAnexoRepository : IProntuarioAnexoRepository
         _context = context;
     }
 
-    public async Task<ProntuarioAnexo> ObterPorId(long id)
-    {
-        var a = await _context.ProntuarioAnexos.FindAsync(id);
-        if (a is null) throw new KeyNotFoundException($"Anexo {id} não encontrado.");
-        return a;
-    }
+    public Task<ProntuarioAnexo?> ObterPorIdOuNulo(long id, long estabelecimentoId)
+        => _context.ProntuarioAnexos
+            .FirstOrDefaultAsync(a => a.Id == id && a.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(ProntuarioAnexo anexo)
     {

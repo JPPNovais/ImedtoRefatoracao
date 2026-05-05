@@ -2,7 +2,12 @@ namespace Imedto.Backend.Domain.Prontuarios;
 
 public interface IProntuarioAnexoRepository
 {
-    Task<ProntuarioAnexo> ObterPorId(long id);
+    /// <summary>
+    /// Carrega o anexo filtrando pelo tenant. Retorna <c>null</c> quando o anexo
+    /// não existe ou pertence a outro estabelecimento — defense-in-depth multi-tenant
+    /// para impedir IDOR em download/exclusão (LGPD: anexos podem indicar diagnóstico).
+    /// </summary>
+    Task<ProntuarioAnexo?> ObterPorIdOuNulo(long id, long estabelecimentoId);
     Task Salvar(ProntuarioAnexo anexo);
 }
 

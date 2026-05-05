@@ -3,7 +3,7 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Contracts.Agendamentos.Queries;
 
-public class ListarAgendamentosQuery : IQuery<IEnumerable<AgendamentoDto>>
+public class ListarAgendamentosQuery : IQuery<PaginaAgendamentosDto>
 {
     public long EstabelecimentoId { get; set; }
     public DateOnly? DataInicio { get; set; }
@@ -11,4 +11,6 @@ public class ListarAgendamentosQuery : IQuery<IEnumerable<AgendamentoDto>>
     public Guid? ProfissionalUsuarioId { get; set; }
     public long? PacienteId { get; set; }
     public string? Status { get; set; }
+    public int Pagina { get; set; } = 1;
+    public int TamanhoPagina { get; set; } = 20;
 }

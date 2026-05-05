@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Caching.Memory;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Usuarios;
@@ -20,20 +21,32 @@ namespace Imedto.Backend.API.Controllers;
 [AllowBeforeOnboarding]
 public class AuthController : ControllerBase
 {
+    /// <summary>
+    /// TTL do cache de /auth/me. Curto o suficiente para que mudanças em nome/telefone/onboarding
+    /// (já invalidadas pelas controllers que escrevem) só fiquem stale por no máximo 60s mesmo
+    /// que a invalidação por chave falhe ou que a edição venha de outro nó futuramente.
+    /// </summary>
+    private static readonly TimeSpan AuthMeCacheTtl = TimeSpan.FromSeconds(60);
+
+    internal static string AuthMeCacheKey(Guid usuarioId) => $"auth:me:{usuarioId}";
+
     private readonly IAuthService _authService;
     private readonly ICommandBus _commandBus;
     private readonly IUsuarioRepository _usuarioRepository;
+    private readonly IMemoryCache _cache;
     private readonly IWebHostEnvironment _env;
 
     public AuthController(
         IAuthService authService,
         ICommandBus commandBus,
         IUsuarioRepository usuarioRepository,
+        IMemoryCache cache,
         IWebHostEnvironment env)
     {
         _authService = authService;
         _commandBus = commandBus;
         _usuarioRepository = usuarioRepository;
+        _cache = cache;
         _env = env;
     }
 
@@ -144,25 +157,15 @@ public class AuthController : ControllerBase
         if (!Guid.TryParse(result.User.Id, out var userId))
             return Unauthorized();
 
-        var usuario = await _usuarioRepository.ObterPorIdOuNulo(userId);
-        if (usuario is null)
+        // Refresh recém-emitiu novo token: invalida o cache para que o próximo /me reflita
+        // qualquer alteração de domínio (ex: onboarding concluído num nó paralelo).
+        _cache.Remove(AuthMeCacheKey(userId));
+
+        var payload = await ObterMePayload(userId);
+        if (payload is null)
             return Unauthorized(new { mensagem = "Usuário não encontrado." });
 
-        // Payload minimizado (LGPD): cpf removido (nao usado pelo front) e
-        // ultimoAcessoEm removido (sem uso). Telefone mantido — eh round-trip
-        // do form em MinhaContaView (front precisa do valor existente para editar).
-        return Ok(new
-        {
-            usuario = new
-            {
-                id = usuario.Id,
-                email = usuario.Email,
-                nomeCompleto = usuario.NomeCompleto,
-                telefone = usuario.Telefone,
-                status = usuario.Status.ToString(),
-                onboardingCompleto = usuario.OnboardingCompleto
-            }
-        });
+        return Ok(new { usuario = payload });
     }
 
     /// <summary>Encerra a sessão, invalida o token no Supabase e limpa os cookies.</summary>
@@ -194,25 +197,42 @@ public class AuthController : ControllerBase
         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        var usuario = await _usuarioRepository.ObterPorIdOuNulo(userId);
-        if (usuario is null)
+        var payload = await ObterMePayload(userId);
+        if (payload is null)
             throw new BusinessException("Registro local do usuário não encontrado.");
+
+        return Ok(new { usuario = payload });
+    }
+
+    /// <summary>
+    /// Carrega o payload de /auth/me com cache em memória de 60s. O cache é invalidado
+    /// pelas controllers que mutam os campos retornados (UsuarioController, OnboardingController,
+    /// MinhaContaController) — ver <see cref="AuthMeCacheKey(Guid)"/>.
+    /// </summary>
+    private async Task<MeUsuarioPayload?> ObterMePayload(Guid userId)
+    {
+        var key = AuthMeCacheKey(userId);
+        if (_cache.TryGetValue<MeUsuarioPayload>(key, out var cached))
+            return cached;
+
+        // AsNoTracking: rota pura de leitura — não queremos pagar o overhead do change tracker.
+        var usuario = await _usuarioRepository.ObterPorIdParaLeitura(userId);
+        if (usuario is null)
+            return null;
 
         // Payload minimizado (LGPD): cpf removido (nao usado pelo front) e
         // ultimoAcessoEm removido (sem uso). Telefone mantido — eh round-trip
         // do form em MinhaContaView (front precisa do valor existente para editar).
-        return Ok(new
-        {
-            usuario = new
-            {
-                id = usuario.Id,
-                email = usuario.Email,
-                nomeCompleto = usuario.NomeCompleto,
-                telefone = usuario.Telefone,
-                status = usuario.Status.ToString(),
-                onboardingCompleto = usuario.OnboardingCompleto
-            }
-        });
+        var payload = new MeUsuarioPayload(
+            usuario.Id,
+            usuario.Email,
+            usuario.NomeCompleto,
+            usuario.Telefone,
+            usuario.Status.ToString(),
+            usuario.OnboardingCompleto);
+
+        _cache.Set(key, payload, AuthMeCacheTtl);
+        return payload;
     }
 
     // ---- Helpers ----
@@ -277,6 +297,19 @@ public class AuthController : ControllerBase
         Response.Cookies.Delete("refresh-token", new CookieOptions { Path = "/api/auth/refresh" });
     }
 }
+
+/// <summary>
+/// Forma serializada do usuário retornada por /auth/me e /auth/refresh.
+/// Mantida como record (imutável) para permitir caching seguro em memória.
+/// Os nomes de propriedade JSON ficam camelCase pelo `JsonSerializerOptions` global.
+/// </summary>
+internal record MeUsuarioPayload(
+    Guid Id,
+    string Email,
+    string NomeCompleto,
+    string Telefone,
+    string Status,
+    bool OnboardingCompleto);
 
 /// <summary>Payload de login.</summary>
 public record LoginRequest(string Email, string Password);

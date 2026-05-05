@@ -29,14 +29,16 @@ public class AgendamentoController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AgendamentoDto>>> Listar(
+    public async Task<ActionResult<PaginaAgendamentosDto>> Listar(
         [FromQuery] DateOnly? dataInicio,
         [FromQuery] DateOnly? dataFim,
         [FromQuery] Guid? profissionalUsuarioId,
         [FromQuery] long? pacienteId,
-        [FromQuery] string? status)
+        [FromQuery] string? status,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var result = await _query.Query<ListarAgendamentosQuery, IEnumerable<AgendamentoDto>>(
+        var result = await _query.Query<ListarAgendamentosQuery, PaginaAgendamentosDto>(
             new ListarAgendamentosQuery
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
@@ -44,7 +46,9 @@ public class AgendamentoController : ControllerBase
                 DataFim = dataFim,
                 ProfissionalUsuarioId = profissionalUsuarioId,
                 PacienteId = pacienteId,
-                Status = status
+                Status = status,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
             });
         return Ok(result);
     }
@@ -183,10 +187,17 @@ public class AgendamentoController : ControllerBase
     // ──────────── Lista de espera ────────────
 
     [HttpGet("lista-espera")]
-    public async Task<ActionResult<IEnumerable<ListaEsperaItemDto>>> ListarListaEspera()
+    public async Task<ActionResult<PaginaListaEsperaDto>> ListarListaEspera(
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var data = await _query.Query<ListarListaEsperaQuery, IEnumerable<ListaEsperaItemDto>>(
-            new ListarListaEsperaQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
+        var data = await _query.Query<ListarListaEsperaQuery, PaginaListaEsperaDto>(
+            new ListarListaEsperaQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
+            });
         return Ok(data);
     }
 

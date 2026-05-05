@@ -176,10 +176,11 @@ async function carregarDia() {
     carregando.value = true
     erro.value = null
     try {
-        agendamentos.value = await agendaService.listar({
+        const pg = await agendaService.listar({
             dataInicio: dataSel.value,
             dataFim: dataSel.value,
         })
+        agendamentos.value = pg.itens
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar agenda."
     } finally {
@@ -365,7 +366,8 @@ const listaEspera = ref<ListaEsperaItem[]>([])
 
 async function carregarListaEspera() {
     try {
-        listaEspera.value = await listaEsperaService.listar()
+        const pg = await listaEsperaService.listar()
+        listaEspera.value = pg.itens
     } catch { /* não crítico */ }
 }
 

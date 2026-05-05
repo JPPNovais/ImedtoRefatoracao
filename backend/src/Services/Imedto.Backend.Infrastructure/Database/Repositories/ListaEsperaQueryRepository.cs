@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
+using Imedto.Backend.SharedKernel.Domain;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -9,11 +10,22 @@ public class ListaEsperaQueryRepository
     private readonly string _connStr;
     public ListaEsperaQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
 
-    public async Task<IEnumerable<ListaEsperaItemDto>> Listar(long estabelecimentoId)
+    public async Task<PaginaListaEsperaDto> Listar(long estabelecimentoId, int pagina, int tamanhoPagina)
     {
+        if (pagina < 1) throw new BusinessException("Página deve ser maior ou igual a 1.");
+        if (tamanhoPagina < 1 || tamanhoPagina > 100)
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
+
+        var offset = (pagina - 1) * tamanhoPagina;
+
         await using var conn = new NpgsqlConnection(_connStr);
         // Filtra apenas entradas não atendidas. Calcula tempo decorrido em minutos.
         const string sql = """
+            SELECT count(*)
+            FROM   lista_espera_agendamento le
+            WHERE  le.estabelecimento_id = @EstabelecimentoId
+              AND  le.atendido_em IS NULL;
+
             SELECT
                 le.id                            AS Id,
                 le.paciente_id                   AS PacienteId,
@@ -38,7 +50,27 @@ public class ListaEsperaQueryRepository
                     ELSE 2
                 END,
                 le.criado_em ASC
+            LIMIT  @Tamanho
+            OFFSET @Offset;
             """;
-        return await conn.QueryAsync<ListaEsperaItemDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+
+        var parametros = new
+        {
+            EstabelecimentoId = estabelecimentoId,
+            Tamanho = tamanhoPagina,
+            Offset = offset
+        };
+
+        await using var multi = await conn.QueryMultipleAsync(sql, parametros);
+        var total = await multi.ReadSingleAsync<int>();
+        var itens = await multi.ReadAsync<ListaEsperaItemDto>();
+
+        return new PaginaListaEsperaDto
+        {
+            Itens = itens.ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina
+        };
     }
 }

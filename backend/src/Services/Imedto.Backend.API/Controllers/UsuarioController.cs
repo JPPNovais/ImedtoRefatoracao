@@ -42,6 +42,9 @@ public class UsuarioController : ControllerBase
             Telefone = request.Telefone
         });
 
+        // Invalida o cache de /auth/me — nome e telefone mudaram.
+        _cache.Remove(AuthController.AuthMeCacheKey(userId));
+
         return NoContent();
     }
 
@@ -67,6 +70,8 @@ public class UsuarioController : ControllerBase
         // Invalida cache do filtro de onboarding para que as próximas chamadas
         // (criar estabelecimento, salvar profissional, etc.) passem imediatamente.
         _cache.Remove($"onboarding:{userId}");
+        // E também o cache de /auth/me — onboardingCompleto, nome e telefone mudaram.
+        _cache.Remove(AuthController.AuthMeCacheKey(userId));
 
         return NoContent();
     }

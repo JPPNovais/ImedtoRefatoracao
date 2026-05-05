@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
+using Imedto.Backend.SharedKernel.Domain;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -12,17 +13,36 @@ public class AgendamentoQueryRepository
 
     public AgendamentoQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
 
-    public async Task<IEnumerable<AgendamentoDto>> Listar(
+    public async Task<PaginaAgendamentosDto> Listar(
         long estabelecimentoId,
         DateOnly? dataInicio,
         DateOnly? dataFim,
         Guid? profissionalUsuarioId,
         long? pacienteId,
-        string? status)
+        string? status,
+        int pagina,
+        int tamanhoPagina)
     {
+        if (pagina < 1) throw new BusinessException("Página deve ser maior ou igual a 1.");
+        if (tamanhoPagina < 1 || tamanhoPagina > 100)
+            throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
+
+        var offset = (pagina - 1) * tamanhoPagina;
+
         await using var conn = new NpgsqlConnection(_connStr);
 
-        var sql = """
+        // 2 queries num único round-trip via QueryMultiple — count + página.
+        // Mantém SELECT minimizado e evita o overhead de COUNT(*) OVER() em janelas grandes.
+        const string sql = """
+            SELECT count(*)
+            FROM   agendamentos a
+            WHERE  a.estabelecimento_id = @EstabelecimentoId
+              AND  (@DataInicio::timestamp           IS NULL OR a.inicio_previsto::date >= @DataInicio::date)
+              AND  (@DataFim::timestamp              IS NULL OR a.inicio_previsto::date <= @DataFim::date)
+              AND  (@ProfissionalUsuarioId::uuid     IS NULL OR a.profissional_usuario_id = @ProfissionalUsuarioId::uuid)
+              AND  (@PacienteId::bigint              IS NULL OR a.paciente_id = @PacienteId::bigint)
+              AND  (@Status::text                    IS NULL OR a.status = @Status::text);
+
             SELECT
                 a.id                    AS Id,
                 a.estabelecimento_id    AS EstabelecimentoId,
@@ -50,17 +70,33 @@ public class AgendamentoQueryRepository
               AND (@PacienteId::bigint              IS NULL OR a.paciente_id = @PacienteId::bigint)
               AND (@Status::text                    IS NULL OR a.status = @Status::text)
             ORDER BY a.inicio_previsto
+            LIMIT  @Tamanho
+            OFFSET @Offset;
             """;
 
-        return await conn.QueryAsync<AgendamentoDto>(sql, new
+        var parametros = new
         {
             EstabelecimentoId = estabelecimentoId,
             DataInicio = dataInicio.HasValue ? (DateTime?)dataInicio.Value.ToDateTime(TimeOnly.MinValue) : null,
             DataFim = dataFim.HasValue ? (DateTime?)dataFim.Value.ToDateTime(TimeOnly.MinValue) : null,
             ProfissionalUsuarioId = profissionalUsuarioId,
             PacienteId = pacienteId,
-            Status = status
-        });
+            Status = status,
+            Tamanho = tamanhoPagina,
+            Offset = offset
+        };
+
+        await using var multi = await conn.QueryMultipleAsync(sql, parametros);
+        var total = await multi.ReadSingleAsync<int>();
+        var itens = await multi.ReadAsync<AgendamentoDto>();
+
+        return new PaginaAgendamentosDto
+        {
+            Itens = itens.ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina
+        };
     }
 
     public async Task<IEnumerable<ContagemPorDiaDto>> ContarPorDia(

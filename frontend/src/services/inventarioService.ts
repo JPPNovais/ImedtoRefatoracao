@@ -30,13 +30,29 @@ export interface MovimentacaoEstoque {
     criadoEm: string
 }
 
+export interface PaginaItensInventario {
+    itens: ItemInventario[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
+export interface PaginaMovimentacoesEstoque {
+    itens: MovimentacaoEstoque[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 export const inventarioService = {
     async listarItens(params?: {
         categoria?: string
         apenasAbaixoMinimo?: boolean
         apenasAtivos?: boolean
-    }): Promise<ItemInventario[]> {
-        const { data } = await httpClient.get<ItemInventario[]>("/inventario/itens", { params })
+        pagina?: number
+        tamanho?: number
+    }): Promise<PaginaItensInventario> {
+        const { data } = await httpClient.get<PaginaItensInventario>("/inventario/itens", { params })
         return data
     },
 
@@ -70,9 +86,10 @@ export const inventarioService = {
         itemInventarioId?: number
         dataInicio?: string
         dataFim?: string
-        limite?: number
-    }): Promise<MovimentacaoEstoque[]> {
-        const { data } = await httpClient.get<MovimentacaoEstoque[]>("/inventario/movimentacoes", { params })
+        pagina?: number
+        tamanho?: number
+    }): Promise<PaginaMovimentacoesEstoque> {
+        const { data } = await httpClient.get<PaginaMovimentacoesEstoque>("/inventario/movimentacoes", { params })
         return data
     },
 

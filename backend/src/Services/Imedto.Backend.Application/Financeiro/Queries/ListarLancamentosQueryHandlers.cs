@@ -5,18 +5,20 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Application.Financeiro.Queries;
 
-public class ListarLancamentosQueryHandlers : IRequestHandler<ListarLancamentosQuery, IEnumerable<LancamentoDto>>
+public class ListarLancamentosQueryHandlers : IRequestHandler<ListarLancamentosQuery, PaginaLancamentosDto>
 {
     private readonly FinanceiroQueryRepository _repo;
 
     public ListarLancamentosQueryHandlers(FinanceiroQueryRepository repo) => _repo = repo;
 
-    public Task<IEnumerable<LancamentoDto>> Handle(ListarLancamentosQuery query)
+    public Task<PaginaLancamentosDto> Handle(ListarLancamentosQuery query)
         => _repo.Listar(
             query.EstabelecimentoId,
             query.Tipo,
             query.Status,
             query.Categoria,
             query.DataInicio,
-            query.DataFim);
+            query.DataFim,
+            query.Pagina,
+            query.TamanhoPagina);
 }

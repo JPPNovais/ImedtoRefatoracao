@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue"
+import { ref, computed, onMounted, watch } from "vue"
 import { inventarioService, type ItemInventario, type MovimentacaoEstoque } from "@/services/inventarioService"
-import { AppButton, AppField, AppInput, AppModal, AppPageHeader, AppSelect } from "@/components/ui"
+import { AppButton, AppField, AppInput, AppModal, AppPageHeader, AppPagination, AppSelect } from "@/components/ui"
 import { formatarMoedaBrl } from "@/utils/format"
 
 const itens = ref<ItemInventario[]>([])
+const totalItens = ref(0)
+const paginaItens = ref(1)
+const tamanhoItens = ref(20)
 const movimentacoes = ref<MovimentacaoEstoque[]>([])
 const carregando = ref(false)
 const erro = ref<string | null>(null)
@@ -52,13 +55,22 @@ async function carregar() {
     carregando.value = true
     erro.value = null
     try {
-        itens.value = await inventarioService.listarItens({ apenasAtivos: filtroInativos.value ? undefined : true })
+        const pg = await inventarioService.listarItens({
+            apenasAtivos: filtroInativos.value ? undefined : true,
+            pagina: paginaItens.value,
+            tamanho: tamanhoItens.value,
+        })
+        itens.value = pg.itens
+        totalItens.value = pg.total
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar inventário."
     } finally {
         carregando.value = false
     }
 }
+
+watch([paginaItens, tamanhoItens], carregar)
+watch(filtroInativos, () => { paginaItens.value = 1 })
 
 onMounted(carregar)
 
@@ -157,7 +169,8 @@ async function verHistorico(item: ItemInventario) {
     carregandoHist.value = true
     movimentacoes.value = []
     try {
-        movimentacoes.value = await inventarioService.listarMovimentacoes({ itemInventarioId: item.id, limite: 50 })
+        const pg = await inventarioService.listarMovimentacoes({ itemInventarioId: item.id, pagina: 1, tamanho: 50 })
+        movimentacoes.value = pg.itens
     } catch {
         movimentacoes.value = []
     } finally {
@@ -185,16 +198,16 @@ function formatarData(s: string) {
         <section class="kpis">
             <div class="kpi">
                 <span class="kpi-label">Itens em estoque</span>
-                <span class="kpi-valor">{{ itens.filter(i => i.ativo).length }}</span>
+                <span class="kpi-valor">{{ totalItens }}</span>
             </div>
             <div class="kpi" :class="{ 'kpi-alerta': itens.some(i => i.estoqueAbaixoMinimo) }">
-                <span class="kpi-label">Produtos abaixo do mínimo</span>
+                <span class="kpi-label">Abaixo do mínimo (página)</span>
                 <span class="kpi-valor" :class="{ vermelho: itens.some(i => i.estoqueAbaixoMinimo) }">
                     {{ itens.filter(i => i.estoqueAbaixoMinimo).length }}
                 </span>
             </div>
             <div class="kpi">
-                <span class="kpi-label">Categorias</span>
+                <span class="kpi-label">Categorias (página)</span>
                 <span class="kpi-valor">{{ categorias.length }}</span>
             </div>
         </section>
@@ -209,7 +222,7 @@ function formatarData(s: string) {
                 Apenas abaixo do mínimo
             </label>
             <label>
-                <input type="checkbox" v-model="filtroInativos" @change="carregar" />
+                <input type="checkbox" v-model="filtroInativos" />
                 Incluir inativos
             </label>
         </section>
@@ -262,6 +275,17 @@ function formatarData(s: string) {
             </tbody>
         </table>
         <p v-else-if="!carregando" class="vazio">Nenhum item encontrado.</p>
+
+        <AppPagination
+            v-if="totalItens > 0"
+            :pagina="paginaItens"
+            :tamanho="tamanhoItens"
+            :total="totalItens"
+            rotulo-itens="itens"
+            class="paginacao"
+            @update:pagina="paginaItens = $event"
+            @update:tamanho="tamanhoItens = $event"
+        />
 
         <!-- Modal criar item -->
         <AppModal :aberto="modalCriar" titulo="Novo item de inventário" @fechar="modalCriar = false">
@@ -446,4 +470,5 @@ tr:hover { background: #f9fafb; }
 .erro { color: #b00020; font-size: 0.9em; }
 .info { color: #6b7280; }
 .vazio { color: #9ca3af; font-style: italic; }
+.paginacao { margin-top: 1rem; }
 </style>

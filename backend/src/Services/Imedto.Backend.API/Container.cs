@@ -750,13 +750,13 @@ public static class Container
             bus.Register<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>, ListarAnexosDoProntuarioQueryHandlers>();
             bus.Register<ObterUrlAnexoQuery, AnexoUrlDto, ObterUrlAnexoQueryHandlers>();
             bus.Register<ListarModelosPermissaoQuery, IEnumerable<ModeloPermissaoDto>, ListarModelosPermissaoQueryHandlers>();
-            bus.Register<ListarAgendamentosQuery, IEnumerable<AgendamentoDto>, ListarAgendamentosQueryHandlers>();
+            bus.Register<ListarAgendamentosQuery, PaginaAgendamentosDto, ListarAgendamentosQueryHandlers>();
             bus.Register<ContarAgendamentosPorDiaQuery, IEnumerable<ContagemPorDiaDto>, ContarAgendamentosPorDiaQueryHandler>();
             bus.Register<ObterAgendamentoQuery, AgendamentoDto, ObterAgendamentoQueryHandlers>();
             bus.Register<ConsultarDisponibilidadeQuery, DisponibilidadeSemanaDto, ConsultarDisponibilidadeQueryHandlers>();
-            bus.Register<ListarListaEsperaQuery, IEnumerable<ListaEsperaItemDto>, ListarListaEsperaQueryHandler>();
-            bus.Register<ListarItensInventarioQuery, IEnumerable<ItemInventarioDto>, ListarItensInventarioQueryHandlers>();
-            bus.Register<ListarMovimentacoesQuery, IEnumerable<MovimentacaoEstoqueDto>, ListarMovimentacoesQueryHandlers>();
+            bus.Register<ListarListaEsperaQuery, PaginaListaEsperaDto, ListarListaEsperaQueryHandler>();
+            bus.Register<ListarItensInventarioQuery, PaginaItensInventarioDto, ListarItensInventarioQueryHandlers>();
+            bus.Register<ListarMovimentacoesQuery, PaginaMovimentacoesEstoqueDto, ListarMovimentacoesQueryHandlers>();
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();
             bus.Register<ObterOrcamentoQuery, OrcamentoDto, ObterOrcamentoQueryHandlers>();
             bus.Register<PreviewOrcamentoQuery, PreviewOrcamentoDto, PreviewOrcamentoQueryHandler>();
@@ -773,7 +773,7 @@ public static class Container
             bus.Register<ObterProcedimentoQuery, ProcedimentoCirurgicoDto, ObterProcedimentoQueryHandlers>();
             bus.Register<ListarProcedimentosDoPacienteQuery, IEnumerable<ProcedimentoCirurgicoResumoDto>, ObterProcedimentoQueryHandlers>();
             bus.Register<ListarProcedimentosPlanejadosQuery, IEnumerable<ProcedimentoCirurgicoResumoDto>, ListarProcedimentosPlanejadosQueryHandlers>();
-            bus.Register<ListarLancamentosQuery, IEnumerable<LancamentoDto>, ListarLancamentosQueryHandlers>();
+            bus.Register<ListarLancamentosQuery, PaginaLancamentosDto, ListarLancamentosQueryHandlers>();
             bus.Register<ObterResumoFinanceiroQuery, ResumoFinanceiroDto, ObterResumoFinanceiroQueryHandlers>();
             bus.Register<ListarCategoriasFinanceirasQuery, IEnumerable<CategoriaFinanceiraDto>, ListarCategoriasFinanceirasQueryHandlers>();
             bus.Register<ListarFormasPagamentoQuery, IEnumerable<FormaPagamentoDto>, ListarFormasPagamentoQueryHandlers>();

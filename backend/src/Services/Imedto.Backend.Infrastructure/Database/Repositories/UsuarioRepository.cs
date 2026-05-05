@@ -23,6 +23,9 @@ public class UsuarioRepository : IUsuarioRepository
     public async Task<Usuario> ObterPorIdOuNulo(Guid id) =>
         await _context.Usuarios.FindAsync(id);
 
+    public async Task<Usuario> ObterPorIdParaLeitura(Guid id) =>
+        await _context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+
     public async Task<bool> ExisteCpf(string cpf, Guid ignorarUsuarioId) =>
         await _context.Usuarios
             .AsNoTracking()

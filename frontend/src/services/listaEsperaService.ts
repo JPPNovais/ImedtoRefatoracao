@@ -25,11 +25,18 @@ export interface AdicionarListaEsperaPayload {
     preferenciaPeriodo?: ListaEsperaPreferenciaPeriodo
 }
 
+export interface PaginaListaEspera {
+    itens: ListaEsperaItem[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 const BASE = "/agendamentos/lista-espera"
 
 export const listaEsperaService = {
-    async listar(): Promise<ListaEsperaItem[]> {
-        const { data } = await httpClient.get<ListaEsperaItem[]>(BASE)
+    async listar(pagina = 1, tamanho = 50): Promise<PaginaListaEspera> {
+        const { data } = await httpClient.get<PaginaListaEspera>(BASE, { params: { pagina, tamanho } })
         return data
     },
     async adicionar(payload: AdicionarListaEsperaPayload): Promise<{ id: number }> {
