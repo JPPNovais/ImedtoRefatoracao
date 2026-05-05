@@ -53,6 +53,23 @@ public class ProntuarioController : ControllerBase
         return Ok(dto);
     }
 
+    /// <summary>
+    /// Retorna apenas o total de evoluções (badge/contador). Resposta enxuta para UIs
+    /// que só precisam do número, sem trafegar a timeline inteira.
+    /// </summary>
+    [HttpGet("contagem-evolucoes")]
+    [ProducesResponseType(typeof(ContagemEvolucoesDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ContarEvolucoes(long pacienteId)
+    {
+        var dto = await _requestBus.Query<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto>(
+            new ContarEvolucoesProntuarioPacienteQuery
+            {
+                PacienteId = pacienteId,
+                EstabelecimentoId = _tenant.EstabelecimentoId
+            });
+        return Ok(dto);
+    }
+
     /// <summary>Inicia o prontuário do paciente com um modelo (padrão-sistema ou próprio).</summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]

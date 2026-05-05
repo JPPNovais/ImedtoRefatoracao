@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
+using Imedto.Backend.Application.Auth.Queries;
 using Imedto.Backend.Application.Automacoes.Commands;
 using Imedto.Backend.Application.Automacoes.Queries;
 using Imedto.Backend.Application.Agendamentos.Commands;
@@ -79,6 +80,8 @@ using Imedto.Backend.Contracts.Onboarding.Commands;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Contracts.Usuarios.Queries;
 using Imedto.Backend.Application.Vinculos.Queries;
+using Imedto.Backend.Contracts.Auth.Queries;
+using Imedto.Backend.Contracts.Auth.Queries.Results;
 using Imedto.Backend.Contracts.Vinculos.Commands;
 using Imedto.Backend.Contracts.Vinculos.Queries;
 using Imedto.Backend.Contracts.Vinculos.Queries.Results;
@@ -238,6 +241,9 @@ public static class Container
 
     private static void RegistrarHandlers(IServiceCollection services)
     {
+        // Auth — bootstrap unificado da SPA (usuário + profissional + estabelecimentos).
+        services.AddSingleton<BootstrapMeQueryHandlers>();
+
         // Onboarding
         services.AddScoped<FinalizarOnboardingCommandHandler>();
 
@@ -344,6 +350,7 @@ public static class Container
         services.AddScoped<IniciarProntuarioCommandHandler>();
         services.AddScoped<RegistrarEvolucaoCommandHandler>();
         services.AddScoped<ObterProntuarioDoPacienteQueryHandlers>(); // scoped — injeta IProntuarioAcessoLogService (scoped)
+        services.AddSingleton<ContarEvolucoesProntuarioPacienteQueryHandlers>(); // só COUNT, sem audit — pode ser singleton
         services.AddSingleton<ProntuarioQueryRepository>();
         services.AddScoped<ProntuarioIniciadoEventHandler>();
         services.AddScoped<EvolucaoRegistradaEventHandler>();
@@ -728,6 +735,7 @@ public static class Container
         services.AddSingleton<IRequestBus>(sp =>
         {
             var bus = new MemoryRequestBus(sp, sp.GetRequiredService<IHttpContextAccessor>());
+            bus.Register<BootstrapMeQuery, BootstrapMeDto, BootstrapMeQueryHandlers>();
             bus.Register<VerificarCpfDisponivelQuery, VerificarCpfDisponivelResult, VerificarCpfDisponivelQueryHandler>();
             bus.Register<VerificarCnpjDisponivelQuery, VerificarCnpjDisponivelResult, VerificarCnpjDisponivelQueryHandler>();
             bus.Register<ListarMeusEstabelecimentosQuery, IEnumerable<EstabelecimentoDto>, ListarMeusEstabelecimentosQueryHandlers>();
@@ -747,6 +755,7 @@ public static class Container
             bus.Register<ObterModeloDeProntuarioQuery, ModeloProntuarioDto, ObterModeloDeProntuarioQueryHandlers>();
             bus.Register<ListarVariaveisPoolQuery, IEnumerable<VariavelPoolDto>, ListarVariaveisPoolQueryHandlers>();
             bus.Register<ObterProntuarioDoPacienteQuery, ProntuarioCompletoDto, ObterProntuarioDoPacienteQueryHandlers>();
+            bus.Register<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto, ContarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>, ListarAnexosDoProntuarioQueryHandlers>();
             bus.Register<ObterUrlAnexoQuery, AnexoUrlDto, ObterUrlAnexoQueryHandlers>();
             bus.Register<ListarModelosPermissaoQuery, IEnumerable<ModeloPermissaoDto>, ListarModelosPermissaoQueryHandlers>();

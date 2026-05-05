@@ -6,7 +6,7 @@ import router from "./router"
 import { useAuthStore } from "./stores/authStore"
 import { useProfissionalStore } from "./stores/profissionalStore"
 import { useTenantStore } from "./stores/tenantStore"
-import { estabelecimentoService } from "./services/estabelecimentoService"
+import { bootstrapService } from "./services/bootstrapService"
 
 async function bootstrap() {
     const app = createApp(App)
@@ -14,19 +14,23 @@ async function bootstrap() {
 
     app.use(pinia)
 
-    // init() ANTES de app.use(router): o beforeEach dispara no install() do router
-    // e precisa ver isAuthenticated correto; se rodar depois, redireciona para /login.
     const auth = useAuthStore()
-    await auth.init()
+    const profissional = useProfissionalStore()
+    const tenant = useTenantStore()
 
-    if (auth.isAuthenticated && !auth.onboardingPendente) {
-        // Carrega perfil profissional e resolve tenant em paralelo.
-        await Promise.all([
-            useProfissionalStore().init(),
-            useTenantStore().resolverTenant(() => estabelecimentoService.listarMeus()),
-        ])
-    } else if (auth.isAuthenticated) {
-        await useProfissionalStore().init()
+    // Único round-trip de hidratação. Substitui /auth/me + /profissional/me +
+    // /estabelecimento serializados. Em caso de 401, o interceptor já tenta o
+    // refresh; se falhar, cai aqui como erro e o usuário cai no /login pelo guard.
+    const data = await bootstrapService.obter().catch(() => null)
+    if (data) {
+        auth.setUsuario(data.usuario)
+        // Profissional e tenant só fazem sentido pós-onboarding — antes disso o
+        // front sequer roteia para áreas que dependem deles.
+        profissional.setProfissional(data.profissional)
+        if (!auth.onboardingPendente) {
+            tenant.popularEstabelecimentos(data.estabelecimentos)
+        }
+        auth.ativarRealtime()
     }
 
     app.use(router)

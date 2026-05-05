@@ -79,24 +79,23 @@ public class RelatorioQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
-        const string sqlStatus = """
+        // Batch único: 1 round-trip ao Postgres em vez de 2.
+        const string sqlBatch = """
             SELECT status AS Status, COUNT(*) AS Quantidade
             FROM agendamentos
             WHERE estabelecimento_id = @EstabelecimentoId
               AND (@DataInicio::date IS NULL OR inicio_previsto::date >= @DataInicio::date)
               AND (@DataFim::date    IS NULL OR inicio_previsto::date <= @DataFim::date)
             GROUP BY status
-            ORDER BY Quantidade DESC
-            """;
+            ORDER BY Quantidade DESC;
 
-        const string sqlDia = """
             SELECT inicio_previsto::date AS Data, COUNT(*) AS Quantidade
             FROM agendamentos
             WHERE estabelecimento_id = @EstabelecimentoId
               AND (@DataInicio::date IS NULL OR inicio_previsto::date >= @DataInicio::date)
               AND (@DataFim::date    IS NULL OR inicio_previsto::date <= @DataFim::date)
             GROUP BY inicio_previsto::date
-            ORDER BY Data
+            ORDER BY Data;
             """;
 
         var p = new
@@ -106,8 +105,9 @@ public class RelatorioQueryRepository
             DataFim = ParaDateTime(dataFim)
         };
 
-        var porStatus = (await conn.QueryAsync<AgendamentosPorStatusDto>(sqlStatus, p)).ToList();
-        var porDia = (await conn.QueryAsync<AgendamentosPorDiaDto>(sqlDia, p)).ToList();
+        await using var grid = await conn.QueryMultipleAsync(sqlBatch, p);
+        var porStatus = (await grid.ReadAsync<AgendamentosPorStatusDto>()).ToList();
+        var porDia = (await grid.ReadAsync<AgendamentosPorDiaDto>()).ToList();
 
         return new RelatorioAgendamentosDto
         {
@@ -318,18 +318,18 @@ public class RelatorioQueryRepository
             DataFim = dataFim.ToDateTime(TimeOnly.MinValue)
         };
 
-        const string sqlStatus = """
+        // Batch único: 1 round-trip ao Postgres em vez de 3.
+        // Ordem dos SELECTs: status → profissional → dia da semana (deve bater com Read* abaixo).
+        // - profissional: nome via usuarios.nome_completo; fallback para usuario_id caso apagado.
+        // - dia da semana: ISO weekday 1=segunda…7=domingo (front mapeia para nome do dia).
+        const string sqlBatch = """
             SELECT status AS Chave, COUNT(*)::numeric AS Valor, COUNT(*) AS Count
             FROM agendamentos
             WHERE estabelecimento_id = @EstabelecimentoId
               AND inicio_previsto::date BETWEEN @DataInicio::date AND @DataFim::date
             GROUP BY status
-            ORDER BY Count DESC
-            """;
+            ORDER BY Count DESC;
 
-        // Profissional: nome via usuarios.nome (apresentação). Mostra usuario_id
-        // como fallback caso usuário tenha sido apagado.
-        const string sqlProfissional = """
             SELECT
                 COALESCE(u.nome_completo, 'Profissional #' || a.profissional_usuario_id::text) AS Chave,
                 0::numeric                                                                     AS Valor,
@@ -339,11 +339,8 @@ public class RelatorioQueryRepository
             WHERE a.estabelecimento_id = @EstabelecimentoId
               AND a.inicio_previsto::date BETWEEN @DataInicio::date AND @DataFim::date
             GROUP BY u.nome_completo, a.profissional_usuario_id
-            ORDER BY Count DESC
-            """;
+            ORDER BY Count DESC;
 
-        // ISO weekday 1=segunda…7=domingo. Front mapeia para nome do dia.
-        const string sqlDiaSemana = """
             SELECT
                 EXTRACT(ISODOW FROM inicio_previsto)::int::text AS Chave,
                 0::numeric                                      AS Valor,
@@ -352,12 +349,13 @@ public class RelatorioQueryRepository
             WHERE estabelecimento_id = @EstabelecimentoId
               AND inicio_previsto::date BETWEEN @DataInicio::date AND @DataFim::date
             GROUP BY EXTRACT(ISODOW FROM inicio_previsto)
-            ORDER BY Chave
+            ORDER BY Chave;
             """;
 
-        var porStatus = (await conn.QueryAsync<RowSummary>(sqlStatus, p)).ToList();
-        var porProf = (await conn.QueryAsync<RowSummary>(sqlProfissional, p)).ToList();
-        var porDia = (await conn.QueryAsync<RowSummary>(sqlDiaSemana, p)).ToList();
+        await using var grid = await conn.QueryMultipleAsync(sqlBatch, p);
+        var porStatus = (await grid.ReadAsync<RowSummary>()).ToList();
+        var porProf = (await grid.ReadAsync<RowSummary>()).ToList();
+        var porDia = (await grid.ReadAsync<RowSummary>()).ToList();
 
         return new AgendaResumoDto
         {
@@ -382,19 +380,18 @@ public class RelatorioQueryRepository
             Limite = TopMovimentacoesLimite
         };
 
-        const string sqlResumo = """
+        // Batch único: 1 round-trip ao Postgres em vez de 2.
+        // Ordem: resumo (single) → top movimentações (lista por volume absoluto, agrega
+        // custo_total — útil para identificar itens de maior giro).
+        const string sqlBatch = """
             SELECT
                 COUNT(*)                                                            AS TotalItens,
                 COUNT(*) FILTER (WHERE quantidade_atual <= quantidade_minima)        AS ItensAbaixoMinimo,
                 COALESCE(SUM(quantidade_atual * custo_medio), 0)                     AS ValorTotalEstoque
             FROM itens_inventario
             WHERE estabelecimento_id = @EstabelecimentoId
-              AND ativo = TRUE
-            """;
+              AND ativo = TRUE;
 
-        // Top movimentações por volume absoluto (entrada+saída). Agrega valor financeiro
-        // movimentado (custo_total) — útil para identificar itens de maior giro.
-        const string sqlMovimentacoes = """
             SELECT
                 i.nome                          AS Chave,
                 COALESCE(SUM(m.custo_total), 0) AS Valor,
@@ -406,11 +403,12 @@ public class RelatorioQueryRepository
               AND m.criado_em::date BETWEEN @DataInicio::date AND @DataFim::date
             GROUP BY i.nome
             ORDER BY Count DESC
-            LIMIT @Limite
+            LIMIT @Limite;
             """;
 
-        var resumo = await conn.QuerySingleAsync<(int TotalItens, int ItensAbaixoMinimo, decimal ValorTotalEstoque)>(sqlResumo, p);
-        var top = (await conn.QueryAsync<RowSummary>(sqlMovimentacoes, p)).ToList();
+        await using var grid = await conn.QueryMultipleAsync(sqlBatch, p);
+        var resumo = await grid.ReadFirstAsync<(int TotalItens, int ItensAbaixoMinimo, decimal ValorTotalEstoque)>();
+        var top = (await grid.ReadAsync<RowSummary>()).ToList();
 
         return new InventarioResumoDto
         {
@@ -440,9 +438,14 @@ public class RelatorioQueryRepository
             Limite = TopAtivosLimite
         };
 
-        // Novos = pacientes criados no período. Retornos = pacientes com ≥2
-        // agendamentos concluídos no período.
-        const string sqlResumo = """
+        // Batch único: 1 round-trip ao Postgres em vez de 3.
+        // Ordem dos SELECTs: resumo (Novos/Retornos) → faixa etária → top ativos.
+        // - Novos: pacientes criados no período. Retornos: pacientes com ≥2 agendamentos
+        //   concluídos no período.
+        // - Faixa etária a partir de data_nascimento (anos completos).
+        // - Top 10 pacientes por nº de agendamentos. LGPD: somente id + nome
+        //   (sem CPF, telefone, e-mail, data_nascimento). Tenant-scoped via estabelecimento_id.
+        const string sqlBatch = """
             WITH novos AS (
                 SELECT COUNT(*) AS qtd
                 FROM pacientes
@@ -462,11 +465,8 @@ public class RelatorioQueryRepository
                 ) t
             )
             SELECT (SELECT qtd FROM novos) AS Novos,
-                   (SELECT qtd FROM retornos) AS Retornos
-            """;
+                   (SELECT qtd FROM retornos) AS Retornos;
 
-        // Faixa etária a partir de data_nascimento (em anos completos).
-        const string sqlFaixa = """
             SELECT
                 CASE
                     WHEN idade IS NULL  THEN 'Sem dado'
@@ -489,13 +489,8 @@ public class RelatorioQueryRepository
                   AND deletado_em IS NULL
             ) t
             GROUP BY 1
-            ORDER BY 1
-            """;
+            ORDER BY 1;
 
-        // Top 10 pacientes mais ativos por nº de agendamentos no período. LGPD: somente
-        // id + nome — sem CPF, telefone, e-mail ou data_nascimento. Tenant-scoped via
-        // estabelecimento_id.
-        const string sqlTop = """
             SELECT
                 p.id                AS PacienteId,
                 p.nome_completo     AS Nome,
@@ -509,12 +504,13 @@ public class RelatorioQueryRepository
               AND p.deletado_em IS NULL
             GROUP BY p.id, p.nome_completo
             ORDER BY Atendimentos DESC, p.nome_completo
-            LIMIT @Limite
+            LIMIT @Limite;
             """;
 
-        var resumo = await conn.QuerySingleAsync<(int Novos, int Retornos)>(sqlResumo, p);
-        var faixa = (await conn.QueryAsync<RowSummary>(sqlFaixa, p)).ToList();
-        var top = (await conn.QueryAsync<TopPacienteDto>(sqlTop, p)).ToList();
+        await using var grid = await conn.QueryMultipleAsync(sqlBatch, p);
+        var resumo = await grid.ReadFirstAsync<(int Novos, int Retornos)>();
+        var faixa = (await grid.ReadAsync<RowSummary>()).ToList();
+        var top = (await grid.ReadAsync<TopPacienteDto>()).ToList();
 
         return new PacientesResumoDto
         {
@@ -618,7 +614,11 @@ public class RelatorioQueryRepository
         //                     COALESCE(orcamento_internacao.valor_total, 0)
         // — espelha o getter Orcamento.Total no domínio. Anestesia não tem campo de
         // valor total persistido isolado; fica a cargo de versão futura.
-        const string sql = """
+        // Batch único: 1 round-trip ao Postgres em vez de 2.
+        // Ordem dos SELECTs: resumo (single) → breakdown por status.
+        // Nota: CTE `base` é declarada por statement (CTEs não persistem entre statements
+        // separados por ';' em Postgres) — comportamento idêntico ao código anterior.
+        const string sqlBatch = """
             WITH base AS (
                 SELECT
                     o.id,
@@ -653,15 +653,9 @@ public class RelatorioQueryRepository
                         2)
                     ELSE 0
                 END                                                                    AS TaxaConversao
-            FROM base
-            """;
+            FROM base;
 
-        const string sqlBreakdown = """
-            SELECT
-                status                          AS Chave,
-                COALESCE(SUM(valor_total), 0)   AS Valor,
-                COUNT(*)                        AS Count
-            FROM (
+            WITH base AS (
                 SELECT
                     o.status,
                     COALESCE(itens.total, 0)
@@ -680,13 +674,19 @@ public class RelatorioQueryRepository
                 LEFT JOIN orcamento_internacao intn ON intn.orcamento_id = o.id
                 WHERE o.estabelecimento_id = @EstabelecimentoId
                   AND o.criado_em::date BETWEEN @DataInicio::date AND @DataFim::date
-            ) t
+            )
+            SELECT
+                status                          AS Chave,
+                COALESCE(SUM(valor_total), 0)   AS Valor,
+                COUNT(*)                        AS Count
+            FROM base
             GROUP BY status
-            ORDER BY Count DESC
+            ORDER BY Count DESC;
             """;
 
-        var resumo = await conn.QuerySingleAsync<RelatorioOrcamentosDto>(sql, p);
-        resumo.Breakdown = (await conn.QueryAsync<RowSummary>(sqlBreakdown, p)).ToList();
+        await using var grid = await conn.QueryMultipleAsync(sqlBatch, p);
+        var resumo = await grid.ReadFirstAsync<RelatorioOrcamentosDto>();
+        resumo.Breakdown = (await grid.ReadAsync<RowSummary>()).ToList();
         return resumo;
     }
 

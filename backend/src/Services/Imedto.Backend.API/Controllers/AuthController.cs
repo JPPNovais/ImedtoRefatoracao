@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
+using Imedto.Backend.Contracts.Auth.Queries;
+using Imedto.Backend.Contracts.Auth.Queries.Results;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Usuarios;
@@ -32,6 +34,7 @@ public class AuthController : ControllerBase
 
     private readonly IAuthService _authService;
     private readonly ICommandBus _commandBus;
+    private readonly IRequestBus _requestBus;
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IMemoryCache _cache;
     private readonly IWebHostEnvironment _env;
@@ -39,12 +42,14 @@ public class AuthController : ControllerBase
     public AuthController(
         IAuthService authService,
         ICommandBus commandBus,
+        IRequestBus requestBus,
         IUsuarioRepository usuarioRepository,
         IMemoryCache cache,
         IWebHostEnvironment env)
     {
         _authService = authService;
         _commandBus = commandBus;
+        _requestBus = requestBus;
         _usuarioRepository = usuarioRepository;
         _cache = cache;
         _env = env;
@@ -205,14 +210,37 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Reidrata todo o estado da SPA em uma única chamada: usuário, cadastro
+    /// profissional (quando existir) e estabelecimentos vinculados. Substitui a
+    /// sequência /auth/me + /profissional/me + /estabelecimento no boot do front.
+    /// </summary>
+    /// <response code="200">Estado de auth carregado com sucesso.</response>
+    /// <response code="401">Não autenticado.</response>
+    [HttpGet("bootstrap")]
+    [Authorize]
+    [ProducesResponseType(typeof(BootstrapMeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Bootstrap()
+    {
+        var userIdClaim = User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        var dto = await _requestBus.Query<BootstrapMeQuery, BootstrapMeDto>(
+            new BootstrapMeQuery { UsuarioId = userId });
+
+        return Ok(dto);
+    }
+
+    /// <summary>
     /// Carrega o payload de /auth/me com cache em memória de 60s. O cache é invalidado
     /// pelas controllers que mutam os campos retornados (UsuarioController, OnboardingController,
     /// MinhaContaController) — ver <see cref="AuthMeCacheKey(Guid)"/>.
     /// </summary>
-    private async Task<MeUsuarioPayload?> ObterMePayload(Guid userId)
+    private async Task<MeUsuarioDto?> ObterMePayload(Guid userId)
     {
         var key = AuthMeCacheKey(userId);
-        if (_cache.TryGetValue<MeUsuarioPayload>(key, out var cached))
+        if (_cache.TryGetValue<MeUsuarioDto>(key, out var cached))
             return cached;
 
         // AsNoTracking: rota pura de leitura — não queremos pagar o overhead do change tracker.
@@ -223,7 +251,7 @@ public class AuthController : ControllerBase
         // Payload minimizado (LGPD): cpf removido (nao usado pelo front) e
         // ultimoAcessoEm removido (sem uso). Telefone mantido — eh round-trip
         // do form em MinhaContaView (front precisa do valor existente para editar).
-        var payload = new MeUsuarioPayload(
+        var payload = new MeUsuarioDto(
             usuario.Id,
             usuario.Email,
             usuario.NomeCompleto,
@@ -297,19 +325,6 @@ public class AuthController : ControllerBase
         Response.Cookies.Delete("refresh-token", new CookieOptions { Path = "/api/auth/refresh" });
     }
 }
-
-/// <summary>
-/// Forma serializada do usuário retornada por /auth/me e /auth/refresh.
-/// Mantida como record (imutável) para permitir caching seguro em memória.
-/// Os nomes de propriedade JSON ficam camelCase pelo `JsonSerializerOptions` global.
-/// </summary>
-internal record MeUsuarioPayload(
-    Guid Id,
-    string Email,
-    string NomeCompleto,
-    string Telefone,
-    string Status,
-    bool OnboardingCompleto);
 
 /// <summary>Payload de login.</summary>
 public record LoginRequest(string Email, string Password);

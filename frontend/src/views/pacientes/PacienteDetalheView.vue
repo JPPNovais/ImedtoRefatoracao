@@ -42,11 +42,8 @@ const abasCarregadas = new Set<Aba>()
 async function garantirAba(a: Aba) {
     if (abasCarregadas.has(a)) return
     if (a === "prontuarios") {
-        // TODO: criar endpoint GET /prontuario/{id}/contagem para evitar baixar o prontuário
-        // completo apenas para exibir o badge de totalProntuarios.
         try {
-            const p = await prontuarioService.obter(pacienteId.value)
-            totalProntuarios.value = p?.evolucoes?.length ?? 0
+            totalProntuarios.value = await prontuarioService.contarEvolucoes(pacienteId.value)
         } catch { /* sem prontuário ainda */ }
         abasCarregadas.add("prontuarios")
     } else if (a === "orcamentos") {

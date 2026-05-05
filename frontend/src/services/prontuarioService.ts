@@ -91,6 +91,13 @@ export const prontuarioService = {
         }
     },
 
+    async contarEvolucoes(pacienteId: number): Promise<number> {
+        const { data } = await httpClient.get<{ total: number }>(
+            `/paciente/${pacienteId}/prontuario/contagem-evolucoes`,
+        )
+        return data.total
+    },
+
     async iniciar(pacienteId: number, modeloDeProntuarioId: number): Promise<void> {
         await httpClient.post(`/paciente/${pacienteId}/prontuario`, { modeloDeProntuarioId })
     },

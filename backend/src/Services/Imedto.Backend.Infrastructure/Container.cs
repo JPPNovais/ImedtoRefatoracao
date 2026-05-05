@@ -33,13 +33,20 @@ public static class InfrastructureExtensions
         DapperTypeHandlers.Registrar();
 
         // Interceptor que bloqueia hard delete em ISoftDeletable e registra audit.
-        services.AddScoped<SoftDeleteInterceptor>();
+        // Singleton: o interceptor não tem state per-request — resolve ICurrentTenantAccessor
+        // em runtime via IHttpContextAccessor (scoped do RequestServices). Trocar para
+        // Scoped aqui voltaria a criar captive dependency sob AddDbContextPool.
+        services.AddSingleton<SoftDeleteInterceptor>();
 
-        services.AddDbContext<AppDbContext>((sp, options) =>
+        // Pool de DbContext: reduz alocação por-request. Requer:
+        // - AppDbContext sem state de instância além de DbContextOptions (confirmado: só DbSets).
+        // - Nenhum serviço scoped capturado no construtor do interceptor (resolvido em runtime).
+        services.AddDbContextPool<AppDbContext>((sp, options) =>
         {
             options.UseNpgsql(connectionString);
+            // sp aqui é o root provider — só pode resolver singletons. SoftDeleteInterceptor é singleton.
             options.AddInterceptors(sp.GetRequiredService<SoftDeleteInterceptor>());
-        });
+        }, poolSize: 128);
         services.AddScoped<IUnitOfWorkFactory, UnitOfWorkFactory>();
         services.AddScoped<Imedto.Backend.SharedKernel.Domain.IDomainEventDispatcher, Database.EfDomainEventDispatcher>();
 

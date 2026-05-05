@@ -68,15 +68,24 @@ export const useTenantStore = defineStore("tenant", () => {
 
         try {
             const lista = await listar()
-            if (lista.length === 0) {
-                semEstabelecimento.value = true
-                return
-            }
-            const primeiro = lista[0]
-            selecionar({ id: primeiro.id, nomeFantasia: primeiro.nomeFantasia, papel: primeiro.papelDoUsuario })
+            popularEstabelecimentos(lista)
         } catch {
             // Silencia: guard vai lidar com o estado sem tenant.
         }
+    }
+
+    /**
+     * Variante síncrona de resolverTenant — recebe a lista já carregada (via
+     * /auth/bootstrap) e aplica a mesma lógica de auto-seleção, sem fazer HTTP.
+     */
+    function popularEstabelecimentos(lista: EstabelecimentoListavel[]) {
+        if (ativo.value) return
+        if (lista.length === 0) {
+            semEstabelecimento.value = true
+            return
+        }
+        const primeiro = lista[0]
+        selecionar({ id: primeiro.id, nomeFantasia: primeiro.nomeFantasia, papel: primeiro.papelDoUsuario })
     }
 
     return {
@@ -88,5 +97,6 @@ export const useTenantStore = defineStore("tenant", () => {
         selecionar,
         limpar,
         resolverTenant,
+        popularEstabelecimentos,
     }
 })

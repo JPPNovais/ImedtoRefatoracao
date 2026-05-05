@@ -74,4 +74,28 @@ public class ProntuarioQueryRepository
             Evolucoes = evolucoes
         };
     }
+
+    /// <summary>
+    /// Conta evoluções não-deletadas do prontuário do paciente. 0 se ainda não tem prontuário.
+    /// Filtro multi-tenant via join em <c>prontuarios.estabelecimento_id</c>.
+    /// </summary>
+    public async Task<int> ContarEvolucoes(long pacienteId, long estabelecimentoId)
+    {
+        const string sql = """
+            SELECT COUNT(*)::int
+            FROM   public.prontuario_evolucoes pe
+            JOIN   public.prontuarios p ON p.id = pe.prontuario_id
+            WHERE  p.paciente_id = @PacienteId
+              AND  p.estabelecimento_id = @EstabelecimentoId
+              AND  p.deletado_em IS NULL
+              AND  pe.deletado_em IS NULL
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.ExecuteScalarAsync<int>(sql, new
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = estabelecimentoId
+        });
+    }
 }

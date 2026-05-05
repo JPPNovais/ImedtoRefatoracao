@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { AppButton } from '@/components/ui'
 
-import BodyMap from '@/components/exame-fisico/BodyMap.vue'
+const BodyMap = defineAsyncComponent(() => import('@/components/exame-fisico/BodyMap.vue'))
 import RegionSelectorPopup from '@/components/exame-fisico/RegionSelectorPopup.vue'
 import RegionExamCard from '@/components/exame-fisico/RegionExamCard.vue'
 import DadosGeraisForm from '@/components/exame-fisico/DadosGeraisForm.vue'

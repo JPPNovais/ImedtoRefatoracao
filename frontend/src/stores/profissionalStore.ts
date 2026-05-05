@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { ref } from "vue"
-import { profissionalService } from "@/services/profissionalService"
+import { profissionalService, type ProfissionalPerfil } from "@/services/profissionalService"
 
 /**
  * Estado reativo do perfil profissional do usuário logado.
@@ -31,6 +31,17 @@ export const useProfissionalStore = defineStore("profissional", () => {
         fotoUrl.value = url
     }
 
+    /**
+     * Hidrata o store com o perfil profissional vindo do /auth/bootstrap.
+     * Mantém a mesma semântica do init() (existe = perfil já cadastrado), porém
+     * sem disparar nova requisição.
+     */
+    function setProfissional(p: ProfissionalPerfil | null) {
+        fotoUrl.value = p?.fotoUrl ?? null
+        existe.value  = !!p
+        carregado.value = true
+    }
+
     function marcarComoExistente() {
         existe.value = true
     }
@@ -47,6 +58,7 @@ export const useProfissionalStore = defineStore("profissional", () => {
         carregado,
         init,
         setFotoUrl,
+        setProfissional,
         marcarComoExistente,
         limpar,
     }

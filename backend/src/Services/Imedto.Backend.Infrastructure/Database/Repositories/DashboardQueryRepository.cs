@@ -12,9 +12,10 @@ public class DashboardQueryRepository
 
     public async Task<DashboardDto> ObterDashboard(long estabelecimentoId)
     {
-        await using var conn = new NpgsqlConnection(_connStr);
-
-        const string sqlKpis = """
+        // Batch único (3 SELECTs separados por ';') executado via QueryMultipleAsync —
+        // 1 round-trip ao Postgres em vez de 3. Reduz latência total para latência da
+        // pior query individual em vez de soma das três.
+        const string sqlBatch = """
             SELECT
                 (SELECT COUNT(*) FROM pacientes
                     WHERE estabelecimento_id = @EstabId AND deletado_em IS NULL)                              AS TotalPacientesAtivos,
@@ -40,10 +41,8 @@ public class DashboardQueryRepository
                     WHERE estabelecimento_id = @EstabId AND status IN ('Rascunho','Enviado'))               AS OrcamentosPendentes,
                 (SELECT COUNT(*) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND status = 'Pendente'
-                      AND data_vencimento < CURRENT_DATE)                                                    AS LancamentosVencidos
-            """;
+                      AND data_vencimento < CURRENT_DATE)                                                    AS LancamentosVencidos;
 
-        const string sqlAgendamentos = """
             SELECT
                 a.id                    AS Id,
                 pac.nome_completo       AS PacienteNome,
@@ -58,10 +57,8 @@ public class DashboardQueryRepository
               AND a.inicio_previsto >= NOW()
               AND a.status NOT IN ('Cancelado', 'Concluido')
             ORDER BY a.inicio_previsto
-            LIMIT 5
-            """;
+            LIMIT 5;
 
-        const string sqlItens = """
             SELECT id AS Id, nome AS Nome,
                    quantidade_atual AS QuantidadeAtual,
                    quantidade_minima AS QuantidadeMinima,
@@ -70,15 +67,18 @@ public class DashboardQueryRepository
             WHERE estabelecimento_id = @EstabId AND ativo = true
               AND quantidade_atual < quantidade_minima
             ORDER BY (quantidade_minima - quantidade_atual) DESC
-            LIMIT 5
+            LIMIT 5;
             """;
 
         var p = new { EstabId = estabelecimentoId };
 
-        var kpis = await conn.QuerySingleAsync<DashboardDto>(sqlKpis, p);
+        await using var conn = new NpgsqlConnection(_connStr);
+        await using var grid = await conn.QueryMultipleAsync(sqlBatch, p);
+
+        var kpis = await grid.ReadFirstAsync<DashboardDto>();
+        kpis.ProximosAgendamentos = (await grid.ReadAsync<ProximoAgendamentoDto>()).ToList();
+        kpis.ItensAbaixoMinimoLista = (await grid.ReadAsync<ItemAbaixoMinimoDto>()).ToList();
         kpis.SaldoMes = kpis.ReceitasMes - kpis.DespesasMes;
-        kpis.ProximosAgendamentos = (await conn.QueryAsync<ProximoAgendamentoDto>(sqlAgendamentos, p)).ToList();
-        kpis.ItensAbaixoMinimoLista = (await conn.QueryAsync<ItemAbaixoMinimoDto>(sqlItens, p)).ToList();
 
         return kpis;
     }

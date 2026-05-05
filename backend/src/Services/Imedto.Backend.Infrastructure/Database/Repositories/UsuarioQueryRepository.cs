@@ -1,4 +1,5 @@
 using Dapper;
+using Imedto.Backend.Contracts.Auth.Queries.Results;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -35,5 +36,27 @@ public class UsuarioQueryRepository
 
         await using var conn = new NpgsqlConnection(_connectionString);
         return await conn.ExecuteScalarAsync<bool>(sql, new { cpf = cpfDigitos, ignorar = ignorarUsuarioId });
+    }
+
+    /// <summary>
+    /// Projeção de leitura usada pelo /auth/bootstrap. Retorna apenas os campos
+    /// que o front precisa para reidratar a sessão (LGPD — minimização). Status
+    /// volta como texto da enum (mesmo formato que o /auth/me devolve).
+    /// </summary>
+    public async Task<MeUsuarioDto?> ObterMeParaBootstrap(Guid usuarioId)
+    {
+        const string sql = """
+            SELECT  id                  AS Id,
+                    email               AS Email,
+                    nome_completo       AS NomeCompleto,
+                    telefone            AS Telefone,
+                    status              AS Status,
+                    onboarding_completo AS OnboardingCompleto
+            FROM    public.usuarios
+            WHERE   id = @Id
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.QuerySingleOrDefaultAsync<MeUsuarioDto>(sql, new { Id = usuarioId });
     }
 }

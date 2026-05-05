@@ -1,7 +1,9 @@
 using System.Reflection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Dapper;
 using Npgsql;
 using Imedto.Backend.SharedKernel.Domain;
@@ -17,16 +19,47 @@ namespace Imedto.Backend.Infrastructure.Database;
 /// Uso correto: chamar <c>aggregate.MarcarComoDeletado(usuarioId)</c> + <c>repo.Salvar(...)</c>.
 /// Hard delete (<c>DbSet.Remove</c>, <c>EntityState.Deleted</c>) sempre lança
 /// <see cref="BusinessException"/> e não chega a executar.
+///
+/// Compatível com <c>AddDbContextPool</c>: o tenant accessor (scoped) NUNCA é capturado
+/// pelo construtor — seria uma captive dependency, já que o interceptor vive enquanto a
+/// instância pooled do DbContext for reutilizada entre requests. Em vez disso, o accessor
+/// é resolvido por-request via <see cref="IHttpContextAccessor"/>. Sem HttpContext (jobs
+/// em background, testes que não passam accessor explícito), <c>UsuarioId</c> fica nulo no
+/// audit — o registro do hard delete continua sendo gravado.
 /// </summary>
 public class SoftDeleteInterceptor : SaveChangesInterceptor
 {
     private readonly AppReadConnectionString _connectionString;
-    private readonly ICurrentTenantAccessor _tenant;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
+    private readonly ICurrentTenantAccessor? _tenantOverride;
 
+    /// <summary>
+    /// Construtor de produção (singleton-safe). O tenant accessor é resolvido a cada
+    /// SaveChanges via <see cref="IHttpContextAccessor.HttpContext"/>.RequestServices.
+    /// </summary>
+    public SoftDeleteInterceptor(AppReadConnectionString connectionString, IHttpContextAccessor httpContextAccessor)
+    {
+        _connectionString = connectionString;
+        _httpContextAccessor = httpContextAccessor;
+        _tenantOverride = null;
+    }
+
+    /// <summary>
+    /// Construtor de teste — recebe o tenant accessor direto. NÃO usar em DI de produção
+    /// porque cria captive dependency sob <c>AddDbContextPool</c>.
+    /// </summary>
     public SoftDeleteInterceptor(AppReadConnectionString connectionString, ICurrentTenantAccessor tenant)
     {
         _connectionString = connectionString;
-        _tenant = tenant;
+        _httpContextAccessor = null;
+        _tenantOverride = tenant;
+    }
+
+    private ICurrentTenantAccessor? ResolveTenant()
+    {
+        if (_tenantOverride is not null) return _tenantOverride;
+        var httpCtx = _httpContextAccessor?.HttpContext;
+        return httpCtx?.RequestServices.GetService<ICurrentTenantAccessor>();
     }
 
     public override InterceptionResult<int> SavingChanges(
@@ -93,17 +126,23 @@ public class SoftDeleteInterceptor : SaveChangesInterceptor
             SqlInsert, MontarParametros(tabela, registroId, estabId), cancellationToken: ct));
     }
 
-    private object MontarParametros(string tabela, string registroId, long? estabelecimentoId) => new
+    private object MontarParametros(string tabela, string registroId, long? estabelecimentoId)
     {
-        Tabela = tabela,
-        RegistroId = registroId,
-        EstabelecimentoId = estabelecimentoId,
-        UsuarioId = _tenant.TemTenantDefinido && _tenant.UsuarioId != Guid.Empty
-            ? (Guid?)_tenant.UsuarioId
-            : null,
-        Motivo = "Tentativa de hard delete bloqueada pelo SoftDeleteInterceptor.",
-        TentadoEm = DateTime.UtcNow
-    };
+        var tenant = ResolveTenant();
+        Guid? usuarioId = tenant is not null && tenant.UsuarioId != Guid.Empty
+            ? tenant.UsuarioId
+            : null;
+
+        return new
+        {
+            Tabela = tabela,
+            RegistroId = registroId,
+            EstabelecimentoId = estabelecimentoId,
+            UsuarioId = usuarioId,
+            Motivo = "Tentativa de hard delete bloqueada pelo SoftDeleteInterceptor.",
+            TentadoEm = DateTime.UtcNow
+        };
+    }
 
     private const string SqlInsert = """
         INSERT INTO public.audit_delete_attempts

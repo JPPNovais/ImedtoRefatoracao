@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import bgMasculino from '@/assets/img/corpo-bg-masculino.jpg'
-import bgFeminino from '@/assets/img/corpo-bg-feminino.jpg'
 import {
   maleRegionPaths,
   femaleRegionPaths,
@@ -35,7 +33,12 @@ const isFeminino = computed(() => {
   return s === 'f' || s === 'feminino' || s.includes('feminino')
 })
 
-const bgSrc = computed(() => isFeminino.value ? bgFeminino : bgMasculino)
+const bgSrc = computed(() =>
+  new URL(
+    `../../assets/img/corpo-bg-${isFeminino.value ? 'feminino' : 'masculino'}.webp`,
+    import.meta.url,
+  ).href,
+)
 
 const currentPaths = computed<Record<string, BodyRegionPath>>(() =>
   isFeminino.value ? femaleRegionPaths : maleRegionPaths,

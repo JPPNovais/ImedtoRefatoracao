@@ -127,5 +127,6 @@ export const useAuthStore = defineStore("auth", () => {
         logout,
         setUsuario,
         recarregarMe,
+        ativarRealtime,
     }
 })
