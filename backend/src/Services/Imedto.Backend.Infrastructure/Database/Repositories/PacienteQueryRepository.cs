@@ -50,13 +50,15 @@ public class PacienteQueryRepository
             """;
 
         const string sqlItens = """
-            SELECT  id                      AS Id,
-                    nome_completo           AS NomeCompleto,
-                    cpf                     AS Cpf,
-                    documento_internacional AS DocumentoInternacional,
-                    data_nascimento         AS DataNascimento,
-                    telefone                AS Telefone,
-                    criado_em               AS CriadoEm
+            SELECT  id                                       AS Id,
+                    nome_completo                            AS NomeCompleto,
+                    cpf                                      AS Cpf,
+                    documento_internacional                  AS DocumentoInternacional,
+                    data_nascimento                          AS DataNascimento,
+                    telefone                                 AS Telefone,
+                    criado_em                                AS CriadoEm,
+                    COALESCE(tags, ARRAY[]::text[])          AS Tags,
+                    coalesce(array_length(alertas, 1), 0)    AS QtdAlertas
             FROM    public.pacientes
             WHERE   estabelecimento_id = @EstabelecimentoId
               AND   deletado_em IS NULL
@@ -127,22 +129,46 @@ public class PacienteQueryRepository
         });
     }
 
+    /// <summary>
+    /// Retorna KPIs agregados (total + novos do mês corrente) usados no header
+    /// da lista de pacientes. Uma única ida ao banco, sem joins pesados.
+    /// </summary>
+    public async Task<PacienteStatsDto> ObterStats(long estabelecimentoId)
+    {
+        const string sql = """
+            SELECT
+                count(*) FILTER (WHERE deletado_em IS NULL)                                      AS Total,
+                count(*) FILTER (WHERE deletado_em IS NULL
+                                   AND criado_em >= date_trunc('month', current_date))           AS NovosMesCorrente
+            FROM public.pacientes
+            WHERE estabelecimento_id = @EstabelecimentoId
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.QuerySingleAsync<PacienteStatsDto>(sql, new
+        {
+            EstabelecimentoId = estabelecimentoId
+        });
+    }
+
     public async Task<PacienteDto> ObterPorId(long pacienteId, long estabelecimentoId)
     {
         // Minimizado (LGPD): sem estabelecimento_id (front nao usa, amplia IDOR)
         // e sem atualizado_em (sem uso no front).
         const string sql = """
-            SELECT  id                      AS Id,
-                    nome_completo           AS NomeCompleto,
-                    cpf                     AS Cpf,
-                    documento_internacional AS DocumentoInternacional,
-                    data_nascimento         AS DataNascimento,
-                    genero                  AS Genero,
-                    telefone                AS Telefone,
-                    email                   AS Email,
-                    endereco                AS Endereco,
-                    observacoes             AS Observacoes,
-                    criado_em               AS CriadoEm
+            SELECT  id                                  AS Id,
+                    nome_completo                       AS NomeCompleto,
+                    cpf                                 AS Cpf,
+                    documento_internacional             AS DocumentoInternacional,
+                    data_nascimento                     AS DataNascimento,
+                    genero                              AS Genero,
+                    telefone                            AS Telefone,
+                    email                               AS Email,
+                    endereco                            AS Endereco,
+                    observacoes                         AS Observacoes,
+                    COALESCE(tags, ARRAY[]::text[])     AS Tags,
+                    COALESCE(alertas, ARRAY[]::text[])  AS Alertas,
+                    criado_em                           AS CriadoEm
             FROM    public.pacientes
             WHERE   id = @PacienteId
               AND   estabelecimento_id = @EstabelecimentoId

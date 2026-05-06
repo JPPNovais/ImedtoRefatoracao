@@ -9,4 +9,7 @@ public class AtualizarModeloPermissaoCommand : ICommand
     public string Nome { get; set; } = string.Empty;
     public string TipoAcesso { get; set; } = "Profissional";
     public IReadOnlyList<string> Permissoes { get; set; } = Array.Empty<string>();
+    public string? Icone { get; set; }
+    public string? Cor { get; set; }
+    public string? Descricao { get; set; }
 }

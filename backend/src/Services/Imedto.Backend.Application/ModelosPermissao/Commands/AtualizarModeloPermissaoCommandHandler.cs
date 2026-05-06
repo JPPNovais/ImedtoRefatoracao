@@ -25,7 +25,14 @@ public class AtualizarModeloPermissaoCommandHandler : ICommandHandler<AtualizarM
             throw new BusinessException("Modelo não encontrado.");
 
         // O domínio já valida que modelos padrão não podem ser editados.
-        modelo.Atualizar(cmd.Nome, tipoAcesso, cmd.Permissoes);
+        modelo.Atualizar(
+            cmd.Nome,
+            tipoAcesso,
+            cmd.Permissoes,
+            permissoesExtras: null,
+            icone: cmd.Icone,
+            cor: cmd.Cor,
+            descricao: cmd.Descricao);
         await _repo.Salvar(modelo);
     }
 }

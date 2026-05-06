@@ -23,7 +23,10 @@ public class ModeloPermissaoQueryRepository
                 tipo_acesso         AS TipoAcesso,
                 permissoes::text    AS PermissoesJson,
                 eh_padrao           AS EhPadrao,
-                criado_em           AS CriadoEm
+                criado_em           AS CriadoEm,
+                icone               AS Icone,
+                cor                 AS Cor,
+                descricao           AS Descricao
             FROM public.modelo_permissao_estabelecimento
             WHERE estabelecimento_id = @EstabelecimentoId
             ORDER BY eh_padrao DESC, nome
@@ -39,6 +42,9 @@ public class ModeloPermissaoQueryRepository
             Permissoes = ParsePermissoes(r.PermissoesJson),
             EhPadrao = r.EhPadrao,
             CriadoEm = r.CriadoEm,
+            Icone = r.Icone,
+            Cor = r.Cor,
+            Descricao = r.Descricao,
         });
     }
 
@@ -67,5 +73,8 @@ public class ModeloPermissaoQueryRepository
         public string? PermissoesJson { get; set; }
         public bool EhPadrao { get; set; }
         public DateTime CriadoEm { get; set; }
+        public string? Icone { get; set; }
+        public string? Cor { get; set; }
+        public string? Descricao { get; set; }
     }
 }

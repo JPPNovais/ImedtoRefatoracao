@@ -8,12 +8,21 @@ export interface ModeloPermissao {
     permissoes: string[]
     ehPadrao: boolean
     criadoEm: string
+    /** Ícone FontAwesome (ex: `fa-user-doctor`). Decorativo — opcional. */
+    icone?: string | null
+    /** Cor (HSL ou hex) usada para decorar o papel. Decorativa — opcional. */
+    cor?: string | null
+    /** Descrição curta exibida no seletor de papel. Opcional. */
+    descricao?: string | null
 }
 
 export interface SalvarModeloPayload {
     nome: string
     tipoAcesso: string
     permissoes: string[]
+    icone?: string | null
+    cor?: string | null
+    descricao?: string | null
 }
 
 export const permissaoService = {

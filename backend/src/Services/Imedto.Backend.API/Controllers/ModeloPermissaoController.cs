@@ -47,6 +47,9 @@ public class ModeloPermissaoController : ControllerBase
             Nome = dto.Nome,
             TipoAcesso = dto.TipoAcesso,
             Permissoes = dto.Permissoes ?? Array.Empty<string>(),
+            Icone = dto.Icone,
+            Cor = dto.Cor,
+            Descricao = dto.Descricao,
         };
         await _cmd.Send(cmd);
         return Created($"api/estabelecimento/modelos-permissao", new { modeloId = cmd.ModeloIdCriado });
@@ -63,6 +66,9 @@ public class ModeloPermissaoController : ControllerBase
             Nome = dto.Nome,
             TipoAcesso = dto.TipoAcesso,
             Permissoes = dto.Permissoes ?? Array.Empty<string>(),
+            Icone = dto.Icone,
+            Cor = dto.Cor,
+            Descricao = dto.Descricao,
         });
         return NoContent();
     }
@@ -99,6 +105,20 @@ public class ModeloPermissaoController : ControllerBase
     }
 }
 
-public record CriarModeloPermissaoDto(string Nome, string TipoAcesso, IReadOnlyList<string>? Permissoes);
-public record AtualizarModeloPermissaoDto(string Nome, string TipoAcesso, IReadOnlyList<string>? Permissoes);
+public record CriarModeloPermissaoDto(
+    string Nome,
+    string TipoAcesso,
+    IReadOnlyList<string>? Permissoes,
+    string? Icone = null,
+    string? Cor = null,
+    string? Descricao = null);
+
+public record AtualizarModeloPermissaoDto(
+    string Nome,
+    string TipoAcesso,
+    IReadOnlyList<string>? Permissoes,
+    string? Icone = null,
+    string? Cor = null,
+    string? Descricao = null);
+
 public record AtribuirModeloAoVinculoDto(long ModeloPermissaoId);

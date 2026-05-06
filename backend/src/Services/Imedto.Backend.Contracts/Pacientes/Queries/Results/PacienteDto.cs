@@ -15,6 +15,16 @@ public class PacienteDto
     // valor existente para round-trip (PUT envia campo de volta intacto se nao
     // alterado). Considerar separar em PacienteEdicaoDto numa proxima iteracao.
     public string Observacoes { get; set; }
+
+    /// <summary>Tags clínicas/operacionais (chaves curtas, ex: <c>"vip"</c>, <c>"gestante"</c>).</summary>
+    public string[] Tags { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Alertas clínicos críticos (ex: alergias graves, comorbidades). Exibidos em
+    /// destaque vermelho no detalhe do paciente.
+    /// </summary>
+    public string[] Alertas { get; set; } = Array.Empty<string>();
+
     public DateTime CriadoEm { get; set; }
 }
 
@@ -27,6 +37,12 @@ public class PacienteListaItemDto
     public DateTime? DataNascimento { get; set; }
     public string Telefone { get; set; }
     public DateTime CriadoEm { get; set; }
+
+    /// <summary>Tags clínicas para filtros e badges visuais na lista.</summary>
+    public string[] Tags { get; set; } = Array.Empty<string>();
+
+    /// <summary>Quantidade de alertas clínicos do paciente (badge vermelho na lista).</summary>
+    public int QtdAlertas { get; set; }
 }
 
 public class PaginaPacientesDto

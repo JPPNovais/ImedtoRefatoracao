@@ -52,7 +52,9 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
             command.Email,
             command.Endereco,
             command.Observacoes,
-            command.DocumentoInternacional);
+            command.DocumentoInternacional,
+            command.Tags,
+            command.Alertas);
 
         await _repository.Salvar(paciente);
 

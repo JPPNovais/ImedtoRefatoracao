@@ -21,6 +21,7 @@ import {
     type PacientePayload,
 } from "@/services/pacienteService"
 import { cpfValido } from "@/utils/cpf"
+import { PACIENTE_TAGS, resolverTag } from "@/constants/pacienteTags"
 
 type TipoDocumento = "cpf" | "internacional"
 
@@ -53,7 +54,11 @@ const form = reactive({
     cidade:         "",
     uf:             "",
     observacoes:    "",
+    tags:           [] as string[],
+    alertas:        [] as string[],
 })
+
+const novoAlerta = ref("")
 
 const salvando = ref(false)
 const erro     = ref<string | null>(null)
@@ -88,7 +93,30 @@ function resetForm() {
     form.cidade         = ""
     form.uf             = ""
     form.observacoes    = ""
+    form.tags           = []
+    form.alertas        = []
+    novoAlerta.value    = ""
     erro.value = null
+}
+
+function toggleTag(chave: string) {
+    const idx = form.tags.indexOf(chave)
+    if (idx === -1) form.tags.push(chave)
+    else form.tags.splice(idx, 1)
+}
+
+function adicionarAlerta() {
+    const v = novoAlerta.value.trim()
+    if (!v) return
+    if (v.length > 200) { erro.value = "Cada alerta deve ter no máximo 200 caracteres."; return }
+    if (form.alertas.length >= 10) { erro.value = "Máximo de 10 alertas por paciente."; return }
+    if (form.alertas.some(a => a.toLowerCase() === v.toLowerCase())) { novoAlerta.value = ""; return }
+    form.alertas.push(v)
+    novoAlerta.value = ""
+}
+
+function removerAlerta(i: number) {
+    form.alertas.splice(i, 1)
 }
 
 function parseEndereco(end: string | null | undefined) {
@@ -163,6 +191,8 @@ watch(
             form.celular        = p.telefone ?? ""
             form.email          = p.email ?? ""
             form.observacoes    = p.observacoes ?? ""
+            form.tags           = [...(p.tags ?? [])]
+            form.alertas        = [...(p.alertas ?? [])]
             parseEndereco(p.endereco)
         }
     },
@@ -193,6 +223,8 @@ async function salvar() {
             email:          form.email || undefined,
             endereco:       montarEndereco() || undefined,
             observacoes:    form.observacoes || undefined,
+            tags:           form.tags.length    ? [...form.tags]    : [],
+            alertas:        form.alertas.length ? [...form.alertas] : [],
         }
 
         if (props.paciente?.id) {
@@ -350,6 +382,64 @@ async function salvar() {
         </section>
 
         <section class="secao">
+            <h3 class="secao-titulo">Tags clínicas</h3>
+            <p class="secao-hint">Use tags para classificar e filtrar o paciente na lista (ex: VIP, Gestante, Crônico).</p>
+            <div class="tag-grid">
+                <button
+                    v-for="t in PACIENTE_TAGS" :key="t.chave"
+                    type="button"
+                    class="tag-pick"
+                    :class="{ ativa: form.tags.includes(t.chave) }"
+                    :style="form.tags.includes(t.chave) ? { background: `color-mix(in srgb, ${t.cor} 15%, white)`, color: t.cor, borderColor: `color-mix(in srgb, ${t.cor} 35%, white)` } : null"
+                    :disabled="salvando"
+                    @click="toggleTag(t.chave)"
+                >
+                    <i class="fa-solid" :class="t.icone"></i>
+                    {{ t.label }}
+                </button>
+            </div>
+        </section>
+
+        <section class="secao">
+            <h3 class="secao-titulo">Alertas clínicos</h3>
+            <p class="secao-hint">
+                Avisos críticos que aparecerão em destaque no detalhe do paciente
+                (ex: "Alergia grave a penicilina", "Diabético tipo 1"). Máximo de 10.
+            </p>
+            <div v-if="form.alertas.length" class="alertas-lista">
+                <div v-for="(a, i) in form.alertas" :key="i" class="alerta-item">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>{{ a }}</span>
+                    <button
+                        type="button"
+                        class="alerta-remover"
+                        :disabled="salvando"
+                        aria-label="Remover alerta"
+                        @click="removerAlerta(i)"
+                    >
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="alerta-novo">
+                <AppInput
+                    v-model="novoAlerta"
+                    placeholder="Descreva o alerta e pressione Enter..."
+                    :disabled="salvando || form.alertas.length >= 10"
+                    @keyup.enter="adicionarAlerta"
+                />
+                <AppButton
+                    variant="secondary"
+                    icon="fa-solid fa-plus"
+                    :disabled="salvando || !novoAlerta.trim() || form.alertas.length >= 10"
+                    @click="adicionarAlerta"
+                >
+                    Adicionar
+                </AppButton>
+            </div>
+        </section>
+
+        <section class="secao">
             <h3 class="secao-titulo">Observações</h3>
             <AppTextarea
                 v-model="form.observacoes"
@@ -432,7 +522,58 @@ async function salvar() {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.secao-hint {
+    font-size: 0.78rem;
+    color: hsl(var(--secondary) / 0.65);
+    margin: -0.4rem 0 0.2rem;
+    line-height: 1.4;
+}
+
+/* Tags clínicas */
+.tag-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tag-pick {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: white;
+    border: 1.5px solid hsl(var(--secondary) / 0.15);
+    padding: 6px 12px; border-radius: 999px;
+    font-family: inherit; font-size: 0.8rem; font-weight: 600;
+    color: hsl(var(--secondary) / 0.7);
+    cursor: pointer;
+    transition: all 150ms;
+}
+.tag-pick:hover { border-color: hsl(var(--primary) / 0.4); color: hsl(var(--primary-dark)); }
+.tag-pick:disabled { opacity: 0.5; cursor: not-allowed; }
+.tag-pick i { font-size: 11px; }
+
+/* Alertas */
+.alertas-lista { display: flex; flex-direction: column; gap: 0.4rem; }
+.alerta-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: hsl(var(--error) / 0.06);
+    border: 1px solid hsl(var(--error) / 0.2);
+    border-left-width: 3px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    color: hsl(0 70% 30%);
+}
+.alerta-item > i:first-child { color: hsl(var(--error)); flex-shrink: 0; }
+.alerta-item > span { flex: 1; }
+.alerta-remover {
+    background: none; border: none; cursor: pointer;
+    color: hsl(var(--error) / 0.7); font-size: 0.85rem;
+    padding: 4px 6px; border-radius: 4px;
+}
+.alerta-remover:hover:not(:disabled) {
+    background: hsl(var(--error) / 0.12);
+    color: hsl(var(--error));
+}
+
+.alerta-novo { display: flex; gap: 0.5rem; align-items: stretch; }
+.alerta-novo > :first-child { flex: 1; }
+
 @media (max-width: 720px) {
     .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .alerta-novo { flex-direction: column; }
 }
 </style>

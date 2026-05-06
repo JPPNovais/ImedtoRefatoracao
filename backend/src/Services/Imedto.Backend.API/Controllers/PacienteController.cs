@@ -53,6 +53,16 @@ public class PacienteController : ControllerBase
         return Ok(pagina1);
     }
 
+    /// <summary>KPIs agregados (total + novos no mês) — usados no header da lista.</summary>
+    [HttpGet("stats")]
+    [ProducesResponseType(typeof(PacienteStatsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Stats()
+    {
+        var dto = await _requestBus.Query<ObterPacienteStatsQuery, PacienteStatsDto>(
+            new ObterPacienteStatsQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
+        return Ok(dto);
+    }
+
     /// <summary>Retorna os dados de um paciente.</summary>
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
@@ -90,7 +100,9 @@ public class PacienteController : ControllerBase
             Telefone = request.Telefone,
             Email = request.Email,
             Endereco = request.Endereco,
-            Observacoes = request.Observacoes
+            Observacoes = request.Observacoes,
+            Tags = request.Tags ?? Array.Empty<string>(),
+            Alertas = request.Alertas ?? Array.Empty<string>(),
         });
 
         return Created(string.Empty, null);
@@ -118,7 +130,9 @@ public class PacienteController : ControllerBase
             Telefone = request.Telefone,
             Email = request.Email,
             Endereco = request.Endereco,
-            Observacoes = request.Observacoes
+            Observacoes = request.Observacoes,
+            Tags = request.Tags ?? Array.Empty<string>(),
+            Alertas = request.Alertas ?? Array.Empty<string>(),
         });
 
         return NoContent();
@@ -170,4 +184,6 @@ public record PacienteRequest(
     string Telefone,
     string Email,
     string Endereco,
-    string Observacoes);
+    string Observacoes,
+    IReadOnlyList<string> Tags = null,
+    IReadOnlyList<string> Alertas = null);

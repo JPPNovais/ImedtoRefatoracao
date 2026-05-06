@@ -5,11 +5,20 @@ namespace Imedto.Backend.Domain.ModelosPermissao;
 
 /// <summary>
 /// Template de permissões atribuído a profissionais de um estabelecimento.
+///
 /// <see cref="TipoAcesso"/> mantém o papel base (Profissional ou Recepcionista) — usado
-/// por filtros de tenancy. <see cref="Permissoes"/> guarda as permissões granulares por
-/// área (agenda, pacientes, prontuário, etc.) seguindo o catálogo do legado.
+/// por filtros de tenancy.
+///
+/// <see cref="Permissoes"/> guarda as permissões granulares no formato <c>area.acao</c>
+/// (ex: <c>agenda.view</c>, <c>agenda.create</c>, <c>patients.edit</c>). Para retrocompatibilidade
+/// com modelos antigos do legado, chaves sem ponto (ex: <c>"agenda"</c>) também são aceitas e
+/// representam acesso total à área — ver <see cref="TemAreaCompleta"/>.
+///
 /// <see cref="PermissoesExtrasLista"/> guarda permissões finas por feature (catálogo em
 /// <see cref="PermissoesExtras"/>) — ex: assistente clínico de IA, emissão de receitas.
+///
+/// <see cref="Icone"/>, <see cref="Cor"/> e <see cref="Descricao"/> são metadados visuais
+/// usados pelo frontend para decorar o papel (selector de papel, pill no header etc.).
 /// </summary>
 public class ModeloPermissaoEstabelecimento : Entity
 {
@@ -17,7 +26,7 @@ public class ModeloPermissaoEstabelecimento : Entity
     public virtual string Nome { get; protected set; } = string.Empty;
     public virtual TipoAcessoModelo TipoAcesso { get; protected set; }
 
-    /// <summary>JSONB persistido — array de strings com as keys de permissão (ver legado: src/constants/permissions.ts).</summary>
+    /// <summary>JSONB persistido — array de strings com as keys de permissão (formato area.acao).</summary>
     public virtual string PermissoesJson { get; protected set; } = "[]";
 
     /// <summary>JSONB persistido — array de strings com permissões finas por feature (ver <see cref="PermissoesExtras"/>).</summary>
@@ -26,6 +35,15 @@ public class ModeloPermissaoEstabelecimento : Entity
     public virtual bool EhPadrao { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
+
+    /// <summary>Identificador FontAwesome (ex: <c>fa-user-doctor</c>) usado no front.</summary>
+    public virtual string? Icone { get; protected set; }
+
+    /// <summary>Cor (string HSL ou hex) usada para decorar o papel no front.</summary>
+    public virtual string? Cor { get; protected set; }
+
+    /// <summary>Descrição curta exibida no seletor de papel.</summary>
+    public virtual string? Descricao { get; protected set; }
 
     /// <summary>Acessor tipado do array de permissões (deserializado de <see cref="PermissoesJson"/>).</summary>
     public IReadOnlyList<string> Permissoes =>
@@ -52,13 +70,7 @@ public class ModeloPermissaoEstabelecimento : Entity
                 EstabelecimentoId = estabelecimentoId,
                 Nome = "Admin",
                 TipoAcesso = TipoAcessoModelo.Profissional,
-                // Áreas: tudo que Admin enxerga no menu (paridade com seed legado).
-                PermissoesJson = SerializarLista(new[]
-                {
-                    "agenda", "pacientes", "prontuario",
-                    "orcamentos", "estoque", "financeiro", "relatorios",
-                }),
-                // Admin é o operador da clínica — recebe todas as permissões finas.
+                PermissoesJson = SerializarLista(CatalogoPermissoes.AdminPadrao),
                 PermissoesExtrasJson = SerializarLista(new[]
                 {
                     PermissoesExtras.AssistenteClinicoIa,
@@ -68,6 +80,9 @@ public class ModeloPermissaoEstabelecimento : Entity
                     PermissoesExtras.ModelosProntuario,
                     PermissoesExtras.AutomacaoConfig,
                 }),
+                Icone = "fa-crown",
+                Cor = "hsl(280 60% 50%)",
+                Descricao = "Acesso total — recomendado para o dono da clínica",
                 EhPadrao = true,
                 CriadoEm = agora,
             },
@@ -76,18 +91,15 @@ public class ModeloPermissaoEstabelecimento : Entity
                 EstabelecimentoId = estabelecimentoId,
                 Nome = "Médico",
                 TipoAcesso = TipoAcessoModelo.Profissional,
-                // Áreas legado: agenda, pacientes, prontuario, perfil_profissional, minhas_consultas.
-                PermissoesJson = SerializarLista(new[]
-                {
-                    "agenda", "pacientes", "prontuario",
-                    "perfil_profissional", "minhas_consultas",
-                }),
-                // Finas: IA clínica + edição dos próprios templates de prontuário.
+                PermissoesJson = SerializarLista(CatalogoPermissoes.MedicoPadrao),
                 PermissoesExtrasJson = SerializarLista(new[]
                 {
                     PermissoesExtras.AssistenteClinicoIa,
                     PermissoesExtras.ModelosProntuario,
                 }),
+                Icone = "fa-user-doctor",
+                Cor = "hsl(254 56% 38%)",
+                Descricao = "Profissional de saúde com agenda e prontuário",
                 EhPadrao = true,
                 CriadoEm = agora,
             },
@@ -96,9 +108,11 @@ public class ModeloPermissaoEstabelecimento : Entity
                 EstabelecimentoId = estabelecimentoId,
                 Nome = "Recepção",
                 TipoAcesso = TipoAcessoModelo.Recepcionista,
-                PermissoesJson = SerializarLista(new[] { "agenda", "pacientes", "estoque" }),
-                // Recepção não tem acesso clínico nem administrativo — sem permissões finas.
+                PermissoesJson = SerializarLista(CatalogoPermissoes.RecepcaoPadrao),
                 PermissoesExtrasJson = "[]",
+                Icone = "fa-headset",
+                Cor = "hsl(40 80% 50%)",
+                Descricao = "Atendimento, agenda e cadastro de pacientes",
                 EhPadrao = true,
                 CriadoEm = agora,
             },
@@ -110,7 +124,10 @@ public class ModeloPermissaoEstabelecimento : Entity
         string nome,
         TipoAcessoModelo tipoAcesso,
         IReadOnlyList<string>? permissoes = null,
-        IReadOnlyList<string>? permissoesExtras = null)
+        IReadOnlyList<string>? permissoesExtras = null,
+        string? icone = null,
+        string? cor = null,
+        string? descricao = null)
     {
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
@@ -124,6 +141,9 @@ public class ModeloPermissaoEstabelecimento : Entity
             TipoAcesso = tipoAcesso,
             PermissoesJson = SerializarLista(permissoes),
             PermissoesExtrasJson = SerializarLista(permissoesExtras),
+            Icone = NormalizarTexto(icone, 50),
+            Cor = NormalizarTexto(cor, 40),
+            Descricao = NormalizarTexto(descricao, 200),
             EhPadrao = false,
             CriadoEm = DateTime.UtcNow
         };
@@ -133,7 +153,10 @@ public class ModeloPermissaoEstabelecimento : Entity
         string nome,
         TipoAcessoModelo tipoAcesso,
         IReadOnlyList<string>? permissoes = null,
-        IReadOnlyList<string>? permissoesExtras = null)
+        IReadOnlyList<string>? permissoesExtras = null,
+        string? icone = null,
+        string? cor = null,
+        string? descricao = null)
     {
         if (EhPadrao)
             throw new BusinessException("Modelo padrão do sistema não pode ser editado.");
@@ -144,6 +167,9 @@ public class ModeloPermissaoEstabelecimento : Entity
         TipoAcesso = tipoAcesso;
         PermissoesJson = SerializarLista(permissoes);
         PermissoesExtrasJson = SerializarLista(permissoesExtras);
+        Icone = NormalizarTexto(icone, 50);
+        Cor = NormalizarTexto(cor, 40);
+        Descricao = NormalizarTexto(descricao, 200);
         AtualizadoEm = DateTime.UtcNow;
     }
 
@@ -152,6 +178,41 @@ public class ModeloPermissaoEstabelecimento : Entity
     {
         if (EhPadrao)
             throw new BusinessException("Modelo padrão do sistema não pode ser excluído.");
+    }
+
+    /// <summary>
+    /// Indica se este modelo concede acesso à área informada (em qualquer ação).
+    /// Aceita tanto chave legada (<c>"agenda"</c>) quanto chave granular (<c>"agenda.view"</c>).
+    /// </summary>
+    public virtual bool TemArea(string area)
+    {
+        if (string.IsNullOrWhiteSpace(area)) return false;
+        var trim = area.Trim();
+        var prefixo = trim + ".";
+        foreach (var p in Permissoes)
+        {
+            if (p.Equals(trim, StringComparison.Ordinal)) return true;
+            if (p.StartsWith(prefixo, StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Indica se este modelo concede a ação granular informada (formato <c>"area.acao"</c>).
+    /// Para modelos legados (sem ponto), considera que ter a área concede todas as ações dela.
+    /// </summary>
+    public virtual bool TemAcao(string area, string acao)
+    {
+        if (string.IsNullOrWhiteSpace(area) || string.IsNullOrWhiteSpace(acao)) return false;
+        var areaTrim = area.Trim();
+        var chaveCompleta = $"{areaTrim}.{acao.Trim()}";
+        foreach (var p in Permissoes)
+        {
+            if (p.Equals(chaveCompleta, StringComparison.Ordinal)) return true;
+            // Legacy: chave sem ponto = acesso total à área.
+            if (p.Equals(areaTrim, StringComparison.Ordinal)) return true;
+        }
+        return false;
     }
 
     /// <summary>Indica se este modelo concede a permissão fina informada (catálogo em <see cref="PermissoesExtras"/>).</summary>
@@ -194,7 +255,6 @@ public class ModeloPermissaoEstabelecimento : Entity
     private static string SerializarLista(IReadOnlyList<string>? itens)
     {
         if (itens is null || itens.Count == 0) return "[]";
-        // Normaliza: remove duplicatas, mantém a ordem original.
         var visto = new HashSet<string>();
         var ordenadas = new List<string>(itens.Count);
         foreach (var p in itens)
@@ -204,5 +264,12 @@ public class ModeloPermissaoEstabelecimento : Entity
             if (visto.Add(trim)) ordenadas.Add(trim);
         }
         return JsonSerializer.Serialize(ordenadas);
+    }
+
+    private static string? NormalizarTexto(string? valor, int tamanhoMax)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+        var trim = valor.Trim();
+        return trim.Length > tamanhoMax ? trim[..tamanhoMax] : trim;
     }
 }

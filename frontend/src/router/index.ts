@@ -65,11 +65,11 @@ const router = createRouter({
         },
 
         // Configurações (apenas Dono)
+        // Rota legada — redireciona para a tela unificada Equipe na aba "papeis".
         {
             path: "/configuracoes/modelos-permissao",
             name: "ModelosPermissao",
-            component: () => import("@/views/configuracoes/ModelosPermissaoView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { name: "Equipe", query: { aba: "papeis" } },
         },
         {
             path: "/configuracoes/modelos-prontuario",
@@ -78,12 +78,18 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
 
-        // Profissionais (apenas Dono)
+        // Equipe e permissões — tela unificada (apenas Dono).
+        {
+            path: "/equipe",
+            name: "Equipe",
+            component: () => import("@/views/equipe/EquipeView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        // Rota legada — preserva deep-links para `/profissionais`.
         {
             path: "/profissionais",
             name: "Profissionais",
-            component: () => import("@/views/profissionais/ProfissionaisView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { name: "Equipe" },
         },
 
         // Estabelecimento (edição)

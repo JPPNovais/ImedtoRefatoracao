@@ -14,6 +14,10 @@ namespace Imedto.Backend.Domain.Pacientes;
 public class Paciente : Entity, ISoftDeletable
 {
     public const int DocumentoInternacionalMaxLen = 30;
+    public const int TagMaxLen = 40;
+    public const int AlertaMaxLen = 200;
+    public const int TagsMaxCount = 10;
+    public const int AlertasMaxCount = 10;
 
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual string NomeCompleto { get; protected set; }
@@ -25,6 +29,20 @@ public class Paciente : Entity, ISoftDeletable
     public virtual string Email { get; protected set; }
     public virtual string Endereco { get; protected set; }
     public virtual string Observacoes { get; protected set; }
+
+    /// <summary>
+    /// Tags clínicas/operacionais (chaves curtas, ex: <c>"vip"</c>, <c>"gestante"</c>, <c>"cronico"</c>).
+    /// Usadas para filtros e badges visuais. Catálogo definido pelo frontend.
+    /// </summary>
+    public virtual IReadOnlyList<string> Tags { get; protected set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Alertas clínicos críticos exibidos em destaque no detalhe do paciente
+    /// (ex: <c>"Alergia grave a penicilina"</c>, <c>"Diabetes Tipo 1"</c>).
+    /// LGPD: armazenam dado de saúde — restritos por papel/permissão de prontuário.
+    /// </summary>
+    public virtual IReadOnlyList<string> Alertas { get; protected set; } = Array.Empty<string>();
+
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
 
@@ -52,7 +70,9 @@ public class Paciente : Entity, ISoftDeletable
         string email,
         string endereco,
         string observacoes,
-        string documentoInternacional = null)
+        string documentoInternacional = null,
+        IReadOnlyList<string> tags = null,
+        IReadOnlyList<string> alertas = null)
     {
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
@@ -76,6 +96,8 @@ public class Paciente : Entity, ISoftDeletable
             Email = SanitizeOpt(email, digitsOnly: false)?.ToLowerInvariant(),
             Endereco = SanitizeOpt(endereco, digitsOnly: false),
             Observacoes = SanitizeOpt(observacoes, digitsOnly: false),
+            Tags = NormalizarLista(tags, TagMaxLen, TagsMaxCount, "Tags"),
+            Alertas = NormalizarLista(alertas, AlertaMaxLen, AlertasMaxCount, "Alertas"),
             CriadoEm = DateTime.UtcNow
         };
     }
@@ -97,7 +119,9 @@ public class Paciente : Entity, ISoftDeletable
         string email,
         string endereco,
         string observacoes,
-        string documentoInternacional = null)
+        string documentoInternacional = null,
+        IReadOnlyList<string> tags = null,
+        IReadOnlyList<string> alertas = null)
     {
         if (EstaDeletado)
             throw new BusinessException("Paciente deletado não pode ser editado.");
@@ -118,6 +142,8 @@ public class Paciente : Entity, ISoftDeletable
         Email = SanitizeOpt(email, digitsOnly: false)?.ToLowerInvariant();
         Endereco = SanitizeOpt(endereco, digitsOnly: false);
         Observacoes = SanitizeOpt(observacoes, digitsOnly: false);
+        Tags = NormalizarLista(tags, TagMaxLen, TagsMaxCount, "Tags");
+        Alertas = NormalizarLista(alertas, AlertaMaxLen, AlertasMaxCount, "Alertas");
         AtualizadoEm = DateTime.UtcNow;
     }
 
@@ -140,6 +166,8 @@ public class Paciente : Entity, ISoftDeletable
         DataNascimento = null;
         Endereco = null;
         Observacoes = null;
+        Tags = Array.Empty<string>();
+        Alertas = Array.Empty<string>();
 
         AnonimizadoEm = DateTime.UtcNow;
         AnonimizadoPorUsuarioId = usuarioId;
@@ -193,4 +221,33 @@ public class Paciente : Entity, ISoftDeletable
 
     private static string SanitizeOpt(string valor, bool digitsOnly) =>
         digitsOnly ? TextSanitizer.DigitosOuNulo(valor) : TextSanitizer.TrimOuNulo(valor);
+
+    /// <summary>
+    /// Normaliza uma lista de strings: trim, remove vazios e duplicados (case-insensitive),
+    /// valida tamanho máximo de cada item e limite de itens. Retorna lista vazia para null.
+    /// </summary>
+    private static IReadOnlyList<string> NormalizarLista(
+        IReadOnlyList<string> origem,
+        int tamanhoItemMax,
+        int quantidadeMax,
+        string nomeCampo)
+    {
+        if (origem is null || origem.Count == 0) return Array.Empty<string>();
+
+        var visto = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var resultado = new List<string>(origem.Count);
+        foreach (var raw in origem)
+        {
+            var trim = raw?.Trim();
+            if (string.IsNullOrEmpty(trim)) continue;
+            if (trim.Length > tamanhoItemMax)
+                throw new BusinessException($"{nomeCampo}: cada item deve ter até {tamanhoItemMax} caracteres.");
+            if (visto.Add(trim)) resultado.Add(trim);
+        }
+
+        if (resultado.Count > quantidadeMax)
+            throw new BusinessException($"{nomeCampo}: máximo de {quantidadeMax} itens.");
+
+        return resultado;
+    }
 }

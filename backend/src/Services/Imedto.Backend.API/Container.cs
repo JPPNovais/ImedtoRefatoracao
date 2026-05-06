@@ -327,6 +327,7 @@ public static class Container
         services.AddScoped<AtualizarPacienteCommandHandler>();
         services.AddScoped<DeletarPacienteCommandHandler>();
         services.AddSingleton<ListarPacientesQueryHandlers>();
+        services.AddSingleton<ObterPacienteStatsQueryHandler>();
         // Scoped: Obter/Export auditam acesso via IPacienteAcessoLogService (LGPD).
         services.AddScoped<ObterPacienteQueryHandlers>();
         services.AddScoped<ExportarDadosPacienteQueryHandlers>();
@@ -749,6 +750,7 @@ public static class Container
             bus.Register<ListarMinhasSolicitacoesVinculoQuery, IEnumerable<SolicitacaoVinculoDto>, ListarMinhasSolicitacoesVinculoQueryHandlers>();
             bus.Register<ListarSolicitacoesVinculoRecebidasQuery, IEnumerable<SolicitacaoVinculoDto>, ListarSolicitacoesVinculoRecebidasQueryHandlers>();
             bus.Register<ListarPacientesQuery, PaginaPacientesDto, ListarPacientesQueryHandlers>();
+            bus.Register<ObterPacienteStatsQuery, PacienteStatsDto, ObterPacienteStatsQueryHandler>();
             bus.Register<ObterPacienteQuery, PacienteDto, ObterPacienteQueryHandlers>();
             bus.Register<ExportarDadosPacienteQuery, PacienteExportLgpdDto, ExportarDadosPacienteQueryHandlers>();
             bus.Register<ListarModelosDisponiveisQuery, IEnumerable<ModeloProntuarioDto>, ListarModelosDisponiveisQueryHandlers>();

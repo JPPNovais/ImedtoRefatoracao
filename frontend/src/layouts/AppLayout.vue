@@ -41,7 +41,7 @@ const navMain = computed(() => {
         { name: "Agenda",          label: "Agendamentos",     icon: "fa-solid fa-calendar-days",          to: { name: "Agenda" } },
         { name: "MinhasConsultas", label: "Minhas consultas", icon: "fa-solid fa-stethoscope",            to: { name: "MinhasConsultas" } },
         { name: "Pacientes",       label: "Pacientes",        icon: "fa-solid fa-people-group",           to: { name: "Pacientes" } },
-        ...(ehDono ? [{ name: "Profissionais", label: "Profissionais", icon: "fa-solid fa-user-doctor", to: { name: "Profissionais" } }] : []),
+        ...(ehDono ? [{ name: "Equipe", label: "Equipe", icon: "fa-solid fa-user-doctor", to: { name: "Equipe" } }] : []),
         { name: "Financeiro",      label: "Financeiro",       icon: "fa-solid fa-chart-line",             to: { name: "Financeiro" } },
         { name: "Orcamentos",      label: "Orçamentos",       icon: "fa-solid fa-file-invoice-dollar",    to: { name: "Orcamentos" } },
         { name: "Inventario",      label: "Estoque",          icon: "fa-solid fa-boxes-stacked",          to: { name: "Inventario" } },
@@ -67,9 +67,10 @@ const activeMap: Record<string, string> = {
     OrcamentoDetalhe: "Orcamentos",
     OrcamentoForm: "Orcamentos",
     OrcamentoSettings: "Orcamentos",
-    // Permissões e convites pertencem ao escopo Profissionais.
-    ModelosPermissao: "Profissionais",
-    MeusConvites: "Profissionais",
+    // Permissões e convites pertencem ao escopo Equipe (rotas legadas redirecionam).
+    Profissionais: "Equipe",
+    ModelosPermissao: "Equipe",
+    MeusConvites: "Equipe",
 }
 
 // "Configurações" no footer agrupa todas as telas de configuração do estabelecimento.

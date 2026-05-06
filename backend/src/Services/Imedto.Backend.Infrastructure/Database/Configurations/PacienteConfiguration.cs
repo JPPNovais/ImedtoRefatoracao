@@ -25,6 +25,19 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.Property(p => p.Email).HasColumnName("email").HasMaxLength(320);
         builder.Property(p => p.Endereco).HasColumnName("endereco").HasMaxLength(500);
         builder.Property(p => p.Observacoes).HasColumnName("observacoes").HasMaxLength(2000);
+
+        // text[] no Postgres — Npgsql mapeia diretamente para IReadOnlyList<string>.
+        // O domain garante normalização (trim, dedupe case-insensitive) e limites.
+        builder.Property(p => p.Tags)
+            .HasColumnName("tags")
+            .HasColumnType("text[]")
+            .IsRequired()
+            .HasDefaultValueSql("ARRAY[]::text[]");
+        builder.Property(p => p.Alertas)
+            .HasColumnName("alertas")
+            .HasColumnType("text[]")
+            .IsRequired()
+            .HasDefaultValueSql("ARRAY[]::text[]");
         builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
         builder.Property(p => p.DeletadoEm).HasColumnName("deletado_em");

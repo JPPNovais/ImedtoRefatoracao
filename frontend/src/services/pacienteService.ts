@@ -8,6 +8,10 @@ export interface PacienteListaItem {
     dataNascimento: string | null
     telefone: string | null
     criadoEm: string
+    /** Tags clínicas/operacionais (chaves curtas como "vip", "gestante"). */
+    tags: string[]
+    /** Quantidade de alertas clínicos do paciente — usada como badge na lista. */
+    qtdAlertas: number
 }
 
 export interface PaginaPacientes {
@@ -29,6 +33,10 @@ export interface Paciente {
     email: string | null
     endereco: string | null
     observacoes: string | null
+    /** Tags clínicas/operacionais — chaves curtas (ex: "vip", "gestante"). */
+    tags: string[]
+    /** Alertas clínicos críticos exibidos em destaque no detalhe do paciente. */
+    alertas: string[]
     criadoEm: string
     atualizadoEm: string | null
 }
@@ -43,6 +51,13 @@ export interface PacientePayload {
     email?: string
     endereco?: string
     observacoes?: string
+    tags?: string[]
+    alertas?: string[]
+}
+
+export interface PacienteStats {
+    total: number
+    novosMesCorrente: number
 }
 
 export const pacienteService = {
@@ -54,6 +69,11 @@ export const pacienteService = {
                 tamanho,
             },
         })
+        return data
+    },
+
+    async stats(): Promise<PacienteStats> {
+        const { data } = await httpClient.get<PacienteStats>("/paciente/stats")
         return data
     },
 

@@ -17,4 +17,6 @@ public class AtualizarPacienteCommand : ICommand
     public string Email { get; set; }
     public string Endereco { get; set; }
     public string Observacoes { get; set; }
+    public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Alertas { get; set; } = Array.Empty<string>();
 }

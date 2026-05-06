@@ -26,6 +26,9 @@ public class ModeloPermissaoEstabelecimentoConfiguration : IEntityTypeConfigurat
             .HasColumnType("jsonb")
             .IsRequired()
             .HasDefaultValueSql("'[]'::jsonb");
+        builder.Property(m => m.Icone).HasColumnName("icone").HasMaxLength(50);
+        builder.Property(m => m.Cor).HasColumnName("cor").HasMaxLength(40);
+        builder.Property(m => m.Descricao).HasColumnName("descricao").HasMaxLength(200);
         // Read-only typed accessors — não são colunas.
         builder.Ignore(m => m.Permissoes);
         builder.Ignore(m => m.PermissoesExtrasLista);

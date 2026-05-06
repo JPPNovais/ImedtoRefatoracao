@@ -1,30 +1,62 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { AppCard, AppButton, AppEmptyState } from "@/components/ui"
+import {
+    AppButton, AppEmptyState, AppToast,
+} from "@/components/ui"
 import PacienteEditDrawer from "@/components/pacientes/PacienteEditDrawer.vue"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
-import { prontuarioService } from "@/services/prontuarioService"
+import { prontuarioService, type ProntuarioCompleto, type Anexo } from "@/services/prontuarioService"
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
+import { agendaService, type Agendamento } from "@/services/agendaService"
+import { resolverTag } from "@/constants/pacienteTags"
 
+/**
+ * Tela de detalhe de paciente. Header sticky com avatar grande, alertas
+ * clínicos em destaque vermelho e quick stats. 8 abas:
+ *  - Resumo (próximas ações + plano de tratamento ainda não disponível)
+ *  - Prontuário (timeline de evoluções)
+ *  - Anamnese (vista resumida da primeira evolução, se houver)
+ *  - Orçamentos (lista)
+ *  - Anexos (grid)
+ *  - Financeiro / Convênios / Termos: empty state "em breve"
+ *
+ * Carregamento sob demanda por aba (lazy-load) para evitar pesar no boot.
+ */
 const route  = useRoute()
 const router = useRouter()
 
 const pacienteId = computed(() => Number(route.params.id))
 
-const paciente    = ref<Paciente | null>(null)
-const carregando  = ref(false)
-const erro        = ref<string | null>(null)
+const paciente = ref<Paciente | null>(null)
+const carregando = ref(false)
+const erro = ref<string | null>(null)
 
-type Aba = "info" | "prontuarios" | "orcamentos"
-const aba = ref<Aba>("info")
+type Aba = "resumo" | "prontuario" | "anamnese" | "orcamentos" | "financeiro" | "convenios" | "termos" | "anexos"
+const aba = ref<Aba>("resumo")
 
-// Contadores + listas laterais
-const totalProntuarios = ref<number>(0)
-const orcamentos       = ref<OrcamentoResumo[]>([])
-const carregandoOrc    = ref(false)
+// Toast.
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(m: string, v: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem: m, variante: v }
+}
 
-async function carregar() {
+// ─── Lazy-load por aba ─────────────────────────────────────────────────────
+const abasCarregadas = new Set<Aba>()
+const totalProntuarios = ref(0)
+const prontuario = ref<ProntuarioCompleto | null>(null)
+const carregandoProntuario = ref(false)
+
+const orcamentos = ref<OrcamentoResumo[]>([])
+const carregandoOrc = ref(false)
+
+const anexos = ref<Anexo[]>([])
+const carregandoAnexos = ref(false)
+
+const proximaConsulta = ref<Agendamento | null>(null)
+const totalConsultas = ref(0)
+
+async function carregarPaciente() {
     carregando.value = true
     erro.value = null
     try {
@@ -36,52 +68,129 @@ async function carregar() {
     }
 }
 
-// ─── Carregamento sob demanda por aba ─────────────────────────────────────────
-const abasCarregadas = new Set<Aba>()
-
-async function garantirAba(a: Aba) {
-    if (abasCarregadas.has(a)) return
-    if (a === "prontuarios") {
-        try {
-            totalProntuarios.value = await prontuarioService.contarEvolucoes(pacienteId.value)
-        } catch { /* sem prontuário ainda */ }
-        abasCarregadas.add("prontuarios")
-    } else if (a === "orcamentos") {
-        carregandoOrc.value = true
-        try {
-            orcamentos.value = await orcamentoService.listar({ pacienteId: pacienteId.value })
-        } catch { /* ok */ }
-        finally { carregandoOrc.value = false }
-        abasCarregadas.add("orcamentos")
-    }
+// Resumo: carrega próximas consultas e contagem de evoluções uma vez.
+async function carregarResumo() {
+    if (abasCarregadas.has("resumo")) return
+    try {
+        const [pg, total] = await Promise.all([
+            agendaService.listar({
+                pacienteId: pacienteId.value,
+                dataInicio: new Date().toISOString().slice(0, 10),
+                pagina: 1, tamanho: 1,
+            }),
+            prontuarioService.contarEvolucoes(pacienteId.value).catch(() => 0),
+        ])
+        proximaConsulta.value = pg.itens[0] ?? null
+        totalConsultas.value = pg.total
+        totalProntuarios.value = total
+    } catch { /* opcional */ }
+    abasCarregadas.add("resumo")
 }
 
-watch(aba, garantirAba, { immediate: true })
+async function carregarProntuario() {
+    if (abasCarregadas.has("prontuario") && abasCarregadas.has("anamnese")) return
+    carregandoProntuario.value = true
+    try {
+        prontuario.value = await prontuarioService.obter(pacienteId.value)
+        if (prontuario.value) {
+            totalProntuarios.value = prontuario.value.evolucoes.length
+        }
+    } catch { /* sem prontuário */ }
+    finally { carregandoProntuario.value = false }
+    abasCarregadas.add("prontuario")
+    abasCarregadas.add("anamnese")
+}
 
-onMounted(carregar)
+async function carregarOrcamentos() {
+    if (abasCarregadas.has("orcamentos")) return
+    carregandoOrc.value = true
+    try {
+        orcamentos.value = await orcamentoService.listar({ pacienteId: pacienteId.value })
+    } catch { /* ok */ }
+    finally { carregandoOrc.value = false }
+    abasCarregadas.add("orcamentos")
+}
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function fmtData(iso: string | null | undefined) {
+async function carregarAnexos() {
+    if (abasCarregadas.has("anexos")) return
+    carregandoAnexos.value = true
+    try {
+        anexos.value = await prontuarioService.listarAnexos(pacienteId.value)
+    } catch { /* sem prontuário */ }
+    finally { carregandoAnexos.value = false }
+    abasCarregadas.add("anexos")
+}
+
+watch(aba, (a) => {
+    if (a === "resumo")               void carregarResumo()
+    else if (a === "prontuario" || a === "anamnese") void carregarProntuario()
+    else if (a === "orcamentos")      void carregarOrcamentos()
+    else if (a === "anexos")          void carregarAnexos()
+}, { immediate: true })
+
+onMounted(carregarPaciente)
+
+// ─── Helpers visuais ───────────────────────────────────────────────────────
+function iniciais(p: Paciente | null): string {
+    if (!p) return "?"
+    const partes = (p.nomeCompleto || "?").split(" ").filter(Boolean)
+    if (partes.length === 1) return partes[0][0]?.toUpperCase() ?? "?"
+    return (partes[0][0] + (partes[partes.length - 1][0] ?? "")).toUpperCase()
+}
+
+function corAvatar(p: Paciente | null): string {
+    if (!p) return "hsl(var(--primary))"
+    const paleta = [
+        "hsl(254 56% 38%)", "hsl(190 60% 45%)", "hsl(280 55% 50%)",
+        "hsl(140 45% 45%)", "hsl(40 70% 50%)", "hsl(340 55% 55%)",
+        "hsl(220 55% 50%)", "hsl(170 50% 40%)",
+    ]
+    return paleta[p.id % paleta.length]
+}
+
+function idade(): number | null {
+    const dataNasc = paciente.value?.dataNascimento
+    if (!dataNasc) return null
+    const nasc = new Date(dataNasc)
+    if (isNaN(nasc.getTime())) return null
+    const hoje = new Date()
+    let anos = hoje.getFullYear() - nasc.getFullYear()
+    const m = hoje.getMonth() - nasc.getMonth()
+    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) anos--
+    return anos
+}
+
+function fmtData(iso: string | null | undefined): string {
     if (!iso) return "—"
-    try { return new Date(iso).toLocaleDateString("pt-BR") }
+    try { return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) }
     catch { return iso }
 }
 
-function fmtGenero(g: string | null | undefined) {
+function fmtDataHora(iso: string | null | undefined): string {
+    if (!iso) return "—"
+    try {
+        const d = new Date(iso)
+        return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+            + " · " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    } catch { return iso }
+}
+
+function fmtMoeda(n: number): string {
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+function fmtGenero(g: string | null | undefined): string {
     const map: Record<string, string> = {
-        Masculino: "Masculino",
-        Feminino: "Feminino",
-        Outro: "Outro",
-        NaoInformado: "Não informado",
+        Masculino: "Masculino", Feminino: "Feminino", Outro: "Outro", NaoInformado: "Não informado",
     }
     return g ? (map[g] ?? g) : "—"
 }
 
-function fmtMoeda(n: number) {
-    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+function formatarCpf(cpf: string | null) {
+    if (!cpf) return "—"
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
 }
 
-// Parse best-effort do endereço para extrair cidade/UF.
 const cidadeUf = computed(() => {
     const end = paciente.value?.endereco ?? ""
     if (!end) return "—"
@@ -90,16 +199,13 @@ const cidadeUf = computed(() => {
     return end
 })
 
-// ─── Ações ────────────────────────────────────────────────────────────────────
+// ─── Ações ─────────────────────────────────────────────────────────────────
 const drawerEditarAberto = ref(false)
-
-function editar() {
-    drawerEditarAberto.value = true
-}
-
+function editar() { drawerEditarAberto.value = true }
 function onPacienteSalvo(p: Paciente) {
     paciente.value = p
     drawerEditarAberto.value = false
+    notificar("Dados do paciente atualizados.")
 }
 
 function abrirProntuario() {
@@ -107,159 +213,420 @@ function abrirProntuario() {
 }
 
 function criarOrcamento() {
-    // TODO Fase 6.2.b: tela de criação de orçamento (escolha de paciente já está
-    // resolvida aqui). Por ora redireciona à lista filtrada por paciente.
     router.push({ name: "Orcamentos", query: { pacienteId: String(pacienteId.value) } })
 }
 
 function abrirOrcamento(o: OrcamentoResumo) {
     router.push({ name: "OrcamentoDetalhe", params: { id: String(o.id) } })
 }
+
+function novoAgendamento() {
+    router.push({ name: "Agenda", query: { pacienteId: String(pacienteId.value) } })
+}
+
+// Para a aba Anamnese: extrai a primeira evolução estruturada.
+const evolucaoMaisAntiga = computed(() => {
+    const lista = prontuario.value?.evolucoes ?? []
+    if (!lista.length) return null
+    return [...lista].sort((a, b) =>
+        new Date(a.criadaEm).getTime() - new Date(b.criadaEm).getTime(),
+    )[0]
+})
+
+function valorSecao(secaoChave: string, conteudo: Record<string, unknown>): string {
+    const v = conteudo[secaoChave]
+    if (v == null || v === "") return ""
+    if (typeof v === "string") return v
+    if (typeof v === "number" || typeof v === "boolean") return String(v)
+    return JSON.stringify(v)
+}
+
+// ─── Status helpers de orçamento ───────────────────────────────────────────
+function orcStatusLabel(s: string): string {
+    return s
+}
+function orcStatusClass(s: string): string {
+    const lower = s.toLowerCase()
+    if (lower.includes("aprov") || lower.includes("aceito") || lower.includes("conclu")) return "ok"
+    if (lower.includes("recus") || lower.includes("cancel")) return "danger"
+    if (lower.includes("expirad") || lower.includes("vencid")) return "muted"
+    return "warning"
+}
 </script>
 
 <template>
-    <main class="app-page detalhe">
-        <!-- Link voltar + cabeçalho -->
-        <router-link :to="{ name: 'Pacientes' }" class="link-voltar">
+    <main class="detalhe-paciente">
+        <router-link :to="{ name: 'Pacientes' }" class="pd-back">
             <i class="fa-solid fa-arrow-left"></i>
-            Voltar para lista de pacientes
+            Voltar para a lista de pacientes
         </router-link>
-
-        <div class="cabecalho">
-            <div>
-                <h1 class="titulo">{{ paciente?.nomeCompleto || "Paciente" }}</h1>
-                <p class="subtitulo">Detalhes do paciente, histórico de consultas e orçamentos</p>
-            </div>
-        </div>
 
         <p v-if="carregando" class="msg-info">Carregando…</p>
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
-        <template v-if="!carregando && paciente">
-            <!-- ── Tabs ── -->
-            <AppCard padding="sm" class="tabs-card">
-                <div class="tabs">
-                    <button
-                        type="button" class="tab"
-                        :class="{ ativo: aba === 'info' }"
-                        @click="aba = 'info'"
-                    >
-                        <i class="fa-solid fa-user" aria-hidden="true"></i>
-                        <span>Informações</span>
-                    </button>
-                    <button
-                        type="button" class="tab"
-                        :class="{ ativo: aba === 'prontuarios' }"
-                        @click="aba = 'prontuarios'"
-                    >
-                        <i class="fa-solid fa-file-medical" aria-hidden="true"></i>
-                        <span>Prontuários</span>
-                        <span class="tab-count">{{ totalProntuarios }}</span>
-                    </button>
-                    <button
-                        type="button" class="tab"
-                        :class="{ ativo: aba === 'orcamentos' }"
-                        @click="aba = 'orcamentos'"
-                    >
-                        <i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i>
-                        <span>Orçamentos</span>
-                        <span class="tab-count">{{ orcamentos.length }}</span>
-                    </button>
-                </div>
-            </AppCard>
-
-            <!-- ── Aba: Informações ── -->
-            <AppCard v-if="aba === 'info'" padding="lg">
-                <template #header-aside>
-                    <AppButton variant="secondary" size="sm" icon="fa-solid fa-pen" @click="editar">
-                        Editar dados
-                    </AppButton>
-                </template>
-                <h2 class="secao-titulo">Dados do Paciente</h2>
-
-                <div class="grid-2">
-                    <div class="dado">
-                        <span class="dado-label">CPF/CNPJ:</span>
-                        <span class="dado-valor">{{ paciente.cpf || "—" }}</span>
+        <template v-if="paciente">
+            <!-- Header sticky -->
+            <div class="pd-header">
+                <div class="pd-head-main">
+                    <div class="pd-avatar" :style="{ background: corAvatar(paciente) }">
+                        {{ iniciais(paciente) }}
                     </div>
-                    <div class="dado">
-                        <span class="dado-label">Data de nascimento:</span>
-                        <span class="dado-valor">{{ fmtData(paciente.dataNascimento) }}</span>
-                    </div>
-
-                    <div class="dado">
-                        <span class="dado-label">Sexo:</span>
-                        <span class="dado-valor">{{ fmtGenero(paciente.genero) }}</span>
-                    </div>
-                    <div class="dado">
-                        <span class="dado-label">Celular:</span>
-                        <span class="dado-valor">{{ paciente.telefone || "—" }}</span>
-                    </div>
-
-                    <div class="dado">
-                        <span class="dado-label">E-mail:</span>
-                        <span class="dado-valor">{{ paciente.email || "—" }}</span>
-                    </div>
-                    <div class="dado">
-                        <span class="dado-label">Cidade/UF:</span>
-                        <span class="dado-valor">{{ cidadeUf }}</span>
-                    </div>
-                </div>
-            </AppCard>
-
-            <!-- ── Aba: Prontuários ── -->
-            <AppCard v-else-if="aba === 'prontuarios'" padding="lg">
-                <template #header-aside>
-                    <AppButton variant="primary" size="sm" icon="fa-solid fa-notes-medical" @click="abrirProntuario">
-                        Abrir prontuário
-                    </AppButton>
-                </template>
-                <h2 class="secao-titulo">Histórico de consultas</h2>
-
-                <AppEmptyState
-                    v-if="totalProntuarios === 0"
-                    icone="📋"
-                    descricao="Nenhuma consulta registrada para este paciente."
-                    compacto
-                />
-                <p v-else class="hint">
-                    {{ totalProntuarios }} evolução(ões) registrada(s). Clique em "Abrir prontuário" para visualizar o histórico completo.
-                </p>
-            </AppCard>
-
-            <!-- ── Aba: Orçamentos ── -->
-            <AppCard v-else padding="lg">
-                <template #header-aside>
-                    <AppButton variant="ghost" size="sm" icon="fa-solid fa-plus" @click="criarOrcamento">
-                        Criar novo orçamento
-                    </AppButton>
-                </template>
-                <h2 class="secao-titulo">Orçamentos do Paciente</h2>
-
-                <p v-if="carregandoOrc" class="msg-info">Carregando orçamentos…</p>
-
-                <AppEmptyState
-                    v-else-if="orcamentos.length === 0"
-                    icone="💰"
-                    descricao="Nenhum orçamento cadastrado para este paciente."
-                    compacto
-                />
-
-                <ul v-else class="orc-lista">
-                    <li
-                        v-for="o in orcamentos" :key="o.id"
-                        class="orc-item"
-                        @click="abrirOrcamento(o)"
-                    >
-                        <div class="orc-info">
-                            <span class="orc-num">Orçamento #{{ o.numero }}</span>
-                            <span class="orc-data">Criado em {{ fmtData(o.criadoEm) }}</span>
+                    <div class="pd-info">
+                        <div class="pd-name-row">
+                            <h1>{{ paciente.nomeCompleto }}</h1>
+                            <span class="pd-id">ID #{{ paciente.id }}</span>
                         </div>
-                        <span class="orc-total">{{ fmtMoeda(o.total) }}</span>
-                        <span :class="['orc-status', 'status-' + o.status.toLowerCase()]">{{ o.status }}</span>
-                    </li>
-                </ul>
-            </AppCard>
+                        <div class="pd-meta-row">
+                            <span v-if="idade() !== null"><i class="fa-solid fa-cake-candles"></i> {{ idade() }} anos</span>
+                            <span v-if="paciente.dataNascimento"><i class="fa-solid fa-calendar"></i> {{ fmtData(paciente.dataNascimento) }}</span>
+                            <span v-if="paciente.genero"><i class="fa-solid fa-venus-mars"></i> {{ fmtGenero(paciente.genero) }}</span>
+                            <span v-if="paciente.cpf"><i class="fa-solid fa-id-card"></i> {{ formatarCpf(paciente.cpf) }}</span>
+                            <span v-if="paciente.telefone"><i class="fa-solid fa-phone"></i> {{ paciente.telefone }}</span>
+                            <span v-if="paciente.email"><i class="fa-solid fa-envelope"></i> {{ paciente.email }}</span>
+                            <span v-if="paciente.endereco"><i class="fa-solid fa-location-dot"></i> {{ cidadeUf }}</span>
+                        </div>
+                        <div v-if="paciente.tags.length" class="pd-tags">
+                            <span
+                                v-for="t in paciente.tags" :key="t"
+                                class="tag-pill"
+                                :style="{ background: `color-mix(in srgb, ${resolverTag(t).cor} 15%, white)`, color: resolverTag(t).cor }"
+                            >
+                                <i class="fa-solid" :class="resolverTag(t).icone"></i>
+                                {{ resolverTag(t).label }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="pd-actions">
+                        <AppButton variant="secondary" icon="fa-solid fa-pen" @click="editar">Editar</AppButton>
+                        <AppButton variant="secondary" icon="fa-solid fa-calendar-plus" @click="novoAgendamento">Agendar consulta</AppButton>
+                        <AppButton icon="fa-solid fa-notes-medical" @click="abrirProntuario">Abrir prontuário</AppButton>
+                    </div>
+                </div>
+
+                <!-- Alertas clínicos -->
+                <div v-if="paciente.alertas.length" class="pd-alerts">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div class="pd-alerts-content">
+                        <b>Alertas clínicos</b>
+                        <ul>
+                            <li v-for="(a, i) in paciente.alertas" :key="i">{{ a }}</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Quick stats -->
+                <div class="pd-stats">
+                    <div class="pd-stat">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                        <b>{{ totalConsultas }}</b>
+                        <span>consulta{{ totalConsultas !== 1 ? 's' : '' }}</span>
+                    </div>
+                    <div v-if="proximaConsulta" class="pd-stat">
+                        <i class="fa-solid fa-calendar-check"></i>
+                        <b>Próxima</b>
+                        <span>{{ fmtDataHora(proximaConsulta.inicioPrevisto) }}</span>
+                    </div>
+                    <div class="pd-stat">
+                        <i class="fa-solid fa-file-medical"></i>
+                        <b>{{ totalProntuarios }}</b>
+                        <span>evolução{{ totalProntuarios !== 1 ? 'ões' : '' }}</span>
+                    </div>
+                    <div class="pd-stat">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <b>{{ orcamentos.length || '—' }}</b>
+                        <span>orçamento{{ orcamentos.length !== 1 ? 's' : '' }}</span>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="pd-tabs">
+                    <button class="pd-tab" :class="{ active: aba === 'resumo' }" @click="aba = 'resumo'">
+                        <i class="fa-solid fa-chart-line"></i> Resumo
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'prontuario' }" @click="aba = 'prontuario'">
+                        <i class="fa-solid fa-file-medical"></i> Prontuário
+                        <span v-if="totalProntuarios > 0" class="badge">{{ totalProntuarios }}</span>
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'anamnese' }" @click="aba = 'anamnese'">
+                        <i class="fa-solid fa-clipboard-user"></i> Anamnese
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'orcamentos' }" @click="aba = 'orcamentos'">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Orçamentos
+                        <span v-if="orcamentos.length > 0" class="badge">{{ orcamentos.length }}</span>
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'financeiro' }" @click="aba = 'financeiro'">
+                        <i class="fa-solid fa-coins"></i> Financeiro
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'convenios' }" @click="aba = 'convenios'">
+                        <i class="fa-solid fa-shield-halved"></i> Convênios
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'termos' }" @click="aba = 'termos'">
+                        <i class="fa-solid fa-file-signature"></i> Termos
+                    </button>
+                    <button class="pd-tab" :class="{ active: aba === 'anexos' }" @click="aba = 'anexos'">
+                        <i class="fa-solid fa-paperclip"></i> Anexos
+                        <span v-if="anexos.length > 0" class="badge">{{ anexos.length }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Conteúdo das abas -->
+            <div class="pd-content">
+                <!-- Resumo -->
+                <section v-if="aba === 'resumo'" class="resumo-grid">
+                    <div class="pd-card">
+                        <div class="pd-card-head">
+                            <h3><i class="fa-solid fa-bolt"></i> Próximas ações</h3>
+                        </div>
+                        <div class="next-actions">
+                            <div v-if="proximaConsulta" class="na-item" @click="router.push({ name: 'Agenda' })">
+                                <div class="na-icon na-icon--appointment">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                </div>
+                                <div class="na-info">
+                                    <b>Próxima consulta</b>
+                                    <span>com {{ proximaConsulta.profissionalNome }} · {{ proximaConsulta.tipoServico }}</span>
+                                </div>
+                                <div class="na-when">{{ fmtDataHora(proximaConsulta.inicioPrevisto) }}</div>
+                            </div>
+                            <div class="na-item" @click="abrirProntuario">
+                                <div class="na-icon na-icon--prontuario">
+                                    <i class="fa-solid fa-notes-medical"></i>
+                                </div>
+                                <div class="na-info">
+                                    <b>Continuar prontuário</b>
+                                    <span>{{ totalProntuarios > 0 ? `${totalProntuarios} evoluções registradas` : 'Sem evoluções ainda' }}</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right na-arrow"></i>
+                            </div>
+                            <div class="na-item" @click="criarOrcamento">
+                                <div class="na-icon na-icon--budget">
+                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                </div>
+                                <div class="na-info">
+                                    <b>Criar orçamento</b>
+                                    <span>{{ orcamentos.length > 0 ? `${orcamentos.length} orçamento(s) registrados` : 'Sem orçamentos ainda' }}</span>
+                                </div>
+                                <i class="fa-solid fa-chevron-right na-arrow"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pd-card side-card">
+                        <h4>Dados do paciente</h4>
+                        <div class="stat-line"><span>CPF</span><b>{{ paciente.cpf ? formatarCpf(paciente.cpf) : "—" }}</b></div>
+                        <div class="stat-line"><span>Nascimento</span><b>{{ fmtData(paciente.dataNascimento) }}</b></div>
+                        <div class="stat-line"><span>Sexo</span><b>{{ fmtGenero(paciente.genero) }}</b></div>
+                        <div class="stat-line"><span>Telefone</span><b>{{ paciente.telefone || "—" }}</b></div>
+                        <div class="stat-line"><span>E-mail</span><b>{{ paciente.email || "—" }}</b></div>
+                        <div class="stat-line"><span>Endereço</span><b>{{ cidadeUf }}</b></div>
+                    </div>
+                </section>
+
+                <!-- Prontuário (timeline) -->
+                <section v-else-if="aba === 'prontuario'">
+                    <div class="prontuario-head">
+                        <div>
+                            <h2>Histórico de evoluções</h2>
+                            <p>Linha do tempo cronológica das evoluções clínicas registradas.</p>
+                        </div>
+                        <AppButton icon="fa-solid fa-notes-medical" @click="abrirProntuario">
+                            Abrir prontuário completo
+                        </AppButton>
+                    </div>
+
+                    <p v-if="carregandoProntuario" class="msg-info">Carregando…</p>
+
+                    <AppEmptyState
+                        v-else-if="!prontuario || prontuario.evolucoes.length === 0"
+                        icone="📋"
+                        titulo="Sem evoluções registradas"
+                        descricao="Abra o prontuário do paciente para iniciar uma evolução clínica."
+                    >
+                        <template #acao>
+                            <AppButton icon="fa-solid fa-notes-medical" @click="abrirProntuario">
+                                Abrir prontuário
+                            </AppButton>
+                        </template>
+                    </AppEmptyState>
+
+                    <div v-else class="timeline">
+                        <div
+                            v-for="ev in prontuario.evolucoes" :key="ev.id"
+                            class="tl-entry"
+                        >
+                            <div class="tl-head">
+                                <div class="tl-date">
+                                    <span class="day">{{ new Date(ev.criadaEm).getDate() }}</span>
+                                    <span class="month">{{ new Date(ev.criadaEm).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase() }}</span>
+                                    <span class="year">{{ new Date(ev.criadaEm).getFullYear() }}</span>
+                                </div>
+                                <div class="tl-meta">
+                                    <div class="tl-type">
+                                        <span class="tl-type-pill"><i class="fa-solid fa-stethoscope"></i> {{ ev.modeloNome || "Evolução" }}</span>
+                                        <span class="tl-time">{{ new Date(ev.criadaEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }}</span>
+                                    </div>
+                                    <div class="tl-doctor">
+                                        <i class="fa-solid fa-user-doctor"></i>
+                                        {{ ev.autorNome }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tl-body">
+                                <div
+                                    v-for="secao in ev.modeloSnapshot" :key="secao.chave"
+                                    class="tl-section"
+                                >
+                                    <h5><i class="fa-solid fa-circle-dot"></i> {{ secao.titulo }}</h5>
+                                    <p>{{ valorSecao(secao.chave, ev.conteudo) || "—" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Anamnese -->
+                <section v-else-if="aba === 'anamnese'">
+                    <div class="prontuario-head">
+                        <div>
+                            <h2>Anamnese</h2>
+                            <p>Vista resumida da primeira evolução registrada (anamnese inicial).</p>
+                        </div>
+                    </div>
+
+                    <p v-if="carregandoProntuario" class="msg-info">Carregando…</p>
+
+                    <AppEmptyState
+                        v-else-if="!evolucaoMaisAntiga"
+                        icone="🩺"
+                        titulo="Sem anamnese registrada"
+                        descricao="A anamnese aparece aqui após a primeira evolução do paciente."
+                    >
+                        <template #acao>
+                            <AppButton icon="fa-solid fa-notes-medical" @click="abrirProntuario">
+                                Abrir prontuário
+                            </AppButton>
+                        </template>
+                    </AppEmptyState>
+
+                    <div v-else class="anamn-grid">
+                        <div
+                            v-for="secao in evolucaoMaisAntiga.modeloSnapshot" :key="secao.chave"
+                            class="pd-card an-card"
+                        >
+                            <h4><i class="fa-solid fa-circle-dot"></i> {{ secao.titulo }}</h4>
+                            <p>{{ valorSecao(secao.chave, evolucaoMaisAntiga.conteudo) || "—" }}</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Orçamentos -->
+                <section v-else-if="aba === 'orcamentos'">
+                    <div class="prontuario-head">
+                        <div>
+                            <h2>Orçamentos do paciente</h2>
+                            <p>Histórico de orçamentos cirúrgicos e propostas comerciais.</p>
+                        </div>
+                        <AppButton variant="secondary" icon="fa-solid fa-plus" @click="criarOrcamento">
+                            Criar orçamento
+                        </AppButton>
+                    </div>
+
+                    <p v-if="carregandoOrc" class="msg-info">Carregando…</p>
+
+                    <AppEmptyState
+                        v-else-if="orcamentos.length === 0"
+                        icone="💰"
+                        titulo="Nenhum orçamento cadastrado"
+                        descricao="Crie o primeiro orçamento para este paciente."
+                    >
+                        <template #acao>
+                            <AppButton icon="fa-solid fa-plus" @click="criarOrcamento">Criar orçamento</AppButton>
+                        </template>
+                    </AppEmptyState>
+
+                    <div v-else class="budgets-list">
+                        <div
+                            v-for="o in orcamentos" :key="o.id"
+                            class="budget-card"
+                            @click="abrirOrcamento(o)"
+                        >
+                            <div class="bc-head">
+                                <div class="bc-title">
+                                    <span class="bc-num">ORÇAMENTO #{{ o.numero }}</span>
+                                    <span class="bc-name">{{ o.pacienteNome }}</span>
+                                    <span class="bc-meta">
+                                        Criado em {{ fmtData(o.criadoEm) }} ·
+                                        Validade {{ fmtData(o.validade) }}
+                                    </span>
+                                </div>
+                                <div class="bc-status">
+                                    <span class="bc-money">{{ fmtMoeda(o.total) }}</span>
+                                    <span class="orc-status" :class="`orc-status--${orcStatusClass(o.status)}`">
+                                        {{ orcStatusLabel(o.status) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Anexos -->
+                <section v-else-if="aba === 'anexos'">
+                    <div class="prontuario-head">
+                        <div>
+                            <h2>Anexos do prontuário</h2>
+                            <p>Exames, laudos, imagens e documentos enviados.</p>
+                        </div>
+                    </div>
+
+                    <p v-if="carregandoAnexos" class="msg-info">Carregando…</p>
+
+                    <AppEmptyState
+                        v-else-if="anexos.length === 0"
+                        icone="📎"
+                        titulo="Nenhum anexo"
+                        descricao="Os anexos aparecem aqui conforme forem enviados ao prontuário."
+                    />
+
+                    <div v-else class="att-grid">
+                        <div v-for="a in anexos" :key="a.id" class="att-card">
+                            <div class="att-icon" :class="a.mimeType.startsWith('image') ? 'image' : 'pdf'">
+                                <i class="fa-solid" :class="a.mimeType.startsWith('image') ? 'fa-image' : 'fa-file-pdf'"></i>
+                            </div>
+                            <div class="att-info">
+                                <b>{{ a.nomeOriginal }}</b>
+                                <span>{{ fmtData(a.criadoEm) }} · {{ Math.round(a.tamanhoBytes / 1024) }} KB</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Financeiro / Convênios / Termos -->
+                <section v-else-if="aba === 'financeiro'">
+                    <AppEmptyState
+                        icone="💳"
+                        titulo="Financeiro do paciente"
+                        descricao="Cobranças, recebimentos e saldo em aberto deste paciente serão exibidos aqui em breve."
+                    />
+                </section>
+
+                <section v-else-if="aba === 'convenios'">
+                    <AppEmptyState
+                        icone="🛡️"
+                        titulo="Convênios e autorizações"
+                        descricao="Histórico de autorizações de plano de saúde e glosas serão exibidos aqui em breve."
+                    />
+                </section>
+
+                <section v-else-if="aba === 'termos'">
+                    <AppEmptyState
+                        icone="📝"
+                        titulo="Termos de consentimento"
+                        descricao="Termos LGPD, consentimentos cirúrgicos e demais documentos assinados serão listados aqui em breve."
+                    />
+                </section>
+            </div>
         </template>
 
         <!-- Drawer de edição -->
@@ -269,158 +636,356 @@ function abrirOrcamento(o: OrcamentoResumo) {
             @fechar="drawerEditarAberto = false"
             @salvo="onPacienteSalvo"
         />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </main>
 </template>
 
 <style scoped>
-.link-voltar {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: hsl(var(--primary));
+.detalhe-paciente { padding: 0; min-height: 100%; }
+
+.pd-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 18px 28px 10px;
+    font-size: 12px; font-weight: 600;
+    color: hsl(var(--secondary) / 0.7);
     text-decoration: none;
-    font-size: 0.95rem;
-    font-weight: 600;
-    width: fit-content;
+    transition: color 150ms;
 }
-.link-voltar:hover { text-decoration: underline; }
+.pd-back:hover { color: hsl(var(--primary)); }
 
-.cabecalho { margin-bottom: 0.25rem; }
-.titulo {
-    font-size: 2rem;
-    font-weight: 800;
-    color: hsl(var(--primary-dark));
-    margin: 0 0 0.3rem;
-    line-height: 1.1;
+/* Header sticky */
+.pd-header {
+    position: sticky; top: 0; z-index: 30;
+    background: white;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.08);
+    padding: 16px 28px 0;
 }
-.subtitulo {
+.pd-head-main {
+    display: flex; gap: 20px; align-items: flex-start;
+    padding-bottom: 14px; flex-wrap: wrap;
+}
+.pd-avatar {
+    width: 84px; height: 84px; border-radius: 50%;
+    color: white; font-weight: 700; font-size: 28px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.1);
+}
+.pd-info { flex: 1; min-width: 320px; }
+.pd-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.pd-info h1 {
+    font-size: 24px; font-weight: 800;
+    color: hsl(var(--primary-dark)); margin: 0;
+    letter-spacing: -0.01em;
+}
+.pd-id { font-size: 11px; color: hsl(var(--secondary) / 0.5); font-weight: 600; }
+
+.pd-meta-row {
+    display: flex; gap: 6px 14px; flex-wrap: wrap;
+    font-size: 12.5px; color: hsl(var(--secondary) / 0.75);
+    margin-bottom: 8px; row-gap: 4px;
+}
+.pd-meta-row > span { display: inline-flex; align-items: center; gap: 5px; }
+.pd-meta-row i { font-size: 11px; color: hsl(var(--secondary) / 0.45); }
+
+.pd-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700;
+    padding: 3px 7px; border-radius: 999px;
+    white-space: nowrap;
+}
+.tag-pill i { font-size: 9px; }
+
+.pd-actions {
+    display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+    margin-left: auto;
+}
+
+/* Alertas */
+.pd-alerts {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: hsl(var(--error) / 0.06);
+    border: 1px solid hsl(var(--error) / 0.2);
+    border-radius: 8px; padding: 10px 14px;
+    margin-bottom: 14px;
+}
+.pd-alerts > i { font-size: 16px; color: hsl(var(--error)); margin-top: 2px; }
+.pd-alerts-content { flex: 1; }
+.pd-alerts-content b {
+    display: block; font-size: 12px; font-weight: 700;
+    color: hsl(var(--error)); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.pd-alerts-content ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: hsl(0 70% 25%); }
+.pd-alerts-content li { line-height: 1.5; }
+
+/* Quick stats */
+.pd-stats { display: flex; gap: 8px; padding-bottom: 12px; flex-wrap: wrap; }
+.pd-stat {
+    display: flex; align-items: center; gap: 8px;
+    background: hsl(var(--secondary) / 0.03);
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 12px;
+}
+.pd-stat i { color: hsl(var(--secondary) / 0.5); }
+.pd-stat b { color: hsl(var(--primary-dark)); font-weight: 700; }
+.pd-stat span { color: hsl(var(--secondary) / 0.65); }
+
+/* Tabs */
+.pd-tabs {
+    display: flex; gap: 0;
+    margin: 0 -28px; padding: 0 28px;
+    overflow-x: auto;
+    border-top: 1px solid hsl(var(--secondary) / 0.06);
+}
+.pd-tab {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent; border: none; padding: 12px 16px;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    color: hsl(var(--secondary) / 0.6);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 150ms;
+}
+.pd-tab:hover { color: hsl(var(--primary-dark)); }
+.pd-tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+.pd-tab .badge {
+    font-size: 10px; font-weight: 700; padding: 1px 6px;
+    border-radius: 999px;
+    background: hsl(var(--secondary) / 0.08); color: hsl(var(--secondary) / 0.65);
+}
+.pd-tab.active .badge { background: hsl(var(--primary) / 0.15); color: hsl(var(--primary)); }
+
+/* Conteúdo das abas */
+.pd-content { padding: 24px 28px 80px; max-width: 1500px; margin: 0 auto; }
+
+/* Cards */
+.pd-card {
+    background: white;
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+.pd-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.pd-card-head h3 {
+    font-size: 14px; font-weight: 700;
+    color: hsl(var(--primary-dark));
     margin: 0;
-    color: hsl(var(--secondary) / 0.70);
-    font-size: 0.95rem;
+    display: inline-flex; align-items: center; gap: 8px;
 }
+.pd-card-head h3 i { color: hsl(var(--primary)); font-size: 13px; }
 
-/* ── Tabs ── */
-.tabs-card {
-    padding: 0.5rem !important;
-}
-.tabs {
+/* Resumo */
+.resumo-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-}
-.tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    padding: 0.85rem 1rem;
-    border: none;
-    background: none;
-    cursor: pointer;
-    border-radius: 0.5rem;
-    font-family: inherit;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: hsl(var(--secondary) / 0.75);
-    transition: all 0.15s;
-}
-.tab:hover:not(.ativo) {
-    background: hsl(var(--secondary) / 0.04);
-    color: hsl(var(--secondary));
-}
-.tab.ativo {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    box-shadow: var(--shadow);
-}
-.tab i { font-size: 1rem; }
-.tab-count {
-    font-size: 0.78rem;
-    font-weight: 700;
-    padding: 0.1rem 0.55rem;
-    border-radius: 999px;
-    background: hsl(var(--secondary) / 0.1);
-    color: hsl(var(--secondary) / 0.85);
-    line-height: 1.4;
-}
-.tab.ativo .tab-count {
-    background: rgba(255, 255, 255, 0.25);
-    color: hsl(var(--primary-foreground));
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    align-items: start;
 }
 
-/* ── Seção ── */
-.secao-titulo {
-    font-size: 1.05rem;
-    font-weight: 700;
+.next-actions { display: flex; flex-direction: column; gap: 10px; }
+.na-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px;
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 8px;
+    background: hsl(var(--secondary) / 0.02);
+    transition: all 150ms;
+    cursor: pointer;
+}
+.na-item:hover {
+    background: white;
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+.na-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+}
+.na-icon--appointment { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); }
+.na-icon--prontuario  { background: hsl(var(--info) / 0.12);    color: hsl(var(--info)); }
+.na-icon--budget      { background: hsl(45 95% 50% / 0.15);     color: hsl(40 90% 32%); }
+.na-info { flex: 1; }
+.na-info b { display: block; font-size: 13px; color: hsl(var(--primary-dark)); font-weight: 700; }
+.na-info span { font-size: 12px; color: hsl(var(--secondary) / 0.65); }
+.na-when { font-size: 11px; font-weight: 700; color: hsl(var(--secondary) / 0.55); text-align: right; }
+.na-arrow { color: hsl(var(--secondary) / 0.3); font-size: 11px; }
+
+.side-card h4 {
+    font-size: 12px; font-weight: 700;
+    color: hsl(var(--secondary) / 0.55);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin: 0 0 10px;
+}
+.side-card .stat-line {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 8px 0;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.05);
+}
+.side-card .stat-line:last-child { border-bottom: none; }
+.side-card .stat-line span { font-size: 12px; color: hsl(var(--secondary) / 0.65); }
+.side-card .stat-line b { font-size: 13px; color: hsl(var(--primary-dark)); font-weight: 700; }
+
+/* Prontuário head + timeline */
+.prontuario-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 16px;
+}
+.prontuario-head h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
+.prontuario-head p { font-size: 13px; color: hsl(var(--secondary) / 0.7); margin: 4px 0 0; }
+
+.timeline { position: relative; padding-left: 30px; }
+.timeline::before {
+    content: ''; position: absolute; left: 11px; top: 14px; bottom: 14px;
+    width: 2px; background: hsl(var(--secondary) / 0.1);
+}
+.tl-entry {
+    position: relative; margin-bottom: 16px;
+    background: white;
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    overflow: hidden;
+}
+.tl-entry::before {
+    content: ''; position: absolute; left: -24px; top: 18px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: white; border: 3px solid hsl(var(--primary));
+    box-shadow: 0 0 0 3px white;
+    z-index: 1;
+}
+.tl-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; }
+.tl-date {
+    display: flex; flex-direction: column; align-items: center;
+    flex-shrink: 0; min-width: 56px;
+    padding: 6px 10px; border-radius: 8px;
+    background: hsl(var(--primary) / 0.08); color: hsl(var(--primary-dark));
+}
+.tl-date .day { font-size: 18px; font-weight: 800; line-height: 1; }
+.tl-date .month { font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.tl-date .year { font-size: 10px; color: hsl(var(--primary) / 0.7); }
+.tl-meta { flex: 1; min-width: 0; }
+.tl-type { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.tl-type-pill {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 999px;
+    background: hsl(var(--primary) / 0.1); color: hsl(var(--primary));
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.tl-time { font-size: 11px; color: hsl(var(--secondary) / 0.6); }
+.tl-doctor { font-size: 13px; color: hsl(var(--primary-dark)); font-weight: 600; }
+.tl-doctor i { color: hsl(var(--secondary) / 0.5); margin-right: 4px; }
+
+.tl-body {
+    padding: 0 20px 18px;
+    border-top: 1px solid hsl(var(--secondary) / 0.06);
+}
+.tl-section { margin-top: 14px; }
+.tl-section h5 {
+    font-size: 11px; font-weight: 700; color: hsl(var(--secondary) / 0.55);
+    text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.tl-section h5 i { color: hsl(var(--primary)); font-size: 8px; }
+.tl-section p { font-size: 13px; color: hsl(var(--secondary)); line-height: 1.55; margin: 0; white-space: pre-line; }
+
+/* Anamnese */
+.anamn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.an-card h4 {
+    font-size: 13px; font-weight: 700;
     color: hsl(var(--primary-dark));
-    margin: 0 0 0.2rem;
+    margin: 0 0 12px;
+    display: inline-flex; align-items: center; gap: 8px;
 }
+.an-card h4 i { color: hsl(var(--primary)); font-size: 8px; }
+.an-card p { font-size: 13px; color: hsl(var(--secondary)); line-height: 1.55; margin: 0; white-space: pre-line; }
 
-/* ── Dados (grade 2 colunas) ── */
-.grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem 2.5rem;
-    margin-top: 0.5rem;
-}
-.dado {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-.dado-label {
-    font-size: 0.85rem;
-    color: hsl(var(--secondary) / 0.65);
-}
-.dado-valor {
-    font-size: 1rem;
-    color: hsl(var(--secondary));
-    font-weight: 500;
-}
-
-/* ── Orçamentos lista ── */
-.orc-lista {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    list-style: none;
-    padding: 0;
-    margin: 0.5rem 0 0;
-}
-.orc-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.9rem 1rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: 0.5rem;
+/* Orçamentos */
+.budgets-list { display: flex; flex-direction: column; gap: 10px; }
+.budget-card {
+    background: white;
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    transition: all 150ms;
     cursor: pointer;
-    transition: background 0.12s;
 }
-.orc-item:hover { background: hsl(var(--muted) / 0.5); }
-.orc-info { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
-.orc-num { font-weight: 700; font-size: 0.95rem; }
-.orc-data { font-size: 0.78rem; color: hsl(var(--secondary) / 0.65); }
-.orc-total { font-weight: 700; color: hsl(var(--primary)); }
+.budget-card:hover { box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.06); }
+.bc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.bc-title { display: flex; flex-direction: column; gap: 4px; }
+.bc-num { font-size: 11px; font-weight: 700; color: hsl(var(--primary)); letter-spacing: 0.04em; }
+.bc-name { font-size: 15px; font-weight: 700; color: hsl(var(--primary-dark)); }
+.bc-meta { font-size: 12px; color: hsl(var(--secondary) / 0.65); }
+.bc-status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.bc-money { font-size: 18px; font-weight: 800; color: hsl(var(--primary-dark)); }
 .orc-status {
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 0.2rem 0.65rem;
-    border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px;
 }
-.status-pendente { background: #fef3c7; color: #92400e; }
-.status-aprovado { background: #dcfce7; color: #15803d; }
-.status-recusado { background: #fee2e2; color: #b91c1c; }
-.status-expirado { background: #f1f5f9; color: #475569; }
+.orc-status--ok      { background: hsl(var(--success) / 0.12); color: hsl(160 79% 30%); }
+.orc-status--warning { background: hsl(var(--warning) / 0.18); color: hsl(40 95% 35%); }
+.orc-status--danger  { background: hsl(var(--error) / 0.1);    color: hsl(var(--error)); }
+.orc-status--muted   { background: hsl(var(--secondary) / 0.08); color: hsl(var(--secondary) / 0.55); }
 
-/* ── Mensagens ── */
-.msg-info { color: hsl(var(--secondary) / 0.70); margin: 0; }
-.msg-erro { color: hsl(var(--error)); margin: 0; }
-.hint { color: hsl(var(--secondary) / 0.70); margin: 0; font-size: 0.875rem; }
+/* Anexos */
+.att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.att-card {
+    background: white;
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex; gap: 12px; align-items: center;
+    cursor: pointer;
+    transition: all 150ms;
+}
+.att-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+.att-icon {
+    width: 42px; height: 42px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+}
+.att-icon.pdf   { background: hsl(var(--error) / 0.1); color: hsl(var(--error)); }
+.att-icon.image { background: hsl(280 55% 50% / 0.12); color: hsl(280 55% 50%); }
+.att-info { flex: 1; min-width: 0; }
+.att-info b {
+    display: block; font-size: 13px; color: hsl(var(--primary-dark));
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.att-info span { font-size: 11px; color: hsl(var(--secondary) / 0.6); }
 
-@media (max-width: 720px) {
-    .tabs { grid-template-columns: 1fr; }
-    .grid-2 { grid-template-columns: 1fr; gap: 1rem; }
+.msg-info { color: hsl(var(--secondary) / 0.7); margin: 24px 28px; }
+.msg-erro {
+    color: hsl(var(--error));
+    background: hsl(var(--error) / 0.06);
+    border: 1px solid hsl(var(--error) / 0.2);
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; margin: 24px 28px;
+}
+
+@media (max-width: 1200px) {
+    .pd-head-main { flex-direction: column; }
+    .pd-actions {
+        width: 100%; margin-left: 0;
+        justify-content: flex-end;
+        padding-top: 4px;
+        border-top: 1px solid hsl(var(--secondary) / 0.05);
+    }
+    .resumo-grid { grid-template-columns: 1fr; }
+    .anamn-grid { grid-template-columns: 1fr; }
 }
 </style>

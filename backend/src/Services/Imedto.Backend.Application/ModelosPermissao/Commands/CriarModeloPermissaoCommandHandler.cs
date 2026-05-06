@@ -21,7 +21,11 @@ public class CriarModeloPermissaoCommandHandler : ICommandHandler<CriarModeloPer
             cmd.EstabelecimentoId,
             cmd.Nome,
             tipoAcesso,
-            cmd.Permissoes);
+            cmd.Permissoes,
+            permissoesExtras: null,
+            icone: cmd.Icone,
+            cor: cmd.Cor,
+            descricao: cmd.Descricao);
 
         await _repo.Salvar(modelo);
         cmd.ModeloIdCriado = modelo.Id;
