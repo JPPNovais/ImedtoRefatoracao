@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import PacienteEditDrawer from "@/components/pacientes/PacienteEditDrawer.vue"
+import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import {
     AppButton, AppEmptyState, AppFilterPills, AppPageHeader, AppPagination, AppSearchInput, AppSelect, AppToast,
 } from "@/components/ui"
@@ -37,8 +37,8 @@ function notificar(m: string, v: "info" | "success" | "error" = "success") {
     toast.value = { mensagem: m, variante: v }
 }
 
-// ─── Drawer de edição ──────────────────────────────────────────────────────
-const drawerAberto = ref(false)
+// ─── Modal de cadastro/edição ──────────────────────────────────────────────
+const modalAberto = ref(false)
 const pacienteEmEdicao = ref<Paciente | null>(null)
 
 // ─── Carregamento ──────────────────────────────────────────────────────────
@@ -97,13 +97,13 @@ const tagOpcoes = computed(() => {
 // ─── Ações ─────────────────────────────────────────────────────────────────
 function novo() {
     pacienteEmEdicao.value = null
-    drawerAberto.value = true
+    modalAberto.value = true
 }
 
 async function editar(p: PacienteListaItem) {
     try {
         pacienteEmEdicao.value = await pacienteService.obter(p.id)
-        drawerAberto.value = true
+        modalAberto.value = true
     } catch (e: any) {
         notificar(e?.response?.data?.mensagem ?? "Erro ao carregar paciente.", "error")
     }
@@ -128,7 +128,7 @@ async function excluir(p: PacienteListaItem) {
 }
 
 function onPacienteSalvo() {
-    drawerAberto.value = false
+    modalAberto.value = false
     pacienteEmEdicao.value = null
     void carregar()
     void carregarStats()
@@ -334,11 +334,11 @@ function formatarCpf(cpf: string | null) {
             rotulo-itens="paciente(s)"
         />
 
-        <!-- Drawer -->
-        <PacienteEditDrawer
-            :aberto="drawerAberto"
+        <!-- Modal cadastrar/editar -->
+        <PacienteFormModal
+            :aberto="modalAberto"
             :paciente="pacienteEmEdicao"
-            @fechar="drawerAberto = false; pacienteEmEdicao = null"
+            @fechar="modalAberto = false; pacienteEmEdicao = null"
             @salvo="onPacienteSalvo"
         />
 

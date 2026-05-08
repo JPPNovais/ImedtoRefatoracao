@@ -20,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: "fechar"): void
     (e: "salvo", m: ModeloPermissao): void
+    (e: "excluido", m: ModeloPermissao): void
 }>()
 
 const ICONES = [
@@ -53,6 +54,7 @@ const form = reactive<Form>({
 })
 
 const salvando = ref(false)
+const excluindo = ref(false)
 const erro = ref<string | null>(null)
 
 watch(() => [props.modelo, props.aberto] as const, ([m, aberto]) => {
@@ -132,8 +134,23 @@ async function salvar() {
     }
 }
 
+async function excluir() {
+    if (!props.modelo || excluindo.value || salvando.value) return
+    if (!confirm(`Excluir o papel "${props.modelo.nome}"? Esta ação é irreversível. Profissionais vinculados a este papel precisam receber outro antes.`)) return
+    excluindo.value = true
+    erro.value = null
+    try {
+        await permissaoService.excluir(props.modelo.id)
+        emit("excluido", props.modelo)
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível excluir o papel."
+    } finally {
+        excluindo.value = false
+    }
+}
+
 function fechar() {
-    if (salvando.value) return
+    if (salvando.value || excluindo.value) return
     emit("fechar")
 }
 </script>
@@ -217,14 +234,26 @@ function fechar() {
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
         <template #rodape>
-            <AppButton variant="ghost" :disabled="salvando" @click="fechar">
+            <!-- Excluir só faz sentido para papéis customizados existentes (não padrão, não novo). -->
+            <AppButton
+                v-if="!ehPadrao && !ehNovo"
+                variant="danger"
+                icon="fa-solid fa-trash"
+                :loading="excluindo"
+                :disabled="excluindo || salvando"
+                @click="excluir"
+            >
+                Excluir papel
+            </AppButton>
+            <div class="rodape-spacer"></div>
+            <AppButton variant="ghost" :disabled="salvando || excluindo" @click="fechar">
                 {{ ehPadrao ? "Fechar" : "Cancelar" }}
             </AppButton>
             <AppButton
                 v-if="!ehPadrao"
                 icon="fa-solid fa-floppy-disk"
                 :loading="salvando"
-                :disabled="!valido || salvando"
+                :disabled="!valido || salvando || excluindo"
                 @click="salvar"
             >
                 {{ ehNovo ? "Criar papel" : "Salvar alterações" }}
@@ -300,6 +329,9 @@ function fechar() {
 .rps-head span { font-size: 12px; color: hsl(var(--secondary) / 0.6); }
 
 .msg-erro { color: hsl(var(--error)); font-size: 13px; margin: 0; }
+
+/* Empurra "Cancelar" e "Salvar" para a direita, mantendo "Excluir" à esquerda. */
+.rodape-spacer { flex: 1; }
 
 @media (max-width: 720px) {
     .role-id-section { grid-template-columns: 1fr; }

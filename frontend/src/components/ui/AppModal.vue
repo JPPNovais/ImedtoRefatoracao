@@ -19,7 +19,11 @@ function handleOpen(open: boolean) {
 }
 
 const contentClass = computed(() => {
-    const cls: string[] = ["flex flex-col gap-0 p-0"]
+    // `max-h-[90vh]` impede que conteúdo longo (matriz de permissões, formulário
+    // grande, listas) estoure a viewport. O body interno tem `overflow-y: auto`,
+    // mas só funciona se o pai tiver altura limitada — sem `max-h`, o flex se
+    // estende e o scroll nunca é acionado.
+    const cls: string[] = ["flex flex-col gap-0 p-0 max-h-[90vh]"]
     switch (props.largura) {
         case "sm": cls.push("max-w-[420px]"); break
         case "lg": cls.push("max-w-[720px]"); break

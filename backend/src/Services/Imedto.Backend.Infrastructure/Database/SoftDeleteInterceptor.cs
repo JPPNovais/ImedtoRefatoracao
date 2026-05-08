@@ -37,6 +37,7 @@ public class SoftDeleteInterceptor : SaveChangesInterceptor
     /// Construtor de produção (singleton-safe). O tenant accessor é resolvido a cada
     /// SaveChanges via <see cref="IHttpContextAccessor.HttpContext"/>.RequestServices.
     /// </summary>
+    [ActivatorUtilitiesConstructor]
     public SoftDeleteInterceptor(AppReadConnectionString connectionString, IHttpContextAccessor httpContextAccessor)
     {
         _connectionString = connectionString;

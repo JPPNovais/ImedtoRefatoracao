@@ -27,11 +27,15 @@ const router = useRouter()
 const route = useRoute()
 const tenant = useTenantStore()
 
-// Defense-in-depth front: o backend já bloqueia. Mas redirecionar evita
-// confusão para perfis sem acesso.
-if (tenant.papel !== "Dono") {
-    router.replace({ name: "Home" })
-}
+// Defense-in-depth front: o backend já bloqueia. Reagimos em watchEffect para
+// não redirecionar antes do tenant resolver — entrar com `papel: null` é o
+// estado inicial legítimo durante o boot.
+import { watchEffect } from "vue"
+watchEffect(() => {
+    if (tenant.temTenantSelecionado && tenant.papel && tenant.papel !== "Dono") {
+        router.replace({ name: "Home" })
+    }
+})
 
 type Aba = "profissionais" | "papeis" | "convites"
 
@@ -122,6 +126,13 @@ function onPapelSalvo(m: ModeloPermissao) {
     papelEmEdicao.value = null
     void carregar()
     notificar(`Papel "${m.nome}" salvo.`)
+}
+
+function onPapelExcluido(m: ModeloPermissao) {
+    papelEditorAberto.value = false
+    papelEmEdicao.value = null
+    void carregar()
+    notificar(`Papel "${m.nome}" excluído.`)
 }
 
 function abrirDetalhes(p: ProfissionalVinculado) {
@@ -269,6 +280,7 @@ async function cancelarConvite(c: ProfissionalVinculado) {
             :modelo="papelEmEdicao"
             @fechar="papelEditorAberto = false; papelEmEdicao = null"
             @salvo="onPapelSalvo"
+            @excluido="onPapelExcluido"
         />
         <ProfissionalDetalhesModal
             :aberto="detalhesAberto"

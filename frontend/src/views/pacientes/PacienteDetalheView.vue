@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import {
     AppButton, AppEmptyState, AppToast,
 } from "@/components/ui"
-import PacienteEditDrawer from "@/components/pacientes/PacienteEditDrawer.vue"
+import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { prontuarioService, type ProntuarioCompleto, type Anexo } from "@/services/prontuarioService"
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
@@ -200,11 +200,11 @@ const cidadeUf = computed(() => {
 })
 
 // ─── Ações ─────────────────────────────────────────────────────────────────
-const drawerEditarAberto = ref(false)
-function editar() { drawerEditarAberto.value = true }
+const modalEditarAberto = ref(false)
+function editar() { modalEditarAberto.value = true }
 function onPacienteSalvo(p: Paciente) {
     paciente.value = p
-    drawerEditarAberto.value = false
+    modalEditarAberto.value = false
     notificar("Dados do paciente atualizados.")
 }
 
@@ -629,11 +629,11 @@ function orcStatusClass(s: string): string {
             </div>
         </template>
 
-        <!-- Drawer de edição -->
-        <PacienteEditDrawer
-            :aberto="drawerEditarAberto"
+        <!-- Modal de edição -->
+        <PacienteFormModal
+            :aberto="modalEditarAberto"
             :paciente="paciente"
-            @fechar="drawerEditarAberto = false"
+            @fechar="modalEditarAberto = false"
             @salvo="onPacienteSalvo"
         />
 

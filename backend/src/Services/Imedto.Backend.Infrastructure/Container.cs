@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +37,12 @@ public static class InfrastructureExtensions
         // Singleton: o interceptor não tem state per-request — resolve ICurrentTenantAccessor
         // em runtime via IHttpContextAccessor (scoped do RequestServices). Trocar para
         // Scoped aqui voltaria a criar captive dependency sob AddDbContextPool.
-        services.AddSingleton<SoftDeleteInterceptor>();
+        // Factory explícita: SoftDeleteInterceptor tem dois construtores públicos
+        // (produção com IHttpContextAccessor, teste com ICurrentTenantAccessor) e o
+        // CallSiteFactory do DI built-in não desambigua sozinho — registra como factory.
+        services.AddSingleton(sp => new SoftDeleteInterceptor(
+            sp.GetRequiredService<AppReadConnectionString>(),
+            sp.GetRequiredService<IHttpContextAccessor>()));
 
         // Pool de DbContext: reduz alocação por-request. Requer:
         // - AppDbContext sem state de instância além de DbContextOptions (confirmado: só DbSets).
