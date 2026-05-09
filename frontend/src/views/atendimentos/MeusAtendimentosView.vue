@@ -25,11 +25,12 @@ const carregando = ref(false)
 const erro       = ref<string | null>(null)
 const agendamentos = ref<Agendamento[]>([])
 
-// Apenas os atendimentos DO PROFISSIONAL LOGADO para a data selecionada.
+// Apenas os atendimentos com check-in feito, do profissional logado, para a data selecionada.
 const lista = computed(() =>
     agendamentos.value
         .filter(a => a.profissionalUsuarioId === auth.usuario?.id)
         .filter(a => a.inicioPrevisto.startsWith(dataSel.value))
+        .filter(a => a.checkInEm != null && a.status !== "Concluido" && a.status !== "Cancelado")
         .sort((a, b) => a.inicioPrevisto.localeCompare(b.inicioPrevisto)),
 )
 
@@ -61,6 +62,10 @@ function fmtDataHora(iso: string) {
         dateStyle: "short",
         timeStyle: "short",
     })
+}
+
+function fmtHora(iso: string) {
+    return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 }
 
 function isEncaixe(a: Agendamento) {
@@ -135,7 +140,7 @@ async function criarEncaixe(p: PacienteListaItem) {
         <div class="card-lista">
             <p v-if="carregando" class="estado-msg">Carregando consultas...</p>
             <p v-else-if="lista.length === 0" class="estado-msg">
-                Nenhuma consulta agendada para o dia selecionado.
+                Nenhum paciente fez check-in ainda.
             </p>
 
             <ul v-else class="consultas">
@@ -150,6 +155,10 @@ async function criarEncaixe(p: PacienteListaItem) {
                             {{ fmtDataHora(a.inicioPrevisto) }}
                             <span class="sep">·</span>
                             {{ a.tipoServico }}
+                        </p>
+                        <p v-if="a.checkInEm" class="checkin-hora">
+                            <i class="fa-solid fa-user-check" aria-hidden="true"></i>
+                            Check-in às {{ fmtHora(a.checkInEm) }}
                         </p>
                     </div>
 
@@ -238,5 +247,16 @@ async function criarEncaixe(p: PacienteListaItem) {
     background: hsl(0 84% 60% / 0.12); color: hsl(0 72% 45%);
     font-size: 0.7em; font-weight: 700;
 }
+
+.checkin-hora {
+    margin: 0;
+    font-size: 0.78em;
+    color: hsl(160 79% 28%);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.checkin-hora i { font-size: 0.9em; }
 
 </style>

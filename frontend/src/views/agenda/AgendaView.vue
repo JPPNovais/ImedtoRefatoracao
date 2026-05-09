@@ -21,6 +21,7 @@ import AgendamentoRow from "@/components/agenda/AgendamentoRow.vue"
 import AgendaRail from "@/components/agenda/AgendaRail.vue"
 import NovoAgendamentoModal from "@/components/agenda/NovoAgendamentoModal.vue"
 import EditarAgendamentoModal from "@/components/agenda/EditarAgendamentoModal.vue"
+import CheckInModal from "@/components/agenda/CheckInModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { listaEsperaService, type ListaEsperaItem } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
@@ -265,6 +266,21 @@ async function concluirAgendamento(a: Agendamento) {
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao concluir."
     }
+}
+
+// ─── Modal de check-in ───
+const modalCheckInAberto = ref(false)
+const agendamentoCheckIn = ref<Agendamento | null>(null)
+
+function abrirCheckIn(a: Agendamento) {
+    agendamentoCheckIn.value = a
+    modalCheckInAberto.value = true
+}
+
+async function onCheckInRealizado() {
+    modalCheckInAberto.value = false
+    agendamentoCheckIn.value = null
+    await recarregarSemCache()
 }
 
 async function cancelarAgendamento(a: Agendamento) {
@@ -524,6 +540,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                             @confirmar="confirmarAgendamento"
                             @cancelar="cancelarAgendamento"
                             @concluir="concluirAgendamento"
+                            @checkin="abrirCheckIn"
                         />
                     </template>
                     <div v-if="mostrarAgoraNoFinal" class="agora-marker" aria-label="Horário atual">
@@ -556,6 +573,13 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :foco-reagendar="editarFocoReagendar"
         @fechar="editarAberto = false"
         @atualizado="onAgendamentoEditado"
+    />
+
+    <CheckInModal
+        :aberto="modalCheckInAberto"
+        :agendamento="agendamentoCheckIn"
+        @fechar="modalCheckInAberto = false; agendamentoCheckIn = null"
+        @checkin-realizado="onCheckInRealizado"
     />
 </template>
 

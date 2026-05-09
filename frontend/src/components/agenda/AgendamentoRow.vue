@@ -79,6 +79,13 @@ const inicial = computed(() => {
 const acoes = computed(() => {
     switch (props.agendamento.status) {
         case "Agendado":
+            if (props.agendamento.checkInEm == null) {
+                return [
+                    { tipo: "primary" as const, icon: "fa-solid fa-circle-check", label: "Confirmar", evento: "confirmar" as const },
+                    { tipo: "icon" as const, icon: "fa-solid fa-user-check", title: "Check-in", evento: "checkin" as const },
+                    { tipo: "icon" as const, icon: "fa-solid fa-ban", title: "Cancelar", evento: "cancelar" as const },
+                ]
+            }
             return [
                 { tipo: "primary" as const, icon: "fa-solid fa-circle-check", label: "Confirmar", evento: "confirmar" as const },
                 { tipo: "icon" as const, icon: "fa-solid fa-ban", title: "Cancelar", evento: "cancelar" as const },
@@ -98,9 +105,10 @@ const acoes = computed(() => {
     }
 })
 
-function emitirAcao(evento: "confirmar" | "cancelar" | "concluir") {
+function emitirAcao(evento: "confirmar" | "cancelar" | "concluir" | "checkin") {
     if (evento === "confirmar") emit("confirmar", props.agendamento)
     else if (evento === "cancelar") emit("cancelar", props.agendamento)
+    else if (evento === "checkin") emit("checkin", props.agendamento)
     else emit("concluir", props.agendamento)
 }
 
@@ -227,6 +235,12 @@ const podeAlterar = computed(() => {
             <div v-if="agendamento.observacoes" class="obs-block">
                 <span class="lbl"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Observações</span>
                 <p>{{ agendamento.observacoes }}</p>
+            </div>
+            <div v-if="agendamento.checkInEm" class="campo checkin-pill">
+                <span class="lbl"><i class="fa-solid fa-user-check" aria-hidden="true"></i> Check-in</span>
+                <span class="val checkin-val">
+                    Check-in às {{ fmtHora(agendamento.checkInEm) }}
+                </span>
             </div>
             <div v-if="agendamento.motivoCancelamento" class="obs-block obs-cancel">
                 <span class="lbl"><i class="fa-solid fa-ban" aria-hidden="true"></i> Motivo do cancelamento</span>
@@ -518,6 +532,23 @@ const podeAlterar = computed(() => {
     background: hsl(var(--primary, 254 56% 38%));
     color: white;
     border-color: hsl(var(--primary, 254 56% 38%));
+}
+
+.checkin-pill {
+    background: hsl(160 79% 39% / 0.08);
+    border: 1px solid hsl(160 79% 39% / 0.25);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+.checkin-val {
+    color: hsl(160 79% 28%) !important;
+    font-weight: 600 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.checkin-pill .lbl {
+    color: hsl(160 79% 28%);
 }
 
 @media (max-width: 720px) {
