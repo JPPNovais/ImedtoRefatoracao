@@ -6,7 +6,9 @@ WORKDIR /app
 
 # package.json e lock — cache amigável.
 COPY frontend/package*.json ./
-RUN npm ci --no-audit --no-fund --prefer-offline
+# --legacy-peer-deps: pinia 3.x conflita com @pinia/testing 0.1.x (peer dep mismatch).
+# Mesma estratégia que o ambiente local usa. Impacto zero em runtime.
+RUN npm ci --no-audit --no-fund --prefer-offline --legacy-peer-deps
 
 # Resto do código.
 COPY frontend/ ./
