@@ -50,11 +50,13 @@ public class CriarAgendamentoCommandHandlerTests
 
     private CriarAgendamentoCommand Cmd()
     {
-        // Proxima segunda 10h local — dentro do horario padrao 8-18 e dia uteis 1-5.
-        var hoje = DateTime.Today;
+        // Proxima segunda 10h Brasilia = 13h UTC. Hardcoded em UTC pra teste rodar igual
+        // independente do TZ do runner (CI roda em UTC, dev local em BRT).
+        var hoje = DateTime.UtcNow.Date;
         var diff = ((int)DayOfWeek.Monday - (int)hoje.DayOfWeek + 7) % 7;
-        var segunda = hoje.AddDays(diff == 0 ? 7 : diff).AddHours(10);
-        var inicio = segunda.ToUniversalTime();
+        var inicio = DateTime.SpecifyKind(
+            hoje.AddDays(diff == 0 ? 7 : diff).AddHours(13),
+            DateTimeKind.Utc);
         return new CriarAgendamentoCommand
         {
             EstabelecimentoId = EstabelecimentoId,
