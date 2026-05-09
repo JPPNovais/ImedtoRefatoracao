@@ -254,6 +254,39 @@ public class LocalJwtAuthService : IAuthService
 
     // ===== Operações expostas via AuthController (não na IAuthService genérica) =====
 
+    /// <summary>
+    /// Reenvia e-mail de confirmação pra contas pendentes. Anti-enumeração:
+    /// silencia se a conta não existe ou se o e-mail já está confirmado.
+    /// Usado pelo endpoint POST /api/auth/reenviar-confirmacao.
+    /// </summary>
+    public async Task ReenviarConfirmacaoEmailAsync(string email)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(email)) return;
+            var emailNorm = email.Trim().ToLowerInvariant();
+
+            var credencial = await _credenciaisRepo.ObterPorEmailAsync(emailNorm);
+            if (credencial is null || credencial.EmailConfirmado)
+            {
+                _logger.LogInformation("Reenvio de confirmação solicitado para {Hash} (sem efeito).", HashEmail(emailNorm));
+                return;
+            }
+
+            var (cru, hashTok) = GerarTokenAleatorio();
+            var token = AuthEmailToken.Emitir(
+                credencial.Id, AuthEmailTokenTipo.ConfirmacaoEmail, hashTok, DateTime.UtcNow.Add(TtlConfirmacao));
+            await _emailTokenRepo.AdicionarAsync(token);
+
+            var link = MontarLink("/auth/confirmar-email", cru);
+            await _emails.EnviarAsync(emailNorm, "Confirme seu e-mail no Imedto", TemplatesEmail.Confirmacao(link));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha silenciosa em reenviar-confirmacao.");
+        }
+    }
+
     /// <summary>Confirma e-mail consumindo um token. Usado pelo endpoint POST /api/auth/confirmar-email.</summary>
     public async Task ConfirmarEmailAsync(string tokenCru)
     {

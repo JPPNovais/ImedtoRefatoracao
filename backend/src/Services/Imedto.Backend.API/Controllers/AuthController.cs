@@ -286,6 +286,22 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Reenvia o e-mail de confirmação para contas pendentes. Sempre retorna 204
+    /// (anti-enumeração — não revela se o e-mail existe).
+    /// </summary>
+    /// <response code="204">Solicitação processada (e-mail enviado se aplicável).</response>
+    [HttpPost("reenviar-confirmacao")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ReenviarConfirmacao([FromBody] ReenviarConfirmacaoRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Email)) return NoContent();
+        await _localAuth.ReenviarConfirmacaoEmailAsync(request.Email);
+        return NoContent();
+    }
+
     /// <summary>Confirma o e-mail consumindo um token recebido por e-mail no signup.</summary>
     /// <response code="204">E-mail confirmado.</response>
     /// <response code="422">Token inválido ou expirado.</response>
@@ -407,6 +423,9 @@ public record SignupRequest(string Email, string Password);
 
 /// <summary>Payload de recuperação de senha.</summary>
 public record ForgotPasswordRequest(string Email);
+
+/// <summary>Payload de reenvio de e-mail de confirmação.</summary>
+public record ReenviarConfirmacaoRequest(string Email);
 
 /// <summary>Payload de confirmação de e-mail.</summary>
 public record ConfirmarEmailRequest(string Token);
