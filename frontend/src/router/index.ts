@@ -157,36 +157,33 @@ const router = createRouter({
             meta: { requiresAuth: true, ...APP },
         },
 
-        // Relatórios
+        // Relatórios — view única com tabs, deep-link via ?aba=
         {
             path: "/relatorios",
             name: "Relatorios",
             component: () => import("@/views/relatorios/RelatoriosView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
+        // Aliases das rotas antigas → redirecionam para /relatorios?aba=...
         {
             path: "/relatorios/financeiro",
             name: "RelatorioFinanceiro",
-            component: () => import("@/views/relatorios/RelatorioFinanceiroView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/relatorios", query: { aba: "financeiro" } },
         },
         {
             path: "/relatorios/operacional",
             name: "RelatorioOperacional",
-            component: () => import("@/views/relatorios/RelatorioOperacionalView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/relatorios", query: { aba: "agenda" } },
         },
         {
             path: "/relatorios/pessoas",
             name: "RelatorioPessoas",
-            component: () => import("@/views/relatorios/RelatorioPessoasView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/relatorios", query: { aba: "pessoas" } },
         },
         {
             path: "/relatorios/orcamentos",
             name: "RelatorioOrcamentos",
-            component: () => import("@/views/relatorios/RelatorioOrcamentosView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/relatorios", query: { aba: "orcamentos" } },
         },
 
         // Financeiro
