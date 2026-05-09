@@ -72,6 +72,12 @@ public class EfAuthEmailTokenRepository : IAuthEmailTokenRepository
         _context.AuthEmailTokens.FirstOrDefaultAsync(t =>
             t.TokenHash == tokenHash && t.Tipo == tipo);
 
+    public Task<AuthEmailToken> ObterUltimoCriadoAsync(Guid usuarioId, AuthEmailTokenTipo tipo) =>
+        _context.AuthEmailTokens
+            .Where(t => t.UsuarioId == usuarioId && t.Tipo == tipo)
+            .OrderByDescending(t => t.CriadoEm)
+            .FirstOrDefaultAsync();
+
     public async Task AdicionarAsync(AuthEmailToken token) =>
         await _context.AuthEmailTokens.AddAsync(token);
 

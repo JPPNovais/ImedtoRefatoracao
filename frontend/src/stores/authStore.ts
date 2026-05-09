@@ -100,6 +100,18 @@ export const useAuthStore = defineStore("auth", () => {
         return data
     }
 
+    async function confirmarEmail(token: string) {
+        await httpClient.post("/auth/confirmar-email", { token })
+    }
+
+    async function reenviarConfirmacao(email: string) {
+        await httpClient.post("/auth/reenviar-confirmacao", { email })
+    }
+
+    async function redefinirSenha(token: string, novaSenha: string) {
+        await httpClient.post("/auth/redefinir-senha", { token, novaSenha })
+    }
+
     async function recarregarMe() {
         const { data } = await httpClient.get("/auth/me")
         usuario.value = data.usuario
@@ -125,6 +137,9 @@ export const useAuthStore = defineStore("auth", () => {
         login,
         signup,
         logout,
+        confirmarEmail,
+        reenviarConfirmacao,
+        redefinirSenha,
         setUsuario,
         recarregarMe,
         ativarRealtime,

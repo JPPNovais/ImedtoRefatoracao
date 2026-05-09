@@ -26,6 +26,13 @@ public class LocalJwtAuthService : IAuthService
     private static readonly TimeSpan TtlReset = TimeSpan.FromHours(1);
     private static readonly TimeSpan TtlConvite = TimeSpan.FromDays(7);
 
+    /// <summary>
+    /// Cooldown entre reenvios do mesmo tipo de token. Anti-spam: usuário (ou bot)
+    /// não consegue gerar e-mail novo a cada clique. Aplicado em reenvio de confirmação
+    /// e em forgot-password.
+    /// </summary>
+    private static readonly TimeSpan CooldownReenvio = TimeSpan.FromSeconds(60);
+
     private readonly IAuthCredencialRepository _credenciaisRepo;
     private readonly IAuthRefreshTokenRepository _refreshRepo;
     private readonly IAuthEmailTokenRepository _emailTokenRepo;
@@ -238,6 +245,14 @@ public class LocalJwtAuthService : IAuthService
                 return;
             }
 
+            // Cooldown anti-spam (mesmo critério do reenvio de confirmação).
+            var ultimo = await _emailTokenRepo.ObterUltimoCriadoAsync(credencial.Id, AuthEmailTokenTipo.ResetSenha);
+            if (ultimo is not null && (DateTime.UtcNow - ultimo.CriadoEm) < CooldownReenvio)
+            {
+                _logger.LogInformation("Forgot password bloqueado por cooldown para {Hash}.", HashEmail(emailNorm));
+                return;
+            }
+
             var (cru, hashTok) = GerarTokenAleatorio();
             var token = AuthEmailToken.Emitir(
                 credencial.Id, AuthEmailTokenTipo.ResetSenha, hashTok, DateTime.UtcNow.Add(TtlReset));
@@ -270,6 +285,15 @@ public class LocalJwtAuthService : IAuthService
             if (credencial is null || credencial.EmailConfirmado)
             {
                 _logger.LogInformation("Reenvio de confirmação solicitado para {Hash} (sem efeito).", HashEmail(emailNorm));
+                return;
+            }
+
+            // Cooldown anti-spam: já enviou nos últimos 60s? Silencia (idempotente).
+            var ultimo = await _emailTokenRepo.ObterUltimoCriadoAsync(credencial.Id, AuthEmailTokenTipo.ConfirmacaoEmail);
+            if (ultimo is not null && (DateTime.UtcNow - ultimo.CriadoEm) < CooldownReenvio)
+            {
+                _logger.LogInformation("Reenvio bloqueado por cooldown (último envio há {Segundos}s) para {Hash}.",
+                    (int)(DateTime.UtcNow - ultimo.CriadoEm).TotalSeconds, HashEmail(emailNorm));
                 return;
             }
 

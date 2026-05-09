@@ -21,6 +21,13 @@ public interface IAuthRefreshTokenRepository
 public interface IAuthEmailTokenRepository
 {
     Task<AuthEmailToken> ObterValidoPorHashAsync(string tokenHash, AuthEmailTokenTipo tipo);
+
+    /// <summary>
+    /// Retorna o último token criado (consumido ou não) deste tipo para o usuário.
+    /// Usado para implementar cooldown de reenvio (anti-spam).
+    /// </summary>
+    Task<AuthEmailToken> ObterUltimoCriadoAsync(Guid usuarioId, AuthEmailTokenTipo tipo);
+
     Task AdicionarAsync(AuthEmailToken token);
     void Atualizar(AuthEmailToken token);
 }
