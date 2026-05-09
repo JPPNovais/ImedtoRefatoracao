@@ -2649,7 +2649,7 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
 
             // ============================================================
-            // SQL custom (sem par EF — herdado de migrations supabase legacy)
+            // SQL custom (sem par EF — tabelas auxiliares acessadas via Dapper)
             // ============================================================
 
             // ---- AI cache + AI rate limits (acessadas via Dapper) ----
@@ -2658,10 +2658,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 -- Estas tabelas são acessadas via Dapper (raw SQL) por AiCacheRepository
 -- e AiRateLimitRepository. NÃO há entidade EF correspondente, portanto
 -- nunca aparecem em uma migration EF — vivem como SQL puro em
--- supabase/migrations/.
+-- db/migrations/.
 --
 -- Idempotência: usamos CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT
--- EXISTS para casar com a estratégia idempotente do supabase CLI
+-- EXISTS para casar com a estratégia idempotente das migrations
 -- (mesmo padrão do EF, sem precisar do registro em __ef_migrations_history).
 --
 -- Pendente: RLS policies. Como ai_outputs_cache e ai_rate_limits são
@@ -2820,7 +2820,7 @@ $$;
 -- Indice GIN com gin_trgm_ops sobre lower(unaccent(...)).
 -- Se ja existir (re-execucao), recria para garantir que aponta para a
 -- expressao correta. CONCURRENTLY nao pode rodar dentro de transacao —
--- a Supabase CLI envolve toda migration em transacao por default, entao
+-- a pipeline envolve toda migration em transacao por default, entao
 -- usamos CREATE simples (lock breve em tabela; aceitavel em janela).
 CREATE INDEX IF NOT EXISTS ix_pacientes_nome_completo_trgm
     ON public.pacientes
@@ -2843,7 +2843,7 @@ CREATE INDEX IF NOT EXISTS ix_pacientes_nome_completo_trgm
             migrationBuilder.Sql(@"-- Seed catálogo de Profissões e Especialidades brasileiras.
 -- Gerado a partir de Application/Catalogo/SeedsCatalogo.cs (Wave 1 / Item 3.6).
 -- Idempotente: ON CONFLICT DO NOTHING — seguro para re-executar.
--- NÃO contém BEGIN/COMMIT (gerenciado pelo Supabase CLI).
+-- NÃO contém BEGIN/COMMIT (gerenciado pela pipeline de migrations).
 
 -- ============================================================
 -- 1. Profissões

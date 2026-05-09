@@ -21,7 +21,7 @@ public class UsuarioCriadoEventHandler : IEventHandler<UsuarioCriadoEvent>
 
     public Task Handle(UsuarioCriadoEvent domainEvent)
     {
-        // LGPD: hash do email em log estruturado (mesmo padrao do SupabaseAuthService).
+        // LGPD: hash do email em log estruturado (não logar email em claro).
         // O Id ja correlaciona o usuario; o hash permite ver duplicidade sem expor PII.
         _logger.LogInformation(
             "Usuário criado: Id={UsuarioId}, EmailHash={EmailHash}, OcorridoEm={OcorridoEm}",

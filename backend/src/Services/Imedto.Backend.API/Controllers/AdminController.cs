@@ -11,7 +11,7 @@ namespace Imedto.Backend.API.Controllers;
 /// network policy ou API gateway antes de habilitar claim <c>imedto_admin</c>.
 ///
 /// TODO Wave futura: validar claim <c>imedto_admin = true</c> no JWT (requer
-/// configuração no Supabase Auth com custom claims via hook JWT).
+/// emissão da claim em <c>EcdsaJwtTokenIssuer</c> a partir de tabela de admins).
 /// </summary>
 [ApiController]
 [Authorize]
@@ -36,7 +36,7 @@ public class AdminController : ControllerBase
     /// Após deletar <c>Configuracoes</c> ou <c>Financeiro</c>, recria os seeds padrão automaticamente.
     ///
     /// Disponível apenas em Development até que o mecanismo de claim <c>imedto_admin</c>
-    /// seja implementado no Supabase Auth.
+    /// seja implementado no emissor de JWT.
     /// </summary>
     /// <response code="204">Reset concluído com sucesso.</response>
     /// <response code="422">Parâmetros inválidos ou ambiente não autorizado.</response>

@@ -105,11 +105,14 @@ const acoes = computed(() => {
     }
 })
 
-function emitirAcao(evento: "confirmar" | "cancelar" | "concluir" | "checkin") {
-    if (evento === "confirmar") emit("confirmar", props.agendamento)
-    else if (evento === "cancelar") emit("cancelar", props.agendamento)
-    else if (evento === "checkin") emit("checkin", props.agendamento)
-    else emit("concluir", props.agendamento)
+type EventoAcao = "confirmar" | "cancelar" | "concluir" | "checkin"
+function emitirAcao(evento: EventoAcao) {
+    switch (evento) {
+        case "confirmar": emit("confirmar", props.agendamento); return
+        case "cancelar": emit("cancelar", props.agendamento); return
+        case "checkin": emit("checkin", props.agendamento); return
+        case "concluir": emit("concluir", props.agendamento); return
+    }
 }
 
 const horaFim = computed(() => {
@@ -179,7 +182,7 @@ const podeAlterar = computed(() => {
                     v-if="a.tipo === 'primary'"
                     type="button"
                     class="btn-cta"
-                    @click="emitirAcao(a.evento)"
+                    @click="emitirAcao(a.evento as EventoAcao)"
                 >
                     <i :class="a.icon" aria-hidden="true"></i>
                     {{ a.label }}
@@ -189,7 +192,7 @@ const podeAlterar = computed(() => {
                     type="button"
                     class="btn-icon-sm"
                     :title="a.title"
-                    @click="emitirAcao(a.evento)"
+                    @click="emitirAcao(a.evento as EventoAcao)"
                 >
                     <i :class="a.icon" aria-hidden="true"></i>
                 </button>

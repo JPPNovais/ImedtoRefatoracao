@@ -18,10 +18,10 @@ namespace Imedto.Backend.Infrastructure;
 /// Repositórios e query repositórios específicos de cada domínio são adicionados aqui conforme são criados.
 /// O Composition Root completo (buses + handlers) fica em API/Container.cs.
 ///
-/// MIGRATIONS (Postgres via Supabase) — fluxo DUPLO:
+/// MIGRATIONS (Postgres / RDS) — fluxo:
 /// 1. dotnet ef migrations add &lt;Nome&gt; --project Services/Imedto.Backend.Infrastructure --startup-project Services/Imedto.Backend.API --output-dir Database/Migrations
-/// 2. dotnet ef migrations script &lt;Prev&gt; &lt;Next&gt; --idempotent --output /tmp/next.sql → copiar para supabase/migrations/&lt;TS&gt;_descricao.sql (remover BEGIN/COMMIT)
-/// 3. supabase db push — aplica no projeto remoto
+/// 2. dotnet ef migrations script &lt;Prev&gt; &lt;Next&gt; --idempotent --output /tmp/next.sql → salvar em db/migrations/&lt;TS&gt;_descricao.sql (remover BEGIN/COMMIT)
+/// 3. Aplicação: pipeline de deploy (deploy/scripts/migrate.sh) ou execução manual no banco RDS.
 /// </summary>
 public static class InfrastructureExtensions
 {
@@ -128,7 +128,7 @@ public static class InfrastructureExtensions
 
     private static void RegistrarAuth(IServiceCollection services, IConfiguration configuration)
     {
-        // Auth local (substitui Supabase Auth). Configs vêm de Auth:Jwt, Auth:Bcrypt e Email
+        // Auth local (JWT). Configs vêm de Auth:Jwt, Auth:Bcrypt e Email
         // — todas populadas a partir do AWS SSM Parameter Store via appsettings.
         services.Configure<JwtAuthOptions>(configuration.GetSection(JwtAuthOptions.Section));
         services.Configure<BcryptOptions>(configuration.GetSection(BcryptOptions.Section));

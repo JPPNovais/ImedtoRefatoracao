@@ -11,8 +11,8 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Infrastructure.Auth;
 
 /// <summary>
-/// Implementação 100% local do <see cref="IAuthService"/>. Substitui
-/// <c>SupabaseAuthService</c> — sem dependência de provedor externo de auth.
+/// Implementação 100% local do <see cref="IAuthService"/> — sem dependência de
+/// provedor externo de auth.
 ///
 /// Persistência: 3 tabelas (auth_credenciais, auth_refresh_tokens, auth_email_tokens).
 /// Hashing: BCrypt + pepper (<see cref="IPasswordHasher"/>).

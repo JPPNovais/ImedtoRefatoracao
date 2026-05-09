@@ -27,9 +27,9 @@ public class VinculoController : ControllerBase
 
     /// <summary>Dono ou usuário com permissão convida um profissional (por e-mail) para o estabelecimento.</summary>
     /// <remarks>
-    /// Se o e-mail ainda não tem conta no Supabase, ela é criada automaticamente e um
-    /// magic link de invite é gerado. Em produção, o link é enviado por e-mail via edge
-    /// function. Em desenvolvimento, o link é retornado no body para facilitar testes.
+    /// Se o e-mail ainda não tem conta, ela é criada automaticamente e um magic link de
+    /// invite é gerado. Em produção, o link é enviado por e-mail. Em desenvolvimento, o
+    /// link é retornado no body para facilitar testes.
     /// </remarks>
     /// <response code="201">Convite criado. Em dev inclui <c>actionLink</c> no body.</response>
     /// <response code="422">Dados inválidos ou profissional já vinculado.</response>
@@ -41,7 +41,7 @@ public class VinculoController : ControllerBase
     {
         var userId = Guid.Parse(User.FindFirst("sub")!.Value);
 
-        // Controller orquestra: cria/identifica a conta no Supabase, depois dispara o command de domínio.
+        // Controller orquestra: cria/identifica a conta de auth, depois dispara o command de domínio.
         var convite = await _authService.CriarConviteAsync(request.Email);
         var profUserId = Guid.Parse(convite.User.Id);
 

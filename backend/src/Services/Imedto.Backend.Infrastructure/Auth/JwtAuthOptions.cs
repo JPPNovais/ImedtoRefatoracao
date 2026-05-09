@@ -1,7 +1,7 @@
 namespace Imedto.Backend.Infrastructure.Auth;
 
 /// <summary>
-/// Configuração do JWT local. Substitui <c>SupabaseOptions</c>.
+/// Configuração do JWT local.
 ///
 /// Em produção/dev, todos os campos vêm do AWS SSM Parameter Store via
 /// <c>/imedto/dev/jwt/*</c>; em testes, valores fixos são suficientes.

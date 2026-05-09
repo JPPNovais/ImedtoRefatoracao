@@ -59,9 +59,9 @@ public class AuthController : ControllerBase
         _env = env;
     }
 
-    /// <summary>Cria uma nova conta (signup no Supabase + registro local).</summary>
+    /// <summary>Cria uma nova conta (credencial de auth + registro local).</summary>
     /// <remarks>
-    /// Se o projeto Supabase exigir confirmação de e-mail, a resposta retorna
+    /// Se a configuração exigir confirmação de e-mail, a resposta retorna
     /// `requerConfirmacaoEmail: true` e NÃO seta cookies — o frontend deve exibir
     /// mensagem para o usuário confirmar o e-mail antes de logar.
     /// </remarks>
@@ -177,7 +177,7 @@ public class AuthController : ControllerBase
         return Ok(new { usuario = payload });
     }
 
-    /// <summary>Encerra a sessão, invalida o token no Supabase e limpa os cookies.</summary>
+    /// <summary>Encerra a sessão, revoga o refresh token e limpa os cookies.</summary>
     /// <response code="204">Logout realizado com sucesso.</response>
     [HttpPost("logout")]
     [Authorize]
@@ -192,7 +192,7 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Retorna os dados agregados do usuário autenticado (Supabase + registro local).</summary>
+    /// <summary>Retorna os dados agregados do usuário autenticado (credencial + registro local).</summary>
     /// <remarks>Chamado pelo frontend no carregamento da app para reidratar a sessão.</remarks>
     /// <response code="200">Usuário autenticado.</response>
     /// <response code="401">Não autenticado.</response>

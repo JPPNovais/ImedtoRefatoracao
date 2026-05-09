@@ -109,7 +109,7 @@ public class AppDbContext : DbContext
     // Item 4.13 — Catálogo TUSS/CBHPM de procedimentos.
     public DbSet<ProcedimentoCatalogo> CatalogoProcedimentos => Set<ProcedimentoCatalogo>();
 
-    // Auth local (substitui Supabase Auth) — credencial 1:1 com Usuario.
+    // Auth local (JWT) — credencial 1:1 com Usuario.
     public DbSet<AuthCredencial> AuthCredenciais => Set<AuthCredencial>();
     public DbSet<AuthRefreshToken> AuthRefreshTokens => Set<AuthRefreshToken>();
     public DbSet<AuthEmailToken> AuthEmailTokens => Set<AuthEmailToken>();

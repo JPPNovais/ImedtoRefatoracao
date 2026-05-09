@@ -140,8 +140,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 var logger = ctx.HttpContext.RequestServices
                     .GetRequiredService<ILoggerFactory>()
                     .CreateLogger("JwtAuth");
-                // LGPD: nunca logar Authorization completo. JWT do Supabase contem
-                // email/sub no payload. Logamos so prefixo do token (suficiente p/
+                // LGPD: nunca logar Authorization completo. JWT contem PII
+                // (email/sub) no payload. Logamos so prefixo do token (suficiente p/
                 // correlacao em log) e o erro do middleware.
                 var authHeader = ctx.Request.Headers.Authorization.ToString();
                 var tokenPreview = authHeader.Length > 20

@@ -173,7 +173,7 @@ namespace Imedto.Backend.API;
 /// 1. Criar arquivos em Domain / Contracts / Application / Infrastructure (EntityTypeConfiguration + DbSet).
 /// 2. Registrar handler em RegistrarHandlers (commands/events: Scoped; query handlers: Singleton).
 /// 3. Registrar rota no bus em RegistrarBuses.
-/// 4. Gerar migration EF + copiar SQL idempotente para supabase/migrations/.
+/// 4. Gerar migration EF + copiar SQL idempotente para db/migrations/.
 /// </summary>
 public static class Container
 {

@@ -47,7 +47,7 @@ public class MinhaContaController : ControllerBase
     /// Anonimiza a conta do titular (Art. 18 LGPD — direito ao esquecimento).
     ///
     /// Não realiza exclusão física: substitui PII por valores neutros e registra em audit.
-    /// O frontend deve chamar revoke de sessão no Supabase e redirecionar para logout.
+    /// O frontend deve chamar logout (revoga refresh token) e redirecionar para /login.
     /// </summary>
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -64,8 +64,9 @@ public class MinhaContaController : ControllerBase
         // Invalida o cache de /auth/me — nome/telefone foram zerados pela anonimização.
         _cache.Remove(AuthController.AuthMeCacheKey(userId));
 
-        // 204 sem corpo. O frontend interpreta este status como sinal para revogar a sessão
-        // no Supabase e redirecionar para /login — o token ainda é válido até expirar ou revoke.
+        // 204 sem corpo. O frontend interpreta este status como sinal para chamar logout
+        // (revoga refresh token) e redirecionar para /login — o access token continua válido
+        // até expirar ou ser revogado.
         return NoContent();
     }
 
