@@ -4,6 +4,7 @@ using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.Domain.Vinculos;
+using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -17,6 +18,7 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
     private readonly IVinculoRepository _vinculoRepo;
     private readonly IEventBus _eventBus;
     private readonly IAssinaturaService _assinaturaService;
+    private readonly CatalogoQueryRepository _catalogoRepo;
 
     public ConvidarProfissionalCommandHandler(
         IEstabelecimentoRepository estabelecimentoRepo,
@@ -24,7 +26,8 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
         IUsuarioRepository usuarioRepo,
         IVinculoRepository vinculoRepo,
         IEventBus eventBus,
-        IAssinaturaService assinaturaService)
+        IAssinaturaService assinaturaService,
+        CatalogoQueryRepository catalogoRepo)
     {
         _estabelecimentoRepo = estabelecimentoRepo;
         _modeloRepo = modeloRepo;
@@ -32,6 +35,7 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
         _vinculoRepo = vinculoRepo;
         _eventBus = eventBus;
         _assinaturaService = assinaturaService;
+        _catalogoRepo = catalogoRepo;
     }
 
     public async Task Handle(ConvidarProfissionalCommand command)
@@ -46,6 +50,19 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
 
         if (await _assinaturaService.LimiteAtingidoAsync(command.EstabelecimentoId, "profissionais"))
             throw new BusinessException("Plano não permite mais profissionais. Faça upgrade.");
+
+        // Valida especialidade × profissão contra o catálogo (defense-in-depth do front).
+        if (!string.IsNullOrWhiteSpace(command.Especialidade))
+        {
+            if (command.ProfissaoId is not { } profId || profId <= 0)
+                throw new BusinessException("Profissão é obrigatória quando especialidade for informada.");
+
+            if (!await _catalogoRepo.ExisteProfissaoAtiva(profId))
+                throw new BusinessException("Profissão informada é inválida ou está inativa.");
+
+            if (!await _catalogoRepo.ExisteEspecialidadeAtivaPorNome(profId, command.Especialidade))
+                throw new BusinessException("Especialidade não pertence à profissão selecionada ou está inativa.");
+        }
 
         // Modelo de permissão é opcional. Se vier explícito, valida que pertence
         // ao estabelecimento; se não vier, o vínculo é criado sem permissão (o

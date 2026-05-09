@@ -2,6 +2,7 @@ using Imedto.Backend.Contracts.Onboarding.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Profissionais;
 using Imedto.Backend.Domain.Usuarios;
+using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Imedto.Backend.SharedKernel.Tenancy;
@@ -20,19 +21,22 @@ public class FinalizarOnboardingCommandHandler : ICommandHandler<FinalizarOnboar
     private readonly IProfissionalRepository _profissionalRepository;
     private readonly IEventBus _eventBus;
     private readonly ICurrentTenantAccessor _tenant;
+    private readonly CatalogoQueryRepository _catalogoRepo;
 
     public FinalizarOnboardingCommandHandler(
         IUsuarioRepository usuarioRepository,
         IEstabelecimentoRepository estabelecimentoRepository,
         IProfissionalRepository profissionalRepository,
         IEventBus eventBus,
-        ICurrentTenantAccessor tenant)
+        ICurrentTenantAccessor tenant,
+        CatalogoQueryRepository catalogoRepo)
     {
         _usuarioRepository = usuarioRepository;
         _estabelecimentoRepository = estabelecimentoRepository;
         _profissionalRepository = profissionalRepository;
         _eventBus = eventBus;
         _tenant = tenant;
+        _catalogoRepo = catalogoRepo;
     }
 
     public async Task Handle(FinalizarOnboardingCommand command)
@@ -101,6 +105,8 @@ public class FinalizarOnboardingCommandHandler : ICommandHandler<FinalizarOnboar
                 throw new BusinessException("Já existe outro profissional com este número de registro neste conselho/UF.");
             }
 
+            var especialidadeFinal = await ResolverEspecialidadesAsync(command.Profissional);
+
             var existente = await _profissionalRepository.ObterPorIdOuNulo(usuarioId);
             if (existente is null)
             {
@@ -109,7 +115,7 @@ public class FinalizarOnboardingCommandHandler : ICommandHandler<FinalizarOnboar
                     command.Profissional.Conselho,
                     command.Profissional.Uf,
                     numero,
-                    command.Profissional.Especialidade,
+                    especialidadeFinal,
                     bio: null);
 
                 await _profissionalRepository.Salvar(prof);
@@ -140,5 +146,36 @@ public class FinalizarOnboardingCommandHandler : ICommandHandler<FinalizarOnboar
         // 5. Marca onboarding completo APENAS após todos os dados terem sido salvos.
         usuario.MarcarOnboardingCompleto();
         await _usuarioRepository.Salvar(usuario);
+    }
+
+    /// <summary>
+    /// Quando o front envia <c>Especialidades</c> (lista do catálogo), valida cada item contra
+    /// a profissão informada e devolve uma string CSV. Caso contrário, faz fallback para o
+    /// campo legado <c>Especialidade</c> (texto livre — compat com chamadas antigas).
+    /// </summary>
+    private async Task<string?> ResolverEspecialidadesAsync(ProfissionalOnboardingInput input)
+    {
+        var lista = (input.Especialidades ?? Array.Empty<string>())
+            .Where(e => !string.IsNullOrWhiteSpace(e))
+            .Select(e => e.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (lista.Count == 0)
+            return input.Especialidade;
+
+        if (input.ProfissaoId is not { } profId || profId <= 0)
+            throw new BusinessException("Profissão é obrigatória quando especialidades forem informadas.");
+
+        if (!await _catalogoRepo.ExisteProfissaoAtiva(profId))
+            throw new BusinessException("Profissão informada é inválida ou está inativa.");
+
+        foreach (var nome in lista)
+        {
+            if (!await _catalogoRepo.ExisteEspecialidadeAtivaPorNome(profId, nome))
+                throw new BusinessException($"Especialidade '{nome}' não pertence à profissão selecionada ou está inativa.");
+        }
+
+        return string.Join(", ", lista);
     }
 }

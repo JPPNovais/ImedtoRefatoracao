@@ -33,6 +33,12 @@ public class ProfissionalOnboardingInput
     public string Uf { get; set; }
     public string NumeroRegistro { get; set; }
     public string Especialidade { get; set; }
+
+    /// <summary>Profissão do catálogo (obrigatória quando <see cref="Especialidades"/> não for vazia).</summary>
+    public long? ProfissaoId { get; set; }
+
+    /// <summary>Lista de nomes de especialidades selecionadas no catálogo.</summary>
+    public IReadOnlyList<string> Especialidades { get; set; } = Array.Empty<string>();
 }
 
 public class FuncionamentoOnboardingInput

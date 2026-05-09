@@ -15,6 +15,8 @@ export interface FinalizarOnboardingPayload {
         uf: string
         numeroRegistro: string
         especialidade?: string
+        profissaoId?: number | null
+        especialidades?: string[]
     }
     funcionamento?: {
         horarioInicio: string

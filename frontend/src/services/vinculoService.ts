@@ -32,6 +32,7 @@ export interface ConvidarProfissionalRequest {
     nome?: string | null
     telefone?: string | null
     especialidade?: string | null
+    profissaoId?: number | null
 }
 
 export interface ConvidarProfissionalResponse {

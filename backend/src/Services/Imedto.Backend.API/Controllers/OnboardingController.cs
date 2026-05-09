@@ -56,6 +56,8 @@ public class OnboardingController : ControllerBase
                 Uf = request.Profissional.Uf,
                 NumeroRegistro = request.Profissional.NumeroRegistro,
                 Especialidade = request.Profissional.Especialidade,
+                ProfissaoId = request.Profissional.ProfissaoId,
+                Especialidades = request.Profissional.Especialidades ?? Array.Empty<string>(),
             },
             Funcionamento = request.Funcionamento is null ? null : new FuncionamentoOnboardingInput
             {
@@ -94,7 +96,9 @@ public record ProfissionalOnboardingRequest(
     string Conselho,
     string Uf,
     string NumeroRegistro,
-    string? Especialidade);
+    string? Especialidade,
+    long? ProfissaoId = null,
+    IReadOnlyList<string>? Especialidades = null);
 
 public record FuncionamentoOnboardingRequest(
     string HorarioInicio,

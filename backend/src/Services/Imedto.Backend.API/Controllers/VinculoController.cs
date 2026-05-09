@@ -54,7 +54,8 @@ public class VinculoController : ControllerBase
             ModeloPermissaoId = request.ModeloPermissaoId,
             Nome = request.Nome,
             Telefone = request.Telefone,
-            Especialidade = request.Especialidade
+            Especialidade = request.Especialidade,
+            ProfissaoId = request.ProfissaoId
         });
 
         if (_env.IsDevelopment())
@@ -119,4 +120,5 @@ public record ConvidarProfissionalRequest(
     long? ModeloPermissaoId,
     string Nome = null,
     string Telefone = null,
-    string Especialidade = null);
+    string Especialidade = null,
+    long? ProfissaoId = null);

@@ -139,13 +139,19 @@ public class IdempotencyAndReativarVinculoIntegrationTests : IntegrationTestBase
             var assinatura = new Mock<IAssinaturaService>();
             assinatura.Setup(s => s.LimiteAtingidoAsync(It.IsAny<long>(), "profissionais", default))
                       .ReturnsAsync(false);
+            var catalogo = new Mock<CatalogoQueryRepository>(
+                new Imedto.Backend.Infrastructure.AppReadConnectionString(PostgresIntegrationFixture.ConnectionString));
+            catalogo.Setup(r => r.ExisteProfissaoAtiva(It.IsAny<long>())).ReturnsAsync(true);
+            catalogo.Setup(r => r.ExisteEspecialidadeAtivaPorNome(It.IsAny<long>(), It.IsAny<string>()))
+                    .ReturnsAsync(true);
             var sut = new ConvidarProfissionalCommandHandler(
                 new EstabelecimentoRepository(ctx),
                 new ModeloPermissaoRepository(ctx),
                 new UsuarioRepository(ctx),
                 new VinculoRepository(ctx),
                 new Mock<IEventBus>().Object,
-                assinatura.Object);
+                assinatura.Object,
+                catalogo.Object);
 
             await sut.Handle(new ConvidarProfissionalCommand
             {

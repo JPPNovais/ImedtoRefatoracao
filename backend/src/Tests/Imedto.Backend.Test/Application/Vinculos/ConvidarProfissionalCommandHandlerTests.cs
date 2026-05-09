@@ -6,6 +6,7 @@ using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.Domain.Vinculos.Events;
+using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
@@ -22,6 +23,7 @@ public class ConvidarProfissionalCommandHandlerTests
     private Mock<IVinculoRepository> _vinculoRepo;
     private Mock<IEventBus> _eventBus;
     private Mock<IAssinaturaService> _assinaturaService;
+    private Mock<CatalogoQueryRepository> _catalogoRepo;
     private ConvidarProfissionalCommandHandler _sut;
 
     private readonly Guid _donoId = Guid.NewGuid();
@@ -38,11 +40,18 @@ public class ConvidarProfissionalCommandHandlerTests
         _vinculoRepo = new Mock<IVinculoRepository>();
         _eventBus = new Mock<IEventBus>();
         _assinaturaService = new Mock<IAssinaturaService>();
+        _catalogoRepo = new Mock<CatalogoQueryRepository>(
+            new Imedto.Backend.Infrastructure.AppReadConnectionString("Host=localhost;Database=fake"));
 
         // Padrão: plano sem limite atingido (não bloqueia).
         _assinaturaService
             .Setup(s => s.LimiteAtingidoAsync(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
+
+        // Catálogo padrão: aceita qualquer profissão/especialidade (testes que não mexem com isso passam).
+        _catalogoRepo.Setup(r => r.ExisteProfissaoAtiva(It.IsAny<long>())).ReturnsAsync(true);
+        _catalogoRepo.Setup(r => r.ExisteEspecialidadeAtivaPorNome(It.IsAny<long>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
 
         _sut = new ConvidarProfissionalCommandHandler(
             _estabelecimentoRepo.Object,
@@ -50,7 +59,8 @@ public class ConvidarProfissionalCommandHandlerTests
             _usuarioRepo.Object,
             _vinculoRepo.Object,
             _eventBus.Object,
-            _assinaturaService.Object);
+            _assinaturaService.Object,
+            _catalogoRepo.Object);
     }
 
     private Estabelecimento CriarEstabelecimento() =>

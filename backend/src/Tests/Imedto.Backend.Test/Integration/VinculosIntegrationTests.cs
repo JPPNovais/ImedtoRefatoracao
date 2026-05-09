@@ -73,13 +73,22 @@ public class VinculosIntegrationTests : IntegrationTestBase
         var assinatura = new Mock<IAssinaturaService>();
         assinatura.Setup(s => s.LimiteAtingidoAsync(It.IsAny<long>(), "profissionais", default))
                   .ReturnsAsync(false);
+        // Validação de catálogo é coberta no teste unitário; nos integration tests
+        // os cenários atuais não enviam Especialidade — mockamos para retornar true
+        // por padrão e mantemos os asserts focados em vínculo×convite.
+        var catalogo = new Mock<CatalogoQueryRepository>(
+            new Imedto.Backend.Infrastructure.AppReadConnectionString(PostgresIntegrationFixture.ConnectionString));
+        catalogo.Setup(r => r.ExisteProfissaoAtiva(It.IsAny<long>())).ReturnsAsync(true);
+        catalogo.Setup(r => r.ExisteEspecialidadeAtivaPorNome(It.IsAny<long>(), It.IsAny<string>()))
+                .ReturnsAsync(true);
         return new(
             new EstabelecimentoRepository(ctx),
             new ModeloPermissaoRepository(ctx),
             new UsuarioRepository(ctx),
             new VinculoRepository(ctx),
             new Mock<IEventBus>().Object,
-            assinatura.Object);
+            assinatura.Object,
+            catalogo.Object);
     }
 
     private AceitarConviteCommandHandler AceitarSut(AppDbContext ctx) =>

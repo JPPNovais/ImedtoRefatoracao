@@ -17,6 +17,8 @@ import { vMaska } from "maska/vue"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
 import { onboardingService } from "@/services/onboardingService"
+import { catalogoService } from "@/services/catalogoService"
+import type { ProfissaoCatalogo, EspecialidadeCatalogo } from "@/services/catalogoService"
 import { usuarioService } from "@/services/usuarioService"
 import { estabelecimentoService } from "@/services/estabelecimentoService"
 import { vinculoService } from "@/services/vinculoService"
@@ -223,33 +225,16 @@ watch(cepDebounced, async (valor) => {
 })
 
 // ─── Step 3: Especialidade ───
-const OUTROS_KEY = "Outros"
-
-const ESPECIALIDADES = [
-    { v: "Clínica Geral",   icon: "fa-stethoscope" },
-    { v: "Cardiologia",     icon: "fa-heart-pulse" },
-    { v: "Pediatria",       icon: "fa-baby" },
-    { v: "Odontologia",     icon: "fa-tooth" },
-    { v: "Oftalmologia",    icon: "fa-eye" },
-    { v: "Psiquiatria",     icon: "fa-brain" },
-    { v: "Psicologia",      icon: "fa-comments" },
-    { v: "Ortopedia",       icon: "fa-bone" },
-    { v: "Ginecologia",     icon: "fa-person-pregnant" },
-    { v: "Dermatologia",    icon: "fa-spa" },
-    { v: "Endocrinologia",  icon: "fa-disease" },
-    { v: "Nutrição",        icon: "fa-apple-whole" },
-    { v: "Fisioterapia",    icon: "fa-person-walking" },
-    { v: OUTROS_KEY,        icon: "fa-plus" },
-]
-
-const especialidadesOutras = ref<string[]>([])  // lista de especialidades digitadas
-const outraInput = ref("")                       // input atual
-
 const TIPOS_ATEND = [
     { v: "Presencial",   icon: "fa-user-doctor" },
     { v: "Telemedicina", icon: "fa-video" },
     { v: "Home care",    icon: "fa-house-medical" },
 ]
+
+const profissoesCatalogo = ref<ProfissaoCatalogo[]>([])
+const especialidadesCatalogo = ref<EspecialidadeCatalogo[]>([])
+const carregandoEspecialidadesCatalogo = ref(false)
+const profissaoId = ref<number | null>(null)
 
 const especialidadesSelecionadas = ref<string[]>([])
 const conselho = ref("CRM")
@@ -266,27 +251,24 @@ const CONSELHOS = [
     { v: "Outro",   l: "Outro" },
 ]
 
+watch(profissaoId, async (id) => {
+    especialidadesSelecionadas.value = []
+    especialidadesCatalogo.value = []
+    if (!id) return
+    carregandoEspecialidadesCatalogo.value = true
+    try {
+        especialidadesCatalogo.value = await catalogoService.listarEspecialidades(id)
+    } catch {
+        // falha silenciosa — usuário pode prosseguir sem especialidade
+    } finally {
+        carregandoEspecialidadesCatalogo.value = false
+    }
+})
+
 function toggleEspecialidade(v: string) {
     const idx = especialidadesSelecionadas.value.indexOf(v)
     if (idx >= 0) especialidadesSelecionadas.value.splice(idx, 1)
     else especialidadesSelecionadas.value.push(v)
-}
-
-const outrosAtivo = computed(() => especialidadesSelecionadas.value.includes(OUTROS_KEY))
-
-function adicionarOutra() {
-    const valor = outraInput.value.trim()
-    if (!valor) return
-    if (especialidadesOutras.value.some(e => e.toLowerCase() === valor.toLowerCase())) {
-        outraInput.value = ""
-        return
-    }
-    especialidadesOutras.value.push(valor)
-    outraInput.value = ""
-}
-
-function removerOutra(idx: number) {
-    especialidadesOutras.value.splice(idx, 1)
 }
 
 function toggleTipoAtendimento(v: string) {
@@ -347,10 +329,7 @@ const podeAvancar = computed(() => {
     }
     if (step.value === 3) {
         if (conta.tipo === "invited") return true
-        const semSelecao = especialidadesSelecionadas.value.length === 0
-        if (semSelecao) return false
-        // Se marcou "Outros", precisa ter ao menos uma especialidade digitada.
-        if (outrosAtivo.value && especialidadesOutras.value.length === 0) return false
+        if (!profissaoId.value) return false
         return true
     }
     if (step.value === 4) return true
@@ -398,11 +377,7 @@ async function finalizar() {
     erro.value = null
     carregando.value = true
     try {
-        // Monta lista de especialidades: predefinidas + customizadas (sem o token "Outros").
-        const listaEspecialidades = [
-            ...especialidadesSelecionadas.value.filter(e => e !== OUTROS_KEY),
-            ...especialidadesOutras.value,
-        ]
+        const listaEspecialidades = [...especialidadesSelecionadas.value]
         const especialidade = listaEspecialidades.join(", ")
 
         // Endereço final: "Rua X, 123 — Bairro Y, Cidade/UF, CEP"
@@ -431,12 +406,14 @@ async function finalizar() {
                 }
                 : undefined,
 
-            profissional: numeroRegistro.value.trim() && especialidade
+            profissional: numeroRegistro.value.trim() || profissaoId.value
                 ? {
                     conselho: conselho.value,
                     uf: ufRegistro.value,
                     numeroRegistro: numeroRegistro.value.trim(),
-                    especialidade,
+                    especialidade: especialidade || undefined,
+                    profissaoId: profissaoId.value,
+                    especialidades: listaEspecialidades.length > 0 ? listaEspecialidades : undefined,
                 }
                 : undefined,
 
@@ -476,6 +453,14 @@ async function finalizar() {
 // backend para evitar que o convidado redigite informações que o convidador já
 // passou. Quando há convite, o tipo é forçado em "invited".
 onMounted(async () => {
+    // Carrega profissões do catálogo para o Step 3.
+    try {
+        profissoesCatalogo.value = await catalogoService.listarProfissoes()
+    } catch {
+        // falha silenciosa — step 3 fica funcional sem a lista
+    }
+
+    // Pré-preenchimento via convite pendente.
     try {
         const convites = await vinculoService.listarMeusConvites()
         if (convites.length === 0) return
@@ -499,27 +484,8 @@ onMounted(async () => {
                 conta.telefone = d
             }
         }
-        if (c.especialidadeConvidada) {
-            // Tenta encontrar uma das especialidades padrão (case-insensitive);
-            // se não bater, adiciona como "Outra" digitada pelo usuário.
-            const padrao = ESPECIALIDADES.find(e =>
-                e.v.toLowerCase() === c.especialidadeConvidada!.toLowerCase()
-            )
-            if (padrao) {
-                if (!especialidadesSelecionadas.value.includes(padrao.v)) {
-                    especialidadesSelecionadas.value.push(padrao.v)
-                }
-            } else {
-                if (!especialidadesSelecionadas.value.includes(OUTROS_KEY)) {
-                    especialidadesSelecionadas.value.push(OUTROS_KEY)
-                }
-                if (!especialidadesOutras.value.some(e =>
-                    e.toLowerCase() === c.especialidadeConvidada!.toLowerCase()
-                )) {
-                    especialidadesOutras.value.push(c.especialidadeConvidada)
-                }
-            }
-        }
+        // Especialidade do convite: pré-selecionamos após o usuário escolher a profissão
+        // (não temos profissaoId ainda), então apenas guardamos para uso futuro se necessário.
     } catch {
         // Falha ao buscar convites não bloqueia o onboarding — usuário preenche do zero.
     }
@@ -789,56 +755,49 @@ const stepperPassos = computed(() => [
                 <div v-else-if="step === 3" class="step-pane fade-step">
                     <h2>Qual sua área de atuação?</h2>
                     <p class="onb-sub">
-                        Selecione todas que se aplicam. Vamos personalizar o prontuário,
+                        Selecione sua profissão e as especialidades que se aplicam. Vamos personalizar o prontuário,
                         modelos de receita e relatórios para a sua especialidade.
                     </p>
 
-                    <div class="specialty-grid">
-                        <button
-                            v-for="e in ESPECIALIDADES"
-                            :key="e.v"
-                            type="button"
-                            class="spec-chip"
-                            :class="{ active: especialidadesSelecionadas.includes(e.v) }"
-                            @click="toggleEspecialidade(e.v)"
-                        >
-                            <i :class="['fa-solid', e.icon]" aria-hidden="true"></i>
-                            {{ e.v }}
-                            <i v-if="especialidadesSelecionadas.includes(e.v)" class="fa-solid fa-xmark x" aria-hidden="true"></i>
-                        </button>
-
-                        <!-- Especialidades digitadas pelo usuário (vindas do botão Outros) -->
-                        <button
-                            v-for="(out, i) in especialidadesOutras"
-                            :key="`out-${i}`"
-                            type="button"
-                            class="spec-chip active"
-                            @click="removerOutra(i)"
-                        >
-                            <i class="fa-solid fa-circle-dot" aria-hidden="true"></i>
-                            {{ out }}
-                            <i class="fa-solid fa-xmark x" aria-hidden="true"></i>
-                        </button>
+                    <!-- Seletor de profissão -->
+                    <div class="field" style="margin-bottom: 24px;">
+                        <label>Qual sua profissão? <span style="color: hsl(var(--error))">*</span></label>
+                        <div class="input-wrap input-wrap--select">
+                            <select
+                                :value="profissaoId ?? ''"
+                                @change="profissaoId = ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null"
+                            >
+                                <option value="">Selecione...</option>
+                                <option v-for="p in profissoesCatalogo" :key="p.id" :value="p.id">{{ p.nome }}</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <!-- Input para digitar especialidades quando "Outros" está marcado -->
-                    <div v-if="outrosAtivo" class="outra-input-wrap">
-                        <i class="fa-solid fa-pen" aria-hidden="true"></i>
-                        <input
-                            v-model="outraInput"
-                            type="text"
-                            placeholder="Digite a especialidade e pressione Enter"
-                            @keydown.enter.prevent="adicionarOutra"
-                        />
-                        <button
-                            type="button"
-                            class="outra-add-btn"
-                            :disabled="!outraInput.trim()"
-                            @click="adicionarOutra"
-                        >
-                            <i class="fa-solid fa-plus" aria-hidden="true"></i> Adicionar
-                        </button>
-                    </div>
+                    <!-- Chips de especialidade (carregados do catálogo) -->
+                    <template v-if="profissaoId">
+                        <div v-if="carregandoEspecialidadesCatalogo" class="catalog-loading">
+                            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Carregando especialidades...
+                        </div>
+                        <template v-else-if="especialidadesCatalogo.length > 0">
+                            <div class="specialty-grid">
+                                <button
+                                    v-for="e in especialidadesCatalogo"
+                                    :key="e.id"
+                                    type="button"
+                                    class="spec-chip"
+                                    :class="{ active: especialidadesSelecionadas.includes(e.nome) }"
+                                    @click="toggleEspecialidade(e.nome)"
+                                >
+                                    <i class="fa-solid fa-circle-dot" aria-hidden="true"></i>
+                                    {{ e.nome }}
+                                    <i v-if="especialidadesSelecionadas.includes(e.nome)" class="fa-solid fa-xmark x" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </template>
+                        <p v-else class="catalog-empty">
+                            Nenhuma especialidade disponível para esta profissão.
+                        </p>
+                    </template>
 
                     <div class="form-grid">
                         <div class="field">
@@ -1438,55 +1397,24 @@ const stepperPassos = computed(() => [
 .spec-chip i { font-size: 11px; }
 .spec-chip .x { opacity: 0.6; }
 
-/* ── Input para "Outros" ── */
-.outra-input-wrap {
-    position: relative;
+/* ── Catálogo: estados loading / vazio ── */
+.catalog-loading {
+    font-size: 13px;
+    color: hsl(var(--secondary) / 0.6);
+    margin-bottom: 24px;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 4px 4px 14px;
-    background: hsl(var(--card));
-    border: 1.5px solid hsl(var(--secondary) / 0.12);
-    border-radius: 12px;
-    margin-bottom: 24px;
-    transition: all 160ms;
 }
-.outra-input-wrap:focus-within {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+.catalog-empty {
+    font-size: 13px;
+    color: hsl(var(--secondary) / 0.55);
+    margin: 0 0 24px;
+    padding: 12px 16px;
+    background: hsl(var(--secondary) / 0.04);
+    border: 1px dashed hsl(var(--secondary) / 0.15);
+    border-radius: 10px;
 }
-.outra-input-wrap > i {
-    color: hsl(var(--secondary) / 0.4);
-    font-size: 12px;
-}
-.outra-input-wrap input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 14px;
-    color: hsl(var(--primary-dark));
-    padding: 8px 0;
-}
-.outra-input-wrap input::placeholder { color: hsl(var(--secondary) / 0.45); }
-.outra-add-btn {
-    background: hsl(var(--primary));
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: background 160ms;
-}
-.outra-add-btn:hover:not(:disabled) { background: hsl(var(--primary-dark)); }
-.outra-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Schedule editor ── */
 .schedule-editor {

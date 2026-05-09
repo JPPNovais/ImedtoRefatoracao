@@ -53,6 +53,30 @@ public class CatalogoQueryRepository
         });
     }
 
+    public virtual async Task<bool> ExisteProfissaoAtiva(long profissaoId)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+        const string sql = "SELECT 1 FROM profissoes WHERE id = @Id AND ativo = true LIMIT 1";
+        var found = await conn.ExecuteScalarAsync<int?>(sql, new { Id = profissaoId });
+        return found.HasValue;
+    }
+
+    public virtual async Task<bool> ExisteEspecialidadeAtivaPorNome(long profissaoId, string nome)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return false;
+
+        await using var conn = new NpgsqlConnection(_connStr);
+        const string sql = """
+            SELECT 1 FROM especialidades
+            WHERE profissao_id = @ProfissaoId
+              AND ativo = true
+              AND LOWER(unaccent(nome)) = LOWER(unaccent(@Nome))
+            LIMIT 1
+            """;
+        var found = await conn.ExecuteScalarAsync<int?>(sql, new { ProfissaoId = profissaoId, Nome = nome.Trim() });
+        return found.HasValue;
+    }
+
     public async Task<IEnumerable<RegiaoCatalogoDto>> ListarRegioesCatalogo(string? vista, bool apenasAtivas)
     {
         await using var conn = new NpgsqlConnection(_connStr);

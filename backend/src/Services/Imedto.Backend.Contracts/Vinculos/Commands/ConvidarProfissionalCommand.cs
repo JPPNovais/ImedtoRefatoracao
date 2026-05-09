@@ -19,4 +19,10 @@ public class ConvidarProfissionalCommand : ICommand
     public string Nome { get; set; }
     public string Telefone { get; set; }
     public string Especialidade { get; set; }
+
+    /// <summary>
+    /// Profissão do catálogo (obrigatória quando <see cref="Especialidade"/> for informada).
+    /// Validada contra <c>profissoes</c>; especialidade tem que pertencer a esta profissão.
+    /// </summary>
+    public long? ProfissaoId { get; set; }
 }

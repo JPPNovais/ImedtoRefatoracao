@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, reactive } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import {
     AppButton, AppField, AppInput, AppModal, AppSelect, AppTextarea,
 } from "@/components/ui"
 import { vinculoService } from "@/services/vinculoService"
+import { catalogoService } from "@/services/catalogoService"
+import type { ProfissaoCatalogo, EspecialidadeCatalogo } from "@/services/catalogoService"
 import type { ModeloPermissao } from "@/services/permissaoService"
 
 /**
@@ -30,6 +32,7 @@ interface Form {
     email: string
     telefone: string
     modeloId: number | null
+    profissaoId: number | null
     especialidade: string
     conselho: string
     mensagem: string
@@ -41,6 +44,7 @@ const form = reactive<Form>({
     email: "",
     telefone: "",
     modeloId: null,
+    profissaoId: null,
     especialidade: "",
     conselho: "",
     mensagem: "",
@@ -49,7 +53,9 @@ const form = reactive<Form>({
 const enviando = ref(false)
 const erro = ref<string | null>(null)
 
-import { ref } from "vue"
+const profissoes = ref<ProfissaoCatalogo[]>([])
+const especialidades = ref<EspecialidadeCatalogo[]>([])
+const carregandoEspecialidades = ref(false)
 
 function reset() {
     form.metodo = "email"
@@ -57,11 +63,35 @@ function reset() {
     form.email = ""
     form.telefone = ""
     form.modeloId = null
+    form.profissaoId = null
     form.especialidade = ""
     form.conselho = ""
     form.mensagem = ""
+    especialidades.value = []
     erro.value = null
 }
+
+onMounted(async () => {
+    try {
+        profissoes.value = await catalogoService.listarProfissoes()
+    } catch {
+        // falha silenciosa — campo fica vazio mas não bloqueia o modal
+    }
+})
+
+watch(() => form.profissaoId, async (id) => {
+    form.especialidade = ""
+    especialidades.value = []
+    if (!id) return
+    carregandoEspecialidades.value = true
+    try {
+        especialidades.value = await catalogoService.listarEspecialidades(id)
+    } catch {
+        // falha silenciosa
+    } finally {
+        carregandoEspecialidades.value = false
+    }
+})
 
 const modeloSelecionado = computed(() =>
     props.modelos.find(m => m.id === form.modeloId) ?? null,
@@ -76,6 +106,7 @@ const valido = computed(() => {
     if (form.nome.trim().length < 2) return false
     if (!form.email.includes("@") || !form.email.includes(".")) return false
     if (!form.modeloId) return false
+    if (exigeEspecialidade.value && form.profissaoId === null) return false
     if (exigeEspecialidade.value && form.especialidade.trim().length < 2) return false
     if (form.metodo === "whatsapp" && form.telefone.replace(/\D/g, "").length < 10) return false
     return true
@@ -92,6 +123,7 @@ async function enviar() {
             nome: form.nome.trim() || null,
             telefone: form.telefone.trim() || null,
             especialidade: form.especialidade.trim() || null,
+            profissaoId: form.profissaoId,
         })
         emit("enviado", { nome: form.nome, email: form.email, actionLink: r.actionLink })
         reset()
@@ -184,8 +216,27 @@ function fechar() {
             </AppField>
 
             <template v-if="exigeEspecialidade">
+                <AppField label="Profissão" required>
+                    <AppSelect
+                        :model-value="form.profissaoId"
+                        @update:model-value="form.profissaoId = $event ? Number($event) : null"
+                    >
+                        <option :value="null">Selecione...</option>
+                        <option v-for="p in profissoes" :key="p.id" :value="p.id">{{ p.nome }}</option>
+                    </AppSelect>
+                </AppField>
+
                 <AppField label="Especialidade" required>
-                    <AppInput v-model="form.especialidade" placeholder="Ex: Cardiologia" />
+                    <AppSelect
+                        :model-value="form.especialidade"
+                        :disabled="!form.profissaoId || carregandoEspecialidades"
+                        @update:model-value="form.especialidade = String($event)"
+                    >
+                        <option value="">
+                            {{ carregandoEspecialidades ? 'Carregando...' : 'Selecione...' }}
+                        </option>
+                        <option v-for="e in especialidades" :key="e.id" :value="e.nome">{{ e.nome }}</option>
+                    </AppSelect>
                 </AppField>
 
                 <AppField label="Conselho profissional (opcional)">
