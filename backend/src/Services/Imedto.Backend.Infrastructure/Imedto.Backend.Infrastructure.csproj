@@ -7,7 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!-- HttpClient para chamadas ao Supabase REST API -->
+        <!-- AWS S3 (storage de fotos e anexos) -->
+        <PackageReference Include="AWSSDK.S3" Version="3.7.413" />
+        <!-- Hashing de senhas (Auth local) -->
+        <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
         <PackageReference Include="Dapper" Version="2.1.66" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">

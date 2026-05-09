@@ -58,34 +58,43 @@ builder.Host.UseSerilog((ctx, services, cfg) =>
     }
 });
 
-// --- Autenticação JWT (BFF pattern) ---
-// O Supabase expõe discovery em {Authority}/.well-known/openid-configuration e assina com ES256 (JWKS).
-// O middleware descobre as chaves sozinho a partir do Authority — não usamos IssuerSigningKey fixa.
+// --- Autenticação JWT (BFF pattern, auth local) ---
+// JWT é emitido e validado localmente (ECDSA P-256). Chaves vêm das configs
+// Auth:Jwt:PrivateKeyPem e Auth:Jwt:PublicKeyPem (populadas a partir do AWS
+// SSM Parameter Store).
 // Produção: token lido do cookie HttpOnly (frontend nunca vê o token).
 // Desenvolvimento/Swagger: aceita também o header Authorization: Bearer <token>
-//   → copie o access_token da resposta de POST /api/auth/login e cole no Authorize do Swagger.
+//   → copie o accessToken da resposta de POST /api/auth/login e cole no Authorize do Swagger.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var authority = builder.Configuration["Supabase:Authority"]
-            ?? throw new InvalidOperationException("Supabase:Authority não configurado.");
+        var issuer = builder.Configuration["Auth:Jwt:Issuer"]
+            ?? throw new InvalidOperationException("Auth:Jwt:Issuer não configurado.");
+        var audience = builder.Configuration["Auth:Jwt:Audience"]
+            ?? throw new InvalidOperationException("Auth:Jwt:Audience não configurado.");
+        var publicKeyPem = builder.Configuration["Auth:Jwt:PublicKeyPem"]
+            ?? throw new InvalidOperationException("Auth:Jwt:PublicKeyPem não configurado.");
 
-        options.Authority = authority;
-        options.RequireHttpsMetadata = true;
+        var ecdsa = System.Security.Cryptography.ECDsa.Create();
+        ecdsa.ImportFromPem(publicKeyPem.AsSpan());
+        var signingKey = new ECDsaSecurityKey(ecdsa);
 
-        // Supabase JWTs usam "sub" nativamente — evitamos o mapeamento default
-        // para ClaimTypes.NameIdentifier (http://schemas.xmlsoap.org/...).
+        options.RequireHttpsMetadata = false; // chave local, sem JWKS remoto
+
+        // JWT emitido com claim "sub" — evita mapear pra ClaimTypes.NameIdentifier.
         options.MapInboundClaims = false;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = authority,
+            ValidIssuer = issuer,
             ValidateAudience = true,
-            ValidAudience = "authenticated",
+            ValidAudience = audience,
             ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidAlgorithms = new[] { SecurityAlgorithms.EcdsaSha256 },
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.FromSeconds(30)
         };
 
         options.Events = new JwtBearerEvents
@@ -178,7 +187,7 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT",
-        Description = "Token JWT do Supabase. Obtenha em POST /api/auth/login."
+        Description = "Token JWT local (ECDSA P-256). Obtenha em POST /api/auth/login."
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement

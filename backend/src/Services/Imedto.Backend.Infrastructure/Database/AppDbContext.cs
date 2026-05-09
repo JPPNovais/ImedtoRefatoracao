@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Assinaturas;
+using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Auditoria;
 using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Domain.Catalogo;
@@ -107,6 +108,11 @@ public class AppDbContext : DbContext
 
     // Item 4.13 — Catálogo TUSS/CBHPM de procedimentos.
     public DbSet<ProcedimentoCatalogo> CatalogoProcedimentos => Set<ProcedimentoCatalogo>();
+
+    // Auth local (substitui Supabase Auth) — credencial 1:1 com Usuario.
+    public DbSet<AuthCredencial> AuthCredenciais => Set<AuthCredencial>();
+    public DbSet<AuthRefreshToken> AuthRefreshTokens => Set<AuthRefreshToken>();
+    public DbSet<AuthEmailToken> AuthEmailTokens => Set<AuthEmailToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

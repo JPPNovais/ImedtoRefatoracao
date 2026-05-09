@@ -7,6 +7,7 @@ using Imedto.Backend.Contracts.Auth.Queries.Results;
 using Imedto.Backend.Contracts.Usuarios.Commands;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Usuarios;
+using Imedto.Backend.Infrastructure.Auth;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Imedto.Backend.SharedKernel.Filters;
@@ -33,6 +34,7 @@ public class AuthController : ControllerBase
     internal static string AuthMeCacheKey(Guid usuarioId) => $"auth:me:{usuarioId}";
 
     private readonly IAuthService _authService;
+    private readonly LocalJwtAuthService _localAuth;
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
     private readonly IUsuarioRepository _usuarioRepository;
@@ -41,6 +43,7 @@ public class AuthController : ControllerBase
 
     public AuthController(
         IAuthService authService,
+        LocalJwtAuthService localAuth,
         ICommandBus commandBus,
         IRequestBus requestBus,
         IUsuarioRepository usuarioRepository,
@@ -48,6 +51,7 @@ public class AuthController : ControllerBase
         IWebHostEnvironment env)
     {
         _authService = authService;
+        _localAuth = localAuth;
         _commandBus = commandBus;
         _requestBus = requestBus;
         _usuarioRepository = usuarioRepository;
@@ -282,6 +286,75 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Confirma o e-mail consumindo um token recebido por e-mail no signup.</summary>
+    /// <response code="204">E-mail confirmado.</response>
+    /// <response code="422">Token inválido ou expirado.</response>
+    [HttpPost("confirmar-email")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ConfirmarEmail([FromBody] ConfirmarEmailRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Token))
+            throw new BusinessException("Token é obrigatório.");
+        await _localAuth.ConfirmarEmailAsync(request.Token);
+        return NoContent();
+    }
+
+    /// <summary>Redefine senha consumindo um token de recuperação enviado por e-mail.</summary>
+    /// <remarks>Após sucesso, todas as sessões ativas do usuário são revogadas.</remarks>
+    /// <response code="204">Senha redefinida.</response>
+    /// <response code="422">Token inválido/expirado ou senha não atende aos requisitos.</response>
+    [HttpPost("redefinir-senha")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RedefinirSenha([FromBody] RedefinirSenhaRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Token))
+            throw new BusinessException("Token é obrigatório.");
+        await _localAuth.RedefinirSenhaAsync(request.Token, request.NovaSenha);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Aceita um convite de profissional: define senha, confirma e-mail, cria registro
+    /// local de usuário e loga automaticamente (seta cookies HttpOnly).
+    /// </summary>
+    /// <response code="200">Convite aceito + usuário logado.</response>
+    /// <response code="422">Token inválido/expirado ou senha fraca.</response>
+    [HttpPost("aceitar-convite")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AceitarConvite([FromBody] AceitarConviteRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Token))
+            throw new BusinessException("Token é obrigatório.");
+
+        var usuarioId = await _localAuth.AceitarConviteAsync(request.Token, request.NovaSenha);
+
+        // Cria/atualiza registro local de usuário (idempotente).
+        await _commandBus.Send(new CriarRegistroLocalUsuarioCommand
+        {
+            Id = usuarioId,
+            Email = request.Email
+        });
+
+        // Logs in via fluxo padrão (gera novo par access+refresh).
+        var auth = await _authService.LoginAsync(request.Email, request.NovaSenha);
+        SetAuthCookies(auth);
+
+        var payload = _env.IsDevelopment()
+            ? new { usuario = auth.User, accessToken = auth.AccessToken }
+            : (object)new { usuario = auth.User };
+
+        return Ok(payload);
+    }
+
     private void SetAuthCookies(AuthResult result)
     {
         var isDev = _env.IsDevelopment();
@@ -334,3 +407,12 @@ public record SignupRequest(string Email, string Password);
 
 /// <summary>Payload de recuperação de senha.</summary>
 public record ForgotPasswordRequest(string Email);
+
+/// <summary>Payload de confirmação de e-mail.</summary>
+public record ConfirmarEmailRequest(string Token);
+
+/// <summary>Payload de redefinição de senha (após receber link por e-mail).</summary>
+public record RedefinirSenhaRequest(string Token, string NovaSenha);
+
+/// <summary>Payload de aceite de convite (define senha + ativa cadastro).</summary>
+public record AceitarConviteRequest(string Token, string Email, string NovaSenha);

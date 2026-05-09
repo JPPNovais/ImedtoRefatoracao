@@ -1,0 +1,72 @@
+# docker-compose.yml — deploy no EC2 (sa-east-1)
+# Lido junto com o .env gerado pelo scripts/pull-secrets.sh.
+# Imagens vêm do GitHub Container Registry (ghcr.io).
+
+services:
+  backend:
+    image: ghcr.io/${GHCR_OWNER}/imedto-backend:${IMAGE_TAG:-latest}
+    container_name: imedto-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:5000"
+      ConnectionStrings__Default: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Maximum Pool Size=10"
+      ConnectionStrings__Migrations: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      Auth__Jwt__Issuer: imedto-backend
+      Auth__Jwt__Audience: imedto-app
+      Auth__Jwt__PrivateKeyPem: ${JWT_PRIVATE_KEY_PEM}
+      Auth__Jwt__PublicKeyPem: ${JWT_PUBLIC_KEY_PEM}
+      Auth__Bcrypt__WorkFactor: "12"
+      Auth__Bcrypt__Pepper: ${BCRYPT_PEPPER}
+      Email__From: "Imedto <noreply@imedto.com>"
+      Email__AppBaseUrl: "https://app.imedto.com"
+      Email__ResendApiKey: ${RESEND_API_KEY}
+      Email__ApiKey: ${RESEND_API_KEY}
+      Storage__Region: sa-east-1
+      Storage__BucketAnexosProntuario: ${S3_BUCKET_ANEXOS}
+      Storage__BucketFotos: ${S3_BUCKET_FOTOS}
+      AWS_REGION: sa-east-1
+      Cors__AllowedOrigins__0: "https://app.imedto.com"
+      Cors__AllowedOrigins__1: "https://imedto.com"
+      Cors__AllowedOrigins__2: "https://www.imedto.com"
+    expose: ["5000"]
+    networks: [imedto]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER}/imedto-frontend:${IMAGE_TAG:-latest}
+    container_name: imedto-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [imedto]
+    expose: ["80"]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: imedto-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [frontend, backend]
+    networks: [imedto]
+
+networks:
+  imedto:
+    driver: bridge
+
+volumes:
+  caddy-data:
+  caddy-config:

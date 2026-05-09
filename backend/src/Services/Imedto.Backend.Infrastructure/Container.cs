@@ -86,14 +86,14 @@ public static class InfrastructureExtensions
         services.AddScoped<Domain.Prontuarios.IProntuarioEvolucaoRepository, Database.Repositories.ProntuarioEvolucaoRepository>();
         services.AddScoped<Domain.Prontuarios.IProntuarioAcessoLogService, Database.Repositories.ProntuarioAcessoLogService>();
         services.AddScoped<Domain.Prontuarios.IProntuarioAnexoRepository, Database.Repositories.ProntuarioAnexoRepository>();
-        services.AddScoped<Domain.Prontuarios.IAnexoStorageService, Infrastructure.Storage.SupabaseStorageService>();
+        services.AddScoped<Domain.Prontuarios.IAnexoStorageService, Infrastructure.Storage.S3AnexoStorageService>();
 
         // Exame físico (item 3.2) — escrita via EF, leitura via Dapper.
         services.AddScoped<Domain.Prontuarios.IExameFisicoRepository, Database.Repositories.ExameFisicoRepository>();
         services.AddScoped<Database.Repositories.ExameFisicoQueryRepository>();
 
         // Storage de fotos públicas (avatar de profissional, logo de estabelecimento)
-        services.AddScoped<Domain.Common.IFotoStorageService, Infrastructure.Storage.SupabaseFotoStorageService>();
+        services.AddScoped<Domain.Common.IFotoStorageService, Infrastructure.Storage.S3FotoStorageService>();
 
         // Agendamentos
         services.AddScoped<Domain.Agendamentos.IAgendamentoRepository, Database.Repositories.AgendamentoRepository>();
@@ -128,33 +128,34 @@ public static class InfrastructureExtensions
 
     private static void RegistrarAuth(IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<SupabaseOptions>(configuration.GetSection(SupabaseOptions.Section));
+        // Auth local (substitui Supabase Auth). Configs vêm de Auth:Jwt, Auth:Bcrypt e Email
+        // — todas populadas a partir do AWS SSM Parameter Store via appsettings.
+        services.Configure<JwtAuthOptions>(configuration.GetSection(JwtAuthOptions.Section));
+        services.Configure<BcryptOptions>(configuration.GetSection(BcryptOptions.Section));
+        services.Configure<EmailOptions>(configuration.GetSection(EmailOptions.Section));
         services.Configure<Storage.StorageOptions>(configuration.GetSection(Storage.StorageOptions.Section));
 
-        services.AddHttpClient("supabase", (sp, client) =>
+        // AWS S3 client. Em prod (EC2 com IAM role), as credenciais vêm da role.
+        // Em dev, o SDK lê ~/.aws/credentials (perfil default ou AWS_PROFILE).
+        services.AddSingleton<Amazon.S3.IAmazonS3>(sp =>
         {
-            var opts = sp.GetRequiredService<IOptions<SupabaseOptions>>().Value;
-            client.BaseAddress = new Uri(opts.Url);
-            // Login/refresh são <2s normalmente; default de 100s deixa request travado em
-            // glitch de rede ocupando thread/socket por muito tempo. 10s fecha rápido.
-            client.Timeout = TimeSpan.FromSeconds(10);
-            // Default 'apikey' eh o anon_key (publica) — endpoints publicos (signup,
-            // login, refresh, recover) usam so isso. Endpoints admin (delete user,
-            // generate_link, admin/users) passam ServiceRoleKey explicitamente em
-            // header Authorization Bearer no proprio request — nao colocar service
-            // role como default bypassa rate limits/policies do Supabase.
-            // Fallback para string vazia evita NullReference no startup quando o
-            // appsettings local nao tem AnonKey configurada (ambiente parcial); em
-            // runtime real essa chamada vai falhar com 401 do Supabase, que eh
-            // muito mais seguro do que rodar com service_role default.
-            client.DefaultRequestHeaders.Add("apikey", opts.AnonKey ?? string.Empty);
-        })
-        // Resilience: retry leve para 5xx/timeout/network + circuit breaker.
-        // Polly v8 nativo do .NET 10 — protege fluxo de auth de glitches transientes
-        // do Supabase Auth sem empilhar threads.
-        .AddStandardResilienceHandler();
+            var opts = sp.GetRequiredService<IOptions<Storage.StorageOptions>>().Value;
+            var region = Amazon.RegionEndpoint.GetBySystemName(opts.Region ?? "sa-east-1");
+            return new Amazon.S3.AmazonS3Client(region);
+        });
 
-        services.AddScoped<IAuthService, SupabaseAuthService>();
+        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
+        services.AddSingleton<IJwtTokenIssuer, EcdsaJwtTokenIssuer>();
+
+        services.AddScoped<IAuthCredencialRepository, Database.Repositories.EfAuthCredencialRepository>();
+        services.AddScoped<IAuthRefreshTokenRepository, Database.Repositories.EfAuthRefreshTokenRepository>();
+        services.AddScoped<IAuthEmailTokenRepository, Database.Repositories.EfAuthEmailTokenRepository>();
+
+        // LocalJwtAuthService registrado pelo tipo concreto + via IAuthService (mesma instância
+        // scope-wide). Os 3 endpoints específicos (confirmar-email, redefinir-senha, aceitar-convite)
+        // injetam o tipo concreto pra acessar métodos fora da IAuthService.
+        services.AddScoped<LocalJwtAuthService>();
+        services.AddScoped<IAuthService>(sp => sp.GetRequiredService<LocalJwtAuthService>());
     }
 }
 
