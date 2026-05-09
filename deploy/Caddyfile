@@ -30,8 +30,8 @@ app.imedto.com, imedto.com, www.imedto.com {
         }
     }
 
-    # Healthcheck público (não protegido)
-    handle /health {
+    # Healthcheck público (não protegido) — /health e /health/ready
+    handle /health* {
         reverse_proxy backend:5000
     }
 

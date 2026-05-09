@@ -24,6 +24,10 @@ chmod +x scripts/pull-secrets.sh
 docker compose pull
 docker compose up -d --remove-orphans
 
+# Caddy: bind mount aponta pra inode do Caddyfile, e rsync --delete cria
+# arquivo novo (inode novo). Restart força remount com inode atualizado.
+docker compose restart caddy
+
 # Limpa imagens antigas (t3.micro tem disco pequeno).
 docker image prune -af --filter "until=72h" || true
 
