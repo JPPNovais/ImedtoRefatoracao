@@ -23,6 +23,7 @@ const emit = defineEmits<{
     (e: "confirmar", a: Agendamento): void
     (e: "cancelar", a: Agendamento): void
     (e: "concluir", a: Agendamento): void
+    (e: "checkin", a: Agendamento): void
 }>()
 
 const STATUS_META: Record<Agendamento["status"], {
@@ -83,8 +84,13 @@ const acoes = computed(() => {
                 { tipo: "icon" as const, icon: "fa-solid fa-ban", title: "Cancelar", evento: "cancelar" as const },
             ]
         case "Confirmado":
+            if (props.agendamento.checkInEm == null) {
+                return [
+                    { tipo: "primary" as const, icon: "fa-solid fa-user-check", label: "Check-in", evento: "checkin" as const },
+                    { tipo: "icon" as const, icon: "fa-solid fa-ban", title: "Cancelar", evento: "cancelar" as const },
+                ]
+            }
             return [
-                { tipo: "primary" as const, icon: "fa-solid fa-flag-checkered", label: "Concluir", evento: "concluir" as const },
                 { tipo: "icon" as const, icon: "fa-solid fa-ban", title: "Cancelar", evento: "cancelar" as const },
             ]
         default:

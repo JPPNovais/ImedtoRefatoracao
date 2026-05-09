@@ -37,6 +37,7 @@ export interface Agendamento {
     motivoCancelamento: string | null
     criadoEm: string
     atualizadoEm: string | null
+    checkInEm: string | null
 }
 
 export interface CriarAgendamentoPayload {
@@ -111,6 +112,10 @@ export const agendaService = {
 
     async concluir(id: number): Promise<void> {
         await httpClient.post(`/agendamentos/${id}/concluir`)
+    },
+
+    async registrarCheckIn(id: number): Promise<void> {
+        await httpClient.post(`/agendamentos/${id}/checkin`)
     },
 
     async consultarDisponibilidade(
