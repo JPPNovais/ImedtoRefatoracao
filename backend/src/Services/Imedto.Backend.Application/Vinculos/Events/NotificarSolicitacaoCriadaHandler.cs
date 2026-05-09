@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.Domain.Vinculos.Events;
+using Imedto.Backend.Infrastructure.Auth;
+using Imedto.Backend.Infrastructure.Email;
 using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Application.Vinculos.Events;
@@ -22,6 +25,7 @@ public class NotificarSolicitacaoCriadaHandler : IEventHandler<SolicitacaoVincul
     private readonly IUsuarioRepository _usuarioRepo;
     private readonly INotificacaoService _notificacoes;
     private readonly IEmailService _email;
+    private readonly EmailOptions _emailOptions;
     private readonly ILogger<NotificarSolicitacaoCriadaHandler> _logger;
 
     public NotificarSolicitacaoCriadaHandler(
@@ -29,12 +33,14 @@ public class NotificarSolicitacaoCriadaHandler : IEventHandler<SolicitacaoVincul
         IUsuarioRepository usuarioRepo,
         INotificacaoService notificacoes,
         IEmailService email,
+        IOptions<EmailOptions> emailOptions,
         ILogger<NotificarSolicitacaoCriadaHandler> logger)
     {
         _estabelecimentoRepo = estabelecimentoRepo;
         _usuarioRepo = usuarioRepo;
         _notificacoes = notificacoes;
         _email = email;
+        _emailOptions = emailOptions.Value;
         _logger = logger;
     }
 
@@ -56,14 +62,11 @@ public class NotificarSolicitacaoCriadaHandler : IEventHandler<SolicitacaoVincul
             var dono = await _usuarioRepo.ObterPorIdOuNulo(estab.DonoUsuarioId);
             if (dono is null || string.IsNullOrWhiteSpace(dono.Email)) return;
 
+            var appUrl = _emailOptions.AppBaseUrl ?? "https://app.imedto.com";
             await _email.EnviarAsync(
                 para: dono.Email,
                 assunto: "Nova solicitação de vínculo no seu estabelecimento",
-                corpoHtml: """
-                    <p>Olá!</p>
-                    <p>Um profissional solicitou acesso ao seu estabelecimento no Imedto.</p>
-                    <p>Acesse <strong>Solicitações recebidas</strong> para revisar e responder.</p>
-                    """,
+                corpoHtml: EmailTemplates.SolicitacaoVinculoRecebida(appUrl),
                 corpoTexto: "Um profissional solicitou acesso ao seu estabelecimento no Imedto. Acesse 'Solicitações recebidas' para revisar.");
         }
         catch (Exception ex)

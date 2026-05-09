@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Automacoes;
+using Imedto.Backend.Infrastructure.Email;
 using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Infrastructure.Auth;
@@ -85,7 +86,7 @@ public class LocalJwtAuthService : IAuthService
         await _emailTokenRepo.AdicionarAsync(emailTok);
 
         var link = MontarLink("/auth/confirmar-email", cru);
-        await _emails.EnviarAsync(emailNorm, "Confirme seu e-mail no Imedto", TemplatesEmail.Confirmacao(link));
+        await _emails.EnviarAsync(emailNorm, "Confirme seu e-mail no Imedto", EmailTemplates.Confirmacao(link));
 
         return new SignupResult(
             new UserInfo(id.ToString(), emailNorm, Array.Empty<string>()),
@@ -259,7 +260,7 @@ public class LocalJwtAuthService : IAuthService
             await _emailTokenRepo.AdicionarAsync(token);
 
             var link = MontarLink("/auth/redefinir-senha", cru);
-            await _emails.EnviarAsync(emailNorm, "Redefinição de senha — Imedto", TemplatesEmail.ResetSenha(link));
+            await _emails.EnviarAsync(emailNorm, "Redefinição de senha — Imedto", EmailTemplates.ResetSenha(link));
         }
         catch (Exception ex)
         {
@@ -303,7 +304,7 @@ public class LocalJwtAuthService : IAuthService
             await _emailTokenRepo.AdicionarAsync(token);
 
             var link = MontarLink("/auth/confirmar-email", cru);
-            await _emails.EnviarAsync(emailNorm, "Confirme seu e-mail no Imedto", TemplatesEmail.Confirmacao(link));
+            await _emails.EnviarAsync(emailNorm, "Confirme seu e-mail no Imedto", EmailTemplates.Confirmacao(link));
         }
         catch (Exception ex)
         {
