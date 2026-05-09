@@ -25,8 +25,11 @@ public class EcdsaJwtTokenIssuer : IJwtTokenIssuer, IDisposable
         if (string.IsNullOrWhiteSpace(_options.PrivateKeyPem))
             throw new InvalidOperationException("Auth:Jwt:PrivateKeyPem não configurado.");
 
+        // pull-secrets.sh codifica PEMs como '\n' literal (.env não suporta multi-linha).
+        var privPem = _options.PrivateKeyPem.Replace("\\n", "\n");
+
         _privateKey = ECDsa.Create();
-        _privateKey.ImportFromPem(_options.PrivateKeyPem.AsSpan());
+        _privateKey.ImportFromPem(privPem.AsSpan());
 
         var key = new ECDsaSecurityKey(_privateKey);
         _signingCredentials = new SigningCredentials(key, SecurityAlgorithms.EcdsaSha256);

@@ -75,6 +75,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         var publicKeyPem = builder.Configuration["Auth:Jwt:PublicKeyPem"]
             ?? throw new InvalidOperationException("Auth:Jwt:PublicKeyPem não configurado.");
 
+        // pull-secrets.sh codifica PEMs como uma única linha com '\n' literal
+        // pra caber no .env do docker-compose. Reverter pra newlines reais
+        // antes do ImportFromPem.
+        publicKeyPem = publicKeyPem.Replace("\\n", "\n");
+
         var ecdsa = System.Security.Cryptography.ECDsa.Create();
         ecdsa.ImportFromPem(publicKeyPem.AsSpan());
         var signingKey = new ECDsaSecurityKey(ecdsa);
