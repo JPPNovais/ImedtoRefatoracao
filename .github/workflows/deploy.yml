@@ -133,6 +133,7 @@ jobs:
         working-directory: backend/src
         run: |
           dotnet tool restore
+          dotnet restore Imedto.Backend.sln
           dotnet ef migrations script --idempotent \
               --project Services/Imedto.Backend.Infrastructure \
               --startup-project Services/Imedto.Backend.API \
