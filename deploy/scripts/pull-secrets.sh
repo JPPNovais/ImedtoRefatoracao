@@ -29,7 +29,7 @@ BCRYPT_PEPPER=$(get "$PARAM_PREFIX/bcrypt/pepper")
 RESEND_API_KEY=$(get "$PARAM_PREFIX/resend/api-key")
 S3_BUCKET_FOTOS=$(get "$PARAM_PREFIX/s3/bucket-fotos")
 S3_BUCKET_ANEXOS=$(get "$PARAM_PREFIX/s3/bucket-anexos")
-GHCR_OWNER=${GHCR_OWNER:-joaobarreto1996}
+GHCR_OWNER=${GHCR_OWNER:-jppnovais}
 IMAGE_TAG=${IMAGE_TAG:-latest}
 EOF
 
