@@ -42,13 +42,9 @@ public class PacienteRepository : IPacienteRepository
     public async Task Salvar(Paciente paciente)
     {
         if (paciente.Id == 0)
-        {
             await _context.Pacientes.AddAsync(paciente);
-            await _context.SaveChangesAsync();
-        }
         else
-        {
             _context.Pacientes.Update(paciente);
-        }
+        await _context.SaveChangesAsync();
     }
 }
