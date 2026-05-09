@@ -53,7 +53,7 @@ const podeRemover = computed(() => props.profissional && !ehDono.value && !ehVin
 
 function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
     if (s === "Ativo" || s === "Dono")  return "success"
-    if (s === "Pendente")               return "warning"
+    if (s === "Convidado")              return "warning"
     if (s === "Bloqueado")              return "error"
     return "muted"
 }

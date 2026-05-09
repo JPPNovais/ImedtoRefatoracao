@@ -67,11 +67,11 @@ const detalhesProfissional = ref<ProfissionalVinculado | null>(null)
 
 // ─── Derivados ─────────────────────────────────────────────────────────────
 const convitesPendentes = computed(() =>
-    profissionais.value.filter(p => p.status === "Pendente"),
+    profissionais.value.filter(p => p.status === "Convidado"),
 )
 
 const profissionaisAtivos = computed(() =>
-    profissionais.value.filter(p => p.status !== "Pendente" && p.status !== "Removido"),
+    profissionais.value.filter(p => p.status !== "Convidado" && p.status !== "Removido"),
 )
 
 // ─── Carregamento ──────────────────────────────────────────────────────────

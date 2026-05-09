@@ -93,19 +93,14 @@ watch(() => form.profissaoId, async (id) => {
     }
 })
 
+// Profissão/Especialidade são CAMPOS DE IDENTIFICAÇÃO do profissional (não de
+// permissão). Sempre opcionais — a permissão escolhida acima nao gateia esses
+// campos. O backend valida apenas que profissaoId vem se especialidade for
+// informada (ConvidarProfissionalCommandHandler).
 const modeloSelecionado = computed(() =>
     props.modelos.find(m => m.id === form.modeloId) ?? null,
 )
 
-// Profissão/Especialidade são CAMPOS DE IDENTIFICAÇÃO do profissional (não de
-// permissão). Ficam sempre disponíveis para preencher; a permissão é decidida
-// pelo modelo selecionado acima e não gateia esses campos.
-const ehProfissional = computed(() =>
-    modeloSelecionado.value?.tipoAcesso === "Profissional",
-)
-
-// Só faz sentido exibir/exigir especialidade quando a profissão escolhida tem
-// especialidades cadastradas no catálogo (ou enquanto a lista está carregando).
 const profissaoTemEspecialidades = computed(() =>
     form.profissaoId !== null && (carregandoEspecialidades.value || especialidades.value.length > 0),
 )
@@ -114,10 +109,6 @@ const valido = computed(() => {
     if (form.nome.trim().length < 2) return false
     if (!form.email.includes("@") || !form.email.includes(".")) return false
     if (!form.modeloId) return false
-    // Profissão é obrigatória para papéis "Profissional"; opcional para Admin/Recepção.
-    if (ehProfissional.value && form.profissaoId === null) return false
-    // Especialidade só é obrigatória se a profissão escolhida tiver especialidades.
-    if (ehProfissional.value && profissaoTemEspecialidades.value && form.especialidade.trim().length < 2) return false
     if (form.metodo === "whatsapp" && form.telefone.replace(/\D/g, "").length < 10) return false
     return true
 })
@@ -205,27 +196,24 @@ function fechar() {
             </AppField>
 
             <AppField label="Permissão" required class="full">
-                <div class="role-selector">
-                    <button
-                        v-for="m in modelos" :key="m.id"
-                        type="button"
-                        class="rs"
-                        :class="{ on: form.modeloId === m.id }"
-                        @click="form.modeloId = m.id"
-                    >
-                        <div class="rs-icon" :style="{ background: bgIcone(m.cor), color: m.cor || 'hsl(0 0% 45%)' }">
-                            <i class="fa-solid" :class="m.icone || (m.tipoAcesso === 'Profissional' ? 'fa-user-doctor' : 'fa-headset')"></i>
-                        </div>
-                        <div class="rs-info">
-                            <b>{{ m.nome }}</b>
-                            <span>{{ m.descricao || (m.tipoAcesso === 'Profissional' ? 'Acesso a agenda, prontuário e pacientes' : 'Acesso a agenda e pacientes') }}</span>
-                        </div>
-                        <span v-if="!m.ehPadrao" class="rs-tag">Customizado</span>
-                    </button>
+                <AppSelect
+                    :model-value="form.modeloId"
+                    @update:model-value="form.modeloId = $event ? Number($event) : null"
+                >
+                    <option :value="null">Selecione...</option>
+                    <option v-for="m in modelos" :key="m.id" :value="m.id">
+                        {{ m.nome }}{{ m.ehPadrao ? '' : ' (customizado)' }}
+                    </option>
+                </AppSelect>
+                <div v-if="modeloSelecionado" class="modelo-preview">
+                    <div class="mp-icon" :style="{ background: bgIcone(modeloSelecionado.cor), color: modeloSelecionado.cor || 'hsl(0 0% 45%)' }">
+                        <i class="fa-solid" :class="modeloSelecionado.icone || (modeloSelecionado.tipoAcesso === 'Profissional' ? 'fa-user-doctor' : 'fa-headset')"></i>
+                    </div>
+                    <span>{{ modeloSelecionado.descricao || (modeloSelecionado.tipoAcesso === 'Profissional' ? 'Acesso a agenda, prontuário e pacientes' : 'Acesso a agenda e pacientes') }}</span>
                 </div>
             </AppField>
 
-            <AppField :label="ehProfissional ? 'Profissão' : 'Profissão (opcional)'" :required="ehProfissional">
+            <AppField label="Profissão (opcional)">
                 <AppSelect
                     :model-value="form.profissaoId"
                     @update:model-value="form.profissaoId = $event ? Number($event) : null"
@@ -235,11 +223,7 @@ function fechar() {
                 </AppSelect>
             </AppField>
 
-            <AppField
-                v-if="profissaoTemEspecialidades"
-                :label="ehProfissional ? 'Especialidade' : 'Especialidade (opcional)'"
-                :required="ehProfissional"
-            >
+            <AppField v-if="profissaoTemEspecialidades" label="Especialidade (opcional)">
                 <AppSelect
                     :model-value="form.especialidade"
                     :disabled="carregandoEspecialidades"
@@ -310,33 +294,19 @@ function fechar() {
 .form-grid :deep(.full) { grid-column: 1 / -1; }
 @media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
 
-.role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.rs {
+.modelo-preview {
     display: flex; align-items: center; gap: 10px;
-    background: white; border: 1.5px solid hsl(var(--secondary) / 0.12);
-    padding: 10px 12px; border-radius: 8px;
-    cursor: pointer; text-align: left; font-family: inherit;
-    transition: all 150ms; position: relative;
+    margin-top: 8px; padding: 8px 12px;
+    background: hsl(var(--primary) / 0.04);
+    border: 1px solid hsl(var(--primary) / 0.12);
+    border-radius: 6px;
 }
-.rs:hover { border-color: hsl(var(--primary) / 0.4); }
-.rs.on {
-    border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.05);
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
-}
-.rs-icon {
-    width: 32px; height: 32px; border-radius: 6px;
+.mp-icon {
+    width: 28px; height: 28px; border-radius: 6px;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 13px; flex-shrink: 0;
+    font-size: 12px; flex-shrink: 0;
 }
-.rs-info { flex: 1; min-width: 0; }
-.rs-info b { display: block; font-size: 13px; color: hsl(var(--primary-dark)); font-weight: 700; }
-.rs-info span {
-    font-size: 11px; color: hsl(var(--secondary) / 0.65);
-    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
-}
-.rs-tag {
-    position: absolute; top: 6px; right: 8px;
-    font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 999px;
-    background: hsl(var(--primary) / 0.12); color: hsl(var(--primary));
+.modelo-preview > span {
+    font-size: 12px; color: hsl(var(--secondary) / 0.75); line-height: 1.4;
 }
 </style>

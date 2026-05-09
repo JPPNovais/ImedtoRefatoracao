@@ -33,7 +33,9 @@ const busca = useDebouncedRef(buscaInput, 200) // local-only, mas mantém a UI f
 const filtroStatus = ref<"todos" | "ativos" | "inativos">("todos")
 const filtroModelo = ref<"todos" | number>("todos")
 
-const visiveis = computed(() => props.profissionais.filter(p => p.status !== "Pendente"))
+// "Convidado" = vinculo com convite enviado, ainda nao aceito — esses ficam soh
+// na aba "Convites pendentes", nao aparecem na lista de profissionais ativos.
+const visiveis = computed(() => props.profissionais.filter(p => p.status !== "Convidado"))
 
 const ativos    = computed(() => visiveis.value.filter(p => p.status === "Ativo" || p.status === "Dono"))
 const inativos  = computed(() => visiveis.value.filter(p => p.status !== "Ativo" && p.status !== "Dono"))
@@ -104,7 +106,7 @@ function modeloDe(p: ProfissionalVinculado): ModeloPermissao | undefined {
 
 function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
     if (s === "Ativo" || s === "Dono")  return "success"
-    if (s === "Pendente")               return "warning"
+    if (s === "Convidado")              return "warning"
     if (s === "Bloqueado")              return "error"
     return "muted"
 }
