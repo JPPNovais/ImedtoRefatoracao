@@ -1,19 +1,10 @@
 <script setup lang="ts">
-/**
- * OrcamentoDetalheView — visualização read-only do orçamento + ações de status.
- * As transições disponíveis dependem do status atual:
- *   - Rascunho → Enviar / Cancelar
- *   - Enviado  → Aprovar / Recusar / Cancelar
- *   - Aprovado → Cancelar / (Fase 6.4: Converter em cirurgia)
- *   - Recusado / Cancelado / Expirado → terminais (só Editar/PDF)
- */
 import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { orcamentoService, type Orcamento } from "@/services/orcamentoService"
 import { useOrcamentoPdf } from "@/composables/useOrcamentoPdf"
-import {
-    AppPageHeader, AppButton, AppBadge, AppCard,
-} from "@/components/ui"
+import { AppButton, AppCard } from "@/components/ui"
+import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
 
 const { gerarPdf } = useOrcamentoPdf()
 
@@ -39,8 +30,7 @@ async function carregar() {
 }
 
 async function executarAcao(fn: () => Promise<void>, msgErro: string) {
-    if (!orcamento.value) return
-    if (acaoEmCurso.value) return
+    if (!orcamento.value || acaoEmCurso.value) return
     acaoEmCurso.value = true
     erro.value = null
     try {
@@ -53,23 +43,27 @@ async function executarAcao(fn: () => Promise<void>, msgErro: string) {
     }
 }
 
-const podeEnviar  = computed(() => orcamento.value?.status === "Rascunho")
-const podeAprovar = computed(() => orcamento.value?.status === "Enviado")
-const podeRecusar = computed(() => orcamento.value?.status === "Enviado")
-const podeCancelar = computed(() => orcamento.value && !["Recusado", "Cancelado", "Expirado"].includes(orcamento.value.status))
-const podeEditar  = computed(() => orcamento.value && ["Rascunho", "Enviado"].includes(orcamento.value.status))
+const podeEnviar   = computed(() => orcamento.value?.status === "Rascunho")
+const podeAprovar  = computed(() => orcamento.value?.status === "Enviado")
+const podeRecusar  = computed(() => orcamento.value?.status === "Enviado")
+const podeCancelar = computed(() =>
+    orcamento.value && !["Recusado", "Cancelado", "Expirado"].includes(orcamento.value.status)
+)
+const podeEditar   = computed(() =>
+    orcamento.value && ["Rascunho", "Enviado"].includes(orcamento.value.status)
+)
 const podeConverter = computed(() =>
-    orcamento.value
-    && orcamento.value.status === "Aprovado"
-    && !orcamento.value.procedimentoCirurgicoId
-    && orcamento.value.cirurgias.length > 0
+    orcamento.value &&
+    orcamento.value.status === "Aprovado" &&
+    !orcamento.value.procedimentoCirurgicoId &&
+    orcamento.value.cirurgias.length > 0
 )
 
 async function converter() {
     if (!orcamento.value) return
     if (!confirm("Converter este orçamento em uma cirurgia planejada?")) return
     await executarAcao(
-        async () => { await orcamentoService.converterEmCirurgia(orcamentoId) },
+        () => orcamentoService.converterEmCirurgia(orcamentoId).then(() => {}),
         "Erro ao converter."
     )
 }
@@ -78,39 +72,47 @@ async function baixarPdf() {
     if (orcamento.value) await gerarPdf(orcamento.value)
 }
 
-function fmtMoeda(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
-function fmtData(s: string) { return new Date(s).toLocaleDateString("pt-BR") }
+function fmtBRL(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
+function fmtData(s: string) { return new Date(s + "T00:00:00").toLocaleDateString("pt-BR") }
 
 function editar() {
     router.push({ name: "OrcamentoForm", params: { id: String(orcamentoId) } })
 }
 
-function voltar() {
-    router.push({ name: "Orcamentos" })
-}
+function voltar() { router.push({ name: "Orcamentos" }) }
 
 onMounted(carregar)
 </script>
 
 <template>
-    <main class="app-page app-page--wide">
-        <div v-if="carregando" class="estado">
-            <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+    <div class="app-page app-page--wide">
+        <!-- Loading -->
+        <div v-if="carregando && !orcamento" class="estado-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Carregando orçamento...
         </div>
 
+        <!-- Erro fatal -->
         <div v-else-if="erro && !orcamento" class="erro-banner" role="alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
             {{ erro }}
             <AppButton size="sm" variant="ghost" @click="carregar">Tentar novamente</AppButton>
         </div>
 
         <template v-else-if="orcamento">
-            <AppPageHeader
-                :titulo="`Orçamento ${orcamento.numero || `#${orcamento.id}`}`"
-                :subtitulo="orcamento.pacienteNome"
-            >
-                <template #acoes>
-                    <AppBadge :status="orcamento.status" />
-                    <AppButton variant="ghost" icon="fa-solid fa-arrow-left" @click="voltar">Voltar</AppButton>
+            <!-- Header -->
+            <div class="det-header">
+                <div class="det-header-l">
+                    <button type="button" class="btn-back" @click="voltar" aria-label="Voltar para lista">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <div class="det-crumb">Orçamentos / {{ orcamento.numero || `#${orcamento.id}` }}</div>
+                        <h1 class="det-titulo">{{ orcamento.pacienteNome }}</h1>
+                    </div>
+                    <OrcamentoStatusPill :status="orcamento.status" />
+                </div>
+                <div class="det-header-r">
+                    <AppButton variant="ghost" icon="fa-solid fa-file-pdf" @click="baixarPdf">PDF</AppButton>
                     <AppButton
                         v-if="podeEditar"
                         variant="secondary"
@@ -151,19 +153,20 @@ onMounted(carregar)
                         :loading="acaoEmCurso"
                         @click="converter"
                     >Converter em cirurgia</AppButton>
-                    <AppButton
-                        variant="ghost"
-                        icon="fa-solid fa-file-pdf"
-                        @click="baixarPdf"
-                    >PDF</AppButton>
-                </template>
-            </AppPageHeader>
+                </div>
+            </div>
 
-            <div v-if="erro" class="erro-banner">{{ erro }}</div>
+            <!-- Erro de ação -->
+            <div v-if="erro" class="erro-banner" role="alert">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                {{ erro }}
+            </div>
 
-            <div class="grid-detalhe">
-                <div class="col-principal">
-                    <AppCard title="Cabeçalho">
+            <!-- Grid principal -->
+            <div class="det-grid">
+                <div class="det-main">
+                    <!-- Cabeçalho do orçamento -->
+                    <AppCard title="Paciente e responsável">
                         <dl class="meta-grid">
                             <div><dt>Paciente</dt><dd>{{ orcamento.pacienteNome }}</dd></div>
                             <div><dt>Número</dt><dd>{{ orcamento.numero || "—" }}</dd></div>
@@ -175,208 +178,318 @@ onMounted(carregar)
                                 <dd>
                                     <router-link
                                         :to="{ name: 'CirurgiaDetalhe', params: { pacienteId: String(orcamento.pacienteId), id: String(orcamento.procedimentoCirurgicoId) } }"
-                                        class="link-cirurgia"
+                                        class="link-interno"
                                     >
                                         Procedimento #{{ orcamento.procedimentoCirurgicoId }}
-                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
                                     </router-link>
                                 </dd>
                             </div>
                         </dl>
-                        <p v-if="orcamento.observacoes" class="observacoes">
+                        <p v-if="orcamento.observacoes" class="obs-text">
                             <strong>Observações:</strong> {{ orcamento.observacoes }}
                         </p>
                     </AppCard>
 
+                    <!-- Cirurgias -->
                     <AppCard v-if="orcamento.cirurgias.length" title="Cirurgias">
                         <table class="tabela">
                             <thead>
-                                <tr><th>Descrição</th><th>Qtd</th><th>Duração</th><th>Total</th></tr>
+                                <tr><th>Descrição</th><th>Qtd</th><th>Duração</th><th class="r">Total</th></tr>
                             </thead>
                             <tbody>
                                 <tr v-for="c in orcamento.cirurgias" :key="c.id">
                                     <td>{{ c.descricao }}</td>
                                     <td>{{ c.quantidade }}</td>
                                     <td>{{ c.duracaoMinutos ? `${c.duracaoMinutos} min` : "—" }}</td>
-                                    <td>{{ fmtMoeda(c.valorTotal) }}</td>
+                                    <td class="r">{{ fmtBRL(c.valorTotal) }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </AppCard>
 
+                    <!-- Equipe -->
                     <AppCard v-if="orcamento.equipe.length" title="Equipe profissional">
                         <table class="tabela">
                             <thead>
-                                <tr><th>Profissional</th><th>Função</th><th>Honorário</th></tr>
+                                <tr><th>Profissional</th><th>Função</th><th class="r">Honorário</th></tr>
                             </thead>
                             <tbody>
                                 <tr v-for="e in orcamento.equipe" :key="e.id">
                                     <td>{{ e.profissionalNome ?? e.profissionalUsuarioId }}</td>
                                     <td>{{ e.papel }}</td>
-                                    <td>{{ fmtMoeda(e.valor) }}</td>
+                                    <td class="r">{{ fmtBRL(e.valor) }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </AppCard>
 
+                    <!-- Implantes -->
                     <AppCard v-if="orcamento.implantes.length" title="Implantes">
                         <table class="tabela">
                             <thead>
-                                <tr><th>Descrição</th><th>Qtd</th><th>Custo unit.</th><th>Total</th></tr>
+                                <tr><th>Descrição</th><th>Qtd</th><th class="r">Custo unit.</th><th class="r">Total</th></tr>
                             </thead>
                             <tbody>
                                 <tr v-for="imp in orcamento.implantes" :key="imp.id">
                                     <td>{{ imp.descricao }}</td>
                                     <td>{{ imp.quantidade }}</td>
-                                    <td>{{ fmtMoeda(imp.custoUnitario) }}</td>
-                                    <td>{{ fmtMoeda(imp.custoTotal) }}</td>
+                                    <td class="r">{{ fmtBRL(imp.custoUnitario) }}</td>
+                                    <td class="r">{{ fmtBRL(imp.custoTotal) }}</td>
                                 </tr>
                             </tbody>
                         </table>
                     </AppCard>
 
-                    <AppCard v-if="orcamento.internacao || orcamento.anestesia" title="Local & anestesia">
+                    <!-- Local & anestesia -->
+                    <AppCard v-if="orcamento.internacao || orcamento.anestesia" title="Local e anestesia">
                         <dl class="meta-grid">
                             <div v-if="orcamento.internacao">
                                 <dt>Internação</dt>
-                                <dd>{{ orcamento.internacao.tipoInternacao }} ({{ orcamento.internacao.dias }}d × {{ fmtMoeda(orcamento.internacao.valorDiaria) }} = {{ fmtMoeda(orcamento.internacao.valorTotal) }})</dd>
+                                <dd>
+                                    {{ orcamento.internacao.tipoInternacao }}
+                                    ({{ orcamento.internacao.dias }}d × {{ fmtBRL(orcamento.internacao.valorDiaria) }}
+                                    = {{ fmtBRL(orcamento.internacao.valorTotal) }})
+                                </dd>
                             </div>
                             <div v-if="orcamento.anestesia">
                                 <dt>Anestesia</dt>
-                                <dd>{{ orcamento.anestesia.tipoAnestesia }} — {{ fmtMoeda(orcamento.anestesia.valor) }}</dd>
+                                <dd>{{ orcamento.anestesia.tipoAnestesia }} — {{ fmtBRL(orcamento.anestesia.valor) }}</dd>
                             </div>
                         </dl>
                     </AppCard>
 
+                    <!-- Formas de pagamento -->
                     <AppCard v-if="orcamento.formasPagamento.length" title="Formas de pagamento">
                         <table class="tabela">
                             <thead>
                                 <tr>
-                                    <th>Forma</th><th>Valor</th><th>Parcelas</th>
-                                    <th>Acréscimo %</th><th>Entrada %</th>
+                                    <th>Forma</th><th class="r">Valor</th>
+                                    <th class="r">Parcelas</th><th class="r">Acréscimo</th><th class="r">Entrada</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="f in orcamento.formasPagamento" :key="f.id">
                                     <td>{{ f.formaPagamentoNome }}</td>
-                                    <td>{{ fmtMoeda(f.valor) }}</td>
-                                    <td>{{ f.parcelas }}x</td>
-                                    <td>{{ f.acrescimoPercentual }}%</td>
-                                    <td>{{ f.entradaPercentual }}%</td>
+                                    <td class="r">{{ fmtBRL(f.valor) }}</td>
+                                    <td class="r">{{ f.parcelas }}x</td>
+                                    <td class="r">{{ f.acrescimoPercentual }}%</td>
+                                    <td class="r">{{ f.entradaPercentual }}%</td>
                                 </tr>
                             </tbody>
                         </table>
                     </AppCard>
                 </div>
 
-                <aside class="col-resumo">
-                    <AppCard title="Resumo" elevated>
+                <!-- Sidebar: resumo financeiro -->
+                <aside class="det-side">
+                    <div class="resumo-card">
+                        <div class="resumo-titulo">Resumo financeiro</div>
                         <div class="resumo-linhas">
-                            <div v-if="orcamento.cirurgias.length" class="linha">
+                            <div v-if="orcamento.cirurgias.length" class="rl">
                                 <span>Cirurgias</span>
-                                <strong>{{ fmtMoeda(orcamento.cirurgias.reduce((a, c) => a + c.valorTotal, 0)) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.cirurgias.reduce((a, c) => a + c.valorTotal, 0)) }}</strong>
                             </div>
-                            <div v-if="orcamento.equipe.length" class="linha">
+                            <div v-if="orcamento.equipe.length" class="rl">
                                 <span>Honorários</span>
-                                <strong>{{ fmtMoeda(orcamento.equipe.reduce((a, e) => a + e.valor, 0)) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.equipe.reduce((a, e) => a + e.valor, 0)) }}</strong>
                             </div>
-                            <div v-if="orcamento.implantes.length" class="linha">
+                            <div v-if="orcamento.implantes.length" class="rl">
                                 <span>Implantes</span>
-                                <strong>{{ fmtMoeda(orcamento.custoImplantesTotal) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.custoImplantesTotal) }}</strong>
                             </div>
-                            <div v-if="orcamento.internacao" class="linha">
+                            <div v-if="orcamento.internacao" class="rl">
                                 <span>Internação</span>
-                                <strong>{{ fmtMoeda(orcamento.internacao.valorTotal) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.internacao.valorTotal) }}</strong>
                             </div>
-                            <div v-if="orcamento.anestesia" class="linha">
+                            <div v-if="orcamento.anestesia" class="rl">
                                 <span>Anestesia</span>
-                                <strong>{{ fmtMoeda(orcamento.anestesia.valor) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.anestesia.valor) }}</strong>
                             </div>
-                            <div v-if="orcamento.itens.length" class="linha">
+                            <div v-if="orcamento.itens.length" class="rl">
                                 <span>Itens avulsos</span>
-                                <strong>{{ fmtMoeda(orcamento.itens.reduce((a, i) => a + i.subtotal, 0)) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.itens.reduce((a, i) => a + i.subtotal, 0)) }}</strong>
                             </div>
-                            <div class="linha total">
+                            <div class="rl rl-total">
                                 <span>Total</span>
-                                <strong>{{ fmtMoeda(orcamento.total) }}</strong>
+                                <strong>{{ fmtBRL(orcamento.total) }}</strong>
                             </div>
                         </div>
-                    </AppCard>
+
+                        <!-- Ações rápidas -->
+                        <div class="resumo-acoes">
+                            <AppButton
+                                v-if="podeEnviar"
+                                block
+                                icon="fa-solid fa-paper-plane"
+                                :loading="acaoEmCurso"
+                                @click="executarAcao(() => orcamentoService.enviar(orcamentoId), 'Erro ao enviar.')"
+                            >Enviar ao paciente</AppButton>
+                            <AppButton
+                                v-if="podeEditar"
+                                block
+                                variant="secondary"
+                                icon="fa-solid fa-pen"
+                                @click="editar"
+                            >Editar orçamento</AppButton>
+                        </div>
+                    </div>
                 </aside>
             </div>
         </template>
-    </main>
+    </div>
 </template>
 
 <style scoped>
-.estado {
+.estado-loading {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     color: var(--text-muted);
-    padding: 2rem 0;
+    padding: 3rem 0;
+    font-size: 0.9em;
 }
+
 .erro-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     padding: 0.85rem 1rem;
     background: hsl(var(--destructive) / 0.08);
     border: 1px solid hsl(var(--destructive) / 0.2);
     border-radius: var(--radius);
     color: hsl(var(--destructive));
-    margin-bottom: 1rem;
+    font-size: 0.875rem;
 }
-.grid-detalhe {
+
+/* Header */
+.det-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.det-header-l {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.det-header-r {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-back {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--secondary) / 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsl(var(--secondary));
+    cursor: pointer;
+    flex-shrink: 0;
+    font-size: 14px;
+    transition: background 0.12s;
+}
+.btn-back:hover { background: hsl(var(--secondary) / 0.04); }
+
+.det-crumb  { font-size: 11.5px; color: hsl(var(--secondary) / 0.55); margin-bottom: 2px; }
+.det-titulo { font-size: 20px; font-weight: 700; color: hsl(var(--secondary)); margin: 0; }
+
+/* Grid */
+.det-grid {
     display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 1.25rem;
+    grid-template-columns: 1fr 300px;
+    gap: 22px;
     align-items: start;
 }
-@media (max-width: 1024px) {
-    .grid-detalhe { grid-template-columns: 1fr; }
+@media (max-width: 1100px) {
+    .det-grid { grid-template-columns: 1fr; }
 }
-.col-principal {
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-}
-.col-resumo { position: sticky; top: 80px; }
 
+.det-main { display: flex; flex-direction: column; gap: 16px; }
+.det-side { position: sticky; top: 84px; }
+
+/* Card icon */
+.card-ico { color: hsl(var(--primary)); margin-right: 6px; }
+
+/* Meta grid */
 .meta-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 0.75rem;
 }
-.meta-grid dt { font-size: 0.72em; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
-.link-cirurgia { color: hsl(var(--primary)); text-decoration: none; font-weight: 500; }
-.link-cirurgia:hover { text-decoration: underline; }
-.link-cirurgia i { font-size: 0.8em; margin-left: 0.25rem; }
-.meta-grid dd { font-size: 0.92em; margin: 2px 0 0; }
-.observacoes { margin-top: 0.85rem; font-size: 0.9em; }
+.meta-grid dt { font-size: 0.72em; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.meta-grid dd { font-size: 0.9em; margin: 2px 0 0; }
 
+.obs-text { margin-top: 0.85rem; font-size: 0.88em; color: hsl(var(--secondary) / 0.85); }
+
+.link-interno { color: hsl(var(--primary)); text-decoration: none; font-weight: 500; font-size: 0.9em; }
+.link-interno:hover { text-decoration: underline; }
+.link-interno i { font-size: 0.75em; margin-left: 4px; }
+
+/* Tabela */
 .tabela {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.88em;
+    font-size: 0.875em;
 }
 .tabela th, .tabela td {
-    padding: 0.5rem 0.7rem;
+    padding: 0.5rem 0.75rem;
     text-align: left;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid hsl(var(--secondary) / 0.06);
 }
 .tabela th {
-    font-weight: 600;
-    font-size: 0.78em;
+    font-size: 0.75em;
+    font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--text-muted);
+    background: hsl(var(--secondary) / 0.03);
 }
 .tabela tr:last-child td { border-bottom: none; }
+.tabela .r { text-align: right; }
 
-.resumo-linhas { display: flex; flex-direction: column; gap: 0.45rem; }
-.linha { display: flex; justify-content: space-between; font-size: 0.88em; }
-.linha.total {
-    border-top: 1px solid var(--border);
-    padding-top: 0.45rem;
-    margin-top: 0.25rem;
-    font-size: 1em;
-    font-weight: 700;
+/* Resumo sidebar */
+.resumo-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 12px;
+    padding: 18px;
+}
+.resumo-titulo {
+    font-size: 13px;
+    font-weight: 600;
+    color: hsl(var(--secondary));
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.06);
+}
+.resumo-linhas { display: flex; flex-direction: column; gap: 8px; }
+.rl {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    color: hsl(var(--secondary));
+}
+.rl-total {
+    border-top: 1px solid hsl(var(--secondary) / 0.08);
+    padding-top: 8px;
+    margin-top: 4px;
+}
+.rl-total span { color: hsl(var(--secondary) / 0.7); }
+.rl-total strong { font-size: 22px; font-weight: 700; color: hsl(var(--primary)); }
+
+.resumo-acoes {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 </style>
