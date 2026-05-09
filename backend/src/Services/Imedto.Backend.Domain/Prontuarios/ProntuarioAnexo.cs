@@ -3,7 +3,7 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Domain.Prontuarios;
 
 /// <summary>
-/// Anexo de prontuário (imagem, PDF, etc.). Fica armazenado no Supabase Storage
+/// Anexo de prontuário (imagem, PDF, etc.). Fica armazenado no S3
 /// em <see cref="StoragePath"/>; o backend emite URLs assinadas de leitura sob demanda.
 ///
 /// Vinculado ao <see cref="ProntuarioId"/> (obrigatório) e OPCIONALMENTE à evolução

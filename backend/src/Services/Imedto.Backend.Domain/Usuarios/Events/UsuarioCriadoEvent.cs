@@ -4,7 +4,7 @@ namespace Imedto.Backend.Domain.Usuarios.Events;
 
 /// <summary>
 /// Domain event emitido quando um novo usuário é criado na plataforma
-/// (após signup no Supabase Auth).
+/// (após signup bem-sucedido).
 /// </summary>
 public record UsuarioCriadoEvent(Guid UsuarioId, string Email) : IDomainEvent
 {

@@ -4,8 +4,8 @@ namespace Imedto.Backend.Contracts.Vinculos.Commands;
 
 /// <summary>
 /// Cria o vínculo local (status Convidado) após o backend já ter criado/identificado
-/// o usuário do profissional no Supabase Auth. O controller orquestra a chamada ao
-/// Supabase e dispara este command com o <see cref="ProfissionalUsuarioId"/> resolvido.
+/// a credencial de auth do profissional. O controller orquestra a criação do convite
+/// e dispara este command com o <see cref="ProfissionalUsuarioId"/> resolvido.
 /// </summary>
 public class ConvidarProfissionalCommand : ICommand
 {

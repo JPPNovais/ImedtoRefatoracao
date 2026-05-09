@@ -5,7 +5,7 @@ namespace Imedto.Backend.Domain.Profissionais;
 
 /// <summary>
 /// Aggregate root de Profissional. Relação 1:1 com <c>Usuario</c> — o Id é o mesmo UUID
-/// do usuário (e, por consequência, do <c>auth.users</c> do Supabase).
+/// do usuário (e, por consequência, da credencial de auth).
 /// </summary>
 public class Profissional : Entity<Guid>, ISoftDeletable
 {

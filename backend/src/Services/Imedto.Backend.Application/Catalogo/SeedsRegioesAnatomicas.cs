@@ -3,9 +3,9 @@ namespace Imedto.Backend.Application.Catalogo;
 /// <summary>
 /// Dados de seed do catálogo de regiões anatômicas globais.
 ///
-/// Portado do legado SQL (supabase/migrations/20260226100000_create_exame_fisico_tables.sql).
+/// Portado do legado SQL (db/migrations/20260226100000_create_exame_fisico_tables.sql).
 /// Esta estrutura é consumida pelo database-architect na Etapa B para gerar
-/// os INSERTs SQL em supabase/migrations/.
+/// os INSERTs SQL em db/migrations/.
 ///
 /// Campos: Codigo (slug único), Nome, PaiCodigo (hierarquia), Nivel (0-3),
 /// Vista ("anterior"|"posterior"), TemplateTexto, SvgCoordsJson (null — preenchido via

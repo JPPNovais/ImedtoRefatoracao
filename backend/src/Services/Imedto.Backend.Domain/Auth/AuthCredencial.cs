@@ -3,7 +3,7 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Domain.Auth;
 
 /// <summary>
-/// Credencial de autenticação local. Substitui a integração com Supabase Auth.
+/// Credencial de autenticação local.
 /// O <see cref="Entity{TKey}.Id"/> é o mesmo do <c>public.usuarios.id</c> — relação 1:1
 /// (por isso não há propriedade <c>UsuarioId</c> separada).
 /// </summary>

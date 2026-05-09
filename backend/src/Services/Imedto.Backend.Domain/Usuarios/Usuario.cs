@@ -4,8 +4,8 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Domain.Usuarios;
 
 /// <summary>
-/// Aggregate root de Usuário. O Id é o mesmo UUID de <c>auth.users.id</c> no Supabase —
-/// a tabela <c>public.usuarios</c> tem FK com <c>ON DELETE CASCADE</c> para o Supabase Auth.
+/// Aggregate root de Usuário. O Id é o mesmo UUID da credencial em <c>auth_credenciais</c> —
+/// a tabela <c>public.usuarios</c> tem FK com <c>ON DELETE CASCADE</c> para a credencial.
 /// </summary>
 public class Usuario : Entity<Guid>
 {
@@ -90,7 +90,7 @@ public class Usuario : Entity<Guid>
     /// <summary>
     /// Anonimiza PII da conta do titular (direito ao esquecimento, Art. 18 LGPD).
     /// O Id é mantido para preservar integridade referencial com registros históricos.
-    /// TODO: invalidar sessão Supabase (Auth) via service role após anonimizar — feito pelo controller.
+    /// TODO: revogar refresh tokens da credencial após anonimizar — feito pelo controller.
     /// </summary>
     public virtual void Anonimizar()
     {
@@ -99,8 +99,8 @@ public class Usuario : Entity<Guid>
         Telefone = null;
         Status = UsuarioStatus.Inativo;
         AtualizadoEm = DateTime.UtcNow;
-        // E-mail: não nulificamos aqui pois é FK de autenticação no Supabase Auth.
-        // O controller deve chamar o revoke de sessão + o frontend redirecionar para logout.
+        // E-mail: não nulificamos aqui pois é chave de identificação na credencial de auth.
+        // O controller deve revogar o refresh token + o frontend redirecionar para logout.
         // Se necessário anonimizar o e-mail no futuro, fazer via job que aguarda a sessão expirar.
     }
 

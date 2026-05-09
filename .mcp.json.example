@@ -1,11 +1,3 @@
 {
-    "mcpServers": {
-        "supabase": {
-            "type": "http",
-            "url": "https://mcp.supabase.com/mcp?project_ref=SEU_PROJECT_REF",
-            "headers": {
-                "Authorization": "Bearer SEU_SUPABASE_PERSONAL_ACCESS_TOKEN"
-            }
-        }
-    }
+    "mcpServers": {}
 }

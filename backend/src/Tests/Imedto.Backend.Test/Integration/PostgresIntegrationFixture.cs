@@ -9,7 +9,7 @@ namespace Imedto.Backend.Test.Integration;
 /// Fixture compartilhada que sobe um Postgres real em container efêmero antes de
 /// qualquer teste de integração e o derruba ao final. Aplica o schema via
 /// <see cref="DbContext.Database.EnsureCreatedAsync"/> — não usa migrations
-/// idempotentes do Supabase aqui (essas são validadas no fluxo `supabase db push`).
+/// idempotentes aqui (essas são validadas pela pipeline de migrations contra RDS).
 ///
 /// Pré-requisito: Docker daemon rodando (Docker Desktop, Colima, etc.).
 /// Os testes falham com mensagem clara se o daemon não estiver disponível.
@@ -53,7 +53,7 @@ public class PostgresIntegrationFixture
         await ctx.Database.EnsureCreatedAsync();
 
         // Aplica migrations SQL custom (não geridas pelo EF Core) que os testes precisam.
-        // Lista corresponde a supabase/migrations relevantes para o caminho de queries.
+        // Lista corresponde a db/migrations relevantes para o caminho de queries.
         await AplicarMigrationsCustomAsync(ctx);
     }
 

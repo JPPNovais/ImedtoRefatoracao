@@ -4,7 +4,7 @@ namespace Imedto.Backend.Application.Catalogo;
 /// Seed estático do catálogo TUSS/CBHPM de procedimentos comuns.
 ///
 /// Esta estrutura é consumida pelo database-architect na Wave de migrations
-/// para gerar os INSERTs SQL idempotentes em supabase/migrations/.
+/// para gerar os INSERTs SQL idempotentes em db/migrations/.
 ///
 /// Fonte dos códigos: Terminologia Unificada da Saúde Suplementar (ANS/TUSS)
 /// e Classificação Brasileira Hierarquizada de Procedimentos Médicos (AMB/CBHPM).

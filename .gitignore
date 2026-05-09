@@ -31,12 +31,6 @@ dist/
 *.tsbuildinfo
 coverage/
 
-# Supabase
-supabase/.temp/
-*supabase/.temp/
-supabase/.branches/
-*supabase/.branches/
-
 # macOS
 .DS_Store
 

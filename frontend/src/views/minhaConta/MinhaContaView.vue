@@ -30,7 +30,7 @@ watchEffect(() => {
 
 // ─── Campos profissionais ─────────────────────────────────────────────────────
 
-// Catálogo portado do legado (supabase/migrations/20251212000000_especialidades_por_profissao.sql).
+// Catálogo portado do legado (db/migrations/20251212000000_especialidades_por_profissao.sql).
 // Mantido no front porque é estático e raramente muda — evita endpoint dedicado.
 const PROFISSOES = [
     { label: "Médico",                conselho: "CRM"     },

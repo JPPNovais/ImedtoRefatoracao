@@ -60,7 +60,7 @@ httpClient.interceptors.response.use(
             isRefreshing = true
 
             try {
-                // Renova apenas o cookie — não atualiza o store com o usuário do Supabase Auth,
+                // Renova apenas o cookie — não atualiza o store com o usuário da credencial de auth,
                 // pois esse objeto não tem os campos de domínio (ex: onboardingCompleto).
                 await httpClient.post("/auth/refresh")
 

@@ -17,8 +17,8 @@ namespace Imedto.Backend.Application.Lgpd.Commands;
 /// 1. Anonimiza paciente(s) vinculados ao e-mail do usuário no mesmo estabelecimento.
 /// 2. Anonimiza os dados PII do aggregate Usuario.
 ///
-/// O e-mail no Supabase Auth permanece até o controller chamar revoke de sessão —
-/// não podemos deletar do Auth sem o service role (isso é responsabilidade do AuthService).
+/// O e-mail na credencial de auth permanece até o controller chamar logout/revoke —
+/// a remoção da credencial é responsabilidade do <c>IAuthService</c>.
 /// </summary>
 public class AnonimizarMinhaContaCommandHandler : ICommandHandler<AnonimizarMinhaContaCommand>
 {

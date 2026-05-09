@@ -173,6 +173,6 @@ public class UsuarioTests
         Assert.That(u.Telefone, Is.Null);
         Assert.That(u.Status, Is.EqualTo(UsuarioStatus.Inativo));
         Assert.That(u.Email, Is.EqualTo(emailOriginal),
-            "E-mail eh mantido para preservar FK com Supabase Auth (controller revoga sessao depois).");
+            "E-mail eh mantido para preservar identificacao na credencial de auth (controller revoga sessao depois).");
     }
 }

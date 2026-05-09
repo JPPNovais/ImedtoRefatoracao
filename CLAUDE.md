@@ -67,11 +67,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 Monorepo do Imedto (refactor do legado Vue+Supabase para arquitetura CQRS):
 - `backend/` — API .NET 10, DDD + CQRS, BFF de autenticação, EF Core (escrita) + Dapper (leitura)
 - `frontend/` — Vue 3 + TypeScript + Vite + Pinia
-- `supabase/` — migrations SQL + `config.toml` (gerenciadas pelo Supabase CLI)
+- `db/migrations/` — migrations SQL aplicadas em RDS pela pipeline de deploy
 
-Supabase é usado apenas para **Auth (JWT ES256 via JWKS), Storage, Realtime e Postgres**. **Toda regra de negócio vive no backend** — nada de RPCs, triggers ou edge functions que implementem lógica. RLS é mantido como defense-in-depth (LGPD).
+Stack de runtime: **AWS RDS Postgres** (banco), **LocalJwt + ECDSA P-256** (auth — implementado no backend, sem provedor externo), **AWS S3** (storage de fotos e anexos). **Toda regra de negócio vive no backend** — nada de RPCs, triggers ou edge functions que implementem lógica.
 
-Projeto Supabase ativo: `kdoqflrmfgazdgekdbqc` (sa-east-1). Detalhes de conexão, pooler e credenciais ficam em memória do agente ([auto memory](../.claude/projects/.../memory/imedto_supabase_project.md)) e em `appsettings.Development.json`/`.mcp.json` (ambos gitignored).
+Detalhes de conexão e credenciais ficam em `appsettings.Development.json`/`.mcp.json` (ambos gitignored). Em produção, vêm do AWS SSM Parameter Store.
 
 ## Comandos
 
@@ -82,7 +82,7 @@ Projeto Supabase ativo: `kdoqflrmfgazdgekdbqc` (sa-east-1). Detalhes de conexão
 - Testes: `dotnet test Tests/Imedto.Backend.Test`
 - Teste único: `dotnet test Tests/Imedto.Backend.Test --filter "FullyQualifiedName~NomeDoTeste"`
 
-### Migrations (fluxo DUPLO — EF Core autora, Supabase CLI aplica)
+### Migrations (EF Core autora, pipeline aplica em RDS)
 
 Toda alteração de schema tem **duas etapas**:
 
@@ -95,25 +95,21 @@ Toda alteração de schema tem **duas etapas**:
      --output-dir Database/Migrations
    ```
 
-2. **Exportar SQL idempotente e criar arquivo em `supabase/migrations/`**:
+2. **Exportar SQL idempotente e salvar em `db/migrations/`**:
    ```
    dotnet ef migrations script <MigrationAnterior> <MigrationNova> \
      --project Services/Imedto.Backend.Infrastructure \
      --startup-project Services/Imedto.Backend.API \
      --idempotent --output /tmp/next.sql
-   # Remover BEGIN/COMMIT do script (supabase CLI gerencia transação).
-   # Salvar como supabase/migrations/YYYYMMDDHHMMSS_descricao.sql (mesmo timestamp da migration EF).
+   # Remover BEGIN/COMMIT do script (a pipeline gerencia a transação).
+   # Salvar como db/migrations/YYYYMMDDHHMMSS_descricao.sql (mesmo timestamp da migration EF).
    ```
 
 3. **Aplicar no banco**:
-   ```
-   cd <raiz do repo>
-   SUPABASE_ACCESS_TOKEN=<PAT> SUPABASE_DB_PASSWORD=<senha> supabase db push
-   ```
+   - Em CI/CD: a pipeline envia o SQL para a EC2 e roda [deploy/scripts/migrate.sh](deploy/scripts/migrate.sh), que executa `psql` contra o RDS lendo host/senha do AWS SSM.
+   - Em dev local: rodar `psql` direto contra o RDS (ou banco local) com o arquivo SQL. **Nunca usar `dotnet ef database update`** — o `dotnet ef` é só para autoria do SQL.
 
-**Nunca aplicar via `dotnet ef database update`**: o deploy oficial e de produção é via `supabase db push`. O `dotnet ef` é só para autoria do SQL.
-
-RLS policies, functions SQL, triggers e seed data que não tenham equivalente no EF (ou não devam existir no modelo .NET) são escritos **direto como `.sql`** em `supabase/migrations/` — sem passar pelo EF.
+Functions SQL, triggers, índices CONCURRENTLY e seed data que não tenham equivalente no EF (ou não devam existir no modelo .NET) são escritos **direto como `.sql`** em `db/migrations/` — sem passar pelo EF.
 
 ### Frontend (raiz `frontend/`)
 
@@ -130,7 +126,7 @@ Solução em 3 pastas lógicas (`Core`, `Services`, `Tests`), 7 projetos alinhad
 - **`Services/Imedto.Backend.Domain`** — aggregate roots (propriedades `virtual` com `protected set`, fábrica estática tipo `.Criar(...)`), domain events, interfaces de repositório, abstrações de auth.
 - **`Services/Imedto.Backend.Contracts`** — commands, queries e DTOs (camada pública).
 - **`Services/Imedto.Backend.Application`** — handlers: `*CommandHandler` (scoped), `*QueryHandlers` em plural (singleton, usam repositório Dapper), `*EventHandler` (scoped).
-- **`Services/Imedto.Backend.Infrastructure`** — `AppDbContext` (EF Core + Npgsql), configurations em `Database/Configurations/`, `EfUnitOfWorkScope` (transação real via `Database.BeginTransaction`), repositórios EF (escrita) + `*QueryRepository` Dapper (leitura), `SupabaseAuthService`, buses em memória, `AppDbContextFactory` (`IDesignTimeDbContextFactory` para o tooling do `dotnet ef` — lê a connection string `Migrations` do `appsettings.Development.json` do API project).
+- **`Services/Imedto.Backend.Infrastructure`** — `AppDbContext` (EF Core + Npgsql), configurations em `Database/Configurations/`, `EfUnitOfWorkScope` (transação real via `Database.BeginTransaction`), repositórios EF (escrita) + `*QueryRepository` Dapper (leitura), `LocalJwtAuthService` + `EcdsaJwtTokenIssuer` (auth local), `S3FotoStorageService` + `S3AnexoStorageService` (storage), buses em memória, `AppDbContextFactory` (`IDesignTimeDbContextFactory` para o tooling do `dotnet ef` — lê a connection string `Migrations` do `appsettings.Development.json` do API project).
 - **`Services/Imedto.Backend.API`** — controllers, `Program.cs`, **Composition Root** em [backend/src/Services/Imedto.Backend.API/Container.cs](backend/src/Services/Imedto.Backend.API/Container.cs).
 - **`Tests/Imedto.Backend.Test`** — NUnit 4 + Moq.
 
@@ -149,8 +145,8 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 3. `DbSet<T>` em `AppDbContext`.
 4. Registrar handler em `Container.RegistrarHandlers` (commands/events: `AddScoped`; query handlers: `AddSingleton`).
 5. Registrar no bus em `Container.RegistrarBuses`.
-6. Gerar migration EF + copiar SQL idempotente para `supabase/migrations/` + `supabase db push`.
-7. RLS policies em `.sql` separado dentro de `supabase/migrations/`.
+6. Gerar migration EF + copiar SQL idempotente para `db/migrations/` (aplicado pela pipeline em RDS).
+7. SQL custom (functions, triggers, índices CONCURRENTLY) em `.sql` separado dentro de `db/migrations/`.
 
 ## Arquitetura do frontend
 
@@ -160,20 +156,20 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 - Convenção: views/stores nunca usam `httpClient` diretamente — toda HTTP passa por `*Service` em [frontend/src/services/](frontend/src/services/).
 - Alias `@/*` → `./src/*`.
 
-## Autenticação (BFF + Supabase JWKS)
+## Autenticação (BFF + LocalJwt)
 
-1. `POST /api/auth/login` → `SupabaseAuthService` chama `https://<ref>.supabase.co/auth/v1/token?grant_type=password` → backend seta dois cookies HttpOnly (`access-token` path `/api`, `refresh-token` path `/api/auth/refresh`) e retorna `{ usuario }` (+ `accessToken` em dev).
-2. Middleware `AddJwtBearer` usa **`options.Authority`** (`https://<ref>.supabase.co/auth/v1`) — descobre automaticamente o JWKS em `/.well-known/openid-configuration` e valida tokens **ES256** via chaves públicas (não há `JwtSecret` simétrico — projetos Supabase novos são todos assimétricos).
+1. `POST /api/auth/login` → `LocalJwtAuthService` valida e-mail/senha contra `auth_credenciais` (BCrypt + pepper), emite access token via `EcdsaJwtTokenIssuer` (ECDSA P-256 — chaves em `Auth:Jwt:PrivateKeyPem`/`PublicKeyPem`) e cria refresh token em `auth_refresh_tokens`. Backend seta dois cookies HttpOnly (`access-token` path `/api`, `refresh-token` path `/api/auth/refresh`) e retorna `{ usuario }` (+ `accessToken` em dev).
+2. Middleware `AddJwtBearer` valida tokens **ES256** com a chave pública local (`Auth:Jwt:PublicKeyPem`) — não há JWKS remoto.
 3. `OnMessageReceived` lê o cookie primeiro, com fallback para header `Authorization: Bearer` (Swagger/testes).
 4. Requer `Microsoft.AspNetCore.Authentication.JwtBearer >= 10.0` — versões <10 não suportam ES256 nativamente.
-5. **Não existe MockAuthService** — dev usa o Supabase real (projeto `kdoqflrmfgazdgekdbqc`). Para testes unitários, usar Moq de `IAuthService`.
+5. Confirmação de e-mail, reset de senha e convite usam tokens em `auth_email_tokens` (TTL 24h confirm, 1h reset, 7d invite). Para testes unitários, usar Moq de `IAuthService`.
 
-## Conexão Supabase
+## Conexão Postgres (RDS)
 
-- **Nunca conectar ao host direto** `db.<ref>.supabase.co` — é IPv6-only. Usar sempre o pooler `aws-1-sa-east-1.pooler.supabase.com`.
-- **Session mode** (porta 5432) — para migrations, DDL, `dotnet ef`, `psql` interativo.
-- **Transaction mode** (porta 6543) — para runtime do backend (`ConnectionStrings:Default`).
-- Host do pooler correto para o projeto `kdoqflrmfgazdgekdbqc` é **`aws-1`** (não `aws-0`). Descoberto via `GET https://api.supabase.com/v1/projects/<ref>/config/database/pooler`.
+- Connection string normal Npgsql em `ConnectionStrings:Default` (runtime) e `ConnectionStrings:Migrations` (autoria de migrations via `dotnet ef`).
+- Em prod, host/senha vêm do AWS SSM Parameter Store (`/imedto/dev/db-host`, `/imedto/dev/db-password`); a EC2 lê via IAM role.
+- Em dev, o valor fica em `appsettings.Development.json` (gitignored).
+- O `AppDbContextFactory` usa apenas `ConnectionStrings:Migrations` para o tooling do `dotnet ef`.
 
 ## Convenções de código
 
@@ -243,11 +239,11 @@ Se um conceito de domínio aparece em **duas operações diferentes** com a mesm
 ## Onde ficam os secrets
 
 Todos gitignored (ver `.gitignore`):
-- `.mcp.json` — PAT do Supabase (`sbp_...`) para o Supabase MCP em `https://mcp.supabase.com/mcp?project_ref=<ref>`.
-- `backend/src/Services/Imedto.Backend.API/appsettings.Development.json` — connection strings (Default + Migrations), `Supabase:Url`, `Supabase:Authority`, `Supabase:ServiceRoleKey`.
-- `frontend/.env` — `VITE_SUPABASE_PROJECT`, `VITE_SUPABASE_APIKEY` (anon, público).
+- `.mcp.json` — configuração de MCP servers locais (vazia por padrão; templates em `.mcp.json.example`).
+- `backend/src/Services/Imedto.Backend.API/appsettings.Development.json` — connection strings (Default + Migrations), chaves PEM do JWT (`Auth:Jwt:PrivateKeyPem`/`PublicKeyPem`), pepper do BCrypt (`Auth:Bcrypt:Pepper`), API key do Resend, buckets S3.
+- `frontend/.env` — apenas `VITE_API_BASE_URL` opcional (frontend é BFF puro, sem segredos).
 
-Templates em `.mcp.json.example` e `frontend/.env.example`.
+Templates em `.mcp.json.example` e `frontend/.env.example`. Em produção, todos os valores vêm do AWS SSM Parameter Store.
 
 ## LGPD
 

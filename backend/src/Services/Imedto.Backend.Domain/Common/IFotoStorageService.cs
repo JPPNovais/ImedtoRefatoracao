@@ -2,7 +2,7 @@ namespace Imedto.Backend.Domain.Common;
 
 /// <summary>
 /// Storage de fotos públicas (avatar de profissional, logo de estabelecimento).
-/// As fotos vão para um bucket público no Supabase Storage e a URL final é direta
+/// As fotos vão para um bucket público no S3 e a URL final é direta
 /// (sem signed URL) para servir como <c>&lt;img src&gt;</c> sem renovação.
 /// </summary>
 public interface IFotoStorageService

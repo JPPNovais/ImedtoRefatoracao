@@ -12,8 +12,8 @@ public interface IProntuarioAnexoRepository
 }
 
 /// <summary>
-/// Abstração do backend de armazenamento de blobs (hoje Supabase Storage).
-/// Desacoplada para permitir plug de S3 direto ou outro provedor no futuro.
+/// Abstração do backend de armazenamento de blobs (hoje AWS S3).
+/// Desacoplada para permitir plug de outro provedor no futuro.
 /// </summary>
 public interface IAnexoStorageService
 {

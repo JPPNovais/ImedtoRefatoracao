@@ -39,7 +39,7 @@ export const useAuthStore = defineStore("auth", () => {
     async function init() {
         const noAutoRefresh = { _noAutoRefresh: true } as any
 
-        // Tentativa 1: token atual (válido por até 1h do Supabase)
+        // Tentativa 1: token atual (cookie de access-token)
         try {
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
             usuario.value = data.usuario

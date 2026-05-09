@@ -4,7 +4,7 @@ namespace Imedto.Backend.Application.Catalogo;
 /// Dados de seed do catálogo de profissões e especialidades brasileiras.
 ///
 /// Esta estrutura estática é consumida pelo database-architect na Wave 5
-/// para gerar os INSERTs SQL em supabase/migrations/.
+/// para gerar os INSERTs SQL em db/migrations/.
 ///
 /// Regra: a migration de seed é responsabilidade do database-architect (Wave 5).
 /// </summary>

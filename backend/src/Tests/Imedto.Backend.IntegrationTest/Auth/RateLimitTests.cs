@@ -18,7 +18,7 @@ namespace Imedto.Backend.IntegrationTest.Auth;
 ///
 /// Estratégia: monta um TestServer minimalista que replica exatamente as políticas
 /// definidas em Program.cs (auth-login: 5/60s, auth-refresh: 10/60s, auth-sensitive: 3/60s)
-/// sem precisar subir toda a stack (Supabase, Postgres, etc.).
+/// sem precisar subir toda a stack (Postgres, S3, etc.).
 ///
 /// Esta abordagem é executável no CI sem dependências externas.
 ///
