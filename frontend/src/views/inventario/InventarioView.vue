@@ -1,474 +1,386 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
 import { inventarioService, type ItemInventario, type MovimentacaoEstoque } from "@/services/inventarioService"
-import { AppButton, AppField, AppInput, AppModal, AppPageHeader, AppPagination, AppSelect } from "@/components/ui"
+import { AppPageHeader, AppButton, AppTabs } from "@/components/ui"
 import { formatarMoedaBrl } from "@/utils/format"
 
+import EstoqueKpis from "@/components/estoque/EstoqueKpis.vue"
+import EstoqueItensTab from "@/components/estoque/EstoqueItensTab.vue"
+import EstoqueMovimentacoesTab from "@/components/estoque/EstoqueMovimentacoesTab.vue"
+import EstoqueComprasTab from "@/components/estoque/EstoqueComprasTab.vue"
+import EstoqueAlertasTab from "@/components/estoque/EstoqueAlertasTab.vue"
+import EstoqueItemDrawer from "@/components/estoque/EstoqueItemDrawer.vue"
+import EstoqueMovimentacaoModal from "@/components/estoque/EstoqueMovimentacaoModal.vue"
+import EstoqueCriarItemModal from "@/components/estoque/EstoqueCriarItemModal.vue"
+import EstoqueEditarItemModal from "@/components/estoque/EstoqueEditarItemModal.vue"
+
+// ─── Estado global ───────────────────────────────────────────────────────────
+type TabId = "itens" | "movimentacoes" | "compras" | "alertas"
+const tabAtiva = ref<TabId>("itens")
+
+// Itens
 const itens = ref<ItemInventario[]>([])
 const totalItens = ref(0)
 const paginaItens = ref(1)
 const tamanhoItens = ref(20)
+const carregandoItens = ref(false)
+const erroItens = ref<string | null>(null)
+const buscaItens = ref("")
+const filtroStatusItens = ref("todos")
+const filtroCategoriaItens = ref("")
+
+// Movimentações
 const movimentacoes = ref<MovimentacaoEstoque[]>([])
-const carregando = ref(false)
-const erro = ref<string | null>(null)
+const totalMovs = ref(0)
+const paginaMovs = ref(1)
+const tamanhoMovs = ref(20)
+const carregandoMovs = ref(false)
 
-const filtroCategoria = ref("")
-const filtroAbaixoMinimo = ref(false)
-const filtroInativos = ref(false)
+// Movimentações do drawer (item específico)
+const movDrawer = ref<MovimentacaoEstoque[]>([])
+const carregandoMovsDrawer = ref(false)
 
-const modalCriar = ref(false)
-const formCriar = ref({
-    codigo: "",
-    nome: "",
-    categoria: "",
-    unidadeMedida: "",
-    quantidadeInicial: 0,
-    quantidadeMinima: 0,
-    custoUnitarioInicial: 0,
+// Movimentações de hoje — calculadas a partir das movimentações já carregadas
+const hoje = new Date().toISOString().split("T")[0]
+const movimentacoesHoje = computed(() =>
+    movimentacoes.value.filter(m => m.criadoEm.startsWith(hoje)).length
+)
+
+// KPIs derivados dos itens
+const valorTotalEstoque = computed(() =>
+    itens.value.reduce((s, it) => s + it.custoMedio * it.quantidadeAtual, 0)
+)
+const baixoCount = computed(() =>
+    itens.value.filter(it => it.ativo && it.estoqueAbaixoMinimo).length
+)
+// Sem dado de vencimento na API atual — mostrar 0 como placeholder
+const vencendoCount = computed(() => 0)
+
+const categorias = computed(() =>
+    [...new Set(itens.value.map(i => i.categoria))].sort()
+)
+
+const subtitulo = computed(() => {
+    const parts: string[] = []
+    if (totalItens.value > 0) parts.push(`${totalItens.value} itens cadastrados`)
+    if (valorTotalEstoque.value > 0) parts.push(`${formatarMoedaBrl(valorTotalEstoque.value)} em estoque`)
+    if (movimentacoesHoje.value > 0) parts.push(`${movimentacoesHoje.value} movimentações hoje`)
+    return parts.join(" · ") || "Gerencie e acompanhe o estoque da clínica"
 })
-const erroCriar = ref<string | null>(null)
-const salvando = ref(false)
 
-const itemEditando = ref<ItemInventario | null>(null)
-const formEditar = ref({ nome: "", categoria: "", unidadeMedida: "", quantidadeMinima: 0 })
-const erroEditar = ref<string | null>(null)
+const abas = computed(() => [
+    { valor: "itens", label: "Itens", icone: "fa-solid fa-boxes-stacked" },
+    { valor: "movimentacoes", label: "Movimentações", icone: "fa-solid fa-clock-rotate-left" },
+    { valor: "compras", label: "Compras", icone: "fa-solid fa-truck-fast" },
+    {
+        valor: "alertas",
+        label: baixoCount.value > 0 ? `Alertas (${baixoCount.value})` : "Alertas",
+        icone: "fa-solid fa-triangle-exclamation",
+    },
+])
 
+// ─── Drawer ──────────────────────────────────────────────────────────────────
+const itemDrawer = ref<ItemInventario | null>(null)
+const drawerAberto = ref(false)
+
+async function abrirDrawer(item: ItemInventario) {
+    itemDrawer.value = item
+    drawerAberto.value = true
+    movDrawer.value = []
+    carregandoMovsDrawer.value = true
+    try {
+        const pg = await inventarioService.listarMovimentacoes({ itemInventarioId: item.id, pagina: 1, tamanho: 6 })
+        movDrawer.value = pg.itens
+    } catch {
+        movDrawer.value = []
+    } finally {
+        carregandoMovsDrawer.value = false
+    }
+}
+
+function fecharDrawer() {
+    drawerAberto.value = false
+    itemDrawer.value = null
+}
+
+// ─── Modal movimentação ───────────────────────────────────────────────────────
+const modalMovAberto = ref(false)
 const itemMovimentando = ref<ItemInventario | null>(null)
-const formMov = ref({ tipo: "Entrada" as "Entrada" | "Saida", quantidade: 0, custoUnitario: 0, observacao: "" })
-const erroMov = ref<string | null>(null)
+const tipoMovInicial = ref<"Entrada" | "Saida">("Entrada")
+const salvandoMov = ref(false)
 
-const itemHistorico = ref<ItemInventario | null>(null)
-const carregandoHist = ref(false)
+function abrirModalMov(item: ItemInventario, tipo: "Entrada" | "Saida" = "Entrada") {
+    itemMovimentando.value = item
+    tipoMovInicial.value = tipo
+    modalMovAberto.value = true
+}
 
-const categorias = computed(() => [...new Set(itens.value.map(i => i.categoria))].sort())
-
-const itensFiltrados = computed(() => {
-    return itens.value.filter(item => {
-        if (filtroCategoria.value && item.categoria !== filtroCategoria.value) return false
-        if (filtroAbaixoMinimo.value && !item.estoqueAbaixoMinimo) return false
-        if (!filtroInativos.value && !item.ativo) return false
-        return true
-    })
-})
-
-async function carregar() {
-    carregando.value = true
-    erro.value = null
+async function confirmarMovimentacao(payload: {
+    itemInventarioId: number
+    tipo: "Entrada" | "Saida"
+    quantidade: number
+    custoUnitario?: number
+    observacao?: string | null
+}) {
+    salvandoMov.value = true
     try {
-        const pg = await inventarioService.listarItens({
-            apenasAtivos: filtroInativos.value ? undefined : true,
-            pagina: paginaItens.value,
-            tamanho: tamanhoItens.value,
-        })
-        itens.value = pg.itens
-        totalItens.value = pg.total
+        await inventarioService.registrarMovimentacao(payload)
+        modalMovAberto.value = false
+        itemMovimentando.value = null
+        await Promise.all([carregarItens(), carregarMovimentacoes()])
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar inventário."
+        // Propaga para o modal tratar
+        throw e
     } finally {
-        carregando.value = false
+        salvandoMov.value = false
     }
 }
 
-watch([paginaItens, tamanhoItens], carregar)
-watch(filtroInativos, () => { paginaItens.value = 1 })
+// ─── Modal criar item ─────────────────────────────────────────────────────────
+const modalCriarAberto = ref(false)
+const salvandoCriar = ref(false)
 
-onMounted(carregar)
-
-function abrirModalCriar() {
-    formCriar.value = { codigo: "", nome: "", categoria: "", unidadeMedida: "", quantidadeInicial: 0, quantidadeMinima: 0, custoUnitarioInicial: 0 }
-    erroCriar.value = null
-    modalCriar.value = true
-}
-
-async function salvarCriar() {
-    erroCriar.value = null
-    if (formCriar.value.quantidadeInicial > 0 && formCriar.value.custoUnitarioInicial <= 0) {
-        erroCriar.value = "Custo unitário deve ser maior que zero."
-        return
-    }
-    salvando.value = true
+async function confirmarCriar(payload: Parameters<typeof inventarioService.criarItem>[0]) {
+    salvandoCriar.value = true
     try {
-        const payload: Parameters<typeof inventarioService.criarItem>[0] = { ...formCriar.value }
-        if (formCriar.value.quantidadeInicial <= 0) {
-            delete payload.custoUnitarioInicial
-        }
         await inventarioService.criarItem(payload)
-        modalCriar.value = false
-        await carregar()
-    } catch (e: any) {
-        erroCriar.value = e?.response?.data?.mensagem ?? "Erro ao criar item."
+        modalCriarAberto.value = false
+        await carregarItens()
     } finally {
-        salvando.value = false
+        salvandoCriar.value = false
     }
 }
+
+// ─── Modal editar item ────────────────────────────────────────────────────────
+const itemEditando = ref<ItemInventario | null>(null)
+const modalEditarAberto = computed(() => !!itemEditando.value)
+const salvandoEditar = ref(false)
 
 function abrirEditar(item: ItemInventario) {
     itemEditando.value = item
-    formEditar.value = { nome: item.nome, categoria: item.categoria, unidadeMedida: item.unidadeMedida, quantidadeMinima: item.quantidadeMinima }
-    erroEditar.value = null
+    drawerAberto.value = false
 }
 
-async function salvarEditar() {
+async function confirmarEditar(payload: { nome: string; categoria: string; unidadeMedida: string; quantidadeMinima: number }) {
     if (!itemEditando.value) return
-    salvando.value = true
-    erroEditar.value = null
+    salvandoEditar.value = true
     try {
-        await inventarioService.atualizarItem(itemEditando.value.id, formEditar.value)
+        await inventarioService.atualizarItem(itemEditando.value.id, payload)
         itemEditando.value = null
-        await carregar()
-    } catch (e: any) {
-        erroEditar.value = e?.response?.data?.mensagem ?? "Erro ao atualizar item."
+        await carregarItens()
     } finally {
-        salvando.value = false
+        salvandoEditar.value = false
     }
 }
 
+// ─── Inativar ────────────────────────────────────────────────────────────────
 async function inativar(item: ItemInventario) {
     if (!confirm(`Inativar "${item.nome}"?`)) return
     try {
         await inventarioService.inativarItem(item.id)
-        await carregar()
+        await carregarItens()
     } catch (e: any) {
         alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
     }
 }
 
-function abrirMovimentacao(item: ItemInventario) {
-    itemMovimentando.value = item
-    formMov.value = { tipo: "Entrada", quantidade: 0, custoUnitario: 0, observacao: "" }
-    erroMov.value = null
-}
-
-async function salvarMovimentacao() {
-    if (!itemMovimentando.value) return
-    erroMov.value = null
-    if (formMov.value.tipo === "Entrada" && formMov.value.custoUnitario <= 0) {
-        erroMov.value = "Custo unitário deve ser maior que zero."
-        return
-    }
-    salvando.value = true
+// ─── Carregamentos ────────────────────────────────────────────────────────────
+async function carregarItens() {
+    carregandoItens.value = true
+    erroItens.value = null
     try {
-        await inventarioService.registrarMovimentacao({
-            itemInventarioId: itemMovimentando.value.id,
-            tipo: formMov.value.tipo,
-            quantidade: formMov.value.quantidade,
-            custoUnitario: formMov.value.tipo === "Entrada" ? formMov.value.custoUnitario : undefined,
-            observacao: formMov.value.observacao || null,
-        })
-        itemMovimentando.value = null
-        await carregar()
+        const params: Parameters<typeof inventarioService.listarItens>[0] = {
+            apenasAtivos: true,
+            pagina: paginaItens.value,
+            tamanho: tamanhoItens.value,
+        }
+        if (filtroCategoriaItens.value) params.categoria = filtroCategoriaItens.value
+        if (filtroStatusItens.value === "baixo" || filtroStatusItens.value === "atencao") {
+            params.apenasAbaixoMinimo = true
+        }
+        const pg = await inventarioService.listarItens(params)
+        itens.value = pg.itens
+        totalItens.value = pg.total
     } catch (e: any) {
-        erroMov.value = e?.response?.data?.mensagem ?? "Erro ao registrar movimentação."
+        erroItens.value = e?.response?.data?.mensagem ?? "Erro ao carregar itens."
     } finally {
-        salvando.value = false
+        carregandoItens.value = false
     }
 }
 
-async function verHistorico(item: ItemInventario) {
-    itemHistorico.value = item
-    carregandoHist.value = true
-    movimentacoes.value = []
+async function carregarMovimentacoes() {
+    carregandoMovs.value = true
     try {
-        const pg = await inventarioService.listarMovimentacoes({ itemInventarioId: item.id, pagina: 1, tamanho: 50 })
+        const pg = await inventarioService.listarMovimentacoes({
+            pagina: paginaMovs.value,
+            tamanho: tamanhoMovs.value,
+        })
         movimentacoes.value = pg.itens
+        totalMovs.value = pg.total
     } catch {
         movimentacoes.value = []
     } finally {
-        carregandoHist.value = false
+        carregandoMovs.value = false
     }
 }
 
-function formatarQtd(n: number) {
-    return n % 1 === 0 ? n.toString() : n.toFixed(3).replace(/\.?0+$/, "")
-}
+// Watches
+watch([paginaItens, tamanhoItens], carregarItens)
+watch([paginaMovs, tamanhoMovs], carregarMovimentacoes)
 
-function formatarData(s: string) {
-    return new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-}
+watch(filtroStatusItens, () => { paginaItens.value = 1; carregarItens() })
+watch(filtroCategoriaItens, () => { paginaItens.value = 1; carregarItens() })
+
+// Busca — a API atual de listagem de itens não tem filtro de busca, mas
+// passamos o parâmetro como futuro (a API pode suportá-lo sem quebra).
+// Por ora buscaItens é filtro client-side dentro dos itens já carregados.
+
+// Carrega ambas as abas na montagem para ter KPIs corretos
+onMounted(async () => {
+    await Promise.all([carregarItens(), carregarMovimentacoes()])
+})
 </script>
 
 <template>
-    <main class="app-page inventario">
-        <AppPageHeader titulo="Estoque" subtitulo="Cadastre e acompanhe os produtos utilizados na clínica ou consultório.">
+    <div class="app-page">
+        <AppPageHeader
+            titulo="Estoque"
+            :subtitulo="subtitulo"
+        >
             <template #acoes>
-                <AppButton icon="fa-solid fa-plus" @click="abrirModalCriar">Novo item</AppButton>
+                <AppButton
+                    variant="ghost"
+                    icon="fa-solid fa-clipboard-check"
+                >
+                    Inventário
+                </AppButton>
+                <AppButton
+                    variant="secondary"
+                    icon="fa-solid fa-cart-plus"
+                >
+                    Pedido de compra
+                </AppButton>
+                <AppButton
+                    icon="fa-solid fa-plus"
+                    @click="modalCriarAberto = true"
+                >
+                    Novo item
+                </AppButton>
             </template>
         </AppPageHeader>
 
-        <section class="kpis">
-            <div class="kpi">
-                <span class="kpi-label">Itens em estoque</span>
-                <span class="kpi-valor">{{ totalItens }}</span>
-            </div>
-            <div class="kpi" :class="{ 'kpi-alerta': itens.some(i => i.estoqueAbaixoMinimo) }">
-                <span class="kpi-label">Abaixo do mínimo (página)</span>
-                <span class="kpi-valor" :class="{ vermelho: itens.some(i => i.estoqueAbaixoMinimo) }">
-                    {{ itens.filter(i => i.estoqueAbaixoMinimo).length }}
-                </span>
-            </div>
-            <div class="kpi">
-                <span class="kpi-label">Categorias (página)</span>
-                <span class="kpi-valor">{{ categorias.length }}</span>
-            </div>
-        </section>
+        <!-- KPIs -->
+        <EstoqueKpis
+            :valor-total="valorTotalEstoque"
+            :total-itens="totalItens"
+            :baixo-count="baixoCount"
+            :vencendo-count="vencendoCount"
+            :movimentacoes-hoje="movimentacoesHoje"
+        />
 
-        <section class="filtros">
-            <select v-model="filtroCategoria">
-                <option value="">Todas categorias</option>
-                <option v-for="cat in categorias" :key="cat" :value="cat">{{ cat }}</option>
-            </select>
-            <label>
-                <input type="checkbox" v-model="filtroAbaixoMinimo" />
-                Apenas abaixo do mínimo
-            </label>
-            <label>
-                <input type="checkbox" v-model="filtroInativos" />
-                Incluir inativos
-            </label>
-        </section>
+        <!-- Tabs -->
+        <AppTabs
+            v-model="tabAtiva"
+            :abas="abas"
+            variante="underline"
+            aria-label="Seções do estoque"
+            class="tabs-estoque"
+        />
 
-        <p v-if="erro" class="erro">{{ erro }}</p>
-        <p v-if="carregando" class="info">Carregando...</p>
+        <!-- Conteúdo das tabs -->
+        <div class="tab-content">
+            <!-- Itens -->
+            <EstoqueItensTab
+                v-if="tabAtiva === 'itens'"
+                :itens="itens"
+                :total="totalItens"
+                :pagina="paginaItens"
+                :tamanho="tamanhoItens"
+                :carregando="carregandoItens"
+                :categorias="categorias"
+                @update:pagina="paginaItens = $event"
+                @update:tamanho="tamanhoItens = $event"
+                @abrir-item="abrirDrawer"
+                @nova-movimentacao="abrirModalMov"
+                @editar="abrirEditar"
+                @inativar="inativar"
+                @criar="modalCriarAberto = true"
+                @busca-change="buscaItens = $event"
+                @filtro-status-change="filtroStatusItens = $event"
+                @filtro-categoria-change="filtroCategoriaItens = $event"
+            />
 
-        <table v-if="!carregando && itensFiltrados.length > 0">
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Nome</th>
-                    <th>Categoria</th>
-                    <th>Unidade</th>
-                    <th>Qtd. atual</th>
-                    <th>Qtd. mín.</th>
-                    <th>Custo médio</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr
-                    v-for="item in itensFiltrados"
-                    :key="item.id"
-                    :class="{ alerta: item.estoqueAbaixoMinimo, inativo: !item.ativo }"
-                >
-                    <td>{{ item.codigo }}</td>
-                    <td>{{ item.nome }}</td>
-                    <td>{{ item.categoria }}</td>
-                    <td>{{ item.unidadeMedida }}</td>
-                    <td :class="{ 'qtd-baixa': item.estoqueAbaixoMinimo }">
-                        {{ formatarQtd(item.quantidadeAtual) }}
-                        <span v-if="item.estoqueAbaixoMinimo" class="badge-alerta">⚠</span>
-                    </td>
-                    <td>{{ formatarQtd(item.quantidadeMinima) }}</td>
-                    <td>{{ formatarMoedaBrl(item.custoMedio) }}</td>
-                    <td>
-                        <span :class="item.ativo ? 'badge-ativo' : 'badge-inativo'">
-                            {{ item.ativo ? "Ativo" : "Inativo" }}
-                        </span>
-                    </td>
-                    <td class="acoes">
-                        <button class="btn-icon" @click="abrirMovimentacao(item)" :disabled="!item.ativo" title="Registrar movimentação">±</button>
-                        <button class="btn-icon" @click="verHistorico(item)" title="Ver histórico">📋</button>
-                        <button class="btn-icon btn-icon-editar" @click="abrirEditar(item)" :disabled="!item.ativo" title="Editar">✏</button>
-                        <button v-if="item.ativo" class="btn-icon btn-icon-excluir" @click="inativar(item)" title="Inativar">✕</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-        <p v-else-if="!carregando" class="vazio">Nenhum item encontrado.</p>
+            <!-- Movimentações -->
+            <EstoqueMovimentacoesTab
+                v-else-if="tabAtiva === 'movimentacoes'"
+                :movimentacoes="movimentacoes"
+                :total="totalMovs"
+                :pagina="paginaMovs"
+                :tamanho="tamanhoMovs"
+                :carregando="carregandoMovs"
+                @update:pagina="paginaMovs = $event"
+                @update:tamanho="tamanhoMovs = $event"
+                @busca-change="() => {}"
+                @filtro-tipo-change="() => {}"
+            />
 
-        <AppPagination
-            v-if="totalItens > 0"
-            :pagina="paginaItens"
-            :tamanho="tamanhoItens"
-            :total="totalItens"
-            rotulo-itens="itens"
-            class="paginacao"
-            @update:pagina="paginaItens = $event"
-            @update:tamanho="tamanhoItens = $event"
+            <!-- Compras -->
+            <EstoqueComprasTab v-else-if="tabAtiva === 'compras'" />
+
+            <!-- Alertas -->
+            <EstoqueAlertasTab
+                v-else-if="tabAtiva === 'alertas'"
+                :itens="itens"
+                @abrir-item="abrirDrawer"
+                @nova-movimentacao="abrirModalMov"
+            />
+        </div>
+
+        <!-- Drawer de detalhe -->
+        <EstoqueItemDrawer
+            :aberto="drawerAberto"
+            :item="itemDrawer"
+            :movimentacoes="movDrawer"
+            :carregando-movs="carregandoMovsDrawer"
+            @fechar="fecharDrawer"
+            @nova-movimentacao="(item) => { fecharDrawer(); abrirModalMov(item) }"
+            @editar="abrirEditar"
+        />
+
+        <!-- Modal movimentação -->
+        <EstoqueMovimentacaoModal
+            :aberto="modalMovAberto"
+            :item-pre-selecionado="itemMovimentando"
+            :tipo-inicial="tipoMovInicial"
+            @fechar="modalMovAberto = false; itemMovimentando = null"
+            @confirmar="confirmarMovimentacao"
         />
 
         <!-- Modal criar item -->
-        <AppModal :aberto="modalCriar" titulo="Novo item de inventário" @fechar="modalCriar = false">
-            <AppField label="Código" required>
-                <AppInput v-model="formCriar.codigo" />
-            </AppField>
-            <AppField label="Nome" required>
-                <AppInput v-model="formCriar.nome" />
-            </AppField>
-            <AppField label="Categoria" required>
-                <AppInput v-model="formCriar.categoria" list="cats-criar" />
-                <datalist id="cats-criar">
-                    <option v-for="c in categorias" :key="c" :value="c" />
-                </datalist>
-            </AppField>
-            <AppField label="Unidade de medida" required>
-                <AppInput v-model="formCriar.unidadeMedida" placeholder="ex: un, kg, L" />
-            </AppField>
-            <AppField label="Quantidade inicial">
-                <AppInput v-model="formCriar.quantidadeInicial" type="number" :min="0" :step="0.001" />
-            </AppField>
-            <AppField
-                v-if="formCriar.quantidadeInicial > 0"
-                label="Custo unitário inicial (R$)"
-                required
-                :erro="erroCriar && erroCriar.includes('Custo') ? erroCriar : null"
-                hint="Necessário para calcular o custo médio ponderado inicial."
-            >
-                <AppInput v-model="formCriar.custoUnitarioInicial" type="number" :min="0.01" :step="0.01" />
-            </AppField>
-            <AppField label="Quantidade mínima" required>
-                <AppInput v-model="formCriar.quantidadeMinima" type="number" :min="0" :step="0.001" />
-            </AppField>
-            <p v-if="erroCriar && !erroCriar.includes('Custo')" class="msg-erro">{{ erroCriar }}</p>
-
-            <template #rodape>
-                <AppButton variant="secondary" @click="modalCriar = false">Cancelar</AppButton>
-                <AppButton :disabled="salvando" :loading="salvando" @click="salvarCriar">Criar</AppButton>
-            </template>
-        </AppModal>
+        <EstoqueCriarItemModal
+            :aberto="modalCriarAberto"
+            :categorias="categorias"
+            @fechar="modalCriarAberto = false"
+            @confirmar="confirmarCriar"
+        />
 
         <!-- Modal editar item -->
-        <AppModal :aberto="!!itemEditando" :titulo="`Editar — ${itemEditando?.nome ?? ''}`" @fechar="itemEditando = null">
-            <AppField label="Nome" required>
-                <AppInput v-model="formEditar.nome" />
-            </AppField>
-            <AppField label="Categoria" required>
-                <AppInput v-model="formEditar.categoria" list="cats-editar" />
-                <datalist id="cats-editar">
-                    <option v-for="c in categorias" :key="c" :value="c" />
-                </datalist>
-            </AppField>
-            <AppField label="Unidade de medida" required>
-                <AppInput v-model="formEditar.unidadeMedida" />
-            </AppField>
-            <AppField label="Quantidade mínima" required>
-                <AppInput v-model="formEditar.quantidadeMinima" type="number" :min="0" :step="0.001" />
-            </AppField>
-            <p v-if="erroEditar" class="msg-erro">{{ erroEditar }}</p>
-
-            <template #rodape>
-                <AppButton variant="secondary" @click="itemEditando = null">Cancelar</AppButton>
-                <AppButton :disabled="salvando" :loading="salvando" @click="salvarEditar">Salvar</AppButton>
-            </template>
-        </AppModal>
-
-        <!-- Modal movimentação -->
-        <AppModal :aberto="!!itemMovimentando" :titulo="`Movimentação — ${itemMovimentando?.nome ?? ''}`" @fechar="itemMovimentando = null">
-            <p v-if="itemMovimentando" class="info-estoque">
-                Estoque atual: <strong>{{ formatarQtd(itemMovimentando.quantidadeAtual) }} {{ itemMovimentando.unidadeMedida }}</strong>
-                &nbsp;|&nbsp; Custo médio: <strong>{{ formatarMoedaBrl(itemMovimentando.custoMedio) }}</strong>
-            </p>
-            <AppField label="Tipo" required>
-                <AppSelect v-model="formMov.tipo">
-                    <option value="Entrada">Entrada</option>
-                    <option value="Saida">Saída</option>
-                </AppSelect>
-            </AppField>
-            <AppField label="Quantidade" required>
-                <AppInput v-model="formMov.quantidade" type="number" :min="0.001" :step="0.001" />
-            </AppField>
-            <AppField
-                v-if="formMov.tipo === 'Entrada'"
-                label="Custo unitário (R$)"
-                required
-                :erro="erroMov && erroMov.includes('Custo') ? erroMov : null"
-            >
-                <AppInput v-model="formMov.custoUnitario" type="number" :min="0.01" :step="0.01" />
-            </AppField>
-            <p v-else class="hint-custo">
-                O custo unitário será registrado automaticamente como o custo médio atual do item.
-            </p>
-            <AppField label="Observação">
-                <AppInput v-model="formMov.observacao" placeholder="Opcional" />
-            </AppField>
-            <p v-if="erroMov && !erroMov.includes('Custo')" class="msg-erro">{{ erroMov }}</p>
-
-            <template #rodape>
-                <AppButton variant="secondary" @click="itemMovimentando = null">Cancelar</AppButton>
-                <AppButton :disabled="salvando" :loading="salvando" @click="salvarMovimentacao">Registrar</AppButton>
-            </template>
-        </AppModal>
-
-        <!-- Modal histórico -->
-        <AppModal :aberto="!!itemHistorico" :titulo="`Histórico — ${itemHistorico?.nome ?? ''}`" largura="lg" @fechar="itemHistorico = null">
-            <p v-if="carregandoHist" class="info">Carregando...</p>
-            <table v-else-if="movimentacoes.length > 0" class="tabela-hist">
-                <thead>
-                    <tr>
-                        <th>Data</th>
-                        <th>Tipo</th>
-                        <th>Qtd.</th>
-                        <th>Antes</th>
-                        <th>Depois</th>
-                        <th>Custo unitário</th>
-                        <th>Custo total</th>
-                        <th>Observação</th>
-                        <th>Usuário</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="m in movimentacoes" :key="m.id">
-                        <td>{{ formatarData(m.criadoEm) }}</td>
-                        <td :class="m.tipo === 'Entrada' ? 'entrada' : 'saida'">{{ m.tipo }}</td>
-                        <td>{{ formatarQtd(m.quantidade) }}</td>
-                        <td>{{ formatarQtd(m.quantidadeAnterior) }}</td>
-                        <td>{{ formatarQtd(m.quantidadeApos) }}</td>
-                        <td>{{ formatarMoedaBrl(m.custoUnitario) }}</td>
-                        <td>{{ formatarMoedaBrl(m.custoTotal) }}</td>
-                        <td>{{ m.observacao ?? "—" }}</td>
-                        <td>{{ m.usuarioNome }}</td>
-                    </tr>
-                </tbody>
-            </table>
-            <p v-else class="vazio">Sem movimentações registradas.</p>
-
-            <template #rodape>
-                <AppButton variant="secondary" @click="itemHistorico = null">Fechar</AppButton>
-            </template>
-        </AppModal>
-    </main>
+        <EstoqueEditarItemModal
+            :aberto="modalEditarAberto"
+            :item="itemEditando"
+            :categorias="categorias"
+            @fechar="itemEditando = null"
+            @confirmar="confirmarEditar"
+        />
+    </div>
 </template>
 
 <style scoped>
-.hint-custo { margin: 0 0 0.5rem; font-size: 0.8125em; color: var(--text-muted); }
-
-.kpis { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-.kpi {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 0.9rem 1.1rem; min-width: 200px;
-    display: flex; flex-direction: column; gap: 0.25rem;
+.tabs-estoque {
+    margin-bottom: 16px;
 }
-.kpi-alerta { border-color: hsl(var(--warning) / 0.45); background: hsl(var(--warning) / 0.12); }
-.kpi-label  { font-size: 0.78em; color: var(--text-muted); }
-.kpi-valor  { font-size: 1.6rem; font-weight: 700; line-height: 1; }
-.vermelho   { color: var(--danger); }
-.filtros { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
-.filtros select { padding: 0.3rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; }
-.filtros label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
 
-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
-th { background: #f3f4f6; text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #e5e7eb; }
-td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
-tr.alerta { background: hsl(var(--warning) / 0.12); }
-tr.inativo { opacity: 0.55; }
-tr:hover { background: #f9fafb; }
-
-.qtd-baixa { color: #b45309; font-weight: 600; }
-.badge-alerta { color: #d97706; font-size: 0.85em; }
-.badge-ativo { background: #d1fae5; color: #065f46; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8em; }
-.badge-inativo { background: #f3f4f6; color: #6b7280; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8em; }
-
-.acoes { display: flex; gap: 0.3rem; align-items: center; }
-.info-estoque { margin: 0; color: #374151; }
-.entrada { color: #059669; font-weight: 600; }
-.saida { color: #dc2626; font-weight: 600; }
-.tabela-hist { width: 100%; border-collapse: collapse; font-size: 0.875em; }
-.tabela-hist th { background: #f3f4f6; text-align: left; padding: 0.4rem 0.6rem; border-bottom: 2px solid #e5e7eb; }
-.tabela-hist td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #f0f0f0; }
-
-.msg-erro { color: hsl(var(--error)); font-size: 0.875em; margin: 0; }
-.erro { color: #b00020; font-size: 0.9em; }
-.info { color: #6b7280; }
-.vazio { color: #9ca3af; font-style: italic; }
-.paginacao { margin-top: 1rem; }
+.tab-content {
+    min-height: 300px;
+}
 </style>
