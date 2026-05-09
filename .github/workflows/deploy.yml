@@ -67,15 +67,13 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Setup SSH
+      - name: Setup SSH key
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
           printf "%s" "$SSH_KEY" > ~/.ssh/deploy.pem
           chmod 600 ~/.ssh/deploy.pem
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Generate idempotent SQL
         working-directory: backend/src
@@ -91,14 +89,14 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          scp -i ~/.ssh/deploy.pem /tmp/migrate.sql "ec2-user@${EC2_HOST}:/tmp/migrate.sql"
-          scp -i ~/.ssh/deploy.pem deploy/scripts/migrate.sh "ec2-user@${EC2_HOST}:/tmp/migrate.sh"
+          scp -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/migrate.sql "ec2-user@${EC2_HOST}:/tmp/migrate.sql"
+          scp -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null deploy/scripts/migrate.sh "ec2-user@${EC2_HOST}:/tmp/migrate.sh"
 
       - name: Apply migrations on RDS
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          ssh -i ~/.ssh/deploy.pem "ec2-user@${EC2_HOST}" 'chmod +x /tmp/migrate.sh && bash /tmp/migrate.sh'
+          ssh -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "ec2-user@${EC2_HOST}" 'chmod +x /tmp/migrate.sh && bash /tmp/migrate.sh'
 
   deploy:
     needs: [build-push, migrate]
@@ -106,21 +104,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup SSH
+      - name: Setup SSH key
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
           printf "%s" "$SSH_KEY" > ~/.ssh/deploy.pem
           chmod 600 ~/.ssh/deploy.pem
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Sync deploy/ to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          rsync -avz --delete -e "ssh -i ~/.ssh/deploy.pem" deploy/ "ec2-user@${EC2_HOST}:/home/ec2-user/imedto/"
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" deploy/ "ec2-user@${EC2_HOST}:/home/ec2-user/imedto/"
 
       - name: Run deploy script on EC2
         env:
@@ -128,7 +124,7 @@ jobs:
           IMAGE_TAG: ${{ needs.build-push.outputs.tag }}
           GHCR_OWNER: ${{ needs.build-push.outputs.owner_lc }}
         run: |
-          ssh -i ~/.ssh/deploy.pem "ec2-user@${EC2_HOST}" \
+          ssh -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "ec2-user@${EC2_HOST}" \
               "IMAGE_TAG='${IMAGE_TAG}' GHCR_OWNER='${GHCR_OWNER}' GHCR_USER='${{ github.actor }}' bash /home/ec2-user/imedto/scripts/deploy.sh"
 
   smoke:
