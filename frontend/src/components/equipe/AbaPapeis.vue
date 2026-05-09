@@ -56,7 +56,7 @@ function corIcone(cor?: string | null): string {
                 <div class="rl-section">
                     <div class="rl-head">
                         <div>
-                            <h4>Papéis do sistema</h4>
+                            <h4>Permissões do sistema</h4>
                             <span>Disponíveis em todas as clínicas Imedto</span>
                         </div>
                     </div>
@@ -81,17 +81,17 @@ function corIcone(cor?: string | null): string {
                 <div class="rl-section">
                     <div class="rl-head">
                         <div>
-                            <h4>Papéis personalizados</h4>
-                            <span>Customizados — só esta clínica vê</span>
+                            <h4>Permissões personalizadas</h4>
+                            <span>Customizadas — só esta clínica vê</span>
                         </div>
-                        <button type="button" class="btn-icon-sm" title="Criar novo papel" @click="emit('criar-papel')">
+                        <button type="button" class="btn-icon-sm" title="Criar nova permissão" @click="emit('criar-papel')">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                     </div>
                     <div v-if="customizados.length === 0" class="rl-empty">
                         <i class="fa-solid fa-shield-halved"></i>
-                        <span>Nenhum papel customizado ainda</span>
-                        <button type="button" class="btn-text-sm" @click="emit('criar-papel')">+ Criar primeiro papel</button>
+                        <span>Nenhuma permissão customizada ainda</span>
+                        <button type="button" class="btn-text-sm" @click="emit('criar-papel')">+ Criar primeira permissão</button>
                     </div>
                     <button
                         v-for="r in customizados" :key="r.id"
@@ -110,7 +110,7 @@ function corIcone(cor?: string | null): string {
                         <i class="fa-solid fa-chevron-right ri-arrow"></i>
                     </button>
                     <button v-if="customizados.length > 0" type="button" class="rl-add-btn" @click="emit('criar-papel')">
-                        <i class="fa-solid fa-plus"></i> Criar novo papel
+                        <i class="fa-solid fa-plus"></i> Criar nova permissão
                     </button>
                 </div>
             </div>
@@ -138,10 +138,10 @@ function corIcone(cor?: string | null): string {
                             icon="fa-solid fa-pen-to-square"
                             @click="emit('editar-papel', selecionado!)"
                         >
-                            Editar papel
+                            Editar permissão
                         </AppButton>
                         <span v-else class="rd-system">
-                            <i class="fa-solid fa-lock"></i> Papel do sistema — não editável
+                            <i class="fa-solid fa-lock"></i> Permissão do sistema — não editável
                         </span>
                     </div>
                 </div>

@@ -128,7 +128,7 @@ async function salvar() {
             })
         }
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Não foi possível salvar o papel."
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível salvar a permissão."
     } finally {
         salvando.value = false
     }
@@ -136,14 +136,14 @@ async function salvar() {
 
 async function excluir() {
     if (!props.modelo || excluindo.value || salvando.value) return
-    if (!confirm(`Excluir o papel "${props.modelo.nome}"? Esta ação é irreversível. Profissionais vinculados a este papel precisam receber outro antes.`)) return
+    if (!confirm(`Excluir a permissão "${props.modelo.nome}"? Esta ação é irreversível. Profissionais vinculados a esta permissão precisam receber outra antes.`)) return
     excluindo.value = true
     erro.value = null
     try {
         await permissaoService.excluir(props.modelo.id)
         emit("excluido", props.modelo)
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Não foi possível excluir o papel."
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível excluir a permissão."
     } finally {
         excluindo.value = false
     }
@@ -159,7 +159,7 @@ function fechar() {
     <AppModal
         :aberto="aberto"
         largura="lg"
-        :titulo="ehPadrao ? 'Visualizar papel do sistema' : (ehNovo ? 'Novo papel personalizado' : 'Editar papel')"
+        :titulo="ehPadrao ? 'Visualizar permissão do sistema' : (ehNovo ? 'Nova permissão personalizada' : 'Editar permissão')"
         @fechar="fechar"
     >
         <!-- Identidade -->
@@ -169,18 +169,18 @@ function fechar() {
                     <i class="fa-solid" :class="form.icone"></i>
                 </div>
                 <div>
-                    <b>{{ form.nome || "Nome do papel" }}</b>
+                    <b>{{ form.nome || "Nome da permissão" }}</b>
                     <span>{{ form.descricao || "Descrição curta..." }}</span>
                 </div>
             </div>
 
             <div class="form-grid">
-                <AppField label="Nome do papel" required class="full">
+                <AppField label="Nome da permissão" required class="full">
                     <AppInput v-model="form.nome" placeholder="Ex: Coordenador de unidade" :disabled="ehPadrao" />
                 </AppField>
 
                 <AppField label="Descrição" class="full">
-                    <AppInput v-model="form.descricao" placeholder="O que este papel faz na clínica?" :disabled="ehPadrao" />
+                    <AppInput v-model="form.descricao" placeholder="O que esta permissão faz na clínica?" :disabled="ehPadrao" />
                 </AppField>
 
                 <AppField label="Ícone">
@@ -225,8 +225,8 @@ function fechar() {
         <!-- Permissões -->
         <div class="role-perm-section">
             <div class="rps-head">
-                <h3>Permissões deste papel</h3>
-                <span>{{ form.permissoes.length }} permissões selecionadas</span>
+                <h3>Acessos desta permissão</h3>
+                <span>{{ form.permissoes.length }} acessos selecionados</span>
             </div>
             <AppPermissionMatrix v-model="form.permissoes" :read-only="ehPadrao" />
         </div>
@@ -243,7 +243,7 @@ function fechar() {
                 :disabled="excluindo || salvando"
                 @click="excluir"
             >
-                Excluir papel
+                Excluir permissão
             </AppButton>
             <div class="rodape-spacer"></div>
             <AppButton variant="ghost" :disabled="salvando || excluindo" @click="fechar">
@@ -256,7 +256,7 @@ function fechar() {
                 :disabled="!valido || salvando || excluindo"
                 @click="salvar"
             >
-                {{ ehNovo ? "Criar papel" : "Salvar alterações" }}
+                {{ ehNovo ? "Criar permissão" : "Salvar alterações" }}
             </AppButton>
         </template>
     </AppModal>

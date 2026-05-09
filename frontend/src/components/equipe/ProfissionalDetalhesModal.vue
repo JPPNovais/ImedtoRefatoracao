@@ -76,7 +76,7 @@ async function salvarPapel() {
             modeloPermissaoNome: novo?.nome ?? "",
         })
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Não foi possível atualizar o papel."
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível atualizar a permissão."
     } finally {
         salvando.value = false
     }
@@ -151,7 +151,7 @@ function iniciais(p: ProfissionalVinculado): string {
                     :class="{ active: aba === 'permissoes' }"
                     @click="aba = 'permissoes'"
                 >
-                    <i class="fa-solid fa-shield-halved"></i> Papel e permissões
+                    <i class="fa-solid fa-shield-halved"></i> Permissão
                 </button>
             </div>
 
@@ -191,7 +191,7 @@ function iniciais(p: ProfissionalVinculado): string {
                             </AppButton>
                         </div>
                         <span v-if="ehDono" class="da-hint">
-                            <i class="fa-solid fa-crown"></i> Dono da clínica não pode ser removido nem ter o papel alterado.
+                            <i class="fa-solid fa-crown"></i> Dono da clínica não pode ser removido nem ter a permissão alterada.
                         </span>
                         <span v-else-if="ehVinculoProprio" class="da-hint">
                             <i class="fa-solid fa-circle-info"></i> Este é o seu próprio vínculo.
@@ -202,7 +202,7 @@ function iniciais(p: ProfissionalVinculado): string {
                 <!-- Permissões -->
                 <div v-else class="permissoes-bloco">
                     <div class="role-change">
-                        <label>Papel atual</label>
+                        <label>Permissão atual</label>
                         <AppSelect v-model="modeloSelecionadoId" :disabled="ehDono">
                             <option v-for="m in modelos" :key="m.id" :value="m.id">{{ m.nome }}</option>
                         </AppSelect>
@@ -212,8 +212,8 @@ function iniciais(p: ProfissionalVinculado): string {
                     </div>
 
                     <div class="rps-head">
-                        <h3>Permissões herdadas do papel "{{ modeloAtual?.nome ?? '—' }}"</h3>
-                        <span>Para alterar permissões individuais, edite o papel ou crie um papel customizado.</span>
+                        <h3>Acessos herdados da permissão "{{ modeloAtual?.nome ?? '—' }}"</h3>
+                        <span>Para alterar acessos individuais, edite a permissão ou crie uma permissão customizada.</span>
                     </div>
                     <AppPermissionMatrix :model-value="modeloAtual?.permissoes ?? []" read-only />
                 </div>

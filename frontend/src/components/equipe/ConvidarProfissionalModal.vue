@@ -97,17 +97,27 @@ const modeloSelecionado = computed(() =>
     props.modelos.find(m => m.id === form.modeloId) ?? null,
 )
 
-// Especialidade só é exigida para papéis "Profissional" (médicos/dentistas etc.).
-const exigeEspecialidade = computed(() =>
+// Profissão/Especialidade são CAMPOS DE IDENTIFICAÇÃO do profissional (não de
+// permissão). Ficam sempre disponíveis para preencher; a permissão é decidida
+// pelo modelo selecionado acima e não gateia esses campos.
+const ehProfissional = computed(() =>
     modeloSelecionado.value?.tipoAcesso === "Profissional",
+)
+
+// Só faz sentido exibir/exigir especialidade quando a profissão escolhida tem
+// especialidades cadastradas no catálogo (ou enquanto a lista está carregando).
+const profissaoTemEspecialidades = computed(() =>
+    form.profissaoId !== null && (carregandoEspecialidades.value || especialidades.value.length > 0),
 )
 
 const valido = computed(() => {
     if (form.nome.trim().length < 2) return false
     if (!form.email.includes("@") || !form.email.includes(".")) return false
     if (!form.modeloId) return false
-    if (exigeEspecialidade.value && form.profissaoId === null) return false
-    if (exigeEspecialidade.value && form.especialidade.trim().length < 2) return false
+    // Profissão é obrigatória para papéis "Profissional"; opcional para Admin/Recepção.
+    if (ehProfissional.value && form.profissaoId === null) return false
+    // Especialidade só é obrigatória se a profissão escolhida tiver especialidades.
+    if (ehProfissional.value && profissaoTemEspecialidades.value && form.especialidade.trim().length < 2) return false
     if (form.metodo === "whatsapp" && form.telefone.replace(/\D/g, "").length < 10) return false
     return true
 })
@@ -194,7 +204,7 @@ function fechar() {
                 <AppInput v-model="form.telefone" type="tel" placeholder="(11) 99999-9999" />
             </AppField>
 
-            <AppField label="Função / Papel" required class="full">
+            <AppField label="Permissão" required class="full">
                 <div class="role-selector">
                     <button
                         v-for="m in modelos" :key="m.id"
@@ -215,34 +225,36 @@ function fechar() {
                 </div>
             </AppField>
 
-            <template v-if="exigeEspecialidade">
-                <AppField label="Profissão" required>
-                    <AppSelect
-                        :model-value="form.profissaoId"
-                        @update:model-value="form.profissaoId = $event ? Number($event) : null"
-                    >
-                        <option :value="null">Selecione...</option>
-                        <option v-for="p in profissoes" :key="p.id" :value="p.id">{{ p.nome }}</option>
-                    </AppSelect>
-                </AppField>
+            <AppField :label="ehProfissional ? 'Profissão' : 'Profissão (opcional)'" :required="ehProfissional">
+                <AppSelect
+                    :model-value="form.profissaoId"
+                    @update:model-value="form.profissaoId = $event ? Number($event) : null"
+                >
+                    <option :value="null">Selecione...</option>
+                    <option v-for="p in profissoes" :key="p.id" :value="p.id">{{ p.nome }}</option>
+                </AppSelect>
+            </AppField>
 
-                <AppField label="Especialidade" required>
-                    <AppSelect
-                        :model-value="form.especialidade"
-                        :disabled="!form.profissaoId || carregandoEspecialidades"
-                        @update:model-value="form.especialidade = String($event)"
-                    >
-                        <option value="">
-                            {{ carregandoEspecialidades ? 'Carregando...' : 'Selecione...' }}
-                        </option>
-                        <option v-for="e in especialidades" :key="e.id" :value="e.nome">{{ e.nome }}</option>
-                    </AppSelect>
-                </AppField>
+            <AppField
+                v-if="profissaoTemEspecialidades"
+                :label="ehProfissional ? 'Especialidade' : 'Especialidade (opcional)'"
+                :required="ehProfissional"
+            >
+                <AppSelect
+                    :model-value="form.especialidade"
+                    :disabled="carregandoEspecialidades"
+                    @update:model-value="form.especialidade = String($event)"
+                >
+                    <option value="">
+                        {{ carregandoEspecialidades ? 'Carregando...' : 'Selecione...' }}
+                    </option>
+                    <option v-for="e in especialidades" :key="e.id" :value="e.nome">{{ e.nome }}</option>
+                </AppSelect>
+            </AppField>
 
-                <AppField label="Conselho profissional (opcional)">
-                    <AppInput v-model="form.conselho" placeholder="CRM 12.345-SP" />
-                </AppField>
-            </template>
+            <AppField label="Conselho profissional (opcional)">
+                <AppInput v-model="form.conselho" placeholder="CRM 12.345-SP" />
+            </AppField>
 
             <AppField label="Mensagem personalizada (opcional)" class="full">
                 <AppTextarea

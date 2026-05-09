@@ -17,7 +17,7 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
 function toCalendarDate(iso?: string | null): CalendarDate | undefined {
     if (!iso) return undefined
-    const [y, m, d] = iso.split("-").map(Number)
+    const [y, m, d] = iso.slice(0, 10).split("-").map(Number)
     if (!y || !m || !d) return undefined
     return new CalendarDate(y, m, d)
 }

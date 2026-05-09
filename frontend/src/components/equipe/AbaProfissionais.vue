@@ -143,7 +143,7 @@ function bulk(acao: "ativar" | "suspender" | "remover") {
                 ]"
             />
             <AppSelect v-model="filtroModelo" class="role-filter">
-                <option value="todos">Todos os papéis</option>
+                <option value="todos">Todas as permissões</option>
                 <option v-for="m in modelos" :key="m.id" :value="m.id">{{ m.nome }}</option>
             </AppSelect>
         </div>
@@ -192,7 +192,7 @@ function bulk(acao: "ativar" | "suspender" | "remover") {
                     <span class="cb-box"></span>
                 </label>
                 <div>Profissional</div>
-                <div>Papel</div>
+                <div>Permissão</div>
                 <div>Contato</div>
                 <div>Status</div>
                 <div></div>

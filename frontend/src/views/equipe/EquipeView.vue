@@ -125,14 +125,14 @@ function onPapelSalvo(m: ModeloPermissao) {
     papelEditorAberto.value = false
     papelEmEdicao.value = null
     void carregar()
-    notificar(`Papel "${m.nome}" salvo.`)
+    notificar(`Permissão "${m.nome}" salva.`)
 }
 
 function onPapelExcluido(m: ModeloPermissao) {
     papelEditorAberto.value = false
     papelEmEdicao.value = null
     void carregar()
-    notificar(`Papel "${m.nome}" excluído.`)
+    notificar(`Permissão "${m.nome}" excluída.`)
 }
 
 function abrirDetalhes(p: ProfissionalVinculado) {
@@ -191,7 +191,7 @@ async function cancelarConvite(c: ProfissionalVinculado) {
     <main class="app-page app-page--wide equipe">
         <AppPageHeader
             titulo="Equipe e permissões"
-            :subtitulo="'Gerencie profissionais, papéis de acesso e convites de ' + (tenant.ativo?.nomeFantasia ?? 'sua clínica') + '.'"
+            :subtitulo="'Gerencie profissionais, permissões de acesso e convites de ' + (tenant.ativo?.nomeFantasia ?? 'sua clínica') + '.'"
         >
             <template #acoes>
                 <AppButton icon="fa-solid fa-user-plus" @click="abrirConvite">
@@ -221,7 +221,7 @@ async function cancelarConvite(c: ProfissionalVinculado) {
                 @click="aba = 'papeis'"
             >
                 <i class="fa-solid fa-shield-halved"></i>
-                Papéis e permissões
+                Permissões
                 <span class="tab-count">{{ modelos.length }}</span>
             </button>
             <button

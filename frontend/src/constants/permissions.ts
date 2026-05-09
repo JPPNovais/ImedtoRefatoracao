@@ -139,7 +139,7 @@ export const PERMISSION_AREAS: AreaPermissao[] = [
         acoes: [
             { chave: "ver",         label: "Ver equipe" },
             { chave: "convidar",    label: "Convidar profissionais" },
-            { chave: "permissoes",  label: "Alterar papéis e permissões" },
+            { chave: "permissoes",  label: "Alterar permissões" },
             { chave: "remover",     label: "Remover da clínica" },
         ],
     },

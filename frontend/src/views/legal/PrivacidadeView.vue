@@ -98,7 +98,7 @@
                 <p>
                     Adotamos medidas técnicas e organizacionais adequadas para proteger os dados contra acesso não
                     autorizado, perda, alteração ou destruição, incluindo: criptografia em trânsito (TLS 1.2+),
-                    autenticação segura com tokens de vida curta, controle de acesso baseado em papéis (RBAC) e
+                    autenticação segura com tokens de vida curta, controle de acesso baseado em permissões (RBAC) e
                     isolamento de dados por estabelecimento.
                 </p>
             </section>
