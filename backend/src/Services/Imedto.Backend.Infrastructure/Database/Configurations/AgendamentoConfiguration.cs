@@ -28,6 +28,7 @@ public class AgendamentoConfiguration : IEntityTypeConfiguration<Agendamento>
         builder.Property(a => a.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
         builder.Property(a => a.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(a => a.AtualizadoEm).HasColumnName("atualizado_em");
+        builder.Property(a => a.CheckInEm).HasColumnName("check_in_em");
         builder.Property(a => a.LembretePorEmailEnviado).HasColumnName("lembrete_por_email_enviado")
             .IsRequired().HasDefaultValue(false);
 

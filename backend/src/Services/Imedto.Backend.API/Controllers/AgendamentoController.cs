@@ -173,6 +173,17 @@ public class AgendamentoController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("{id:long}/checkin")]
+    public async Task<ActionResult> RegistrarCheckIn(long id)
+    {
+        await _cmd.Send(new RegistrarCheckInAgendamentoCommand
+        {
+            AgendamentoId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId
+        });
+        return NoContent();
+    }
+
     [HttpPost("{id:long}/concluir")]
     public async Task<ActionResult> Concluir(long id)
     {

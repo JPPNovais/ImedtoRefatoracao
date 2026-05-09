@@ -19,10 +19,12 @@ services:
       Auth__Jwt__PublicKeyPem: ${JWT_PUBLIC_KEY_PEM}
       Auth__Bcrypt__WorkFactor: "12"
       Auth__Bcrypt__Pepper: ${BCRYPT_PEPPER}
+      Email__Provider: ${EMAIL_PROVIDER:-Resend}
       Email__From: "Imedto <noreply@imedto.com>"
       Email__AppBaseUrl: "https://app.imedto.com"
       Email__ResendApiKey: ${RESEND_API_KEY}
       Email__ApiKey: ${RESEND_API_KEY}
+      Email__Ses__Region: sa-east-1
       Storage__Region: sa-east-1
       Storage__BucketAnexosProntuario: ${S3_BUCKET_ANEXOS}
       Storage__BucketFotos: ${S3_BUCKET_FOTOS}

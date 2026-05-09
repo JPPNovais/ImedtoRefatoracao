@@ -58,7 +58,8 @@ public class AgendamentoQueryRepository
                 a.status                AS Status,
                 a.motivo_cancelamento   AS MotivoCancelamento,
                 a.criado_em             AS CriadoEm,
-                a.atualizado_em         AS AtualizadoEm
+                a.atualizado_em         AS AtualizadoEm,
+                a.check_in_em          AS CheckInEm
             FROM agendamentos a
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
@@ -183,7 +184,8 @@ public class AgendamentoQueryRepository
                 a.status                AS Status,
                 a.motivo_cancelamento   AS MotivoCancelamento,
                 a.criado_em             AS CriadoEm,
-                a.atualizado_em         AS AtualizadoEm
+                a.atualizado_em         AS AtualizadoEm,
+                a.check_in_em          AS CheckInEm
             FROM agendamentos a
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id

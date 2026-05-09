@@ -389,6 +389,7 @@ public static class Container
         services.AddScoped<CancelarAgendamentoCommandHandler>();
         services.AddScoped<ConfirmarAgendamentoCommandHandler>();
         services.AddScoped<ConcluirAgendamentoCommandHandler>();
+        services.AddScoped<RegistrarCheckInAgendamentoCommandHandler>();
         services.AddScoped<IListaEsperaRepository, ListaEsperaRepository>();
         services.AddSingleton<ListaEsperaQueryRepository>();
         services.AddScoped<AdicionarListaEsperaCommandHandler>();
@@ -526,16 +527,37 @@ public static class Container
         services.AddScoped<SalvarConfiguracaoAutomacaoCommandHandler>();
         services.AddSingleton<ObterConfiguracaoAutomacaoQueryHandlers>();
         services.AddScoped<IConfiguracaoAutomacaoRepository, ConfiguracaoAutomacaoRepository>();
-        // Item 4.7 — provedor real (Resend) com fallback para NoOp se Email:ApiKey vazio.
-        // Decisão tomada na resolução (factory) para ler IConfiguration do scope sem
-        // precisar propagar a configuration por todos os métodos de Registrar*.
+        // E-mail provider configurável via Email:Provider:
+        //   - "Ses"    → AWS SES v2 (free tier 62k/mês via EC2; preferido em prod)
+        //   - "Resend" → Resend HTTP API (default; sem sandbox, melhor pra dev)
+        //   - vazio    → NoOp (loga, não envia)
+        services.AddSingleton<Amazon.SimpleEmailV2.IAmazonSimpleEmailServiceV2>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var region = Amazon.RegionEndpoint.GetBySystemName(
+                cfg["Email:Ses:Region"] ?? cfg["Storage:Region"] ?? "sa-east-1");
+            return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client(region);
+        });
+
         services.AddScoped<IEmailService>(sp =>
         {
             var cfg = sp.GetRequiredService<IConfiguration>();
-            var apiKey = cfg["Email:ApiKey"] ?? cfg["Email:ResendApiKey"];
-            return string.IsNullOrWhiteSpace(apiKey)
-                ? ActivatorUtilities.CreateInstance<NoOpEmailService>(sp)
-                : ActivatorUtilities.CreateInstance<ResendEmailService>(sp);
+            var provider = (cfg["Email:Provider"] ?? "").Trim().ToLowerInvariant();
+
+            return provider switch
+            {
+                "ses" => ActivatorUtilities.CreateInstance<SesEmailService>(sp),
+                "resend" => ResolverResendOuNoOp(sp, cfg),
+                _ => ResolverResendOuNoOp(sp, cfg) // default: tenta Resend, fallback NoOp
+            };
+
+            static IEmailService ResolverResendOuNoOp(IServiceProvider sp, IConfiguration cfg)
+            {
+                var apiKey = cfg["Email:ApiKey"] ?? cfg["Email:ResendApiKey"];
+                return string.IsNullOrWhiteSpace(apiKey)
+                    ? ActivatorUtilities.CreateInstance<NoOpEmailService>(sp)
+                    : ActivatorUtilities.CreateInstance<ResendEmailService>(sp);
+            }
         });
 
         // Item 2.2 — Engine de automações (regras + worker + executor)
@@ -656,6 +678,7 @@ public static class Container
             bus.Register<CancelarAgendamentoCommand, CancelarAgendamentoCommandHandler>();
             bus.Register<ConfirmarAgendamentoCommand, ConfirmarAgendamentoCommandHandler>();
             bus.Register<ConcluirAgendamentoCommand, ConcluirAgendamentoCommandHandler>();
+            bus.Register<RegistrarCheckInAgendamentoCommand, RegistrarCheckInAgendamentoCommandHandler>();
             bus.Register<AdicionarListaEsperaCommand, AdicionarListaEsperaCommandHandler>();
             bus.Register<RemoverListaEsperaCommand, RemoverListaEsperaCommandHandler>();
             bus.Register<CriarItemInventarioCommand, CriarItemInventarioCommandHandler>();

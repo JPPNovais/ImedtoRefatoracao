@@ -25,4 +25,5 @@ public class AgendamentoDto
     public string? MotivoCancelamento { get; set; }
     public DateTime CriadoEm { get; set; }
     public DateTime? AtualizadoEm { get; set; }
+    public DateTime? CheckInEm { get; set; }
 }

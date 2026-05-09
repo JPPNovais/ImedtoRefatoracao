@@ -9,6 +9,8 @@
     <ItemGroup>
         <!-- AWS S3 (storage de fotos e anexos) -->
         <PackageReference Include="AWSSDK.S3" Version="3.7.413" />
+        <!-- AWS SES v2 (e-mail transacional alternativo ao Resend) -->
+        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.404" />
         <!-- Hashing de senhas (Auth local) -->
         <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
         <PackageReference Include="Dapper" Version="2.1.66" />

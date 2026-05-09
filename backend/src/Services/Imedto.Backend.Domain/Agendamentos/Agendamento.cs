@@ -18,6 +18,7 @@ public class Agendamento : Entity
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
     public virtual bool LembretePorEmailEnviado { get; protected set; }
+    public virtual DateTime? CheckInEm { get; protected set; }
 
     protected Agendamento() { }
 
@@ -94,6 +95,19 @@ public class Agendamento : Entity
         AtualizadoEm = DateTime.UtcNow;
 
         AddDomainEvent(new AgendamentoCanceladoEvent(Id, EstabelecimentoId, MotivoCancelamento));
+    }
+
+    public virtual void RegistrarCheckIn()
+    {
+        if (Status == AgendamentoStatus.Cancelado)
+            throw new BusinessException("Não é possível fazer check-in de agendamento cancelado.");
+        if (Status == AgendamentoStatus.Concluido)
+            throw new BusinessException("Não é possível fazer check-in de agendamento concluído.");
+        if (CheckInEm != null)
+            throw new BusinessException("Check-in já foi realizado para este agendamento.");
+
+        CheckInEm = DateTime.UtcNow;
+        AtualizadoEm = DateTime.UtcNow;
     }
 
     public virtual void Concluir()
