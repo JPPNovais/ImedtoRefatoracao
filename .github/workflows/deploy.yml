@@ -9,11 +9,6 @@ concurrency:
   group: deploy-prod
   cancel-in-progress: false
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_FRONT: ghcr.io/${{ github.repository_owner }}/imedto-frontend
-  IMAGE_BACK: ghcr.io/${{ github.repository_owner }}/imedto-backend
-
 jobs:
   build-push:
     runs-on: ubuntu-latest
@@ -28,9 +23,8 @@ jobs:
 
       - id: meta
         run: |
-          echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          # ghcr.io exige owner em lowercase
-          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -70,46 +64,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: "10.0.x" }
+        with:
+          dotnet-version: "10.0.x"
 
-      - name: Generate idempotent SQL
-        working-directory: backend/src
-        run: |
-          dotnet tool install --global dotnet-ef --version 10.0.0
-          export PATH="$PATH:/home/runner/.dotnet/tools"
-          dotnet ef migrations script --idempotent \
-              --project Services/Imedto.Backend.Infrastructure \
-              --startup-project Services/Imedto.Backend.API \
-              --output /tmp/migrate.sql || \
-            (echo "Sem migrations ainda — pulando (greenfield)"; touch /tmp/migrate.sql)
-
-      - name: Apply migrations via SSH
+      - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy.pem
+          printf "%s" "$SSH_KEY" > ~/.ssh/deploy.pem
           chmod 600 ~/.ssh/deploy.pem
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-          if [ ! -s /tmp/migrate.sql ]; then
-            echo "SQL vazio — sem migrations a aplicar"
-            exit 0
-          fi
+      - name: Generate idempotent SQL
+        working-directory: backend/src
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.0.0 || true
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations script --idempotent \
+              --project Services/Imedto.Backend.Infrastructure \
+              --startup-project Services/Imedto.Backend.API \
+              --output /tmp/migrate.sql
 
-          scp -i ~/.ssh/deploy.pem /tmp/migrate.sql ec2-user@$EC2_HOST:/tmp/migrate.sql
+      - name: Send SQL & migrate-script to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          scp -i ~/.ssh/deploy.pem /tmp/migrate.sql "ec2-user@${EC2_HOST}:/tmp/migrate.sql"
+          scp -i ~/.ssh/deploy.pem deploy/scripts/migrate.sh "ec2-user@${EC2_HOST}:/tmp/migrate.sh"
 
-          ssh -i ~/.ssh/deploy.pem ec2-user@$EC2_HOST << 'EOF'
-            set -e
-            DB_HOST=$(aws ssm get-parameter --name /imedto/dev/db-host \
-                --query Parameter.Value --output text --region sa-east-1)
-            DB_PASSWORD=$(aws ssm get-parameter --name /imedto/dev/db-password \
-                --with-decryption --query Parameter.Value --output text --region sa-east-1)
-            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U imedto -d imedto \
-                -v ON_ERROR_STOP=1 -f /tmp/migrate.sql
-            rm /tmp/migrate.sql
-          EOF
+      - name: Apply migrations on RDS
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy.pem "ec2-user@${EC2_HOST}" 'chmod +x /tmp/migrate.sh && bash /tmp/migrate.sh'
 
   deploy:
     needs: [build-push, migrate]
@@ -117,49 +106,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Setup SSH
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf "%s" "$SSH_KEY" > ~/.ssh/deploy.pem
+          chmod 600 ~/.ssh/deploy.pem
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync deploy/ to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy.pem" deploy/ "ec2-user@${EC2_HOST}:/home/ec2-user/imedto/"
+
+      - name: Run deploy script on EC2
+        env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           IMAGE_TAG: ${{ needs.build-push.outputs.tag }}
           GHCR_OWNER: ${{ needs.build-push.outputs.owner_lc }}
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy.pem
-          chmod 600 ~/.ssh/deploy.pem
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-          # Sincroniza compose/Caddyfile/scripts pra EC2.
-          rsync -avz --delete -e "ssh -i ~/.ssh/deploy.pem" \
-              deploy/ ec2-user@$EC2_HOST:/home/ec2-user/imedto/
-
-          ssh -i ~/.ssh/deploy.pem ec2-user@$EC2_HOST <<EOF
-            set -e
-            cd /home/ec2-user/imedto
-
-            # Login no ghcr.io (token vem do SSM — criado uma vez manualmente).
-            aws ssm get-parameter --name /imedto/dev/ghcr-token \
-                --with-decryption --query Parameter.Value --output text --region sa-east-1 \
-              | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Atualiza segredos (.env) e variáveis de imagem.
-            chmod +x scripts/pull-secrets.sh
-            export GHCR_OWNER='$GHCR_OWNER'
-            export IMAGE_TAG='$IMAGE_TAG'
-            ./scripts/pull-secrets.sh
-
-            docker compose pull
-            docker compose up -d --remove-orphans
-
-            # Limpa imagens antigas pra não estourar disco da t3.micro.
-            docker image prune -af --filter "until=72h" || true
-EOF
+          ssh -i ~/.ssh/deploy.pem "ec2-user@${EC2_HOST}" \
+              "IMAGE_TAG='${IMAGE_TAG}' GHCR_OWNER='${GHCR_OWNER}' GHCR_USER='${{ github.actor }}' bash /home/ec2-user/imedto/scripts/deploy.sh"
 
   smoke:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
-      - name: Healthcheck público
+      - name: Healthcheck
         run: |
           for i in 1 2 3 4 5 6; do
             sleep 15
