@@ -191,6 +191,8 @@ Arquivo: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
 **Em PR**: roda `test-backend` + `test-frontend` (paralelo).
 **Em push pra `main`**: roda os 2 testes + `build-push` (Docker → ghcr.io) **em paralelo** → `migrate` (gera SQL idempotente + aplica via SSH no RDS) → `deploy` (rsync + docker compose pull/up via SSH na EC2) → `smoke` (`curl /health`).
 
+⚠️ **1 push só por sessão de trabalho**: cada push em `main` dispara o pipeline de ~3-5 min e um deploy de produção. Se você fez várias mudanças numa mesma sessão, faça vários commits localmente se quiser (1 commit por mudança lógica é OK), mas **agrupe tudo num único `git push`**. Não fazer pushes sequenciais "um por commit" — desperdiça runners, polui o histórico de deploy e atrasa feedback. Se já deu push e percebeu que faltou algo pequeno, ainda assim espere reunir o próximo bloco de mudanças antes de subir de novo.
+
 | Otimizações | |
 |---|---|
 | Cache NuGet | `actions/cache` em `~/.nuget/packages` |
