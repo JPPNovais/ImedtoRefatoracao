@@ -3,6 +3,7 @@ using Imedto.Backend.Contracts.Automacoes.Commands;
 using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Time;
 using Npgsql;
 
 namespace Imedto.Backend.Application.Automacoes.Commands;
@@ -45,7 +46,7 @@ public class EnviarLembretesAgendamentosCommandHandler : ICommandHandler<EnviarL
 
         foreach (var ag in agendamentos)
         {
-            var hora = ag.InicioPrevisto.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm");
+            var hora = ag.InicioPrevisto.ToBrasilia().ToString("dd/MM/yyyy 'às' HH:mm");
             var assunto = $"Lembrete: consulta de {ag.TipoServico} em {hora}";
             var corpo = $"""
                 <p>Olá, <strong>{ag.PacienteNome}</strong>!</p>

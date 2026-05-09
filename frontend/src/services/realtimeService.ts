@@ -17,6 +17,9 @@ import {
  *   atrás do proxy Vite/nginx (same-origin).
  * - Reconexão automática com backoff: 0, 2s, 5s, 10s, 30s.
  * - Em dev (import.meta.env.DEV) loga em LogLevel.Information; em prod só Error.
+ * - **Page Visibility**: pausa a conexão quando a aba fica em background e religa quando volta.
+ *   Elimina ERR_NETWORK_IO_SUSPENDED (Chrome aborta IO de tab inativa) e economiza um poll
+ *   pendurado por aba ociosa.
  *
  * Uso:
  *   await realtimeService.start()
@@ -29,6 +32,11 @@ class RealtimeService {
     private connection: HubConnection | null = null
     private startPromise: Promise<void> | null = null
 
+    // Intenção do consumidor (login/logout). Diferente do estado real da conexão, que pode
+    // estar fechada porque a aba está em background.
+    private wantsConnected = false
+    private visibilityHandlerRegistered = false
+
     /**
      * Handlers registrados ANTES do start() são reaplicados na conexão recém-criada.
      * Mantemos a lista para sobreviver a reconexões após `stop()` + `start()`.
@@ -36,6 +44,23 @@ class RealtimeService {
     private handlers: Map<string, Set<(...args: any[]) => void>> = new Map()
 
     async start(): Promise<void> {
+        this.wantsConnected = true
+        this.registerVisibilityHandler()
+
+        // Aba já em background no momento do login/refresh: não conecta agora; o
+        // visibilitychange religa quando voltar.
+        if (this.isHidden()) return
+
+        return this.connect()
+    }
+
+    async stop(): Promise<void> {
+        this.wantsConnected = false
+        this.unregisterVisibilityHandler()
+        await this.disconnect()
+    }
+
+    private async connect(): Promise<void> {
         if (this.connection?.state === HubConnectionState.Connected) return
         if (this.startPromise) return this.startPromise
 
@@ -60,6 +85,12 @@ class RealtimeService {
             .withAutomaticReconnect(new BackoffRetryPolicy([0, 2000, 5000, 10_000, 30_000]))
             .configureLogging(import.meta.env.DEV ? LogLevel.Information : LogLevel.Error)
             .build()
+
+        // Tem que casar com Program.cs (KeepAliveInterval=5min, ClientTimeoutInterval=10min).
+        // serverTimeout >= 2x keepAlive do servidor — se ficar abaixo, cliente declara desconectado
+        // e dispara reconnect/negotiate desnecessário.
+        connection.serverTimeoutInMilliseconds = 10 * 60 * 1000
+        connection.keepAliveIntervalInMilliseconds = 5 * 60 * 1000
 
         // Reaplica handlers já registrados (sobrevive a stop()+start())
         for (const [eventName, set] of this.handlers) {
@@ -86,7 +117,7 @@ class RealtimeService {
         return this.startPromise
     }
 
-    async stop(): Promise<void> {
+    private async disconnect(): Promise<void> {
         const conn = this.connection
         this.connection = null
         this.startPromise = null
@@ -96,6 +127,33 @@ class RealtimeService {
             } catch {
                 /* ignore */
             }
+        }
+    }
+
+    private isHidden(): boolean {
+        return typeof document !== "undefined" && document.visibilityState === "hidden"
+    }
+
+    private registerVisibilityHandler(): void {
+        if (this.visibilityHandlerRegistered) return
+        if (typeof document === "undefined") return
+        document.addEventListener("visibilitychange", this.onVisibilityChange)
+        this.visibilityHandlerRegistered = true
+    }
+
+    private unregisterVisibilityHandler(): void {
+        if (!this.visibilityHandlerRegistered) return
+        if (typeof document === "undefined") return
+        document.removeEventListener("visibilitychange", this.onVisibilityChange)
+        this.visibilityHandlerRegistered = false
+    }
+
+    private onVisibilityChange = (): void => {
+        if (!this.wantsConnected) return
+        if (this.isHidden()) {
+            void this.disconnect()
+        } else {
+            void this.connect()
         }
     }
 

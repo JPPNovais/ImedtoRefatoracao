@@ -2,6 +2,7 @@ using Imedto.Backend.Contracts.Agendamentos.Queries;
 using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Time;
 
 namespace Imedto.Backend.Application.Agendamentos.Queries;
 
@@ -49,8 +50,8 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
             query.DataInicio,
             query.DataFim)).ToList();
 
-        // "Agora" em horário local — usado para marcar slots no passado.
-        var agora = DateTime.Now;
+        // "Agora" em Brasília — fonte da verdade do tempo local. Independente do TZ do container.
+        var agora = BrasiliaTime.Now;
 
         var slots = SlotGenerator.Gerar(horarioInicio, horarioFim, duracaoMin, intervaloMin);
 
@@ -79,9 +80,9 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
                 continue;
             }
 
-            // Agendamentos ativos do profissional neste dia
+            // Agendamentos ativos do profissional neste dia (compara em horário de Brasília).
             var agendsDia = agendamentos
-                .Where(a => DateOnly.FromDateTime(a.InicioPrevisto.ToLocalTime()) == data)
+                .Where(a => DateOnly.FromDateTime(a.InicioPrevisto.ToBrasilia()) == data)
                 .ToList();
 
             foreach (var slotHora in slots)
@@ -117,10 +118,10 @@ public class ConsultarDisponibilidadeQueryHandlers : IRequestHandler<ConsultarDi
                     continue;
                 }
 
-                // Existe agendamento ativo que cobre este slot?
+                // Existe agendamento ativo que cobre este slot? (overlap em horário de Brasília)
                 var agend = agendsDia.FirstOrDefault(a =>
-                    a.InicioPrevisto.ToLocalTime() < slotFim &&
-                    a.FimPrevisto.ToLocalTime() > slotInicio);
+                    a.InicioPrevisto.ToBrasilia() < slotFim &&
+                    a.FimPrevisto.ToBrasilia() > slotInicio);
 
                 if (agend is not null)
                 {

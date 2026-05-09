@@ -9,6 +9,7 @@
  */
 import { computed } from "vue"
 import type { Agendamento } from "@/services/agendaService"
+import { formatData, formatDataHora, formatHora } from "@/utils/datetime"
 
 const props = defineProps<{
     agendamento: Agendamento
@@ -61,7 +62,7 @@ const STATUS_META: Record<Agendamento["status"], {
 const meta = computed(() => STATUS_META[props.agendamento.status])
 
 function fmtHora(iso: string) {
-    return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    return formatHora(iso)
 }
 
 const duracaoMin = computed(() => {
@@ -115,12 +116,8 @@ function emitirAcao(evento: EventoAcao) {
     }
 }
 
-const horaFim = computed(() => {
-    return new Date(props.agendamento.fimPrevisto).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-})
-const dataLabel = computed(() => {
-    return new Date(props.agendamento.inicioPrevisto).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
-})
+const horaFim = computed(() => formatHora(props.agendamento.fimPrevisto))
+const dataLabel = computed(() => formatData(props.agendamento.inicioPrevisto, { day: "2-digit", month: "long", year: "numeric" }))
 
 const podeAlterar = computed(() => {
     const s = props.agendamento.status
@@ -232,7 +229,7 @@ const podeAlterar = computed(() => {
                 </div>
                 <div class="campo">
                     <span class="lbl">Criado em</span>
-                    <span class="val">{{ new Date(agendamento.criadoEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) }}</span>
+                    <span class="val">{{ formatDataHora(agendamento.criadoEm) }}</span>
                 </div>
             </div>
             <div v-if="agendamento.observacoes" class="obs-block">

@@ -5,6 +5,7 @@ using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Time;
 
 namespace Imedto.Backend.Application.Agendamentos.Commands;
 
@@ -68,11 +69,11 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
     {
         var estab = await _estabelecimentoRepo.ObterPorId(cmd.EstabelecimentoId);
 
-        // Converte UTC → local para comparar com horário de funcionamento (sem timezone no banco)
+        // Converte UTC → Brasília para comparar com horário de funcionamento (configurado em BRT).
         estab.ValidarPodeAgendar(
-            cmd.InicioPrevisto.ToLocalTime(),
-            cmd.FimPrevisto.ToLocalTime(),
-            DateTime.Now);
+            cmd.InicioPrevisto.ToBrasilia(),
+            cmd.FimPrevisto.ToBrasilia(),
+            BrasiliaTime.Now);
 
         // Conflito com agendamento existente do mesmo profissional NESTE estabelecimento
         // (profissional que atua em 2 estabs tem agendas independentes — defense-in-depth IDOR).

@@ -4,6 +4,7 @@ using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Time;
 
 namespace Imedto.Backend.Application.Agendamentos.Commands;
 
@@ -39,9 +40,9 @@ public class AtualizarAgendamentoCommandHandler : ICommandHandler<AtualizarAgend
 
         var estab = await _estabelecimentoRepo.ObterPorId(cmd.EstabelecimentoId);
         estab.ValidarPodeAgendar(
-            cmd.InicioPrevisto.ToLocalTime(),
-            cmd.FimPrevisto.ToLocalTime(),
-            DateTime.Now);
+            cmd.InicioPrevisto.ToBrasilia(),
+            cmd.FimPrevisto.ToBrasilia(),
+            BrasiliaTime.Now);
 
         if (await _agendamentoRepo.ExisteConflito(
                 cmd.EstabelecimentoId,

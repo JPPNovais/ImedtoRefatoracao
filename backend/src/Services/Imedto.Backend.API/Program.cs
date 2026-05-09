@@ -315,7 +315,13 @@ builder.Services.AddRateLimiter(options =>
 // no modo single-instance (correto e suficiente para dev/local; em prod é log de info).
 // TODO infra: provisionar Redis em prod (Terraform/Bicep — fora do escopo desta task).
 var redisConnection = builder.Configuration.GetSection("Redis:ConnectionString").Value;
-var signalR = builder.Services.AddSignalR();
+var signalR = builder.Services.AddSignalR(options =>
+{
+    // Reduz reconexões/negotiate em rede instável e atrás de proxy. Cliente (realtimeService.ts)
+    // tem que usar valores compatíveis: serverTimeoutInMilliseconds >= 2x KeepAliveInterval.
+    options.KeepAliveInterval = TimeSpan.FromMinutes(5);
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(10);
+});
 if (!string.IsNullOrWhiteSpace(redisConnection))
 {
     signalR.AddStackExchangeRedis(redisConnection, options =>

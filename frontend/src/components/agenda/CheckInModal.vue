@@ -13,6 +13,7 @@ import { computed, ref, watch } from "vue"
 import { AppButton, AppModal } from "@/components/ui"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
+import { formatDataHora, formatHora } from "@/utils/datetime"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 
 const props = defineProps<{
@@ -55,18 +56,16 @@ watch(() => props.aberto, async (aberto) => {
 })
 
 function fmtDataHora(iso: string) {
-    return new Date(iso).toLocaleString("pt-BR", {
+    return formatDataHora(iso, {
         weekday: "long",
         day: "2-digit",
         month: "long",
         year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
     })
 }
 
 function fmtHora(iso: string) {
-    return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    return formatHora(iso)
 }
 
 const duracaoMin = computed(() => {

@@ -29,29 +29,27 @@ import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoSe
 import { profissionalService } from "@/services/profissionalService"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { dataISO, formatHora, hojeISO } from "@/utils/datetime"
 
 const auth = useAuthStore()
 const tenant = useTenantStore()
 
 // ─── Data selecionada ───
+// Usa "hoje em Brasília" como fonte da verdade — independente do fuso do navegador
+// do usuário. Backend, banco e front falam o mesmo dia.
 function toISO(d: Date) {
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, "0")
-    const dd = String(d.getDate()).padStart(2, "0")
-    return `${y}-${m}-${dd}`
+    return dataISO(d)
 }
 
-const dataSel = ref(toISO(new Date()))
+const dataSel = ref(hojeISO())
 
 // ─── Relógio para marcação "AGORA" (só renderizada quando dataSel é hoje) ───
 const agora = ref(new Date())
 let agoraTimer: number | null = null
 
-const isHoje = computed(() => dataSel.value === toISO(agora.value))
+const isHoje = computed(() => dataSel.value === hojeISO())
 
-const horaAgoraLabel = computed(() =>
-    agora.value.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-)
+const horaAgoraLabel = computed(() => formatHora(agora.value))
 
 // ─── Estado base ───
 const agendamentos = ref<Agendamento[]>([])
