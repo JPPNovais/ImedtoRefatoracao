@@ -6,7 +6,7 @@
  * Modos: login | cadastro | recuperar (mantidos do fluxo anterior).
  * Em desktop: 2 colunas; em mobile (≤ 960px): só formulário, painel some.
  */
-import { computed, ref } from "vue"
+import { computed, onBeforeUnmount, ref } from "vue"
 import { useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import httpClient from "@/services/httpClient"
@@ -29,6 +29,13 @@ const mostrarSenhaConfirm = ref(false)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
 const sucesso = ref<string | null>(null)
+
+// Reenvio de confirmação (anti-spam: cooldown de 60s)
+const mostrarReenvio = ref(false)
+const reenviando = ref(false)
+const reenvioOk = ref(false)
+const cooldownReenvio = ref(0)
+let cooldownInterval: number | null = null
 
 const senhaForca = computed(() => {
     if (modo.value !== "cadastro" || !senha.value) return null
@@ -94,14 +101,58 @@ async function enviar() {
             setTimeout(() => irPara("login"), 3000)
         }
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Ocorreu um erro. Tente novamente."
+        const mensagem = e?.response?.data?.mensagem ?? "Ocorreu um erro. Tente novamente."
+        erro.value = mensagem
+
+        // Detecta erro de "e-mail não confirmado" e "e-mail já existe" pra oferecer reenvio.
+        const lower = mensagem.toLowerCase()
+        if (
+            lower.includes("confirme seu e-mail") ||
+            lower.includes("já existe uma conta")
+        ) {
+            mostrarReenvio.value = true
+        }
     } finally {
         carregando.value = false
     }
 }
 
+async function reenviarConfirmacao() {
+    if (cooldownReenvio.value > 0 || !email.value) return
+    reenviando.value = true
+    erro.value = null
+    try {
+        await auth.reenviarConfirmacao(email.value)
+        reenvioOk.value = true
+        sucesso.value = "Se a conta existir e estiver pendente, um novo e-mail foi enviado."
+        iniciarCooldown(300)
+    } catch {
+        // Mantém comportamento anti-enumeração — não revela falha.
+        sucesso.value = "Se a conta existir e estiver pendente, um novo e-mail foi enviado."
+        iniciarCooldown(300)
+    } finally {
+        reenviando.value = false
+    }
+}
+
+function iniciarCooldown(segundos: number) {
+    cooldownReenvio.value = segundos
+    if (cooldownInterval) window.clearInterval(cooldownInterval)
+    cooldownInterval = window.setInterval(() => {
+        cooldownReenvio.value -= 1
+        if (cooldownReenvio.value <= 0 && cooldownInterval) {
+            window.clearInterval(cooldownInterval)
+            cooldownInterval = null
+        }
+    }, 1000)
+}
+
+onBeforeUnmount(() => { if (cooldownInterval) window.clearInterval(cooldownInterval) })
+
 function irPara(m: Modo) {
     modo.value = m
+    mostrarReenvio.value = false
+    reenvioOk.value = false
     erro.value = null
     sucesso.value = null
     resetEmail.value = ""
@@ -121,6 +172,25 @@ function irPara(m: Modo) {
 
                 <div v-if="sucesso" class="alerta alerta--sucesso">{{ sucesso }}</div>
                 <div v-if="erro" class="alerta alerta--erro">{{ erro }}</div>
+
+                <!-- Reenviar e-mail de confirmação (aparece quando o backend
+                     retorna "Confirme seu e-mail" ou "Já existe uma conta"). -->
+                <div v-if="mostrarReenvio" class="reenvio-confirmacao">
+                    <button
+                        type="button"
+                        class="btn-link"
+                        :disabled="reenviando || cooldownReenvio > 0 || !email"
+                        @click="reenviarConfirmacao"
+                    >
+                        <template v-if="reenviando">Enviando…</template>
+                        <template v-else-if="cooldownReenvio > 0">
+                            Aguarde {{ Math.floor(cooldownReenvio / 60) }}:{{ String(cooldownReenvio % 60).padStart(2, "0") }} para reenviar
+                        </template>
+                        <template v-else>
+                            Não recebeu? Reenviar e-mail de confirmação
+                        </template>
+                    </button>
+                </div>
 
                 <!-- Modo recuperar -->
                 <template v-if="modo === 'recuperar'">

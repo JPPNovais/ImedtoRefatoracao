@@ -44,7 +44,7 @@ async function reenviar() {
     try {
         await auth.reenviarConfirmacao(emailReenvio.value)
         reenvioOk.value = true
-        iniciarCooldown(60)
+        iniciarCooldown(300)
     } finally {
         reenviando.value = false
     }
@@ -113,7 +113,7 @@ function irParaLogin() {
                             reenviando
                                 ? "Enviando…"
                                 : cooldownSegundos > 0
-                                    ? `Aguarde ${cooldownSegundos}s para reenviar`
+                                    ? `Aguarde ${Math.floor(cooldownSegundos / 60)}:${String(cooldownSegundos % 60).padStart(2, "0")} para reenviar`
                                     : reenvioOk
                                         ? "Reenviar novamente"
                                         : "Reenviar e-mail"

@@ -31,7 +31,7 @@ public class LocalJwtAuthService : IAuthService
     /// não consegue gerar e-mail novo a cada clique. Aplicado em reenvio de confirmação
     /// e em forgot-password.
     /// </summary>
-    private static readonly TimeSpan CooldownReenvio = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan CooldownReenvio = TimeSpan.FromMinutes(5);
 
     private readonly IAuthCredencialRepository _credenciaisRepo;
     private readonly IAuthRefreshTokenRepository _refreshRepo;
