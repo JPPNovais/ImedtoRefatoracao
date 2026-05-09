@@ -67,7 +67,21 @@ Atualizado em: 2026-05-09
 | Database de aplicação | `imedto` |
 | Extensions instaladas | `pg_trgm`, `unaccent`, `btree_gist`, `pgcrypto`, `citext` |
 | Subnet group | `imedto-subnets` |
-| Parameter group | `imedto-pg17` (com `pg_stat_statements` no `shared_preload_libraries`) |
+| Parameter group | `imedto-pg17` (custom — ver tabela abaixo) |
+
+**Parâmetros customizados em `imedto-pg17`:**
+
+| Param | Valor | Aplicação | Para que serve |
+|---|---|---|---|
+| `shared_preload_libraries` | `pg_stat_statements` | pending-reboot | Habilita view `pg_stat_statements` (top queries por tempo agregado) |
+| `log_min_duration_statement` | `500` | immediate | Loga toda query >500ms no CloudWatch (`/aws/rds/instance/imedto-dev/postgresql`) |
+| `log_lock_waits` | `1` | immediate | Loga lock waits acima de `deadlock_timeout` (default 1s) — detecta contenção |
+| `log_temp_files` | `0` | immediate | Loga uso de arquivos temporários (queries que estouram `work_mem`) |
+
+**Ler logs de queries lentas:**
+```bash
+AWS_PROFILE=imedto aws logs tail /aws/rds/instance/imedto-dev/postgresql --since 1h --follow
+```
 
 > ⚠️ Postgres só responde **de dentro do `imedto-ec2-sg`** — pra acessar do laptop, túnel via EC2:
 > `ssh -i ~/.ssh/imedto-deploy.pem -L 5432:imedto-dev.cx0648wywxg8.sa-east-1.rds.amazonaws.com:5432 ec2-user@56.125.254.136`

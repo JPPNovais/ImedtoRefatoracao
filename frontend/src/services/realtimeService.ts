@@ -1,5 +1,4 @@
 import {
-    HttpTransportType,
     HubConnection,
     HubConnectionBuilder,
     HubConnectionState,
@@ -14,7 +13,10 @@ import {
  * - Conecta em /hubs/estabelecimento (mesmo origin → cookie HttpOnly `access-token` é enviado
  *   automaticamente no negotiate HTTP). O backend tem fallback para query string `?access_token=`
  *   apenas quando o WebSocket handshake não propagar cookie — não usamos isso aqui pois rodamos
- *   atrás do proxy Vite/nginx (same-origin).
+ *   atrás do Caddy (em prod) / Vite (em dev), ambos same-origin e com WebSocket upgrade nativo.
+ * - Transporte: deixamos o SignalR negociar (WebSocket → SSE → LongPolling). Em prod o Caddy
+ *   v2 propaga `Upgrade: websocket` no `reverse_proxy /hubs/*`, então a conexão sobe como WS.
+ *   Bem mais barato que LongPolling (1 conexão TCP estável vs N polls renovando a cada 5min).
  * - Reconexão automática com backoff: 0, 2s, 5s, 10s, 30s.
  * - Em dev (import.meta.env.DEV) loga em LogLevel.Information; em prod só Error.
  * - **Page Visibility**: pausa a conexão quando a aba fica em background e religa quando volta.
@@ -65,22 +67,16 @@ class RealtimeService {
         if (this.startPromise) return this.startPromise
 
         // Hub URL: same-origin sempre. Em dev o proxy do Vite leva pra localhost:5050.
-        // Em prod, a Vercel reescreve /hubs/* para o backend (Render). Isso mantém
-        // o cookie HttpOnly como first-party (essencial em modo anônimo / Privacy
-        // Sandbox), com a contrapartida que o WebSocket upgrade não atravessa
-        // o proxy da Vercel — por isso forçamos LongPolling em prod.
+        // Em prod, o Caddy faz reverse_proxy /hubs/* → backend:5000 e propaga
+        // o Upgrade: websocket nativamente — então o SignalR negocia WebSocket
+        // (mais barato que LongPolling: 1 conexão estável em vez de polls).
         const hubUrl = "/hubs/estabelecimento"
-
-        const isProd = import.meta.env.PROD
 
         const connection = new HubConnectionBuilder()
             .withUrl(hubUrl, {
                 // SignalR JS propaga cookies same-origin por default no negotiate HTTP.
                 // Não setamos accessTokenFactory: o backend lê do cookie HttpOnly.
                 withCredentials: true,
-                // Em produção atrás do proxy da Vercel, WebSocket upgrade não
-                // funciona; LongPolling (HTTP) atravessa o proxy normalmente.
-                ...(isProd ? { transport: HttpTransportType.LongPolling } : {}),
             })
             .withAutomaticReconnect(new BackoffRetryPolicy([0, 2000, 5000, 10_000, 30_000]))
             .configureLogging(import.meta.env.DEV ? LogLevel.Information : LogLevel.Error)

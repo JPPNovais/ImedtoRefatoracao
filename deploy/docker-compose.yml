@@ -11,8 +11,15 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:5000"
-      ConnectionStrings__Default: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Maximum Pool Size=10"
-      ConnectionStrings__Migrations: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true"
+      # Pool Npgsql:
+      # - Maximum Pool Size=20 → folga sem estourar max_connections=81 do RDS t4g.micro
+      #   (margem para psql administrativo + workflow de migrate em CI).
+      # - Minimum Pool Size=2 → mantém 2 conexões warm; primeiro request não paga TLS handshake.
+      # - Connection Idle Lifetime=300 → recicla idle após 5min, libera slot do RDS.
+      # - Connection Pruning Interval=10 → varre idle a cada 10s.
+      # - Command Timeout=30 → query lenta (>30s) aborta em vez de segurar pool inteiro.
+      ConnectionStrings__Default: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Maximum Pool Size=20;Minimum Pool Size=2;Connection Idle Lifetime=300;Connection Pruning Interval=10;Command Timeout=30"
+      ConnectionStrings__Migrations: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Command Timeout=120"
       Auth__Jwt__Issuer: imedto-backend
       Auth__Jwt__Audience: imedto-app
       Auth__Jwt__PrivateKeyPem: ${JWT_PRIVATE_KEY_PEM}
