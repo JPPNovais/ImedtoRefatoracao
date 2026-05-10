@@ -75,6 +75,9 @@ function modelo(c: ProfissionalVinculado): ModeloPermissao | undefined {
                                 :icone="modelo(c)!.icone"
                                 :cor="modelo(c)!.cor"
                             />
+                            <span v-if="c.profissao" class="ic-spec ic-spec--profissao">
+                                <i class="fa-solid fa-user-doctor"></i> {{ c.profissao }}
+                            </span>
                             <span v-if="c.especialidade" class="ic-spec">{{ c.especialidade }}</span>
                             <span v-if="c.conselho" class="ic-spec">{{ c.conselho }}</span>
                         </div>
@@ -146,6 +149,13 @@ function modelo(c: ProfissionalVinculado): ModeloPermissao | undefined {
     font-size: 11px; color: hsl(var(--secondary) / 0.6);
     padding: 2px 8px; background: hsl(var(--secondary) / 0.05); border-radius: 999px;
 }
+.ic-spec--profissao {
+    color: hsl(var(--info));
+    background: hsl(var(--info) / 0.08);
+    font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.ic-spec--profissao i { font-size: 10px; }
 
 .ic-actions { display: flex; gap: 6px; align-items: center; }
 </style>

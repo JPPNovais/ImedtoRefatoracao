@@ -11,6 +11,7 @@ export interface ProfissionalVinculado {
     modeloPermissaoNome: string
     especialidade?: string | null
     conselho?: string | null
+    profissao?: string | null
 }
 
 export interface ConvitePendente {

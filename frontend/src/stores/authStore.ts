@@ -66,9 +66,13 @@ export const useAuthStore = defineStore("auth", () => {
 
     /**
      * Sobe a conexão SignalR e bind do store de notificações. Fire-and-forget — não trava
-     * o login se o hub estiver offline.
+     * o login se o hub estiver offline. Pulado quando o onboarding ainda não foi concluído:
+     * o backend bloqueia /api/notificacoes/* com 403 OnboardingPendente, e ainda não há
+     * notificações pra exibir. Após finalizar o onboarding, recarregarMe() roda de novo
+     * com o usuário atualizado e o realtime sobe.
      */
     function ativarRealtime() {
+        if (!usuario.value?.onboardingCompleto) return
         useNotificacoesStore().bindRealtime()
         void realtimeService.start()
     }

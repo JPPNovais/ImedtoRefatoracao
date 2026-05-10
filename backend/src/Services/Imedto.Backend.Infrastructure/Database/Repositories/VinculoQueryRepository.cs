@@ -33,11 +33,13 @@ public class VinculoQueryRepository
                     v.convidado_em             AS ConvidadoEm,
                     v.aceito_em                AS AceitoEm,
                     COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
-                    p.conselho                 AS Conselho
+                    p.conselho                 AS Conselho,
+                    pr.nome                    AS Profissao
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.usuarios u ON u.id = v.profissional_usuario_id
             LEFT JOIN public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
             LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id
+            LEFT JOIN public.profissoes pr ON pr.id = v.profissao_convidada_id
             WHERE   v.estabelecimento_id = @EstabelecimentoId
               AND   v.status <> 'Inativo'
               AND   v.profissional_usuario_id
@@ -55,7 +57,8 @@ public class VinculoQueryRepository
                     e.criado_em                AS ConvidadoEm,
                     e.criado_em                AS AceitoEm,
                     p.especialidade            AS Especialidade,
-                    p.conselho                 AS Conselho
+                    p.conselho                 AS Conselho,
+                    NULL::text                 AS Profissao
             FROM    public.estabelecimentos e
             JOIN    public.usuarios u ON u.id = e.dono_usuario_id
             LEFT JOIN public.profissionais p ON p.usuario_id = e.dono_usuario_id

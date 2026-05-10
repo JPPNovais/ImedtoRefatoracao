@@ -13,4 +13,10 @@ public class ProfissionalVinculadoDto
     public DateTime? AceitoEm { get; set; }
     public string? Especialidade { get; set; }
     public string? Conselho { get; set; }
+
+    /// <summary>
+    /// Nome da profissão. Hoje vem apenas de convites (via profissao_convidada_id);
+    /// profissionais já ativados não persistem o vínculo com o catálogo de profissões.
+    /// </summary>
+    public string? Profissao { get; set; }
 }
