@@ -118,10 +118,13 @@ public class VinculoQueryRepository
                     v.nome_convidado           AS NomeConvidado,
                     v.telefone_convidado       AS TelefoneConvidado,
                     v.especialidade_convidada  AS EspecialidadeConvidada,
+                    v.profissao_convidada_id   AS ProfissaoConvidadaId,
+                    pr.nome                    AS ProfissaoConvidadaNome,
                     v.modelo_permissao_id      AS ModeloPermissaoId
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.estabelecimentos e ON e.id = v.estabelecimento_id
             JOIN    public.usuarios c ON c.id = v.convidado_por_usuario_id
+            LEFT JOIN public.profissoes pr ON pr.id = v.profissao_convidada_id
             WHERE   v.profissional_usuario_id = @UsuarioId
               AND   v.status = 'Convidado'
             ORDER BY v.convidado_em DESC

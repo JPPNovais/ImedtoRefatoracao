@@ -14,5 +14,7 @@ public class ConviteDto
     public string NomeConvidado { get; set; }
     public string TelefoneConvidado { get; set; }
     public string EspecialidadeConvidada { get; set; }
+    public long? ProfissaoConvidadaId { get; set; }
+    public string ProfissaoConvidadaNome { get; set; }
     public long? ModeloPermissaoId { get; set; }
 }

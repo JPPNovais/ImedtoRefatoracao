@@ -24,6 +24,7 @@ public class VinculoProfissionalEstabelecimentoConfiguration : IEntityTypeConfig
         builder.Property(v => v.NomeConvidado).HasColumnName("nome_convidado").HasMaxLength(200);
         builder.Property(v => v.TelefoneConvidado).HasColumnName("telefone_convidado").HasMaxLength(20);
         builder.Property(v => v.EspecialidadeConvidada).HasColumnName("especialidade_convidada").HasMaxLength(200);
+        builder.Property(v => v.ProfissaoConvidadaId).HasColumnName("profissao_convidada_id");
 
         builder.HasIndex(v => new { v.EstabelecimentoId, v.Status }).HasDatabaseName("ix_vinculo_estabelecimento_status");
         builder.HasIndex(v => new { v.ProfissionalUsuarioId, v.Status }).HasDatabaseName("ix_vinculo_profissional_status");

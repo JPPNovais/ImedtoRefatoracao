@@ -234,7 +234,10 @@ const TIPOS_ATEND = [
 const profissoesCatalogo = ref<ProfissaoCatalogo[]>([])
 const especialidadesCatalogo = ref<EspecialidadeCatalogo[]>([])
 const carregandoEspecialidadesCatalogo = ref(false)
+const erroProfissoes = ref<string | null>(null)
 const profissaoId = ref<number | null>(null)
+// Especialidade vinda do convite — pré-selecionada após carregar o catálogo da profissão.
+const especialidadePreConvite = ref<string | null>(null)
 
 const especialidadesSelecionadas = ref<string[]>([])
 const conselho = ref("CRM")
@@ -258,6 +261,13 @@ watch(profissaoId, async (id) => {
     carregandoEspecialidadesCatalogo.value = true
     try {
         especialidadesCatalogo.value = await catalogoService.listarEspecialidades(id)
+        // Pré-seleção de especialidade vinda do convite, quando bate com o catálogo carregado.
+        if (especialidadePreConvite.value) {
+            const alvo = especialidadePreConvite.value.trim().toLowerCase()
+            const match = especialidadesCatalogo.value.find(e => e.nome.toLowerCase() === alvo)
+            if (match) especialidadesSelecionadas.value = [match.nome]
+            especialidadePreConvite.value = null
+        }
     } catch {
         // falha silenciosa — usuário pode prosseguir sem especialidade
     } finally {
@@ -456,8 +466,14 @@ onMounted(async () => {
     // Carrega profissões do catálogo para o Step 3.
     try {
         profissoesCatalogo.value = await catalogoService.listarProfissoes()
-    } catch {
-        // falha silenciosa — step 3 fica funcional sem a lista
+        if (profissoesCatalogo.value.length === 0) {
+            erroProfissoes.value = "Não foi possível carregar a lista de profissões. Recarregue a página."
+        }
+    } catch (e: any) {
+        const status = e?.response?.status
+        const msg = e?.response?.data?.mensagem ?? e?.message ?? "Erro desconhecido"
+        erroProfissoes.value = `Falha ao carregar profissões${status ? ` (HTTP ${status})` : ""}: ${msg}`
+        console.error("[Onboarding] catalogoService.listarProfissoes falhou:", e)
     }
 
     // Pré-preenchimento via convite pendente.
@@ -484,8 +500,16 @@ onMounted(async () => {
                 conta.telefone = d
             }
         }
-        // Especialidade do convite: pré-selecionamos após o usuário escolher a profissão
-        // (não temos profissaoId ainda), então apenas guardamos para uso futuro se necessário.
+        // Profissão e especialidade pré-cadastradas pelo convidador.
+        // Setar profissaoId dispara o watcher que carrega especialidades; guardamos
+        // a especialidade-alvo em ref auxiliar pra ser pré-selecionada quando o
+        // catálogo terminar de chegar.
+        if (c.especialidadeConvidada) {
+            especialidadePreConvite.value = c.especialidadeConvidada
+        }
+        if (c.profissaoConvidadaId) {
+            profissaoId.value = c.profissaoConvidadaId
+        }
     } catch {
         // Falha ao buscar convites não bloqueia o onboarding — usuário preenche do zero.
     }
@@ -771,6 +795,7 @@ const stepperPassos = computed(() => [
                                 <option v-for="p in profissoesCatalogo" :key="p.id" :value="p.id">{{ p.nome }}</option>
                             </select>
                         </div>
+                        <p v-if="erroProfissoes" class="cpf-msg">{{ erroProfissoes }}</p>
                     </div>
 
                     <!-- Chips de especialidade (carregados do catálogo) -->

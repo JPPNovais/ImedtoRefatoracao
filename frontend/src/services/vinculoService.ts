@@ -23,6 +23,8 @@ export interface ConvitePendente {
     nomeConvidado: string | null
     telefoneConvidado: string | null
     especialidadeConvidada: string | null
+    profissaoConvidadaId: number | null
+    profissaoConvidadaNome: string | null
     modeloPermissaoId: number | null
 }
 

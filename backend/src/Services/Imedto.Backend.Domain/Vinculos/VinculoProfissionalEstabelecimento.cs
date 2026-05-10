@@ -30,6 +30,7 @@ public class VinculoProfissionalEstabelecimento : Entity
     public virtual string NomeConvidado { get; protected set; }
     public virtual string TelefoneConvidado { get; protected set; }
     public virtual string EspecialidadeConvidada { get; protected set; }
+    public virtual long? ProfissaoConvidadaId { get; protected set; }
 
     protected VinculoProfissionalEstabelecimento() { }
 
@@ -40,7 +41,8 @@ public class VinculoProfissionalEstabelecimento : Entity
         Guid convidadoPorUsuarioId,
         string nomeConvidado = null,
         string telefoneConvidado = null,
-        string especialidadeConvidada = null)
+        string especialidadeConvidada = null,
+        long? profissaoConvidadaId = null)
     {
         if (profissionalUsuarioId == Guid.Empty)
             throw new BusinessException("Profissional é obrigatório.");
@@ -63,7 +65,8 @@ public class VinculoProfissionalEstabelecimento : Entity
             ConvidadoEm = DateTime.UtcNow,
             NomeConvidado = NormalizarTexto(nomeConvidado, 200),
             TelefoneConvidado = NormalizarTelefone(telefoneConvidado),
-            EspecialidadeConvidada = NormalizarTexto(especialidadeConvidada, 200)
+            EspecialidadeConvidada = NormalizarTexto(especialidadeConvidada, 200),
+            ProfissaoConvidadaId = profissaoConvidadaId is { } pid && pid > 0 ? pid : null
         };
     }
 
@@ -172,7 +175,8 @@ public class VinculoProfissionalEstabelecimento : Entity
         Guid convidadoPorUsuarioId,
         string nomeConvidado = null,
         string telefoneConvidado = null,
-        string especialidadeConvidada = null)
+        string especialidadeConvidada = null,
+        long? profissaoConvidadaId = null)
     {
         if (Status != VinculoStatus.Inativo)
             throw new BusinessException("Apenas vínculos inativos podem ser reativados.");
@@ -190,6 +194,7 @@ public class VinculoProfissionalEstabelecimento : Entity
         NomeConvidado = NormalizarTexto(nomeConvidado, 200);
         TelefoneConvidado = NormalizarTelefone(telefoneConvidado);
         EspecialidadeConvidada = NormalizarTexto(especialidadeConvidada, 200);
+        ProfissaoConvidadaId = profissaoConvidadaId is { } pid && pid > 0 ? pid : null;
 
         AddDomainEvent(new ProfissionalConvidadoEvent(
             Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId));

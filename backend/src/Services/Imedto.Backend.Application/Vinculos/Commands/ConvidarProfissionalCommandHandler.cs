@@ -52,16 +52,20 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
             throw new BusinessException("Plano não permite mais profissionais. Faça upgrade.");
 
         // Valida especialidade × profissão contra o catálogo (defense-in-depth do front).
-        if (!string.IsNullOrWhiteSpace(command.Especialidade))
+        // Profissão pode vir sozinha (convidador sugere só a profissão); especialidade
+        // sem profissão é inválida.
+        if (command.ProfissaoId is { } profId && profId > 0)
         {
-            if (command.ProfissaoId is not { } profId || profId <= 0)
-                throw new BusinessException("Profissão é obrigatória quando especialidade for informada.");
-
             if (!await _catalogoRepo.ExisteProfissaoAtiva(profId))
                 throw new BusinessException("Profissão informada é inválida ou está inativa.");
 
-            if (!await _catalogoRepo.ExisteEspecialidadeAtivaPorNome(profId, command.Especialidade))
+            if (!string.IsNullOrWhiteSpace(command.Especialidade)
+                && !await _catalogoRepo.ExisteEspecialidadeAtivaPorNome(profId, command.Especialidade))
                 throw new BusinessException("Especialidade não pertence à profissão selecionada ou está inativa.");
+        }
+        else if (!string.IsNullOrWhiteSpace(command.Especialidade))
+        {
+            throw new BusinessException("Profissão é obrigatória quando especialidade for informada.");
         }
 
         // Modelo de permissão é opcional. Se vier explícito, valida que pertence
@@ -100,7 +104,8 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
                 command.ConvidadoPorUsuarioId,
                 command.Nome,
                 command.Telefone,
-                command.Especialidade);
+                command.Especialidade,
+                command.ProfissaoId);
             vinculo = existente;
             await _vinculoRepo.Salvar(vinculo);
         }
@@ -113,7 +118,8 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
                 command.ConvidadoPorUsuarioId,
                 command.Nome,
                 command.Telefone,
-                command.Especialidade);
+                command.Especialidade,
+                command.ProfissaoId);
 
             await _vinculoRepo.Salvar(vinculo);    // popula Id
             vinculo.MarcarComoConvidado();          // anexa event com Id correto
