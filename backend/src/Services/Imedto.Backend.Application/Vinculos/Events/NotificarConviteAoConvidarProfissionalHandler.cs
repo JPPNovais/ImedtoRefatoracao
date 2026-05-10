@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.Domain.Usuarios;
@@ -27,6 +28,7 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
     private readonly INotificacaoService _notificacoes;
     private readonly IUsuarioRepository _usuarioRepo;
     private readonly IEmailService _email;
+    private readonly IAuthService _authService;
     private readonly EmailOptions _emailOptions;
     private readonly ILogger<NotificarConviteAoConvidarProfissionalHandler> _logger;
 
@@ -34,12 +36,14 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
         INotificacaoService notificacoes,
         IUsuarioRepository usuarioRepo,
         IEmailService email,
+        IAuthService authService,
         IOptions<EmailOptions> emailOptions,
         ILogger<NotificarConviteAoConvidarProfissionalHandler> logger)
     {
         _notificacoes = notificacoes;
         _usuarioRepo = usuarioRepo;
         _email = email;
+        _authService = authService;
         _emailOptions = emailOptions.Value;
         _logger = logger;
     }
@@ -61,10 +65,13 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
             if (usuario is null || string.IsNullOrWhiteSpace(usuario.Email)) return;
 
             var appUrl = _emailOptions.AppBaseUrl ?? "https://app.imedto.com";
+            // Para convidados sem conta, devolve um link absoluto pra /auth/aceitar-convite?token=...
+            // Para quem já tem senha, retorna null e o template vira o CTA pra /meus-convites.
+            var linkAceite = await _authService.GerarLinkAceiteConviteAsync(domainEvent.ProfissionalUsuarioId);
             await _email.EnviarAsync(
                 para: usuario.Email,
                 assunto: "Você foi convidado a um estabelecimento no Imedto",
-                corpoHtml: EmailTemplates.ConviteVinculo(appUrl),
+                corpoHtml: EmailTemplates.ConviteVinculo(appUrl, linkAceite),
                 corpoTexto: "Você recebeu um convite para se vincular a um estabelecimento no Imedto. Acesse 'Meus convites' para revisar.");
         }
         catch (Exception ex)

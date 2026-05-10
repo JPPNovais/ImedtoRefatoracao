@@ -76,10 +76,31 @@ public static class EmailTemplates
     /// Render de convite para vincular-se a um estabelecimento. Mensagem genérica:
     /// não inclui o nome do estabelecimento (LGPD/UX — detalhes ficam na tela
     /// "Meus convites" depois do login).
+    ///
+    /// <paramref name="linkAceite"/> opcional: quando presente, CTA leva direto pra
+    /// /auth/aceitar-convite?token=... (cenário do convidado novo, sem conta).
+    /// Quando null, CTA leva pra /meus-convites (cenário de quem já tem conta).
     /// </summary>
-    public static string ConviteVinculo(string appUrl)
+    public static string ConviteVinculo(string appUrl, string? linkAceite = null)
     {
         var url = HtmlEscape(appUrl.TrimEnd('/'));
+        var bloco = linkAceite is null
+            ? $$"""
+                <p>Para revisar e aceitar o convite:</p>
+                <ol style="color:#737373;margin-left:20px;margin-bottom:20px;">
+                  <li>Acesse a plataforma com o e-mail que recebeu este convite.</li>
+                  <li>Se ainda não tem uma conta, crie uma usando este mesmo e-mail.</li>
+                  <li>Abra a aba <strong>Meus convites</strong> e aceite a solicitação.</li>
+                </ol>
+                <p style="text-align:center;"><a href="{{url}}/meus-convites" class="button">Acessar Imedto</a></p>
+                """
+            : $$"""
+                <p>Clique no botão abaixo para criar sua senha e aceitar o convite — leva menos de um minuto.</p>
+                <p style="text-align:center;"><a href="{{HtmlEscape(linkAceite)}}" class="button">Aceitar convite</a></p>
+                <p style="font-size:13px;color:#737373;text-align:center;">
+                  O link é válido por 7 dias. Se já tiver uma conta com este e-mail, basta entrar e acessar <strong>Meus convites</strong>.
+                </p>
+                """;
         var conteudo = $$"""
             <h1>Você foi convidado para o Imedto</h1>
             <p>Olá,</p>
@@ -88,13 +109,7 @@ public static class EmailTemplates
               <p><strong>O que é o Imedto?</strong></p>
               <p>O Imedto é um sistema completo de gestão em saúde — agenda, prontuário eletrônico, financeiro e equipe num só lugar, com segurança e conformidade LGPD.</p>
             </div>
-            <p>Para revisar e aceitar o convite:</p>
-            <ol style="color:#737373;margin-left:20px;margin-bottom:20px;">
-              <li>Acesse a plataforma com o e-mail que recebeu este convite.</li>
-              <li>Se ainda não tem uma conta, crie uma usando este mesmo e-mail.</li>
-              <li>Abra a aba <strong>Meus convites</strong> e aceite a solicitação.</li>
-            </ol>
-            <p style="text-align:center;"><a href="{{url}}/meus-convites" class="button">Acessar Imedto</a></p>
+            {{bloco}}
             <div class="divider"></div>
             <p style="font-size:14px;color:#737373;">
               Se você não esperava receber este convite, pode simplesmente ignorar este e-mail.

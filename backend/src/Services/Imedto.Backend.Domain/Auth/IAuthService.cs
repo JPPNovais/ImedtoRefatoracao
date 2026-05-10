@@ -45,4 +45,12 @@ public interface IAuthService
     /// chamada autenticada por usuário do tenant, então NÃO precisa silenciar como anti-enumeração.
     /// </summary>
     Task ReenviarConviteAsync(string email);
+
+    /// <summary>
+    /// Gera um token novo de convite para o usuário e devolve o link absoluto
+    /// para a tela de aceite (define senha + entra logado). Retorna null quando
+    /// a credencial já tem senha definida — nesse cenário, o convidado deve usar
+    /// o login normal e ir em "Meus convites".
+    /// </summary>
+    Task<string?> GerarLinkAceiteConviteAsync(Guid usuarioId);
 }

@@ -43,6 +43,11 @@ const router = createRouter({
             component: () => import("@/views/auth/RedefinirSenhaView.vue"),
         },
         {
+            path: "/auth/aceitar-convite",
+            name: "AceitarConvite",
+            component: () => import("@/views/auth/AceitarConviteView.vue"),
+        },
+        {
             path: "/privacidade",
             name: "Privacidade",
             component: () => import("@/views/legal/PrivacidadeView.vue"),

@@ -112,6 +112,14 @@ export const useAuthStore = defineStore("auth", () => {
         await httpClient.post("/auth/redefinir-senha", { token, novaSenha })
     }
 
+    async function aceitarConvite(token: string, email: string, novaSenha: string) {
+        // Backend já loga o usuário (cookies HttpOnly setados na resposta).
+        await httpClient.post("/auth/aceitar-convite", { token, email, novaSenha })
+        await recarregarMe()
+        await useProfissionalStore().init()
+        ativarRealtime()
+    }
+
     async function recarregarMe() {
         const { data } = await httpClient.get("/auth/me")
         usuario.value = data.usuario
@@ -140,6 +148,7 @@ export const useAuthStore = defineStore("auth", () => {
         confirmarEmail,
         reenviarConfirmacao,
         redefinirSenha,
+        aceitarConvite,
         setUsuario,
         recarregarMe,
         ativarRealtime,

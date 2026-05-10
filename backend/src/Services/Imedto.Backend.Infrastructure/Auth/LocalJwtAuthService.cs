@@ -314,9 +314,10 @@ public class LocalJwtAuthService : IAuthService
 
     /// <summary>
     /// Reenvia o e-mail de convite de vínculo. Aplica cooldown 5 min (mesmo critério dos
-    /// outros reenvios) e gera token novo tipo <see cref="AuthEmailTokenTipo.Convite"/>.
-    /// Diferente de <see cref="ReenviarConfirmacaoEmailAsync"/>, NÃO silencia erros — é
-    /// chamada autenticada (dono do estabelecimento), não há risco de enumeração.
+    /// outros reenvios) e gera token novo tipo <see cref="AuthEmailTokenTipo.Convite"/>
+    /// para o link de aceite. Diferente de <see cref="ReenviarConfirmacaoEmailAsync"/>,
+    /// NÃO silencia erros — é chamada autenticada (dono do estabelecimento), não há
+    /// risco de enumeração.
     /// </summary>
     public async Task ReenviarConviteAsync(string email)
     {
@@ -334,14 +335,28 @@ public class LocalJwtAuthService : IAuthService
             throw new BusinessException($"Aguarde {restante}s antes de reenviar o convite novamente.");
         }
 
-        var (cru, hashTok) = GerarTokenAleatorio();
-        var token = AuthEmailToken.Emitir(
-            credencial.Id, AuthEmailTokenTipo.Convite, hashTok, DateTime.UtcNow.Add(TtlConvite));
-        await _emailTokenRepo.AdicionarAsync(token);
-
+        var linkAceite = await GerarLinkAceiteConviteAsync(credencial.Id);
         var appUrl = (_emailOptions.AppBaseUrl ?? "https://app.imedto.com").TrimEnd('/');
         await _emails.EnviarAsync(emailNorm, "Você foi convidado a um estabelecimento no Imedto",
-            EmailTemplates.ConviteVinculo(appUrl));
+            EmailTemplates.ConviteVinculo(appUrl, linkAceite));
+    }
+
+    /// <summary>
+    /// Gera um token novo (tipo Convite, TTL 7d) para o usuário e devolve o link
+    /// absoluto pra tela de aceite. Retorna null se a credencial já tem senha
+    /// definida — nesse caso o convidado deve logar normalmente.
+    /// </summary>
+    public async Task<string?> GerarLinkAceiteConviteAsync(Guid usuarioId)
+    {
+        var credencial = await _credenciaisRepo.ObterPorIdAsync(usuarioId);
+        if (credencial is null || credencial.TemSenhaDefinida) return null;
+
+        var (cru, hashTok) = GerarTokenAleatorio();
+        var token = AuthEmailToken.Emitir(
+            usuarioId, AuthEmailTokenTipo.Convite, hashTok, DateTime.UtcNow.Add(TtlConvite));
+        await _emailTokenRepo.AdicionarAsync(token);
+
+        return MontarLink("/auth/aceitar-convite", cru);
     }
 
     /// <summary>Confirma e-mail consumindo um token. Usado pelo endpoint POST /api/auth/confirmar-email.</summary>
