@@ -312,6 +312,38 @@ public class LocalJwtAuthService : IAuthService
         }
     }
 
+    /// <summary>
+    /// Reenvia o e-mail de convite de vínculo. Aplica cooldown 5 min (mesmo critério dos
+    /// outros reenvios) e gera token novo tipo <see cref="AuthEmailTokenTipo.Convite"/>.
+    /// Diferente de <see cref="ReenviarConfirmacaoEmailAsync"/>, NÃO silencia erros — é
+    /// chamada autenticada (dono do estabelecimento), não há risco de enumeração.
+    /// </summary>
+    public async Task ReenviarConviteAsync(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            throw new BusinessException("E-mail é obrigatório para reenviar o convite.");
+
+        var emailNorm = email.Trim().ToLowerInvariant();
+        var credencial = await _credenciaisRepo.ObterPorEmailAsync(emailNorm)
+            ?? throw new BusinessException("Conta do convidado não encontrada.");
+
+        var ultimo = await _emailTokenRepo.ObterUltimoCriadoAsync(credencial.Id, AuthEmailTokenTipo.Convite);
+        if (ultimo is not null && (DateTime.UtcNow - ultimo.CriadoEm) < CooldownReenvio)
+        {
+            var restante = (int)Math.Ceiling((CooldownReenvio - (DateTime.UtcNow - ultimo.CriadoEm)).TotalSeconds);
+            throw new BusinessException($"Aguarde {restante}s antes de reenviar o convite novamente.");
+        }
+
+        var (cru, hashTok) = GerarTokenAleatorio();
+        var token = AuthEmailToken.Emitir(
+            credencial.Id, AuthEmailTokenTipo.Convite, hashTok, DateTime.UtcNow.Add(TtlConvite));
+        await _emailTokenRepo.AdicionarAsync(token);
+
+        var appUrl = (_emailOptions.AppBaseUrl ?? "https://app.imedto.com").TrimEnd('/');
+        await _emails.EnviarAsync(emailNorm, "Você foi convidado a um estabelecimento no Imedto",
+            EmailTemplates.ConviteVinculo(appUrl));
+    }
+
     /// <summary>Confirma e-mail consumindo um token. Usado pelo endpoint POST /api/auth/confirmar-email.</summary>
     public async Task ConfirmarEmailAsync(string tokenCru)
     {

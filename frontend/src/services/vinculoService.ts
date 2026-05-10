@@ -76,4 +76,13 @@ export const vinculoService = {
     async inativarVinculo(vinculoId: number): Promise<void> {
         await httpClient.post(`/vinculo/${vinculoId}/inativar`)
     },
+
+    async reenviarConvite(vinculoId: number): Promise<void> {
+        const tenantStore = useTenantStore()
+        const id = tenantStore.ativo?.id
+        if (!id) throw new Error("Nenhum estabelecimento ativo.")
+        await httpClient.post(
+            `/estabelecimento/${id}/profissionais/${vinculoId}/reenviar-convite`,
+        )
+    },
 }

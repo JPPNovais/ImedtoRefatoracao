@@ -38,6 +38,11 @@ const router = createRouter({
             component: () => import("@/views/auth/ConfirmarEmailView.vue"),
         },
         {
+            path: "/auth/redefinir-senha",
+            name: "RedefinirSenha",
+            component: () => import("@/views/auth/RedefinirSenhaView.vue"),
+        },
+        {
             path: "/privacidade",
             name: "Privacidade",
             component: () => import("@/views/legal/PrivacidadeView.vue"),

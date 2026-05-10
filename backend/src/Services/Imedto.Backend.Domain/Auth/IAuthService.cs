@@ -37,4 +37,12 @@ public interface IAuthService
 
     /// <summary>Envia e-mail de recuperação de senha. Não lança exceção se o e-mail não existir (prevenção de enumeração).</summary>
     Task EnviarRecuperacaoSenhaAsync(string email, string redirectTo);
+
+    /// <summary>
+    /// Reenvia o e-mail de "você foi convidado" para um e-mail que já tem convite pendente.
+    /// Aplica cooldown anti-spam (5 min) consultando <c>auth_email_tokens</c> tipo Convite.
+    /// Lança <see cref="SharedKernel.Domain.BusinessException"/> se a credencial não existir ou se o cooldown estiver ativo —
+    /// chamada autenticada por usuário do tenant, então NÃO precisa silenciar como anti-enumeração.
+    /// </summary>
+    Task ReenviarConviteAsync(string email);
 }

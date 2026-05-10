@@ -5,16 +5,21 @@ import type { ModeloPermissao } from "@/services/permissaoService"
 
 /**
  * Aba "Convites pendentes": lista de convites enviados pelo dono que ainda
- * não foram aceitos pelo profissional. Permite reenviar (futuro) e cancelar.
+ * não foram aceitos pelo profissional. Permite reenviar e cancelar.
+ *
+ * Reenviar: chama POST /api/estabelecimento/{id}/profissionais/{vinculoId}/reenviar-convite
+ * — o backend aplica cooldown de 5 min e regera o token de convite.
  */
 const props = defineProps<{
     convites: ProfissionalVinculado[]
     modelos: ModeloPermissao[]
+    reenviandoId?: number | null
 }>()
 
 const emit = defineEmits<{
     (e: "abrir-convite"): void
     (e: "cancelar", c: ProfissionalVinculado): void
+    (e: "reenviar", c: ProfissionalVinculado): void
 }>()
 
 function modelo(c: ProfissionalVinculado): ModeloPermissao | undefined {
@@ -75,6 +80,15 @@ function modelo(c: ProfissionalVinculado): ModeloPermissao | undefined {
                         </div>
                     </div>
                     <div class="ic-actions">
+                        <AppButton
+                            variant="secondary"
+                            size="sm"
+                            icon="fa-solid fa-paper-plane"
+                            :disabled="reenviandoId === c.vinculoId"
+                            @click="emit('reenviar', c)"
+                        >
+                            {{ reenviandoId === c.vinculoId ? "Reenviando…" : "Reenviar" }}
+                        </AppButton>
                         <AppButton variant="danger" size="sm" icon="fa-solid fa-xmark" @click="emit('cancelar', c)">
                             Cancelar
                         </AppButton>

@@ -185,6 +185,19 @@ async function cancelarConvite(c: ProfissionalVinculado) {
         notificar(e?.response?.data?.mensagem ?? "Não foi possível cancelar o convite.", "error")
     }
 }
+
+const reenviandoConviteId = ref<number | null>(null)
+async function reenviarConvite(c: ProfissionalVinculado) {
+    reenviandoConviteId.value = c.vinculoId
+    try {
+        await vinculoService.reenviarConvite(c.vinculoId)
+        notificar(`Convite reenviado para ${c.email}.`)
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Não foi possível reenviar o convite.", "error")
+    } finally {
+        reenviandoConviteId.value = null
+    }
+}
 </script>
 
 <template>
@@ -263,8 +276,10 @@ async function cancelarConvite(c: ProfissionalVinculado) {
                 v-else
                 :convites="convitesPendentes"
                 :modelos="modelos"
+                :reenviando-id="reenviandoConviteId"
                 @abrir-convite="abrirConvite"
                 @cancelar="cancelarConvite"
+                @reenviar="reenviarConvite"
             />
         </template>
 

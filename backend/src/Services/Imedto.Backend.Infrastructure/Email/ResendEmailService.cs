@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Imedto.Backend.Domain.Automacoes;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Infrastructure.Email;
 
@@ -111,10 +112,16 @@ public class ResendEmailService : IEmailService
                     && resp.StatusCode != HttpStatusCode.RequestTimeout
                     && resp.StatusCode != HttpStatusCode.TooManyRequests)
                 {
+                    var body = await SafeLerCorpoAsync(resp, ct);
+                    var motivo = ExtrairMensagemResend(body) ?? $"HTTP {status}";
                     _logger.LogError(
-                        "Falha permanente ao enviar email (Resend status {Status}, hash {Hash}).",
-                        status, hashCorrelacao);
-                    return; // não bloqueia caller; emails não bloqueiam handler
+                        "Falha permanente ao enviar email (Resend status {Status}, hash {Hash}, body {Body}).",
+                        status, hashCorrelacao, body);
+                    // Item 4.7+: propaga 4xx ao caller para que falhas de configuração
+                    // (domínio não verificado, sandbox restringindo destinatário, From inválido)
+                    // não fiquem invisíveis. Caller decide se silencia (fluxos best-effort)
+                    // ou se devolve 422 ao usuário (fluxos interativos como reenviar convite).
+                    throw new BusinessException($"Falha ao enviar e-mail: {motivo}");
                 }
 
                 // 5xx / 408 / 429 → retry.
@@ -145,11 +152,35 @@ public class ResendEmailService : IEmailService
         _logger.LogError(
             "Email não enviado após {Max} tentativas (hash {Hash}).",
             TentativasMax, hashCorrelacao);
+        throw new BusinessException("Falha ao enviar e-mail: provedor indisponível após várias tentativas.");
     }
 
     private static string HashCorrelacao(IEnumerable<string> destinatarios)
     {
         var concat = string.Join(';', destinatarios);
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(concat)))[..16];
+    }
+
+    private static async Task<string> SafeLerCorpoAsync(HttpResponseMessage resp, CancellationToken ct)
+    {
+        try { return await resp.Content.ReadAsStringAsync(ct); }
+        catch { return string.Empty; }
+    }
+
+    /// <summary>
+    /// Extrai o campo <c>message</c> do payload de erro do Resend (formato {"message":"...","name":"..."}).
+    /// Em caso de payload inesperado, retorna null para o caller usar o fallback "HTTP {status}".
+    /// </summary>
+    private static string? ExtrairMensagemResend(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("message", out var msg) && msg.ValueKind == System.Text.Json.JsonValueKind.String)
+                return msg.GetString();
+        }
+        catch { /* não é JSON válido */ }
+        return null;
     }
 }

@@ -72,6 +72,31 @@ public class VinculoController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, null);
     }
 
+    /// <summary>Reenvia o e-mail de convite para um vínculo pendente.</summary>
+    /// <remarks>
+    /// Útil quando o convidado perdeu o e-mail. Aplica cooldown anti-spam de 5 min
+    /// (consulta o último token de convite emitido para a credencial do convidado).
+    /// </remarks>
+    /// <response code="204">E-mail reenviado.</response>
+    /// <response code="422">Convite não está pendente, convidado sem e-mail ou cooldown ativo.</response>
+    [HttpPost("/api/estabelecimento/{estabelecimentoId:long}/profissionais/{vinculoId:long}/reenviar-convite")]
+    [RequiresPermissaoExtra(PermissoesExtras.GerirProfissionais, "estabelecimentoId")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ReenviarConvite(long estabelecimentoId, long vinculoId)
+    {
+        var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+
+        await _commandBus.Send(new ReenviarConviteCommand
+        {
+            VinculoId = vinculoId,
+            EstabelecimentoId = estabelecimentoId,
+            SolicitanteUsuarioId = userId
+        });
+
+        return NoContent();
+    }
+
     /// <summary>Profissional aceita um convite pendente.</summary>
     /// <response code="204">Convite aceito.</response>
     /// <response code="404">Vínculo não encontrado.</response>

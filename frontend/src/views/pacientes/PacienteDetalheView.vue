@@ -76,11 +76,14 @@ async function carregarResumo() {
             agendaService.listar({
                 pacienteId: pacienteId.value,
                 dataInicio: new Date().toISOString().slice(0, 10),
-                pagina: 1, tamanho: 1,
+                pagina: 1, tamanho: 10,
             }),
             prontuarioService.contarEvolucoes(pacienteId.value).catch(() => 0),
         ])
-        proximaConsulta.value = pg.itens[0] ?? null
+        const agora = Date.now()
+        proximaConsulta.value = pg.itens.find(a =>
+            new Date(a.inicioPrevisto).getTime() >= agora && a.status !== "Cancelado",
+        ) ?? null
         totalConsultas.value = pg.total
         totalProntuarios.value = total
     } catch { /* opcional */ }
@@ -255,7 +258,7 @@ function orcStatusClass(s: string): string {
 </script>
 
 <template>
-    <main class="detalhe-paciente">
+    <main class="app-page app-page--wide detalhe-paciente">
         <router-link :to="{ name: 'Pacientes' }" class="pd-back">
             <i class="fa-solid fa-arrow-left"></i>
             Voltar para a lista de pacientes
@@ -647,11 +650,11 @@ function orcStatusClass(s: string): string {
 </template>
 
 <style scoped>
-.detalhe-paciente { padding: 0; min-height: 100%; }
+.detalhe-paciente { min-height: 100%; }
 
 .pd-back {
+    align-self: flex-start;
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 18px 28px 10px;
     font-size: 12px; font-weight: 600;
     color: hsl(var(--secondary) / 0.7);
     text-decoration: none;
@@ -664,7 +667,7 @@ function orcStatusClass(s: string): string {
     position: sticky; top: 0; z-index: 30;
     background: white;
     border-bottom: 1px solid hsl(var(--secondary) / 0.08);
-    padding: 16px 28px 0;
+    padding-top: 16px;
 }
 .pd-head-main {
     display: flex; gap: 20px; align-items: flex-start;
@@ -741,7 +744,6 @@ function orcStatusClass(s: string): string {
 /* Tabs */
 .pd-tabs {
     display: flex; gap: 0;
-    margin: 0 -28px; padding: 0 28px;
     overflow-x: auto;
     border-top: 1px solid hsl(var(--secondary) / 0.06);
 }
@@ -765,7 +767,7 @@ function orcStatusClass(s: string): string {
 .pd-tab.active .badge { background: hsl(var(--primary) / 0.15); color: hsl(var(--primary)); }
 
 /* Conteúdo das abas */
-.pd-content { padding: 24px 28px 80px; max-width: 1500px; margin: 0 auto; }
+.pd-content { padding-bottom: 56px; }
 
 /* Cards */
 .pd-card {
