@@ -4,6 +4,7 @@ using Imedto.Backend.Contracts.Catalogo.Queries;
 using Imedto.Backend.Contracts.Catalogo.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Filters;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -18,8 +19,10 @@ public class CatalogoController : ControllerBase
 
     /// <summary>
     /// Lista profissões do catálogo global.
+    /// Liberado antes do onboarding — o próprio fluxo de onboarding usa esta lista.
     /// </summary>
     [HttpGet("profissoes")]
+    [AllowBeforeOnboarding]
     public async Task<ActionResult<IEnumerable<ProfissaoListadaDto>>> ListarProfissoes(
         [FromQuery] bool ativas = true)
     {
@@ -30,8 +33,10 @@ public class CatalogoController : ControllerBase
 
     /// <summary>
     /// Lista especialidades filtradas por profissão (obrigatório).
+    /// Liberado antes do onboarding — o próprio fluxo de onboarding usa esta lista.
     /// </summary>
     [HttpGet("especialidades")]
+    [AllowBeforeOnboarding]
     public async Task<ActionResult<IEnumerable<EspecialidadeListadaDto>>> ListarEspecialidades(
         [FromQuery] long profissaoId,
         [FromQuery] bool ativas = true)
