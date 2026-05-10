@@ -14,6 +14,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/relatorios")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAcao("relatorios")]
 public class RelatorioController : ControllerBase
 {
     private readonly IRequestBus _query;

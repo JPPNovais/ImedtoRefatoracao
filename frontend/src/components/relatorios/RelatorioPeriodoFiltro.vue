@@ -4,6 +4,7 @@
  * Emite { dataInicio, dataFim } ao aplicar.
  */
 import { ref, computed, watch } from 'vue'
+import { AppDatePicker } from '@/components/ui'
 
 export type PresetPeriodo = 'hoje' | '7d' | '30d' | 'mes' | 'trim'
 
@@ -91,20 +92,10 @@ function aplicarCustom() {
 
         <!-- Range customizado -->
         <div v-if="modelValue === 'custom'" class="rp-custom-range">
-            <label class="rp-custom-label" for="rp-data-inicio">De</label>
-            <input
-                id="rp-data-inicio"
-                v-model="dataInicioCustom"
-                type="date"
-                class="rp-custom-input"
-            />
-            <label class="rp-custom-label" for="rp-data-fim">Até</label>
-            <input
-                id="rp-data-fim"
-                v-model="dataFimCustom"
-                type="date"
-                class="rp-custom-input"
-            />
+            <label class="rp-custom-label">De</label>
+            <AppDatePicker v-model="dataInicioCustom" placeholder="DD/MM/AAAA" />
+            <label class="rp-custom-label">Até</label>
+            <AppDatePicker v-model="dataFimCustom" placeholder="DD/MM/AAAA" />
             <button type="button" class="rp-custom-btn" @click="aplicarCustom">Aplicar</button>
         </div>
 

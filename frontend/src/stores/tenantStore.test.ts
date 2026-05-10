@@ -13,6 +13,8 @@ function criarEstabelecimento(overrides: Partial<EstabelecimentoAtivo> = {}): Es
         id: 1,
         nomeFantasia: "Clínica Teste",
         papel: "Dono",
+        permissoes: [],
+        permissoesExtras: [],
         ...overrides,
     }
 }

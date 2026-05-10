@@ -438,16 +438,19 @@ async function finalizar() {
                 : undefined,
         })
 
-        // Recarrega usuário e seleciona estabelecimento
+        // Recarrega usuário e resolve tenant. popularEstabelecimentos() trata os 3 casos:
+        //  - lista vazia (convidado sem vínculo aprovado): seta semEstabelecimento=true
+        //    → AppLayout trava sidebar e Home renderiza modo "sem vínculo".
+        //  - 1+ estabelecimentos: auto-seleciona o primeiro.
         await auth.recarregarMe()
         const lista = await estabelecimentoService.listarMeus()
-        if (lista.length > 0) {
-            tenant.selecionar({
-                id: lista[0].id,
-                nomeFantasia: lista[0].nomeFantasia,
-                papel: lista[0].papelDoUsuario,
-            })
-        }
+        tenant.popularEstabelecimentos(lista.map(e => ({
+            id: e.id,
+            nomeFantasia: e.nomeFantasia,
+            papelDoUsuario: e.papelDoUsuario,
+            permissoes: e.permissoes ?? [],
+            permissoesExtras: e.permissoesExtras ?? [],
+        })))
         router.replace({ name: "Home" })
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Não foi possível concluir o cadastro."

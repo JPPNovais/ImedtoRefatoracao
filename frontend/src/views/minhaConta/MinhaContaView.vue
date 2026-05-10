@@ -227,7 +227,13 @@ const estabelecimentos   = ref<Estabelecimento[]>([])
 const carregandoEstabs   = ref(false)
 
 function selecionarEstab(e: Estabelecimento) {
-    tenant.selecionar({ id: e.id, nomeFantasia: e.nomeFantasia, papel: e.papelDoUsuario })
+    tenant.selecionar({
+        id: e.id,
+        nomeFantasia: e.nomeFantasia,
+        papel: e.papelDoUsuario,
+        permissoes: e.permissoes ?? [],
+        permissoesExtras: e.permissoesExtras ?? [],
+    })
     router.push({ name: "Home" })
 }
 

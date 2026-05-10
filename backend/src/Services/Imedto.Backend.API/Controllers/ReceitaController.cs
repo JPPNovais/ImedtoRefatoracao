@@ -31,6 +31,7 @@ namespace Imedto.Backend.API.Controllers;
 [RequiresEstabelecimento]
 [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
 [FeatureGate(Features.Receitas)]
+[RequiresAcao("prescricao")]
 [ApiController]
 [Produces("application/json")]
 public class ReceitaController : ControllerBase

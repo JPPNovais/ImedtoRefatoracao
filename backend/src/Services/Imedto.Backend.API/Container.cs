@@ -590,6 +590,8 @@ public static class Container
         services.AddScoped<NotificarConviteAoConvidarProfissionalHandler>();
         // Item 2.4 — Bridge SignalR: empurra NotificacaoCriadaEvent para o cliente conectado.
         services.AddScoped<NotificacaoCriadaSignalRBridge>();
+        // Permissões alteradas → push em tempo real para revalidação no cliente.
+        services.AddScoped<PermissoesAlteradasSignalRBridge>();
         // IIaService registrado via RegistrarIa (decorator com rate limit + cache + audit).
 
         // Catálogo (Profissões, Especialidades e Regiões Anatômicas)
@@ -884,6 +886,8 @@ public static class Container
             bus.Register<ProfissionalConvidadoEvent, NotificarConviteAoConvidarProfissionalHandler>();
             // Item 2.4: notificação criada → push em tempo real para o usuário via SignalR.
             bus.Register<NotificacaoCriadaEvent, NotificacaoCriadaSignalRBridge>();
+            // Modelo de permissão do vínculo trocado → cliente revalida permissões.
+            bus.Register<VinculoModeloPermissaoAlteradoEvent, PermissoesAlteradasSignalRBridge>();
             // Item 2.2: gatilhos de regras de automação. NÃO escutar NotificacaoCriadaEvent
             // — caso contrário regras que enviam notificação criariam loop infinito.
             bus.Register<AgendamentoCriadoEvent, EnfileirarAutomacaoAgendamentoCriadoHandler>();

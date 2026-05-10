@@ -22,4 +22,17 @@ public interface IModeloPermissaoRepository
         long estabelecimentoId,
         string permissao,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Retorna <c>true</c> se o usuário possui a ação granular informada no estabelecimento.
+    /// Aceita formato legado (apenas <paramref name="area"/>, <paramref name="acao"/> = null
+    /// ou vazio — qualquer ação na área concede) ou granular ("area" + "acao", precisa exatamente
+    /// dessa ação OU da chave de área legada). Dono sempre passa.
+    /// </summary>
+    Task<bool> UsuarioTemAcao(
+        Guid usuarioId,
+        long estabelecimentoId,
+        string area,
+        string? acao = null,
+        CancellationToken ct = default);
 }

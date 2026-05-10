@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue"
-import { AppButton, AppCard, AppField, AppInput } from "@/components/ui"
+import { AppButton, AppCard, AppDatePicker, AppField, AppInput } from "@/components/ui"
 import type { Estabelecimento, HorarioBloqueado, DataBloqueada } from "@/services/estabelecimentoService"
 import { estabelecimentoService } from "@/services/estabelecimentoService"
 
@@ -391,7 +391,7 @@ async function salvar() {
                 <p class="form-novo-titulo">Adicionar data</p>
                 <div class="grade-2">
                     <AppField label="Data">
-                        <AppInput v-model="novaData.data" type="date" />
+                        <AppDatePicker v-model="novaData.data" placeholder="DD/MM/AAAA" />
                     </AppField>
                     <AppField label="Motivo (opcional)">
                         <AppInput

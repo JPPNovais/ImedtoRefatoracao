@@ -15,7 +15,7 @@ import {
 } from "@/services/cirurgiaService"
 import {
     AppPageHeader, AppButton, AppBadge, AppTabs, AppField,
-    AppInput, AppTextarea, AppModal, AppCard,
+    AppInput, AppDatePicker, AppTextarea, AppModal, AppCard,
 } from "@/components/ui"
 import CodigoTussAutocomplete from "@/components/cirurgia/CodigoTussAutocomplete.vue"
 import type { ProcedimentoCatalogo } from "@/services/catalogoService"
@@ -426,8 +426,8 @@ onMounted(carregar)
             largura="sm"
             @fechar="confirmandoRealizar = false"
         >
-            <AppField label="Data de realizacao" for="data-realizada">
-                <AppInput id="data-realizada" v-model="dataRealizada" type="date" />
+            <AppField label="Data de realizacao">
+                <AppDatePicker v-model="dataRealizada" placeholder="DD/MM/AAAA" />
             </AppField>
             <template #rodape>
                 <AppButton variant="secondary" @click="confirmandoRealizar = false">Cancelar</AppButton>

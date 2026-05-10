@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { financeiroService, type Lancamento, type ResumoFinanceiro } from "@/services/financeiroService"
-import { AppButton, AppField, AppInput, AppModal, AppPagination, AppSelect } from "@/components/ui"
+import { AppButton, AppDatePicker, AppField, AppInput, AppModal, AppPagination, AppSelect } from "@/components/ui"
 
 const lancamentos = ref<Lancamento[]>([])
 const total = ref(0)
@@ -188,8 +188,8 @@ const vencidoPendente = (l: Lancamento) =>
                 <option value="Pago">Pago</option>
                 <option value="Cancelado">Cancelado</option>
             </select>
-            <input type="date" v-model="filtroDataInicio" title="Data vencimento (início)" />
-            <input type="date" v-model="filtroDataFim" title="Data vencimento (fim)" />
+            <AppDatePicker v-model="filtroDataInicio" placeholder="DD/MM/AAAA" aria-label="Data vencimento (início)" />
+            <AppDatePicker v-model="filtroDataFim" placeholder="DD/MM/AAAA" aria-label="Data vencimento (fim)" />
         </section>
 
         <p v-if="erro" class="erro">{{ erro }}</p>
@@ -267,7 +267,7 @@ const vencidoPendente = (l: Lancamento) =>
                 <AppInput v-model="formCriar.valor" type="number" :min="0.01" :step="0.01" />
             </AppField>
             <AppField label="Data de vencimento" required>
-                <AppInput v-model="formCriar.dataVencimento" type="date" />
+                <AppDatePicker v-model="formCriar.dataVencimento" placeholder="DD/MM/AAAA" />
             </AppField>
             <p v-if="erroCriar" class="msg-erro">{{ erroCriar }}</p>
 
@@ -296,7 +296,7 @@ const vencidoPendente = (l: Lancamento) =>
                 <AppInput v-model="formEditar.valor" type="number" :min="0.01" :step="0.01" />
             </AppField>
             <AppField label="Data de vencimento" required>
-                <AppInput v-model="formEditar.dataVencimento" type="date" />
+                <AppDatePicker v-model="formEditar.dataVencimento" placeholder="DD/MM/AAAA" />
             </AppField>
             <p v-if="erroEditar" class="msg-erro">{{ erroEditar }}</p>
 

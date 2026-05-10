@@ -88,4 +88,68 @@ public class ModeloPermissaoRepository : IModeloPermissaoRepository
             .SqlQuery<bool>(sql)
             .FirstAsync(ct);
     }
+
+    public async Task<bool> UsuarioTemAcao(
+        Guid usuarioId,
+        long estabelecimentoId,
+        string area,
+        string? acao = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(area)) return false;
+
+        var ehDono = await _context.Estabelecimentos
+            .AsNoTracking()
+            .AnyAsync(e => e.Id == estabelecimentoId && e.DonoUsuarioId == usuarioId, ct);
+        if (ehDono) return true;
+
+        var areaTrim = area.Trim();
+        var chaveGranular = string.IsNullOrWhiteSpace(acao) ? null : $"{areaTrim}.{acao.Trim()}";
+
+        // Profissional: vínculo ativo cujo modelo tem a chave granular OU a chave legada da área.
+        // Quando `acao` é nula/vazia, qualquer chave que comece com a área (legado) basta.
+        FormattableString sql;
+        if (chaveGranular is null)
+        {
+            var prefixoLike = areaTrim + ".%";
+            sql = $"""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM   public.vinculo_profissional_estabelecimento v
+                    JOIN   public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
+                    WHERE  v.profissional_usuario_id = {usuarioId}
+                      AND  v.estabelecimento_id      = {estabelecimentoId}
+                      AND  v.status                  = 'Ativo'
+                      AND  (
+                            mp.permissoes @> jsonb_build_array({areaTrim}::text)
+                         OR EXISTS (
+                                SELECT 1 FROM jsonb_array_elements_text(mp.permissoes) AS p(val)
+                                WHERE p.val LIKE {prefixoLike}
+                            )
+                      )
+                ) AS "Value"
+                """;
+        }
+        else
+        {
+            sql = $"""
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM   public.vinculo_profissional_estabelecimento v
+                    JOIN   public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
+                    WHERE  v.profissional_usuario_id = {usuarioId}
+                      AND  v.estabelecimento_id      = {estabelecimentoId}
+                      AND  v.status                  = 'Ativo'
+                      AND  (
+                            mp.permissoes @> jsonb_build_array({chaveGranular}::text)
+                         OR mp.permissoes @> jsonb_build_array({areaTrim}::text)
+                      )
+                ) AS "Value"
+                """;
+        }
+
+        return await _context.Database
+            .SqlQuery<bool>(sql)
+            .FirstAsync(ct);
+    }
 }

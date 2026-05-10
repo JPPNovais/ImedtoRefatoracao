@@ -28,7 +28,7 @@ import {
 import { formaPagamentoService, type FormaPagamento } from "@/services/categoriaFinanceiraService"
 import {
     AppButton, AppTabs, AppCard,
-    AppField, AppInput, AppTextarea, AppSelect,
+    AppField, AppInput, AppDatePicker, AppTextarea, AppSelect,
 } from "@/components/ui"
 import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
 import OrcamentoResumoSidebar from "@/components/orcamento/OrcamentoResumoSidebar.vue"
@@ -349,8 +349,8 @@ onMounted(carregar)
                                 <AppField label="Número">
                                     <AppInput :model-value="orcamento.numero || `#${orcamento.id}`" readonly />
                                 </AppField>
-                                <AppField label="Validade" for="form-validade">
-                                    <AppInput id="form-validade" type="date" v-model="validade" />
+                                <AppField label="Validade">
+                                    <AppDatePicker v-model="validade" placeholder="DD/MM/AAAA" />
                                 </AppField>
                                 <AppField label="Procedimento cirúrgico (ID, opcional)" for="form-proc">
                                     <AppInput id="form-proc" type="number" v-model="procedimentoCirurgicoId" />

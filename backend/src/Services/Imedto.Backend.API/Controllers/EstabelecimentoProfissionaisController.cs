@@ -4,6 +4,7 @@ using Imedto.Backend.Contracts.Vinculos.Queries;
 using Imedto.Backend.Contracts.Vinculos.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Filters;
+using Imedto.Backend.SharedKernel.Tenancy;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -20,8 +21,15 @@ public class EstabelecimentoProfissionaisController : ControllerBase
         _requestBus = requestBus;
     }
 
-    /// <summary>Dono lista os profissionais (convidados + ativos) do seu estabelecimento.</summary>
+    /// <summary>
+    /// Lista os profissionais (Dono + convidados + ativos) do estabelecimento.
+    /// Liberado a qualquer membro ativo do tenant — necessário para seletores
+    /// (agenda, prontuário, orçamento) onde o usuário precisa escolher um profissional.
+    /// Operações de escrita (convidar, inativar, trocar modelo) continuam Dono-only
+    /// em seus próprios handlers.
+    /// </summary>
     [HttpGet("/api/estabelecimento/{estabelecimentoId:long}/profissionais")]
+    [RequiresEstabelecimento]
     [ProducesResponseType(typeof(IEnumerable<ProfissionalVinculadoDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ListarProfissionais(long estabelecimentoId)

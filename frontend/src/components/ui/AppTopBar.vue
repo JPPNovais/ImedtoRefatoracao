@@ -21,13 +21,25 @@ defineProps<{
     contadorNotificacoes?: number
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
     (e: "abrir-notificacoes"): void
     (e: "abrir-perfil"): void
     (e: "logout"): void
 }>()
 
 const aberto = ref<"notif" | "perfil" | null>(null)
+
+function alternarNotif() {
+    const abrindo = aberto.value !== "notif"
+    aberto.value = abrindo ? "notif" : null
+    if (abrindo) emit("abrir-notificacoes")
+}
+
+function alternarPerfil() {
+    const abrindo = aberto.value !== "perfil"
+    aberto.value = abrindo ? "perfil" : null
+    if (abrindo) emit("abrir-perfil")
+}
 const wrapNotif = ref<HTMLElement | null>(null)
 const wrapPerfil = ref<HTMLElement | null>(null)
 
@@ -61,7 +73,7 @@ onBeforeUnmount(() => document.removeEventListener("click", fecharFora))
                     class="tb-btn"
                     :class="{ active: aberto === 'notif' }"
                     title="Notificações"
-                    @click.stop="aberto = aberto === 'notif' ? null : 'notif'"
+                    @click.stop="alternarNotif"
                 >
                     <i class="fa-solid fa-bell" aria-hidden="true"></i>
                     <span v-if="contadorNotificacoes && contadorNotificacoes > 0" class="tb-badge">
@@ -82,7 +94,7 @@ onBeforeUnmount(() => document.removeEventListener("click", fecharFora))
                     type="button"
                     class="tb-profile"
                     :class="{ active: aberto === 'perfil' }"
-                    @click.stop="aberto = aberto === 'perfil' ? null : 'perfil'"
+                    @click.stop="alternarPerfil"
                 >
                     <div class="av">
                         <img v-if="fotoUrl" :src="fotoUrl" :alt="nomeUsuario || 'Avatar'" />

@@ -14,6 +14,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/financeiro")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAcao("financeiro")]
 public class FinanceiroController : ControllerBase
 {
     private readonly ICommandBus _cmd;

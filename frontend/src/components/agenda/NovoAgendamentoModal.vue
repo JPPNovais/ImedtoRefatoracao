@@ -36,6 +36,7 @@ import {
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
 import type { ProfissionalVinculado } from "@/services/vinculoService"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
+import { AppDatePicker } from "@/components/ui"
 import { cpfValido, somenteDigitos } from "@/utils/cpf"
 
 const props = defineProps<{
@@ -517,7 +518,7 @@ const profSelecionado = computed(() =>
                         </div>
                         <div class="field-group">
                             <label>Data de nascimento <span class="opt">opcional</span></label>
-                            <input type="date" v-model="novoPac.nascimento" />
+                            <AppDatePicker v-model="novoPac.nascimento" placeholder="DD/MM/AAAA" />
                         </div>
                         <div class="field-group">
                             <label>Sexo <span class="opt">opcional</span></label>
@@ -599,7 +600,7 @@ const profSelecionado = computed(() =>
                                 <template v-if="detalhes.listaEspera"><span class="opt">opcional</span></template>
                                 <em v-else>*</em>
                             </label>
-                            <input type="date" v-model="detalhes.data" />
+                            <AppDatePicker v-model="detalhes.data" placeholder="DD/MM/AAAA" />
                         </div>
 
                         <div class="field-group">

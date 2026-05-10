@@ -1,14 +1,32 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useAuthStore } from "@/stores/authStore"
+import { useTenantStore } from "@/stores/tenantStore"
 import { dashboardService, type DashboardData } from "@/services/dashboardService"
 
 const auth = useAuthStore()
+const tenant = useTenantStore()
 
 const dashboard = ref<DashboardData | null>(null)
 const carregando = ref(false)
 
+/**
+ * Três estados possíveis ao entrar em /home:
+ *  - "comVinculo"   → tenant.ativo populado pelo bootstrap → renderiza dashboard.
+ *  - "semVinculo"   → backend confirmou lista vazia (tenant.semEstabelecimento=true).
+ *  - "indeterminado"→ tenant.ativo null sem confirmação (bootstrap ainda não rodou ou falhou).
+ *
+ * Crítico: nunca mostrar "sem vínculo" quando o estado é indeterminado — induz o
+ * usuário a achar que perdeu o acesso quando na verdade foi falha de boot.
+ */
+const estadoVinculo = computed<"comVinculo" | "semVinculo" | "indeterminado">(() => {
+    if (tenant.ativo) return "comVinculo"
+    if (tenant.semEstabelecimento) return "semVinculo"
+    return "indeterminado"
+})
+
 onMounted(async () => {
+    if (estadoVinculo.value !== "comVinculo") return
     carregando.value = true
     try {
         dashboard.value = await dashboardService.obter()
@@ -18,6 +36,10 @@ onMounted(async () => {
         carregando.value = false
     }
 })
+
+function recarregar() {
+    window.location.reload()
+}
 
 function moeda(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -37,6 +59,57 @@ const statusCor: Record<string, string> = {
 
 <template>
     <main class="app-page home">
+        <!-- Estado indeterminado: bootstrap ainda não terminou ou falhou. NÃO mostrar
+             "sem vínculo" aqui — seria mentira pro usuário com vínculo. Em vez disso,
+             oferecemos retry. Se o boot terminar OK durante a renderização, este branch
+             desaparece via reatividade. -->
+        <section v-if="estadoVinculo === 'indeterminado'" class="sem-vinculo sem-vinculo--indet">
+            <div class="sv-icone"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i></div>
+            <h1>Não conseguimos carregar seus dados</h1>
+            <p class="sv-msg">
+                Houve uma falha ao validar seu vínculo com o estabelecimento.
+                Recarregue a página — se persistir, faça login novamente.
+            </p>
+            <div class="sv-acoes">
+                <button type="button" class="sv-btn primario" @click="recarregar">
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                    Recarregar
+                </button>
+                <router-link :to="{ name: 'MinhaConta' }" class="sv-btn secundario">
+                    <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
+                    Meus dados
+                </router-link>
+            </div>
+        </section>
+
+        <!-- Modo sem vínculo: backend CONFIRMOU lista vazia. Empty state guiando para
+             convites e perfil. -->
+        <section v-else-if="estadoVinculo === 'semVinculo'" class="sem-vinculo">
+            <div class="sv-icone"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i></div>
+            <h1>Olá, {{ auth.usuario?.nomeCompleto?.split(" ")[0] ?? "" }} 👋</h1>
+            <p class="sv-msg">
+                Você ainda não está vinculado a um estabelecimento.
+                Para começar a usar o Imedto, aceite um convite enviado por uma clínica
+                ou aguarde até que alguém te convide.
+            </p>
+            <div class="sv-acoes">
+                <router-link :to="{ name: 'MeusConvites' }" class="sv-btn primario">
+                    <i class="fa-solid fa-envelope-open-text" aria-hidden="true"></i>
+                    Ver meus convites
+                </router-link>
+                <router-link :to="{ name: 'MinhaConta' }" class="sv-btn secundario">
+                    <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
+                    Editar meus dados
+                </router-link>
+            </div>
+            <p class="sv-hint">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                Quando o convite chegar, ele aparecerá automaticamente em
+                <router-link :to="{ name: 'MeusConvites' }">Meus convites</router-link>.
+            </p>
+        </section>
+
+        <template v-else>
         <div class="page-header">
             <h1>Olá, {{ auth.usuario?.nomeCompleto ?? auth.usuario?.email }}</h1>
             <p class="subtitulo">Bem-vindo ao painel.</p>
@@ -133,10 +206,64 @@ const statusCor: Record<string, string> = {
                 <p>Faturamento por categoria e resumo de agendamentos.</p>
             </router-link>
         </nav>
+        </template>
     </main>
 </template>
 
 <style scoped>
+/* Modo "sem vínculo" — empty state centralizado com CTA */
+.sem-vinculo {
+    max-width: 540px;
+    margin: 4rem auto;
+    text-align: center;
+    padding: 2.5rem 2rem;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--secondary) / 0.1);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--primary-dark) / 0.04), 0 16px 40px hsl(var(--primary-dark) / 0.06);
+}
+.sem-vinculo h1 { margin: 0 0 0.6rem; font-size: 1.6rem; color: hsl(var(--primary-dark)); }
+.sv-icone {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: hsl(var(--primary) / 0.1); color: hsl(var(--primary));
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 26px; margin-bottom: 1rem;
+}
+.sv-msg {
+    color: hsl(var(--secondary) / 0.75);
+    line-height: 1.55;
+    font-size: 0.95rem;
+    margin: 0 0 1.5rem;
+}
+.sv-acoes {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+.sv-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 18px; border-radius: 10px;
+    font-size: 0.9rem; font-weight: 600; text-decoration: none;
+    transition: all 160ms;
+}
+.sv-btn.primario {
+    background: hsl(var(--primary)); color: white;
+    box-shadow: 0 1px 2px hsl(var(--primary-dark) / 0.2);
+}
+.sv-btn.primario:hover { background: hsl(var(--primary-dark)); transform: translateY(-1px); }
+.sv-btn.secundario {
+    background: hsl(var(--card));
+    color: hsl(var(--primary-dark));
+    border: 1.5px solid hsl(var(--secondary) / 0.15);
+}
+.sv-btn.secundario:hover { border-color: hsl(var(--primary) / 0.4); }
+.sv-hint {
+    font-size: 0.78rem;
+    color: hsl(var(--secondary) / 0.6);
+    margin: 0;
+    line-height: 1.5;
+}
+.sv-hint a { color: hsl(var(--primary)); font-weight: 600; }
+
 .page-header {
     margin-bottom: 1.5rem;
 }

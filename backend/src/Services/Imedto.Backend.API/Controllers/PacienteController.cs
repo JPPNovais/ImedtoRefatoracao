@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Pacientes.Commands;
 using Imedto.Backend.Contracts.Pacientes.Queries;
 using Imedto.Backend.Contracts.Pacientes.Queries.Results;
@@ -14,6 +15,7 @@ namespace Imedto.Backend.API.Controllers;
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAcao("pacientes")]
 [ApiController]
 [Route("api/paciente")]
 [Produces("application/json")]

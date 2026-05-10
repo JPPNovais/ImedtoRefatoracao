@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
@@ -15,6 +16,7 @@ namespace Imedto.Backend.API.Controllers;
 [Authorize]
 [RequiresEstabelecimento]
 [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
+[RequiresAcao("prontuario")]
 [ApiController]
 [Route("api/paciente/{pacienteId:long}/prontuario")]
 [Produces("application/json")]

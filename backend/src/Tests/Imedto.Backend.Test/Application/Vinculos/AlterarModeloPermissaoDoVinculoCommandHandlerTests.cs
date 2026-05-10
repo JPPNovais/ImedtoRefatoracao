@@ -3,6 +3,7 @@ using Imedto.Backend.Contracts.Vinculos.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Vinculos;
+using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
 using NUnit.Framework;
@@ -15,6 +16,7 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
     private Mock<IVinculoRepository> _vinculoRepo;
     private Mock<IEstabelecimentoRepository> _estabRepo;
     private Mock<IModeloPermissaoRepository> _modeloRepo;
+    private Mock<IEventBus> _eventBus;
     private AlterarModeloPermissaoDoVinculoCommandHandler _sut;
 
     private readonly Guid _donoId = Guid.NewGuid();
@@ -30,8 +32,9 @@ public class AlterarModeloPermissaoDoVinculoCommandHandlerTests
         _vinculoRepo = new Mock<IVinculoRepository>();
         _estabRepo = new Mock<IEstabelecimentoRepository>();
         _modeloRepo = new Mock<IModeloPermissaoRepository>();
+        _eventBus = new Mock<IEventBus>();
         _sut = new AlterarModeloPermissaoDoVinculoCommandHandler(
-            _vinculoRepo.Object, _estabRepo.Object, _modeloRepo.Object);
+            _vinculoRepo.Object, _estabRepo.Object, _modeloRepo.Object, _eventBus.Object);
     }
 
     private VinculoProfissionalEstabelecimento VinculoNoEstab(long estabId)

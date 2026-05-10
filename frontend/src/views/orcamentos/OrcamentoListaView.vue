@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import {
     AppPageHeader, AppButton, AppSelect, AppSearchInput,
-    AppPagination, AppModal, AppField, AppInput,
+    AppPagination, AppModal, AppField, AppInput, AppDatePicker,
 } from "@/components/ui"
 import OrcamentoKpis   from "@/components/orcamento/OrcamentoKpis.vue"
 import OrcamentoTabela from "@/components/orcamento/OrcamentoTabela.vue"
@@ -260,8 +260,8 @@ onMounted(() => {
                         <option v-for="p in pacientes" :key="p.id" :value="p.id">{{ p.nomeCompleto }}</option>
                     </AppSelect>
                 </AppField>
-                <AppField label="Validade" for="novo-validade">
-                    <AppInput id="novo-validade" type="date" v-model="novoValidade" />
+                <AppField label="Validade">
+                    <AppDatePicker v-model="novoValidade" placeholder="DD/MM/AAAA" />
                 </AppField>
                 <p class="texto-aux">
                     Será criado um orçamento <strong>em rascunho</strong>.

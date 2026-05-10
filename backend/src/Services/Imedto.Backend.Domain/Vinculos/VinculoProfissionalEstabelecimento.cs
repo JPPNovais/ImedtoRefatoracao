@@ -162,7 +162,18 @@ public class VinculoProfissionalEstabelecimento : Entity
         if (novoModeloPermissaoId <= 0)
             throw new BusinessException("Modelo de permissão é obrigatório.");
 
+        var trocou = ModeloPermissaoId != novoModeloPermissaoId;
         ModeloPermissaoId = novoModeloPermissaoId;
+
+        // Só dispara o evento de realtime se o modelo de fato mudou; idempotente.
+        // Vínculos em status Convidado também emitem — quando o profissional aceitar
+        // e logar, o front já pega a permissão atualizada via bootstrap, e a sessão
+        // ativa (caso o convidado já esteja logado em algum cenário) revalida na hora.
+        if (trocou && Id != 0)
+        {
+            AddDomainEvent(new VinculoModeloPermissaoAlteradoEvent(
+                Id, ProfissionalUsuarioId, EstabelecimentoId, novoModeloPermissaoId));
+        }
     }
 
     /// <summary>

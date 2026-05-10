@@ -6,7 +6,9 @@ import router from "./router"
 import { useAuthStore } from "./stores/authStore"
 import { useProfissionalStore } from "./stores/profissionalStore"
 import { useTenantStore } from "./stores/tenantStore"
+import { usePermissoesStore } from "./stores/permissoesStore"
 import { bootstrapService } from "./services/bootstrapService"
+import realtimeService from "./services/realtimeService"
 
 async function bootstrap() {
     const app = createApp(App)
@@ -49,11 +51,40 @@ async function bootstrap() {
             }
         }
         auth.ativarRealtime()
+        registrarListenersPermissoes()
     }
 
     app.use(router)
     await router.isReady()
     app.mount("#app")
+}
+
+/**
+ * Hooks que mantêm `permissoesStore` em dia quando o Dono altera o modelo do vínculo:
+ *
+ *  - SignalR `permissoes-alteradas` (push imediato pelo backend ao salvar).
+ *  - `visibilitychange` (rede de segurança: se o WS perdeu, ao voltar pra aba revalida).
+ *
+ * Idempotente: registrado uma única vez no boot.
+ */
+function registrarListenersPermissoes() {
+    const tenant = useTenantStore()
+    const permissoes = usePermissoesStore()
+
+    realtimeService.on<{ estabelecimentoId: number }>("permissoes-alteradas", (payload) => {
+        // Só revalida se o evento é do tenant que está ativo agora — outros tenants
+        // são revalidados quando o usuário trocar pra eles (popularEstabelecimentos
+        // recarrega tudo via /auth/bootstrap).
+        if (tenant.ativo && payload?.estabelecimentoId === tenant.ativo.id) {
+            void permissoes.revalidar()
+        }
+    })
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && tenant.ativo) {
+            void permissoes.revalidar()
+        }
+    })
 }
 
 bootstrap()

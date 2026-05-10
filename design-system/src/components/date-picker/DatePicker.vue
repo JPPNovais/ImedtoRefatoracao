@@ -114,56 +114,57 @@ function onKeydown(event: KeyboardEvent) {
 <template>
   <Popover v-model:open="open">
     <div :class="cn('relative w-[240px]', props.class)">
-      <PopoverTrigger as-child>
-        <button
-          type="button"
-          class="absolute inset-y-0 left-0 z-10 flex items-center pl-3
-            text-muted-foreground hover:text-foreground transition-colors
-            cursor-pointer border-0 bg-transparent"
-          :disabled="disabled"
-          tabindex="-1"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="h-4 w-4"
-          >
-            <path d="M8 2v4" />
-            <path d="M16 2v4" />
-            <rect width="18" height="18" x="3" y="4" rx="2" />
-            <path d="M3 10h18" />
-          </svg>
-        </button>
-      </PopoverTrigger>
-      <input
-        type="text"
-        inputmode="numeric"
-        maxlength="10"
-        :value="inputText"
-        :placeholder="placeholder"
-        :disabled="disabled"
-        :class="cn(
-          'flex h-9 w-full rounded-md border border-input bg-transparent',
-          'pl-9 pr-3 py-1 text-sm shadow-sm transition-colors',
-          'placeholder:text-muted-foreground',
-          'focus-visible:outline-none focus-visible:ring-1',
-          'focus-visible:ring-ring',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-        )"
-        @input="onInput"
-        @keydown="onKeydown"
+      <!-- Ícone do calendário (decorativo). O wrapper inteiro é clicável via PopoverAnchor abaixo. -->
+      <span
+        class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground"
+        aria-hidden="true"
       >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-4 w-4"
+        >
+          <path d="M8 2v4" />
+          <path d="M16 2v4" />
+          <rect width="18" height="18" x="3" y="4" rx="2" />
+          <path d="M3 10h18" />
+        </svg>
+      </span>
+      <!-- O input fica como PopoverTrigger asChild — clicar nele abre o popover,
+           mas digitação manual continua funcionando porque o reka-ui só abre/fecha
+           em pointerdown, não em keydown. -->
+      <PopoverTrigger as-child>
+        <input
+          type="text"
+          inputmode="numeric"
+          maxlength="10"
+          :value="inputText"
+          :placeholder="placeholder"
+          :disabled="disabled"
+          :class="cn(
+            'flex h-9 w-full rounded-md border border-input bg-transparent',
+            'pl-9 pr-3 py-1 text-sm shadow-sm transition-colors',
+            'placeholder:text-muted-foreground',
+            'focus-visible:outline-none focus-visible:ring-1',
+            'focus-visible:ring-ring',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+          )"
+          @input="onInput"
+          @keydown="onKeydown"
+        >
+      </PopoverTrigger>
     </div>
     <PopoverContent
       class="w-auto p-0"
       align="start"
+      @open-auto-focus="(e) => e.preventDefault()"
     >
       <Calendar
         :model-value="modelValue"

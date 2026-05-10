@@ -19,6 +19,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/orcamentos")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAcao("orcamento")]
 public class OrcamentoController : ControllerBase
 {
     private readonly ICommandBus _cmd;

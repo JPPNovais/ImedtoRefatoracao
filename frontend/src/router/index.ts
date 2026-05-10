@@ -70,7 +70,9 @@ const router = createRouter({
             path: "/home",
             name: "Home",
             component: () => import("@/views/HomeView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            // Sem requiresTenant: HomeView renderiza modo "sem vínculo" quando
+            // tenant.semEstabelecimento, com CTA para convites e perfil pessoal.
+            meta: { requiresAuth: true, ...APP },
         },
         {
             path: "/minha-conta",
@@ -335,8 +337,11 @@ router.beforeEach(async (to) => {
     }
 
     // Bloqueio por assinatura inativa (trial expirado / suspensa / cancelada / expirada).
-    // Só roda se já temos tenant ativo — antes disso não há assinatura para avaliar.
-    if (auth.isAuthenticated && tenant.temTenantSelecionado) {
+    // Só roda quando há tenant ativo E o usuário é Dono — o endpoint /minha-assinatura
+    // exige papel Dono (retorna 403 SemAcesso para Profissional). Profissionais não
+    // ficam bloqueados por estado de assinatura aqui; quando a assinatura está
+    // inativa, o backend já gateia as ações de domínio com 422/403.
+    if (auth.isAuthenticated && tenant.temTenantSelecionado && tenant.papel === "Dono") {
         const assinatura = useAssinaturaStore()
         await assinatura.ensureLoaded()
 

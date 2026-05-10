@@ -15,6 +15,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/agendamentos")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAcao("agenda")]
 public class AgendamentoController : ControllerBase
 {
     private readonly ICommandBus _cmd;

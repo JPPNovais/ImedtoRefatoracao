@@ -69,6 +69,8 @@ async function salvar() {
                 id: tenant.ativo.id,
                 nomeFantasia: nomeFantasia.value,
                 papel: tenant.ativo.papel,
+                permissoes: tenant.ativo.permissoes,
+                permissoesExtras: tenant.ativo.permissoesExtras,
             })
         }
         msg.value = "Dados do estabelecimento atualizados."

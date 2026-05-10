@@ -32,6 +32,13 @@ export interface Estabelecimento {
     diasSemanaFuncionamento: number[]           // 0=Domingo .. 6=Sábado
     horariosBloqueados: HorarioBloqueado[]
     datasBloqueadas: DataBloqueada[]
+    /**
+     * Permissões granulares ("area.acao") concedidas ao usuário neste estabelecimento.
+     * Vazio para Dono — Dono tem todas (avaliado via papelDoUsuario === "Dono").
+     */
+    permissoes: string[]
+    /** Permissões finas extras (config_estabelecimento, gerir_permissoes, ...). */
+    permissoesExtras: string[]
 }
 
 export interface CriarEstabelecimentoPayload {

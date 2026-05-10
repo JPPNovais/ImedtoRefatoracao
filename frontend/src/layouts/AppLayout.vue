@@ -13,6 +13,7 @@ import { computed } from "vue"
 import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
 import { useTheme, type Theme } from "@/composables/useTheme"
@@ -31,28 +32,35 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const tenant = useTenantStore()
+const permissoes = usePermissoesStore()
 const profissional = useProfissionalStore()
 const notificacoes = useNotificacoesStore()
 
 const navMain = computed(() => {
-    const ehDono = tenant.papel === "Dono"
-    const items = [
-        { name: "Home",            label: "Painel inicial",   icon: "fa-solid fa-house",                  to: { name: "Home" } },
-        { name: "Agenda",          label: "Agendamentos",     icon: "fa-solid fa-calendar-days",          to: { name: "Agenda" } },
-        { name: "MinhasConsultas", label: "Minhas consultas", icon: "fa-solid fa-stethoscope",            to: { name: "MinhasConsultas" } },
-        { name: "Pacientes",       label: "Pacientes",        icon: "fa-solid fa-people-group",           to: { name: "Pacientes" } },
-        ...(ehDono ? [{ name: "Equipe", label: "Equipe", icon: "fa-solid fa-user-doctor", to: { name: "Equipe" } }] : []),
-        { name: "Financeiro",      label: "Financeiro",       icon: "fa-solid fa-chart-line",             to: { name: "Financeiro" } },
-        { name: "Orcamentos",      label: "Orçamentos",       icon: "fa-solid fa-file-invoice-dollar",    to: { name: "Orcamentos" } },
-        { name: "Inventario",      label: "Estoque",          icon: "fa-solid fa-boxes-stacked",          to: { name: "Inventario" } },
-        { name: "Relatorios",      label: "Relatórios",       icon: "fa-solid fa-chart-pie",              to: { name: "Relatorios" } },
-        { name: "Automacoes",      label: "Automação",        icon: "fa-solid fa-bolt",                   to: { name: "Automacoes" } },
+    // Sem vínculo: sidebar vazia. Acesso a perfil/convites é via dropdown da topbar.
+    if (tenant.semEstabelecimento || !tenant.ativo) return []
+
+    // Cada item lista as capabilities que o concedem. Item aparece se o usuário
+    // tem QUALQUER uma. Dono passa em tudo (permissoes.pode/podeExtra retornam true).
+    // Home aparece sempre (é a landing page do tenant ativo).
+    const items: { name: string; label: string; icon: string; to: { name: string }; mostrar: boolean }[] = [
+        { name: "Home",            label: "Painel inicial",   icon: "fa-solid fa-house",                  to: { name: "Home" },            mostrar: true },
+        { name: "Agenda",          label: "Agendamentos",     icon: "fa-solid fa-calendar-days",          to: { name: "Agenda" },          mostrar: permissoes.pode("agenda.ver") },
+        { name: "MinhasConsultas", label: "Minhas consultas", icon: "fa-solid fa-stethoscope",            to: { name: "MinhasConsultas" }, mostrar: permissoes.pode("agenda.ver") },
+        { name: "Pacientes",       label: "Pacientes",        icon: "fa-solid fa-people-group",           to: { name: "Pacientes" },       mostrar: permissoes.pode("pacientes.ver") },
+        { name: "Equipe",          label: "Equipe",           icon: "fa-solid fa-user-doctor",            to: { name: "Equipe" },          mostrar: permissoes.pode("equipe.ver") || permissoes.podeExtra("gerir_profissionais") || permissoes.podeExtra("gerir_permissoes") },
+        { name: "Financeiro",      label: "Financeiro",       icon: "fa-solid fa-chart-line",             to: { name: "Financeiro" },      mostrar: permissoes.pode("financeiro.ver") },
+        { name: "Orcamentos",      label: "Orçamentos",       icon: "fa-solid fa-file-invoice-dollar",    to: { name: "Orcamentos" },      mostrar: permissoes.pode("orcamento.ver") },
+        { name: "Inventario",      label: "Estoque",          icon: "fa-solid fa-boxes-stacked",          to: { name: "Inventario" },      mostrar: permissoes.pode("estoque.ver") },
+        { name: "Relatorios",      label: "Relatórios",       icon: "fa-solid fa-chart-pie",              to: { name: "Relatorios" },      mostrar: permissoes.pode("relatorios.ver") },
+        { name: "Automacoes",      label: "Automação",        icon: "fa-solid fa-bolt",                   to: { name: "Automacoes" },      mostrar: permissoes.podeExtra("automacao_config") },
     ]
-    if (tenant.semEstabelecimento) {
-        return items.map(item => ({ ...item, locked: true }))
-    }
-    return items
+    return items.filter(i => i.mostrar).map(({ mostrar: _, ...rest }) => rest)
 })
+
+const podeVerConfig = computed(() =>
+    permissoes.podeExtra("config_estabelecimento") || permissoes.ehDono,
+)
 
 const brandTo = computed(() =>
     tenant.semEstabelecimento ? { name: "MeusConvites" } : { name: "Home" }
@@ -107,6 +115,13 @@ function irMinhaConta() {
 function irNotificacoes() {
     router.push({ name: "Notificacoes" })
 }
+
+async function sincronizarNotificacoes() {
+    await Promise.all([
+        notificacoes.carregar({ tamanho: 5 }),
+        notificacoes.atualizarContador(),
+    ])
+}
 </script>
 
 <template>
@@ -116,6 +131,7 @@ function irNotificacoes() {
         :inicial-usuario="userInicial"
         :foto-url="profissional.fotoUrl"
         :contador-notificacoes="notificacoes.naoLidas"
+        @abrir-notificacoes="sincronizarNotificacoes"
     >
         <template #brand>
             <router-link :to="brandTo" class="brand-link">
@@ -199,19 +215,8 @@ function irNotificacoes() {
 
     <AppSidebar :items="navMain" :active-map="activeMap">
         <template #footer="{ expanded }">
-            <span
-                v-if="tenant.semEstabelecimento"
-                class="foot-item foot-item--locked"
-                :class="{ 'is-expanded': expanded }"
-                :title="!expanded ? 'Configurações' : ''"
-                aria-disabled="true"
-            >
-                <i class="fa-solid fa-gear" aria-hidden="true"></i>
-                <span class="lbl">Configurações</span>
-                <i class="fa-solid fa-lock foot-lock-icon" aria-hidden="true"></i>
-            </span>
             <router-link
-                v-else
+                v-if="podeVerConfig"
                 :to="{ name: 'Estabelecimento' }"
                 class="foot-item"
                 :class="{ active: configuracoesAtiva, 'is-expanded': expanded }"

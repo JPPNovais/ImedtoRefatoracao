@@ -12,15 +12,18 @@ public class AlterarModeloPermissaoDoVinculoCommandHandler : ICommandHandler<Alt
     private readonly IVinculoRepository _vinculoRepo;
     private readonly IEstabelecimentoRepository _estabRepo;
     private readonly IModeloPermissaoRepository _modeloRepo;
+    private readonly IEventBus _eventBus;
 
     public AlterarModeloPermissaoDoVinculoCommandHandler(
         IVinculoRepository vinculoRepo,
         IEstabelecimentoRepository estabRepo,
-        IModeloPermissaoRepository modeloRepo)
+        IModeloPermissaoRepository modeloRepo,
+        IEventBus eventBus)
     {
         _vinculoRepo = vinculoRepo;
         _estabRepo = estabRepo;
         _modeloRepo = modeloRepo;
+        _eventBus = eventBus;
     }
 
     public async Task Handle(AlterarModeloPermissaoDoVinculoCommand command)
@@ -40,5 +43,11 @@ public class AlterarModeloPermissaoDoVinculoCommandHandler : ICommandHandler<Alt
 
         vinculo.AtualizarModeloPermissao(command.NovoModeloPermissaoId);
         await _vinculoRepo.Salvar(vinculo);
+
+        // Publica eventos de domínio (VinculoModeloPermissaoAlteradoEvent) para que a
+        // bridge SignalR notifique o profissional afetado a revalidar permissões.
+        foreach (var evt in vinculo.DomainEvents)
+            await _eventBus.Publish(evt);
+        vinculo.ClearDomainEvents();
     }
 }

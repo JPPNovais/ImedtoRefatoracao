@@ -22,6 +22,17 @@ public class EstabelecimentoDto
     public IReadOnlyList<int> DiasSemanaFuncionamento { get; set; } = Array.Empty<int>();
     public IReadOnlyList<HorarioBloqueadoDto> HorariosBloqueados { get; set; } = Array.Empty<HorarioBloqueadoDto>();
     public IReadOnlyList<DataBloqueadaDto> DatasBloqueadas { get; set; } = Array.Empty<DataBloqueadaDto>();
+
+    /// <summary>
+    /// Permissões granulares do usuário neste estabelecimento (formato "area.acao").
+    /// Vazio para Dono — Dono tem todas. Vazio para Profissional sem modelo atribuído.
+    /// </summary>
+    public IReadOnlyList<string> Permissoes { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Permissões finas (extras) do modelo do vínculo. Vazio para Dono — Dono tem todas.
+    /// </summary>
+    public IReadOnlyList<string> PermissoesExtras { get; set; } = Array.Empty<string>();
 }
 
 public record HorarioBloqueadoDto(Guid Id, TimeOnly Inicio, TimeOnly Fim, string Descricao);

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Dashboard;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
@@ -10,6 +11,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/dashboard")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAcao("agenda")]
 public class DashboardController : ControllerBase
 {
     private readonly IRequestBus _query;

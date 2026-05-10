@@ -46,7 +46,9 @@ public class EstabelecimentoQueryRepository
                     e.intervalo_entre_consultas_minutos   AS IntervaloEntreConsultasMinutos,
                     e.dias_semana_funcionamento::text AS DiasSemanaJson,
                     e.horarios_bloqueados::text       AS HorariosBloqueadosJson,
-                    e.datas_bloqueadas::text          AS DatasBloqueadasJson
+                    e.datas_bloqueadas::text          AS DatasBloqueadasJson,
+                    '[]'::text                        AS PermissoesJson,
+                    '[]'::text                        AS PermissoesExtrasJson
             FROM    public.estabelecimentos e
             WHERE   e.dono_usuario_id = @UsuarioId
             UNION
@@ -66,9 +68,12 @@ public class EstabelecimentoQueryRepository
                     e.intervalo_entre_consultas_minutos,
                     e.dias_semana_funcionamento::text,
                     e.horarios_bloqueados::text,
-                    e.datas_bloqueadas::text
+                    e.datas_bloqueadas::text,
+                    COALESCE(mp.permissoes::text, '[]'),
+                    COALESCE(mp.permissoes_extras::text, '[]')
             FROM    public.estabelecimentos e
             JOIN    public.vinculo_profissional_estabelecimento v ON v.estabelecimento_id = e.id
+            LEFT JOIN public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
             WHERE   v.profissional_usuario_id = @UsuarioId
               AND   v.status = 'Ativo'
             ORDER BY NomeFantasia
@@ -96,6 +101,8 @@ public class EstabelecimentoQueryRepository
             DiasSemanaFuncionamento = JsonSerializer.Deserialize<List<int>>(r.DiasSemanaJson ?? "[]") ?? new(),
             HorariosBloqueados = JsonSerializer.Deserialize<List<HorarioBloqueadoDto>>(r.HorariosBloqueadosJson ?? "[]", _jsonOpts) ?? new(),
             DatasBloqueadas = JsonSerializer.Deserialize<List<DataBloqueadaDto>>(r.DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new(),
+            Permissoes = JsonSerializer.Deserialize<List<string>>(r.PermissoesJson ?? "[]") ?? new(),
+            PermissoesExtras = JsonSerializer.Deserialize<List<string>>(r.PermissoesExtrasJson ?? "[]") ?? new(),
         });
     }
 
@@ -180,5 +187,7 @@ public class EstabelecimentoQueryRepository
         public string DiasSemanaJson { get; set; }
         public string HorariosBloqueadosJson { get; set; }
         public string DatasBloqueadasJson { get; set; }
+        public string PermissoesJson { get; set; } = "[]";
+        public string PermissoesExtrasJson { get; set; } = "[]";
     }
 }
