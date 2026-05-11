@@ -6,6 +6,7 @@ import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
 import { useAssinaturaStore } from "@/stores/assinaturaStore"
+import { bootstrapService } from "@/services/bootstrapService"
 
 /**
  * Auth store — BFF pattern. Tokens ficam em cookies HttpOnly geridos pelo backend.
@@ -88,10 +89,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     async function login(email: string, password: string) {
         const { data } = await httpClient.post("/auth/login", { email, password })
-        await recarregarMe()
-        // Recarrega perfil profissional para o avatar do sidebar refletir o novo usuário.
-        await useProfissionalStore().init()
-        ativarRealtime()
+        await bootstrapPosAuth()
         return data
     }
 
@@ -100,7 +98,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (data.requerConfirmacaoEmail) {
             throw Object.assign(new Error("confirm-email"), { requerConfirmacaoEmail: true })
         }
-        await recarregarMe()
+        await bootstrapPosAuth()
         return data
     }
 
@@ -119,14 +117,29 @@ export const useAuthStore = defineStore("auth", () => {
     async function aceitarConvite(token: string, email: string, novaSenha: string) {
         // Backend já loga o usuário (cookies HttpOnly setados na resposta).
         await httpClient.post("/auth/aceitar-convite", { token, email, novaSenha })
-        await recarregarMe()
-        await useProfissionalStore().init()
-        ativarRealtime()
+        await bootstrapPosAuth()
     }
 
     async function recarregarMe() {
         const { data } = await httpClient.get("/auth/me")
         usuario.value = data.usuario
+    }
+
+    /**
+     * Hidrata usuario + profissional + estabelecimentos via /auth/bootstrap após
+     * autenticação bem-sucedida (login/signup/aceitarConvite). Sem isso, o tenant
+     * fica null e o HomeView mostra o estado "indeterminado" ("Não conseguimos
+     * carregar seus dados") — porque o bootstrap inicial de main.ts só roda uma
+     * vez na carga da SPA, não a cada login.
+     */
+    async function bootstrapPosAuth() {
+        const data = await bootstrapService.obter()
+        usuario.value = data.usuario
+        useProfissionalStore().setProfissional(data.profissional)
+        if (!onboardingPendente.value) {
+            useTenantStore().popularEstabelecimentos(data.estabelecimentos)
+        }
+        ativarRealtime()
     }
 
     async function logout() {

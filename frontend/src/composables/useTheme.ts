@@ -15,9 +15,9 @@ export type Theme = "light" | "dark" | "auto"
 const STORAGE_KEY = "imedto-theme"
 
 function lerInicial(): Theme {
-    if (typeof localStorage === "undefined") return "auto"
+    if (typeof localStorage === "undefined") return "light"
     const v = localStorage.getItem(STORAGE_KEY)
-    return v === "light" || v === "dark" || v === "auto" ? v : "auto"
+    return v === "light" || v === "dark" || v === "auto" ? v : "light"
 }
 
 function preferenciaSistema(): "light" | "dark" {

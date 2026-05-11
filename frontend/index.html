@@ -12,7 +12,7 @@
         <script>
             (function () {
                 try {
-                    var t = localStorage.getItem("imedto-theme") || "auto"
+                    var t = localStorage.getItem("imedto-theme") || "light"
                     var dark = t === "dark"
                         || (t === "auto" && window.matchMedia
                             && window.matchMedia("(prefers-color-scheme: dark)").matches)
