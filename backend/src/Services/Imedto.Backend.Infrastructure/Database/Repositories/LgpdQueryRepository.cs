@@ -51,7 +51,7 @@ public class LgpdQueryRepository
         // Vínculos com estabelecimentos
         const string sqlVinculos = """
             SELECT  e.id            AS EstabelecimentoId,
-                    e.nome          AS NomeEstabelecimento,
+                    e.nome_fantasia AS NomeEstabelecimento,
                     v.status        AS Status,
                     v.aceito_em     AS VinculadoEm
             FROM    public.vinculo_profissional_estabelecimento v

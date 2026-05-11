@@ -23,6 +23,12 @@ public interface IAuthService
     /// <summary>Autentica o usuário. Lança BusinessException em credenciais inválidas.</summary>
     Task<AuthResult> LoginAsync(string email, string password);
 
+    /// <summary>
+    /// Verifica se a senha informada corresponde à credencial do usuário, sem criar sessão.
+    /// Usado em operações sensíveis (ex: anonimização da conta) para exigir reautenticação.
+    /// </summary>
+    Task<bool> ValidarSenhaAsync(Guid usuarioId, string password);
+
     /// <summary>Renova o access token usando o refresh token. Lança BusinessException se expirado.</summary>
     Task<AuthResult> RefreshAsync(string refreshToken);
 

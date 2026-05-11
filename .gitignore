@@ -1,3 +1,6 @@
+# QA local scripts e artefatos (Playwright + relatórios + screenshots)
+qa/
+
 # Secrets & local config
 .mcp.json
 .env

@@ -17,7 +17,7 @@ namespace Imedto.Backend.API.Filters;
 ///    pelo segundo parâmetro do construtor. Útil para controllers como
 ///    <c>EstabelecimentoController</c> que usam o id como route param.
 ///
-/// Resposta de bloqueio: HTTP 422 via <see cref="BusinessException"/> (tratado pelo
+/// Resposta de bloqueio: HTTP 403 via <see cref="ForbiddenException"/> (tratado pelo
 /// <c>GlobalExceptionFilter</c>). Mensagem genérica — sem detalhar qual permissão faltou.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
@@ -53,7 +53,7 @@ public sealed class RequiresPermissaoExtraAttribute : Attribute, IAsyncActionFil
             ctx.HttpContext.RequestAborted);
 
         if (!temPermissao)
-            throw new BusinessException("Você não tem permissão para esta operação.");
+            throw new ForbiddenException("Você não tem permissão para esta operação.");
 
         await next();
     }
@@ -68,14 +68,14 @@ public sealed class RequiresPermissaoExtraAttribute : Attribute, IAsyncActionFil
 
         // Fallback: lê userId do JWT e estabelecimentoId do route value.
         var subClaim = ctx.HttpContext.User.FindFirst("sub")?.Value
-            ?? throw new BusinessException("Usuário não autenticado.");
+            ?? throw new ForbiddenException("Usuário não autenticado.");
         var usuarioId = Guid.Parse(subClaim);
 
         var routeKey = _estabelecimentoIdRouteKey ?? "id";
         if (!ctx.RouteData.Values.TryGetValue(routeKey, out var routeVal)
             || !long.TryParse(routeVal?.ToString(), out var estabelecimentoId))
         {
-            throw new BusinessException("Não foi possível determinar o estabelecimento para verificar permissões.");
+            throw new ForbiddenException("Não foi possível determinar o estabelecimento para verificar permissões.");
         }
 
         return (usuarioId, estabelecimentoId);

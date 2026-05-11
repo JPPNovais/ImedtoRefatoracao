@@ -32,10 +32,12 @@ const topFinanceiro = computed(() =>
     }))
 )
 
-// KPI atendimentos do operacional
+// KPI atendimentos do operacional — guards extra porque o backend pode devolver
+// shape sem `kpis`/`breakdown` (depende do `tipo` solicitado) e o operacional
+// só vem preenchido para a sub-seção pedida.
 const totalAtendimentos = computed(() =>
-    props.operacional?.kpis.find(k => k.rotulo.toLowerCase().includes('atendimento'))?.valor
-    ?? props.operacional?.breakdown.reduce((s, l) => s + (l.quantidade ?? 0), 0)
+    props.operacional?.kpis?.find(k => k.rotulo.toLowerCase().includes('atendimento'))?.valor
+    ?? props.operacional?.breakdown?.reduce((s, l) => s + (l.quantidade ?? 0), 0)
     ?? null
 )
 </script>

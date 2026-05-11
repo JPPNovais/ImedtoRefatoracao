@@ -47,17 +47,29 @@ async function exportarDados() {
 
 const confirmandoExcluir = ref(false)
 const confirmacaoTexto   = ref("")
+const confirmacaoSenha   = ref("")
 const excluindo          = ref(false)
 const erroExcluir        = ref<string | null>(null)
 
 const TEXTO_CONFIRMACAO = "EXCLUIR MINHA CONTA"
 
+function resetExcluir() {
+    confirmandoExcluir.value = false
+    confirmacaoTexto.value = ""
+    confirmacaoSenha.value = ""
+    erroExcluir.value = null
+}
+
 async function excluirConta() {
     if (confirmacaoTexto.value !== TEXTO_CONFIRMACAO) return
+    if (confirmacaoSenha.value.length === 0) {
+        erroExcluir.value = "Informe sua senha para confirmar."
+        return
+    }
     excluindo.value = true
     erroExcluir.value = null
     try {
-        await lgpdService.excluirConta()
+        await lgpdService.excluirConta(confirmacaoSenha.value)
         await auth.logout()
         router.push({ name: "Landing" })
     } catch (e: any) {
@@ -173,7 +185,7 @@ onMounted(carregarConsentimentos)
             :aberto="confirmandoExcluir"
             titulo="Confirmar exclusao de conta"
             largura="sm"
-            @fechar="confirmandoExcluir = false; confirmacaoTexto = ''; erroExcluir = null"
+            @fechar="resetExcluir"
         >
             <div class="modal-excluir-corpo">
                 <p>
@@ -190,19 +202,28 @@ onMounted(carregarConsentimentos)
                     aria-label="Texto de confirmacao de exclusao"
                     autocomplete="off"
                 />
+                <p>Por seguranca, informe sua senha:</p>
+                <input
+                    v-model="confirmacaoSenha"
+                    class="input-confirmacao"
+                    type="password"
+                    placeholder="Sua senha"
+                    aria-label="Senha de confirmacao"
+                    autocomplete="current-password"
+                />
                 <p v-if="erroExcluir" class="msg-erro" role="alert">{{ erroExcluir }}</p>
             </div>
             <template #rodape>
                 <AppButton
                     variant="secondary"
-                    @click="confirmandoExcluir = false; confirmacaoTexto = ''; erroExcluir = null"
+                    @click="resetExcluir"
                 >
                     Cancelar
                 </AppButton>
                 <AppButton
                     variant="danger"
                     :loading="excluindo"
-                    :disabled="confirmacaoTexto !== TEXTO_CONFIRMACAO"
+                    :disabled="confirmacaoTexto !== TEXTO_CONFIRMACAO || confirmacaoSenha.length === 0"
                     @click="excluirConta"
                 >
                     Confirmar exclusao

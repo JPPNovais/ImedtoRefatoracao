@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Hosting;
@@ -32,6 +33,20 @@ public class GlobalExceptionFilter : IExceptionFilter
                 tipo = "ErroDeNegocio",
                 mensagem = businessEx.Message
             });
+            context.ExceptionHandled = true;
+            return;
+        }
+
+        if (context.Exception is ForbiddenException forbiddenEx)
+        {
+            context.Result = new ObjectResult(new
+            {
+                tipo = "SemPermissao",
+                mensagem = forbiddenEx.Message
+            })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
             context.ExceptionHandled = true;
             return;
         }

@@ -88,6 +88,11 @@ public class ConvidarProfissionalCommandHandlerTests
             .Setup(r => r.ObterPadraoDoEstabelecimento(EstabelecimentoId))
             .ReturnsAsync(CriarModelo());
 
+        // Modelo de permissão agora é obrigatório no convite — mock o catálogo do estabelecimento.
+        _modeloRepo
+            .Setup(r => r.PertenceAoEstabelecimento(ModeloId, EstabelecimentoId))
+            .ReturnsAsync(true);
+
         _usuarioRepo
             .Setup(r => r.ObterPorIdOuNulo(_profissionalId))
             .ReturnsAsync((Usuario)null);
@@ -129,7 +134,7 @@ public class ConvidarProfissionalCommandHandlerTests
             ConvidadoPorUsuarioId = _donoId,
             ProfissionalUsuarioId = _profissionalId,
             ProfissionalEmail = "prof@clinica.com",
-            ModeloPermissaoId = null
+            ModeloPermissaoId = ModeloId
         };
 
         // Act
@@ -165,7 +170,7 @@ public class ConvidarProfissionalCommandHandlerTests
             ConvidadoPorUsuarioId = _donoId,
             ProfissionalUsuarioId = _profissionalId,
             ProfissionalEmail = "prof@clinica.com",
-            ModeloPermissaoId = null
+            ModeloPermissaoId = ModeloId
         };
 
         // Act
@@ -199,13 +204,39 @@ public class ConvidarProfissionalCommandHandlerTests
             EstabelecimentoId = EstabelecimentoId,
             ConvidadoPorUsuarioId = _donoId,
             ProfissionalUsuarioId = _profissionalId,
-            ProfissionalEmail = "prof@clinica.com"
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = ModeloId
         };
 
         // Act + Assert
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
 
         Assert.That(ex.Message, Does.Contain("ativo").IgnoreCase.Or.Contain("pendente").IgnoreCase);
+    }
+
+    [Test]
+    public void Handle_SemModeloPermissaoId_LancaBusinessException()
+    {
+        // Arrange
+        ConfigurarMocksBase();
+        _vinculoRepo
+            .Setup(r => r.ObterPorProfissionalEEstabelecimentoOuNulo(_profissionalId, EstabelecimentoId))
+            .ReturnsAsync((VinculoProfissionalEstabelecimento)null);
+
+        var cmd = new ConvidarProfissionalCommand
+        {
+            EstabelecimentoId = EstabelecimentoId,
+            ConvidadoPorUsuarioId = _donoId,
+            ProfissionalUsuarioId = _profissionalId,
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = null
+        };
+
+        // Act + Assert — sem modelo, convite é rejeitado (evita vínculo Ativo em limbo).
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
+        Assert.That(ex.Message, Does.Contain("modelo").IgnoreCase);
+
+        _vinculoRepo.Verify(r => r.Salvar(It.IsAny<VinculoProfissionalEstabelecimento>()), Times.Never);
     }
 
     [Test]
@@ -227,7 +258,8 @@ public class ConvidarProfissionalCommandHandlerTests
             EstabelecimentoId = EstabelecimentoId,
             ConvidadoPorUsuarioId = _donoId,
             ProfissionalUsuarioId = _profissionalId,
-            ProfissionalEmail = "prof@clinica.com"
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = ModeloId
         };
 
         // Act + Assert

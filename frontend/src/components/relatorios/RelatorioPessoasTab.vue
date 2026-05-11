@@ -69,7 +69,7 @@ function moeda(n: number) {
             </AppCard>
 
             <!-- Ranking Profissionais -->
-            <AppCard v-else-if="dados.tipo === 'profissionais_performance'">
+            <AppCard v-else-if="dados.tipo === 'profissionais'">
                 <template #header>
                     <div class="rp-card-titulo">
                         <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>

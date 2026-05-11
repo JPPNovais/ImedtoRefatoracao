@@ -34,9 +34,11 @@ export const lgpdService = {
 
     /**
      * Solicita a exclusão (anonimização LGPD) da conta do usuário logado.
+     * Exige reautenticação por senha — o backend valida antes de executar
+     * (anonimização é irreversível, proteger contra cookie roubado).
      * Após a conclusão, o chamador deve fazer logout.
      */
-    async excluirConta(): Promise<void> {
-        await httpClient.delete("/minha-conta")
+    async excluirConta(password: string): Promise<void> {
+        await httpClient.delete("/minha-conta", { data: { password } })
     },
 }

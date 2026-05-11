@@ -21,14 +21,19 @@ async function bootstrap() {
     const tenant = useTenantStore()
 
     // Único round-trip de hidratação. Substitui /auth/me + /profissional/me +
-    // /estabelecimento serializados. Em caso de 401, o interceptor já tenta o
-    // refresh; se falhar, cai aqui como erro e o usuário cai no /login pelo guard.
-    const data = await bootstrapService.obter().catch((err) => {
-        // Diagnóstico explícito: sem isso o usuário fica numa SPA "morta" (sem tenant,
-        // sem usuário, sem feedback de erro). Logamos status + URL para facilitar suporte.
+    // /estabelecimento serializados. Quando NÃO há sessão (carga da landing/login),
+    // o backend responde 401 — caso esperado, suprimimos auto-refresh e log de warning
+    // para não poluir o console em prod (monitoramento de erro fica limpo).
+    const data = await bootstrapService.obterInicial().catch((err) => {
+        const status = err?.response?.status
+        if (status === 401) {
+            // Sem sessão na carga inicial — comportamento esperado, não loga.
+            return null
+        }
+        // Erro de rede/servidor real: registra pra diagnóstico.
         // eslint-disable-next-line no-console
         console.warn("[bootstrap] falhou — usuário cairá em /login pelo guard.", {
-            status: err?.response?.status,
+            status,
             data: err?.response?.data,
             message: err?.message,
         })

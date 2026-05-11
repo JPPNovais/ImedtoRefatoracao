@@ -134,6 +134,22 @@ public class LocalJwtAuthService : IAuthService
         return await EmitirSessaoAsync(credencial);
     }
 
+    public async Task<bool> ValidarSenhaAsync(Guid usuarioId, string password)
+    {
+        if (string.IsNullOrEmpty(password))
+            return false;
+
+        var credencial = await _credenciaisRepo.ObterPorIdAsync(usuarioId);
+        if (credencial is null || !credencial.TemSenhaDefinida || credencial.Bloqueado)
+        {
+            // Constant-ish time: aplica hash dummy pra reduzir oráculo de timing.
+            _ = _hasher.Verificar(password, "$2a$12$DummyDummyDummyDummyDummyDummyDummyDummyDummyDummyDu");
+            return false;
+        }
+
+        return _hasher.Verificar(password, credencial.SenhaHash);
+    }
+
     public async Task<AuthResult> RefreshAsync(string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))

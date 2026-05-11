@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Imedto.Backend.Contracts.Lgpd.Commands;
 using Imedto.Backend.Contracts.Lgpd.Queries;
+using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -20,12 +22,19 @@ public class MinhaContaController : ControllerBase
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
     private readonly IMemoryCache _cache;
+    private readonly IAuthService _authService;
 
-    public MinhaContaController(ICommandBus commandBus, IRequestBus requestBus, IMemoryCache cache)
+    public MinhaContaController(ICommandBus commandBus, IRequestBus requestBus, IMemoryCache cache, IAuthService authService)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
         _cache = cache;
+        _authService = authService;
+    }
+
+    public sealed class AnonimizarRequest
+    {
+        public string Password { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -52,9 +61,18 @@ public class MinhaContaController : ControllerBase
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> AnonimizarConta()
+    public async Task<IActionResult> AnonimizarConta([FromBody] AnonimizarRequest body)
     {
         var userId = ObterUsuarioId();
+
+        // Reautenticação obrigatória — anonimização é irreversível (Art. 18 LGPD).
+        // Exigir senha protege contra roubo de cookie (XSS, malware no browser) que,
+        // do contrário, permitiria destruir a conta da vítima em 1 chamada.
+        if (body is null || string.IsNullOrEmpty(body.Password))
+            throw new BusinessException("Confirme sua senha para continuar.");
+
+        if (!await _authService.ValidarSenhaAsync(userId, body.Password))
+            throw new BusinessException("Senha incorreta.");
 
         await _commandBus.Send(new AnonimizarMinhaContaCommand
         {

@@ -34,18 +34,20 @@ describe("lgpdService", () => {
     })
 
     describe("excluirConta", () => {
-        it("chama DELETE /minha-conta", async () => {
+        it("chama DELETE /minha-conta com a senha no body", async () => {
             vi.mocked(httpClient.delete).mockResolvedValueOnce({ data: null } as any)
 
-            await lgpdService.excluirConta()
+            await lgpdService.excluirConta("MinhaSenha123!")
 
-            expect(httpClient.delete).toHaveBeenCalledWith("/minha-conta")
+            expect(httpClient.delete).toHaveBeenCalledWith("/minha-conta", {
+                data: { password: "MinhaSenha123!" },
+            })
         })
 
         it("propaga erro do servidor", async () => {
             vi.mocked(httpClient.delete).mockRejectedValueOnce(new Error("422"))
 
-            await expect(lgpdService.excluirConta()).rejects.toThrow("422")
+            await expect(lgpdService.excluirConta("senha")).rejects.toThrow("422")
         })
     })
 

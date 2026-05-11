@@ -4,7 +4,7 @@ import httpClient from "./httpClient"
 
 export type AgruparPorFinanceiro = "dia" | "semana" | "mes" | "categoria" | "forma_pagamento"
 export type TipoRelatorioOperacional = "agenda" | "dashboard" | "inventario"
-export type TipoRelatorioPessoas = "pacientes" | "profissionais_performance"
+export type TipoRelatorioPessoas = "pacientes" | "profissionais"
 
 export interface LinhaRelatorio {
     rotulo: string
@@ -101,16 +101,64 @@ export const relatorioService = {
     },
 
     async pessoas(filtro: FiltroPessoas = {}): Promise<RelatorioPessoas> {
-        const { data } = await httpClient.get<RelatorioPessoas>("/relatorios/pessoas", {
+        // Backend devolve { tipo, pacientes?: { ... topAtivos[] }, profissionais?: { desempenho[] } }.
+        // O front consome topPacientes / rankingProfissionais — faz o mapping aqui.
+        const { data } = await httpClient.get<RelatorioPessoasBackend>("/relatorios/pessoas", {
             params: filtro,
         })
-        return data
+        const tipo = (data?.tipo ?? filtro.tipo ?? "pacientes") as TipoRelatorioPessoas
+        return {
+            tipo,
+            topPacientes: data?.pacientes?.topAtivos?.map((p) => ({
+                nome: p.nome,
+                totalConsultas: p.atendimentos,
+                totalGasto: 0,
+            })),
+            rankingProfissionais: data?.profissionais?.desempenho?.map((p) => ({
+                nome: p.nome,
+                totalAtendimentos: p.atendimentos,
+                faturamento: p.faturamento,
+            })),
+        }
     },
 
     async orcamentos(filtro: FiltroBase = {}): Promise<RelatorioOrcamentos> {
-        const { data } = await httpClient.get<RelatorioOrcamentos>("/relatorios/orcamentos", {
+        // Backend devolve campos achatados (totalEmitidos, totalAprovados, valorMedio…);
+        // o front agrupa em `funil`. Faz o mapping aqui para isolar a divergência.
+        const { data } = await httpClient.get<RelatorioOrcamentosBackend>("/relatorios/orcamentos", {
             params: filtro,
         })
-        return data
+        return {
+            funil: {
+                totalCriados: data?.totalEmitidos ?? 0,
+                totalEnviados: data?.totalEmitidos ?? 0,
+                totalAprovados: data?.totalAprovados ?? 0,
+                totalRecusados: data?.totalRecusados ?? 0,
+                valorMedioAprovado: data?.valorMedio ?? 0,
+                taxaConversao: data?.taxaConversao ?? 0,
+            },
+            breakdown: data?.breakdown ?? [],
+        }
     },
+}
+
+interface RelatorioOrcamentosBackend {
+    totalEmitidos: number
+    totalAprovados: number
+    totalRecusados: number
+    valorMedio: number
+    taxaConversao: number
+    breakdown: LinhaRelatorio[]
+}
+
+interface RelatorioPessoasBackend {
+    tipo: string
+    pacientes?: {
+        novos: number
+        retornos: number
+        topAtivos?: Array<{ nome: string, atendimentos: number }>
+    }
+    profissionais?: {
+        desempenho?: Array<{ nome: string, atendimentos: number, faturamento: number }>
+    }
 }

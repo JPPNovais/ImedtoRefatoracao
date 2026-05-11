@@ -168,6 +168,28 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<OnboardingCompletadoFilter>();
 });
 
+// Padroniza a resposta de 400 (validação de modelo / parser JSON) no mesmo formato
+// { tipo, mensagem } usado em BusinessException/ForbiddenException. Sem isso, requests
+// com body inválido devolvem o ValidationProblemDetails default — que expõe detalhes
+// internos do parser (Path: $.campo, LineNumber, BytePositionInLine).
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = ctx =>
+    {
+        var primeiro = ctx.ModelState
+            .FirstOrDefault(e => e.Value?.Errors.Count > 0)
+            .Value?.Errors.FirstOrDefault();
+        var mensagem = primeiro?.ErrorMessage;
+        if (string.IsNullOrWhiteSpace(mensagem) || mensagem.StartsWith("The JSON value", StringComparison.Ordinal))
+            mensagem = "Dados inválidos no corpo da requisição.";
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new
+        {
+            tipo = "DadosInvalidos",
+            mensagem
+        });
+    };
+});
+
 // --- Swagger ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

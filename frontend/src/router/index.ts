@@ -309,7 +309,10 @@ router.beforeEach(async (to) => {
         return { name: "Login" }
     }
 
-    if (auth.isAuthenticated && auth.onboardingPendente && to.name !== "Onboarding") {
+    // /meus-convites é acessível ao convidado mesmo com onboarding pendente —
+    // ele precisa ver e aceitar convites antes de cadastrar dados pessoais.
+    const rotasIsentasOnboarding = new Set(["Onboarding", "MeusConvites"])
+    if (auth.isAuthenticated && auth.onboardingPendente && !rotasIsentasOnboarding.has((to.name as string) ?? "")) {
         return { name: "Onboarding" }
     }
 

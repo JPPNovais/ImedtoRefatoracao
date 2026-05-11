@@ -128,7 +128,7 @@ async function carregarPessoas() {
         pessoas.value = await relatorioService.pessoas({
             dataInicio: filtroAtual.value.dataInicio || undefined,
             dataFim:    filtroAtual.value.dataFim    || undefined,
-            tipo: 'profissionais_performance',
+            tipo: 'profissionais',
         })
     } catch (e: any) {
         erroPes.value = e?.response?.data?.mensagem ?? 'Erro ao carregar relatório de pessoas.'

@@ -65,12 +65,17 @@ httpClient.interceptors.response.use(
                 await httpClient.post("/auth/refresh")
 
                 return httpClient(originalRequest)
-            } catch (refreshError) {
+            } catch (refreshError: any) {
                 const auth = useAuthStore()
                 const tenant = useTenantStore()
-                console.warn("[auth] Sessão expirada — redirecionando para login.", {
+                // Refresh com 401 é o caso "sem sessão" (cookie ausente/expirado) —
+                // esperado quando o usuário ainda não logou ou ficou inativo demais.
+                // Usar console.debug evita falso-positivo no monitoramento.
+                const refreshStatus = refreshError?.response?.status
+                const log = refreshStatus === 401 ? console.debug : console.warn
+                log("[auth] Sessão expirada — redirecionando para login.", {
                     originalUrl: originalRequest?.url,
-                    refreshError,
+                    refreshStatus,
                 })
                 auth.setUsuario(null)
                 tenant.limpar()

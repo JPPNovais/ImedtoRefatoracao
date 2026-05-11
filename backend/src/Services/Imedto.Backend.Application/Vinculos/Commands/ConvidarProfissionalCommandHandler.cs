@@ -68,16 +68,17 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
             throw new BusinessException("Profissão é obrigatória quando especialidade for informada.");
         }
 
-        // Modelo de permissão é opcional. Se vier explícito, valida que pertence
-        // ao estabelecimento; se não vier, o vínculo é criado sem permissão (o
-        // dono atribui depois, ou ao convidado fica sem acesso até atribuição).
-        long? modeloId = null;
-        if (command.ModeloPermissaoId is { } explicitId && explicitId > 0)
-        {
-            if (!await _modeloRepo.PertenceAoEstabelecimento(explicitId, command.EstabelecimentoId))
-                throw new BusinessException("Modelo de permissão não pertence a este estabelecimento.");
-            modeloId = explicitId;
-        }
+        // Modelo de permissão é OBRIGATÓRIO. Sem ele, o vínculo fica em limbo:
+        // status Ativo no DB mas TenantAccessResolver retorna SemAcesso porque o JOIN
+        // com modelo_permissao_estabelecimento não casa. Exigir aqui evita o "convite
+        // aceito mas profissional preso sem acesso".
+        if (command.ModeloPermissaoId is not { } explicitId || explicitId <= 0)
+            throw new BusinessException("Selecione um modelo de permissão para o profissional.");
+
+        if (!await _modeloRepo.PertenceAoEstabelecimento(explicitId, command.EstabelecimentoId))
+            throw new BusinessException("Modelo de permissão não pertence a este estabelecimento.");
+
+        long? modeloId = explicitId;
 
         // Garante registro local do profissional (idempotente — pode já existir).
         var usuarioExistente = await _usuarioRepo.ObterPorIdOuNulo(command.ProfissionalUsuarioId);
