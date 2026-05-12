@@ -25,6 +25,12 @@ public class InativarVinculoCommandHandler : ICommandHandler<InativarVinculoComm
             ?? throw new BusinessException("Vínculo não encontrado.");
         var estab = await _estabelecimentoRepo.ObterPorId(vinculo.EstabelecimentoId);
 
+        // Defesa-em-profundidade: bloqueia inativar/remover vínculo cujo profissional é o Dono.
+        // O front já desabilita o checkbox, mas se vier por API direta (admin abusando, script,
+        // ou dado anômalo) precisa falhar fechado — Dono sem acesso quebra a clínica inteira.
+        if (vinculo.ProfissionalUsuarioId == estab.DonoUsuarioId)
+            throw new BusinessException("O dono do estabelecimento não pode ser desativado.");
+
         // O dono do estabelecimento OU o próprio profissional podem encerrar o vínculo.
         var ehDono = estab.DonoUsuarioId == command.UsuarioSolicitanteId;
         var ehProprioProfissional = vinculo.ProfissionalUsuarioId == command.UsuarioSolicitanteId;

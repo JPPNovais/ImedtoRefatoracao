@@ -82,6 +82,10 @@ export const vinculoService = {
         await httpClient.post(`/vinculo/${vinculoId}/inativar`)
     },
 
+    async reativarVinculo(vinculoId: number): Promise<void> {
+        await httpClient.post(`/vinculo/${vinculoId}/reativar`)
+    },
+
     async reenviarConvite(vinculoId: number): Promise<void> {
         const tenantStore = useTenantStore()
         const id = tenantStore.ativo?.id

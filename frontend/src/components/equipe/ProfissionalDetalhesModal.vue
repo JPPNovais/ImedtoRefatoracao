@@ -26,6 +26,7 @@ const emit = defineEmits<{
     (e: "fechar"): void
     (e: "atualizado", p: ProfissionalVinculado): void
     (e: "removido", p: ProfissionalVinculado): void
+    (e: "reativado", p: ProfissionalVinculado): void
 }>()
 
 const auth = useAuthStore()
@@ -33,6 +34,7 @@ const aba = ref<"perfil" | "permissoes">("perfil")
 const modeloSelecionadoId = ref<number | null>(null)
 const salvando = ref(false)
 const removendo = ref(false)
+const reativando = ref(false)
 const erro = ref<string | null>(null)
 
 watch(() => [props.profissional, props.aberto] as const, ([p, aberto]) => {
@@ -50,6 +52,7 @@ const ehDono = computed(() => props.profissional?.status === "Dono")
 const ehVinculoProprio = computed(() => props.profissional?.usuarioId === auth.usuario?.id)
 
 const podeRemover = computed(() => props.profissional && !ehDono.value && !ehVinculoProprio.value)
+const podeReativar = computed(() => props.profissional?.status === "Inativo" && !ehDono.value)
 
 function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
     if (s === "Ativo" || s === "Dono")  return "success"
@@ -99,8 +102,23 @@ async function remover() {
     }
 }
 
+async function reativar() {
+    if (!props.profissional || !podeReativar.value) return
+    if (props.profissional.vinculoId == null) return
+    reativando.value = true
+    erro.value = null
+    try {
+        await vinculoService.reativarVinculo(props.profissional.vinculoId)
+        emit("reativado", { ...props.profissional, status: "Ativo" })
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível reativar."
+    } finally {
+        reativando.value = false
+    }
+}
+
 function fechar() {
-    if (salvando.value || removendo.value) return
+    if (salvando.value || removendo.value || reativando.value) return
     emit("fechar")
 }
 
@@ -180,6 +198,16 @@ function iniciais(p: ProfissionalVinculado): string {
                     <div class="dado dado-full pro-danger">
                         <span class="dado-label danger">Ações administrativas</span>
                         <div class="da-actions">
+                            <AppButton
+                                v-if="podeReativar"
+                                size="sm"
+                                icon="fa-solid fa-circle-check"
+                                :loading="reativando"
+                                :disabled="reativando"
+                                @click="reativar"
+                            >
+                                Reativar profissional
+                            </AppButton>
                             <AppButton
                                 v-if="podeRemover"
                                 variant="danger"

@@ -154,25 +154,47 @@ function onDetalhesRemovido(p: ProfissionalVinculado) {
     notificar(`${p.nomeCompleto || p.email} foi removido(a) do estabelecimento.`)
 }
 
+function onDetalhesReativado(p: ProfissionalVinculado) {
+    detalhesAberto.value = false
+    void carregar()
+    notificar(`${p.nomeCompleto || p.email} reativado(a) com sucesso.`)
+}
+
 async function onAcaoMassa(payload: { acao: "ativar" | "desativar" | "remover", ids: number[] }) {
-    // O backend hoje só expõe `inativar`. "Desativar" e "remover" reusam o mesmo
-    // endpoint — o detalhe (manter ou apagar histórico) fica para uma feature
-    // futura quando houver distinção no domínio.
-    if (payload.acao === "ativar") {
-        notificar("Reativação em massa ainda não disponível — abra o profissional para reativar individualmente.", "info")
+    // "Desativar" e "remover" reusam o mesmo endpoint (inativar). "Ativar" usa o
+    // endpoint dedicado de reativar (Inativo → Ativo, sem novo convite).
+    const verbo = payload.acao === "ativar" ? "Reativar"
+        : payload.acao === "remover" ? "Remover" : "Desativar"
+    if (!confirm(`${verbo} ${payload.ids.length} profissional(is)?`)) return
+
+    // Filtra ids que realmente fazem sentido para a ação — botões já escondem o
+    // que não aplica, mas a seleção pode ser mista (ex: Ativos + Inativos).
+    const alvos = profissionais.value.filter(p => p.vinculoId != null && payload.ids.includes(p.vinculoId as number))
+    const aplicaveis = alvos
+        .filter(p => payload.acao === "ativar" ? p.status === "Inativo" : p.status !== "Inativo")
+        .map(p => p.vinculoId as number)
+
+    if (!aplicaveis.length) {
+        notificar("Nenhum profissional aplicável para esta ação na seleção.", "info")
         return
     }
-    const verbo = payload.acao === "remover" ? "Remover" : "Desativar"
-    if (!confirm(`${verbo} ${payload.ids.length} profissional(is)?`)) return
-    try {
-        for (const id of payload.ids) {
-            await vinculoService.inativarVinculo(id)
+
+    const erros: string[] = []
+    for (const id of aplicaveis) {
+        try {
+            if (payload.acao === "ativar") await vinculoService.reativarVinculo(id)
+            else                            await vinculoService.inativarVinculo(id)
+        } catch (e: any) {
+            erros.push(e?.response?.data?.mensagem ?? "Falha ao processar um dos vínculos.")
         }
-        await carregar()
-        notificar(`${payload.ids.length} profissional(is) ${payload.acao === "remover" ? "removido(s)" : "desativado(s)"}.`)
-    } catch (e: any) {
-        notificar(e?.response?.data?.mensagem ?? "Não foi possível concluir a ação.", "error")
     }
+    await carregar()
+
+    const sucesso = aplicaveis.length - erros.length
+    const sufixo = payload.acao === "ativar" ? "reativado(s)"
+        : payload.acao === "remover" ? "removido(s)" : "desativado(s)"
+    if (sucesso > 0) notificar(`${sucesso} profissional(is) ${sufixo}.`)
+    if (erros.length) notificar(erros[0], "error")
 }
 
 async function cancelarConvite(c: ProfissionalVinculado) {
@@ -306,6 +328,7 @@ async function reenviarConvite(c: ProfissionalVinculado) {
             @fechar="detalhesAberto = false; detalhesProfissional = null"
             @atualizado="onDetalhesAtualizado"
             @removido="onDetalhesRemovido"
+            @reativado="onDetalhesReativado"
         />
 
         <AppToast

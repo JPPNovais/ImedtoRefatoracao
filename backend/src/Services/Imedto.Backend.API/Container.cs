@@ -304,6 +304,7 @@ public static class Container
         services.AddScoped<ConvidarProfissionalCommandHandler>();
         services.AddScoped<AceitarConviteCommandHandler>();
         services.AddScoped<InativarVinculoCommandHandler>();
+        services.AddScoped<ReativarVinculoCommandHandler>();
         services.AddScoped<ReenviarConviteCommandHandler>();
         services.AddScoped<AlterarModeloPermissaoDoVinculoCommandHandler>();
         services.AddScoped<ListarProfissionaisEstabelecimentoQueryHandlers>();
@@ -655,6 +656,7 @@ public static class Container
             bus.Register<ConvidarProfissionalCommand, ConvidarProfissionalCommandHandler>();
             bus.Register<AceitarConviteCommand, AceitarConviteCommandHandler>();
             bus.Register<InativarVinculoCommand, InativarVinculoCommandHandler>();
+            bus.Register<ReativarVinculoCommand, ReativarVinculoCommandHandler>();
             bus.Register<ReenviarConviteCommand, ReenviarConviteCommandHandler>();
             bus.Register<AlterarModeloPermissaoDoVinculoCommand, AlterarModeloPermissaoDoVinculoCommandHandler>();
             // Item 4.2 — Solicitação inversa.

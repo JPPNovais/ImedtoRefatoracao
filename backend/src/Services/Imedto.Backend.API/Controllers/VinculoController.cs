@@ -138,6 +138,27 @@ public class VinculoController : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>Reativa um vínculo inativo (apenas o Dono do estabelecimento).</summary>
+    /// <response code="204">Vínculo reativado.</response>
+    /// <response code="404">Vínculo não encontrado.</response>
+    /// <response code="422">Sem permissão, vínculo não está inativo ou nunca foi aceito.</response>
+    [HttpPost("/api/vinculo/{id:long}/reativar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Reativar(long id)
+    {
+        var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+
+        await _commandBus.Send(new ReativarVinculoCommand
+        {
+            VinculoId = id,
+            UsuarioSolicitanteId = userId
+        });
+
+        return NoContent();
+    }
 }
 
 public record ConvidarProfissionalRequest(

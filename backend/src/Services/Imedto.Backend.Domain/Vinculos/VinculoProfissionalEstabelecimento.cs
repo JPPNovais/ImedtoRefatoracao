@@ -155,6 +155,22 @@ public class VinculoProfissionalEstabelecimento : Entity
         InativadoEm = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Reativa um vínculo previamente aceito (Inativo → Ativo). Restaura acesso
+    /// imediato, sem novo convite. Para vínculos inativos que nunca chegaram a
+    /// ser aceitos (AceitoEm == null), use <see cref="ReativarComoConvite"/>.
+    /// </summary>
+    public virtual void Reativar()
+    {
+        if (Status != VinculoStatus.Inativo)
+            throw new BusinessException("Apenas vínculos inativos podem ser reativados.");
+        if (AceitoEm is null)
+            throw new BusinessException("Este vínculo nunca foi aceito — reenvie o convite em vez de reativar.");
+
+        Status = VinculoStatus.Ativo;
+        InativadoEm = null;
+    }
+
     public virtual void AtualizarModeloPermissao(long novoModeloPermissaoId)
     {
         if (Status == VinculoStatus.Inativo)
