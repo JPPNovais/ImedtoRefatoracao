@@ -64,4 +64,18 @@ public static class PermissoesExtras
     /// Listagem permanece aberta a membros do tenant. Equivalente legado: <c>automacao</c>.
     /// </summary>
     public const string AutomacaoConfig = "automacao_config";
+
+    /// <summary>
+    /// Catálogo completo — usado em validações no domain pra rejeitar chaves
+    /// arbitrárias enviadas pelo cliente.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Todas = new[]
+    {
+        AssistenteClinicoIa,
+        GerirPermissoes,
+        ConfigEstabelecimento,
+        GerirProfissionais,
+        ModelosProntuario,
+        AutomacaoConfig,
+    };
 }

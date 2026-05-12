@@ -7,6 +7,14 @@ public interface IModeloPermissaoRepository
     Task<ModeloPermissaoEstabelecimento> ObterPadraoDoEstabelecimento(long estabelecimentoId);
     Task<bool> PertenceAoEstabelecimento(long modeloId, long estabelecimentoId);
     Task<bool> EstaEmUsoPorVinculoAtivo(long modeloId);
+
+    /// <summary>
+    /// Indica se já existe um modelo com o mesmo nome no estabelecimento. Usado
+    /// pelos command handlers para retornar 422 antes do INSERT — sem isso, a
+    /// unique constraint do DB lança DbUpdateException que vira 500 genérico.
+    /// </summary>
+    Task<bool> ExisteComNomeNoEstabelecimento(string nome, long estabelecimentoId, long? excetoId = null);
+
     Task Salvar(ModeloPermissaoEstabelecimento modelo);
     Task Excluir(ModeloPermissaoEstabelecimento modelo);
 

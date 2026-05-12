@@ -17,6 +17,11 @@ public class CriarModeloPermissaoCommandHandler : ICommandHandler<CriarModeloPer
         if (!Enum.TryParse<TipoAcessoModelo>(cmd.TipoAcesso, out var tipoAcesso))
             throw new BusinessException($"TipoAcesso inválido: '{cmd.TipoAcesso}'. Use 'Profissional' ou 'Recepcionista'.");
 
+        // Pré-valida unicidade pra retornar 422 limpo — sem isso, a unique constraint
+        // do DB lança DbUpdateException que cai no handler global como 500 ErroInterno.
+        if (await _repo.ExisteComNomeNoEstabelecimento(cmd.Nome, cmd.EstabelecimentoId))
+            throw new BusinessException("Já existe um modelo de permissão com este nome.");
+
         var modelo = ModeloPermissaoEstabelecimento.Criar(
             cmd.EstabelecimentoId,
             cmd.Nome,

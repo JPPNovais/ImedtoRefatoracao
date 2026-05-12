@@ -24,6 +24,10 @@ public class AtualizarModeloPermissaoCommandHandler : ICommandHandler<AtualizarM
         if (modelo.EstabelecimentoId != cmd.EstabelecimentoId)
             throw new BusinessException("Modelo não encontrado.");
 
+        // Pré-valida unicidade (excluindo o próprio id) pra retornar 422 limpo.
+        if (await _repo.ExisteComNomeNoEstabelecimento(cmd.Nome, cmd.EstabelecimentoId, excetoId: modelo.Id))
+            throw new BusinessException("Já existe um modelo de permissão com este nome.");
+
         // O domínio já valida que modelos padrão não podem ser editados.
         modelo.Atualizar(
             cmd.Nome,

@@ -68,9 +68,19 @@ public class EfAuthEmailTokenRepository : IAuthEmailTokenRepository
     private readonly AppDbContext _context;
     public EfAuthEmailTokenRepository(AppDbContext context) => _context = context;
 
-    public Task<AuthEmailToken> ObterValidoPorHashAsync(string tokenHash, AuthEmailTokenTipo tipo) =>
-        _context.AuthEmailTokens.FirstOrDefaultAsync(t =>
-            t.TokenHash == tokenHash && t.Tipo == tipo);
+    public Task<AuthEmailToken> ObterValidoPorHashAsync(string tokenHash, AuthEmailTokenTipo tipo)
+    {
+        // Filtra tokens já expirados ou consumidos no banco — o nome do método promete
+        // "Valido", e os handlers (RedefinirSenha/ConfirmarEmail/AceitarConvite) confiam
+        // nessa filtragem (não rechecam token.Valido depois). Sem isso, qualquer token
+        // antigo (expirado mas não consumido) pode ser usado pra trocar a senha.
+        var agora = DateTime.UtcNow;
+        return _context.AuthEmailTokens.FirstOrDefaultAsync(t =>
+            t.TokenHash == tokenHash
+            && t.Tipo == tipo
+            && t.ExpiraEm > agora
+            && t.ConsumidoEm == null);
+    }
 
     public Task<AuthEmailToken> ObterUltimoCriadoAsync(Guid usuarioId, AuthEmailTokenTipo tipo) =>
         _context.AuthEmailTokens

@@ -133,6 +133,8 @@ public class ModeloPermissaoEstabelecimento : Entity
             throw new BusinessException("Estabelecimento é obrigatório.");
         if (string.IsNullOrWhiteSpace(nome))
             throw new BusinessException("Nome do modelo é obrigatório.");
+        ValidarPermissoes(permissoes);
+        ValidarPermissoesExtras(permissoesExtras);
 
         return new ModeloPermissaoEstabelecimento
         {
@@ -149,6 +151,45 @@ public class ModeloPermissaoEstabelecimento : Entity
         };
     }
 
+    /// <summary>
+    /// Valida que toda permissão informada existe no catálogo. Sem isso, o front
+    /// poderia mandar chaves arbitrárias ("permissao.fake") e o backend aceitava —
+    /// risco de UI inconsistente e dificulta auditoria do que foi concedido.
+    ///
+    /// Aceita dois formatos (UsuarioTemAcao no repo trata os dois também):
+    /// - Legado: chave da área (ex: "agenda", "pacientes") — concede TODAS as ações da área.
+    /// - Granular: "area.acao" (ex: "agenda.ver") — exige a ação específica.
+    /// </summary>
+    private static void ValidarPermissoes(IReadOnlyList<string>? permissoes)
+    {
+        if (permissoes is null || permissoes.Count == 0) return;
+        var areas = CatalogoPermissoes.Areas.Select(a => a.Chave);
+        var validas = new HashSet<string>(
+            CatalogoPermissoes.Todas.Concat(areas),
+            StringComparer.Ordinal);
+        var invalidas = permissoes
+            .Select(p => p?.Trim())
+            .Where(p => !string.IsNullOrEmpty(p) && !validas.Contains(p))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (invalidas.Count > 0)
+            throw new BusinessException(
+                $"Permissões inválidas: {string.Join(", ", invalidas)}. Use as chaves do catálogo.");
+    }
+
+    private static void ValidarPermissoesExtras(IReadOnlyList<string>? permissoesExtras)
+    {
+        if (permissoesExtras is null || permissoesExtras.Count == 0) return;
+        var validas = PermissoesExtras.Todas;
+        var invalidas = permissoesExtras
+            .Where(p => !validas.Contains(p, StringComparer.Ordinal))
+            .Distinct()
+            .ToList();
+        if (invalidas.Count > 0)
+            throw new BusinessException(
+                $"Permissões extras inválidas: {string.Join(", ", invalidas)}.");
+    }
+
     public virtual void Atualizar(
         string nome,
         TipoAcessoModelo tipoAcesso,
@@ -162,6 +203,8 @@ public class ModeloPermissaoEstabelecimento : Entity
             throw new BusinessException("Modelo padrão do sistema não pode ser editado.");
         if (string.IsNullOrWhiteSpace(nome))
             throw new BusinessException("Nome do modelo é obrigatório.");
+        ValidarPermissoes(permissoes);
+        ValidarPermissoesExtras(permissoesExtras);
 
         Nome = nome.Trim();
         TipoAcesso = tipoAcesso;

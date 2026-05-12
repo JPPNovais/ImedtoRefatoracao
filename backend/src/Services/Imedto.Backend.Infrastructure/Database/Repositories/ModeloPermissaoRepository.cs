@@ -38,12 +38,31 @@ public class ModeloPermissaoRepository : IModeloPermissaoRepository
             .AnyAsync(v => v.ModeloPermissaoId == modeloId
                         && v.Status != Domain.Vinculos.VinculoStatus.Inativo);
 
+    public async Task<bool> ExisteComNomeNoEstabelecimento(string nome, long estabelecimentoId, long? excetoId = null)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return false;
+        var nomeNorm = nome.Trim();
+        var q = _context.ModelosPermissao
+            .AsNoTracking()
+            .Where(m => m.EstabelecimentoId == estabelecimentoId && m.Nome == nomeNorm);
+        if (excetoId is { } id) q = q.Where(m => m.Id != id);
+        return await q.AnyAsync();
+    }
+
     public async Task Salvar(ModeloPermissaoEstabelecimento modelo)
     {
         if (modelo.Id == 0)
+        {
             await _context.ModelosPermissao.AddAsync(modelo);
+            // SaveChanges aqui pra popular o Id (igual OrcamentoRepository/VinculoRepository).
+            // Sem isso o handler retorna { modeloId: 0 } no Created — o segundo SaveChanges
+            // do UnitOfWorkFilter é no-op porque não há mudanças pendentes.
+            await _context.SaveChangesAsync();
+        }
         else
+        {
             _context.ModelosPermissao.Update(modelo);
+        }
     }
 
     public Task Excluir(ModeloPermissaoEstabelecimento modelo)
