@@ -15,6 +15,7 @@ namespace Imedto.Backend.API.Controllers;
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]
 [RequiresAcao("pacientes")]
 [ApiController]
 [Route("api/paciente")]

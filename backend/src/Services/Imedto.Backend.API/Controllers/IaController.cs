@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.API.Filters;
 using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Ia;
+using Imedto.Backend.SharedKernel.Tenancy;
 using System.Text.Json;
 
 namespace Imedto.Backend.API.Controllers;
@@ -10,6 +11,7 @@ namespace Imedto.Backend.API.Controllers;
 [ApiController]
 [Route("api/ia")]
 [Authorize]
+[RequiresEstabelecimento]  // FeatureGate precisa do tenant pra checar feature do plano
 [FeatureGate(Features.Ia)]
 public class IaController : ControllerBase
 {

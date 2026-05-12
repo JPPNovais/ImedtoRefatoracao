@@ -14,6 +14,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/inventario")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]
 [RequiresAcao("estoque")]
 public class InventarioController : ControllerBase
 {

@@ -8,5 +8,11 @@ public interface IFormaPagamentoRepository
     /// </summary>
     Task<FormaPagamento?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
+    /// <summary>
+    /// Indica se já existe forma de pagamento com mesmo nome no estabelecimento.
+    /// Usado pelo handler para retornar 422 antes do INSERT — evita 500 da unique constraint.
+    /// </summary>
+    Task<bool> ExisteComNomeNoEstabelecimento(string nome, long estabelecimentoId);
+
     Task Salvar(FormaPagamento forma);
 }

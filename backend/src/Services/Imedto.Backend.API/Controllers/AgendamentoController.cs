@@ -15,6 +15,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/agendamentos")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]  // 402 quando Trial expirado / Suspensa / Cancelada / Expirada
 [RequiresAcao("agenda")]
 public class AgendamentoController : ControllerBase
 {

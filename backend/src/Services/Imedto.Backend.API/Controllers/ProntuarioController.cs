@@ -15,6 +15,7 @@ namespace Imedto.Backend.API.Controllers;
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]
 [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
 [RequiresAcao("prontuario")]
 [ApiController]

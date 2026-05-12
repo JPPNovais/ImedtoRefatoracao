@@ -13,6 +13,18 @@ public class CategoriaFinanceiraRepository : ICategoriaFinanceiraRepository
         => await _db.CategoriasFinanceiras
             .FirstOrDefaultAsync(c => c.Id == id && c.EstabelecimentoId == estabelecimentoId);
 
+    public async Task<bool> ExisteComNomeETipo(string nome, string tipo, long estabelecimentoId)
+    {
+        if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(tipo)) return false;
+        if (!Enum.TryParse<TipoCategoria>(tipo, out var tipoEnum)) return false;
+        var nomeNorm = nome.Trim();
+        return await _db.CategoriasFinanceiras
+            .AsNoTracking()
+            .AnyAsync(c => c.EstabelecimentoId == estabelecimentoId
+                        && c.Tipo == tipoEnum
+                        && c.Nome == nomeNorm);
+    }
+
     public async Task Salvar(CategoriaFinanceira categoria)
     {
         if (categoria.Id == 0)

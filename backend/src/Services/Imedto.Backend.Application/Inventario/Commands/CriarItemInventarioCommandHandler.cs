@@ -23,6 +23,17 @@ public class CriarItemInventarioCommandHandler : ICommandHandler<CriarItemInvent
 
     public async Task Handle(CriarItemInventarioCommand cmd)
     {
+        // Valida quantidade inicial antes de criar — sem isso, valor negativo
+        // passava silenciosamente (item criado com saldo 0 e a entrada de estoque
+        // inicial nunca era registrada porque a condicional `> 0` mascarava).
+        if (cmd.QuantidadeInicial < 0)
+            throw new BusinessException("Quantidade inicial não pode ser negativa.");
+
+        // Pré-valida unicidade do código no estabelecimento — evita que a unique
+        // constraint do DB lance DbUpdateException que vira 500 genérico.
+        if (await _repo.ExisteComCodigoNoEstabelecimento(cmd.Codigo, cmd.EstabelecimentoId))
+            throw new BusinessException("Já existe um item com este código no estabelecimento.");
+
         var item = ItemInventario.Criar(
             cmd.EstabelecimentoId,
             cmd.Codigo,

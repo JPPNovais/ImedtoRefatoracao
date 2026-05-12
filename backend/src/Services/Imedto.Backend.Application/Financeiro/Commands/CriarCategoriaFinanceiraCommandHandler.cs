@@ -16,6 +16,10 @@ public class CriarCategoriaFinanceiraCommandHandler : ICommandHandler<CriarCateg
         if (!Enum.TryParse<TipoCategoria>(cmd.Tipo, out var tipo))
             throw new BusinessException("Tipo inválido. Use 'Receita' ou 'Despesa'.");
 
+        // Pré-valida unicidade (nome + tipo) — evita 500 da unique constraint do DB.
+        if (await _repo.ExisteComNomeETipo(cmd.Nome, cmd.Tipo, cmd.EstabelecimentoId))
+            throw new BusinessException("Já existe uma categoria com este nome e tipo.");
+
         var categoria = CategoriaFinanceira.Criar(cmd.EstabelecimentoId, cmd.Nome, tipo);
         await _repo.Salvar(categoria);
     }
