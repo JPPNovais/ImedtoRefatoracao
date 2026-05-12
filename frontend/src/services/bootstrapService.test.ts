@@ -43,4 +43,26 @@ describe("bootstrapService", () => {
 
         await expect(bootstrapService.obter()).rejects.toThrow("401")
     })
+
+    it("obterInicial retorna null quando o backend devolve 200 com body null (sem sessão)", async () => {
+        vi.mocked(httpClient.get).mockResolvedValueOnce({ data: null } as any)
+
+        const r = await bootstrapService.obterInicial()
+
+        expect(httpClient.get).toHaveBeenCalledWith("/auth/bootstrap", expect.objectContaining({ _noAutoRefresh: true }))
+        expect(r).toBeNull()
+    })
+
+    it("obterInicial retorna o payload quando há sessão", async () => {
+        const payload = {
+            usuario: { id: "u-1", email: "x@y.com", nomeCompleto: "Fulano", telefone: null, status: "Ativo", onboardingCompleto: true },
+            profissional: null,
+            estabelecimentos: [],
+        }
+        vi.mocked(httpClient.get).mockResolvedValueOnce({ data: payload } as any)
+
+        const r = await bootstrapService.obterInicial()
+
+        expect(r).toEqual(payload)
+    })
 })

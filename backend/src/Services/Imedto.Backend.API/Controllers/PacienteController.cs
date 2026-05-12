@@ -181,6 +181,7 @@ public record PacienteRequest(
     string NomeCompleto,
     string Cpf,
     string DocumentoInternacional,
+    [property: System.Text.Json.Serialization.JsonConverter(typeof(Imedto.Backend.SharedKernel.Json.DateOnlyAsYmdJsonConverter))]
     DateTime? DataNascimento,
     string Genero,
     string Telefone,

@@ -218,17 +218,19 @@ public class AuthController : ControllerBase
     /// profissional (quando existir) e estabelecimentos vinculados. Substitui a
     /// sequência /auth/me + /profissional/me + /estabelecimento no boot do front.
     /// </summary>
-    /// <response code="200">Estado de auth carregado com sucesso.</response>
-    /// <response code="401">Não autenticado.</response>
+    /// <response code="200">Estado de auth carregado — body <c>null</c> quando sem sessão.</response>
     [HttpGet("bootstrap")]
-    [Authorize]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(BootstrapMeDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Bootstrap()
     {
         var userIdClaim = User.FindFirst("sub")?.Value;
+        // Sem sessão: retorna 200 com body null em vez de 401. Esse endpoint roda no
+        // boot do SPA — o browser logava "Failed to load resource" em cada carga
+        // anônima (landing/login). Como não há vazamento de PII em retornar null,
+        // troca pra 200 elimina o ruído nas DevTools e simplifica o front.
         if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            return Unauthorized();
+            return Ok((BootstrapMeDto?)null);
 
         var dto = await _requestBus.Query<BootstrapMeQuery, BootstrapMeDto>(
             new BootstrapMeQuery { UsuarioId = userId });

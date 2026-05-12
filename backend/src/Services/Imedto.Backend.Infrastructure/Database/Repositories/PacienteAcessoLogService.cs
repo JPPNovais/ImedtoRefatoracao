@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Imedto.Backend.Domain.Pacientes;
 
@@ -14,11 +15,16 @@ public class PacienteAcessoLogService : IPacienteAcessoLogService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<PacienteAcessoLogService> _logger;
+    private readonly IHttpContextAccessor _httpContext;
 
-    public PacienteAcessoLogService(AppDbContext context, ILogger<PacienteAcessoLogService> logger)
+    public PacienteAcessoLogService(
+        AppDbContext context,
+        ILogger<PacienteAcessoLogService> logger,
+        IHttpContextAccessor httpContext)
     {
         _context = context;
         _logger = logger;
+        _httpContext = httpContext;
     }
 
     public async Task RegistrarAsync(
@@ -30,7 +36,11 @@ public class PacienteAcessoLogService : IPacienteAcessoLogService
     {
         try
         {
-            var log = PacienteAcessoLog.Registrar(pacienteId, usuarioId, estabelecimentoId, tipoAcesso, ipOrigem);
+            // Resolve IP automaticamente quando o caller não passa — caso normal vindo
+            // de controller HTTP. Honra X-Forwarded-For (Caddy/proxy reverso). Coluna
+            // ip_origem em paciente_acesso_log é varchar(45), aceita IPv4 e IPv6.
+            var ip = ipOrigem ?? ResolverIpOrigem();
+            var log = PacienteAcessoLog.Registrar(pacienteId, usuarioId, estabelecimentoId, tipoAcesso, ip);
             await _context.PacienteAcessoLogs.AddAsync(log);
             await _context.SaveChangesAsync();
         }
@@ -44,4 +54,25 @@ public class PacienteAcessoLogService : IPacienteAcessoLogService
                 pacienteId, usuarioId, estabelecimentoId, tipoAcesso);
         }
     }
+
+    private string? ResolverIpOrigem()
+    {
+        var ctx = _httpContext.HttpContext;
+        if (ctx is null) return null;
+
+        // X-Forwarded-For tem prioridade quando há proxy reverso (Caddy).
+        // Formato: "client, proxy1, proxy2..." — o primeiro IP é o origem real.
+        var fwd = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(fwd))
+        {
+            var primeiro = fwd.Split(',')[0].Trim();
+            if (!string.IsNullOrWhiteSpace(primeiro)) return Truncar(primeiro);
+        }
+
+        return Truncar(ctx.Connection.RemoteIpAddress?.ToString());
+    }
+
+    // Coluna varchar(45) cobre IPv4 (15) e IPv6 (39); guard contra header malicioso.
+    private static string? Truncar(string? ip) =>
+        ip is { Length: > 45 } ? ip[..45] : ip;
 }

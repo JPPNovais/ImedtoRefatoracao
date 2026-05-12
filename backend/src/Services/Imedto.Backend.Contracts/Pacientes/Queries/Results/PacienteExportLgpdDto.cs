@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Imedto.Backend.SharedKernel.Json;
+
 namespace Imedto.Backend.Contracts.Pacientes.Queries.Results;
 
 /// <summary>
@@ -25,6 +28,9 @@ public class PacienteExportPessoalDto
     public string NomeCompleto { get; set; }
     public string Cpf { get; set; }
     public string DocumentoInternacional { get; set; }
+
+    /// <summary>Data civil (sem hora/timezone). Serializada como "yyyy-MM-dd".</summary>
+    [JsonConverter(typeof(DateOnlyAsYmdJsonConverter))]
     public DateTime? DataNascimento { get; set; }
     public string Genero { get; set; }
     public string Telefone { get; set; }

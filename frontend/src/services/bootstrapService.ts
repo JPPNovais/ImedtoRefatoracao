@@ -20,14 +20,15 @@ export const bootstrapService = {
     },
 
     /**
-     * Variante usada no boot inicial do SPA. Marca a request com `_noAutoRefresh: true`
-     * para o interceptor de 401 não tentar /auth/refresh quando o usuário não tem
-     * sessão (carga da landing/login). Evita 2 chamadas 401 ruidosas em cada carga.
+     * Variante usada no boot inicial do SPA. O backend retorna 200 com body `null`
+     * quando não há sessão (em vez do antigo 401) — evita 2 chamadas 401 ruidosas
+     * (bootstrap + refresh tentado pelo interceptor) e o `console.error` nativo
+     * do browser em cada carga anônima da landing/login.
      */
-    async obterInicial(): Promise<Bootstrap> {
-        const { data } = await httpClient.get<Bootstrap>("/auth/bootstrap", {
+    async obterInicial(): Promise<Bootstrap | null> {
+        const { data } = await httpClient.get<Bootstrap | null>("/auth/bootstrap", {
             _noAutoRefresh: true,
         } as any)
-        return data
+        return data ?? null
     },
 }

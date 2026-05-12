@@ -36,10 +36,15 @@ public class ProntuarioController : ControllerBase
         _tenant = tenant;
     }
 
-    /// <summary>Retorna o prontuário do paciente + timeline de evoluções (404 se nunca iniciado).</summary>
+    /// <summary>
+    /// Retorna o prontuário do paciente + timeline de evoluções.
+    /// Quando o paciente ainda não tem prontuário iniciado, retorna 200 com body
+    /// <c>null</c> — antes era 404, mas isso polui o console do browser com
+    /// "Failed to load resource" e dificulta separar erros reais de "ainda não
+    /// iniciado". O front trata null como "exibir CTA de iniciar".
+    /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ProntuarioCompletoDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Obter(long pacienteId, [FromQuery] int timeline = 50)
     {
         var dto = await _requestBus.Query<ObterProntuarioDoPacienteQuery, ProntuarioCompletoDto>(
@@ -51,7 +56,6 @@ public class ProntuarioController : ControllerBase
                 TamanhoTimeline = timeline
             });
 
-        if (dto is null) return NotFound();
         return Ok(dto);
     }
 

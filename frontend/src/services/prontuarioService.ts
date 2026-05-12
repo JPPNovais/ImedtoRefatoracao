@@ -82,13 +82,11 @@ export const prontuarioService = {
     },
 
     async obter(pacienteId: number): Promise<ProntuarioCompleto | null> {
-        try {
-            const { data } = await httpClient.get<ProntuarioCompleto>(`/paciente/${pacienteId}/prontuario`)
-            return data
-        } catch (e: any) {
-            if (e?.response?.status === 404) return null
-            throw e
-        }
+        // Backend retorna 200 com body null quando o prontuário ainda não foi iniciado —
+        // o front exibe o CTA "Iniciar prontuário" nesse caso. Sem a transição de 404 → 200,
+        // o browser logava "Failed to load resource" no console em toda navegação.
+        const { data } = await httpClient.get<ProntuarioCompleto | null>(`/paciente/${pacienteId}/prontuario`)
+        return data ?? null
     },
 
     async contarEvolucoes(pacienteId: number): Promise<number> {

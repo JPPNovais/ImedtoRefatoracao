@@ -6,6 +6,7 @@ using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -58,11 +59,11 @@ public class PacientesIntegrationTests : IntegrationTestBase
 
     private DeletarPacienteCommandHandler DeletarSut(AppDbContext ctx) =>
         new(new PacienteRepository(ctx),
-            new PacienteAcessoLogService(ctx, NullLogger<PacienteAcessoLogService>.Instance));
+            new PacienteAcessoLogService(ctx, NullLogger<PacienteAcessoLogService>.Instance, new HttpContextAccessor()));
 
     private AtualizarPacienteCommandHandler AtualizarSut(AppDbContext ctx) =>
         new(new PacienteRepository(ctx),
-            new PacienteAcessoLogService(ctx, NullLogger<PacienteAcessoLogService>.Instance));
+            new PacienteAcessoLogService(ctx, NullLogger<PacienteAcessoLogService>.Instance, new HttpContextAccessor()));
 
     [Test]
     public async Task Cadastrar_PersistePacienteVinculadoAoEstab()
