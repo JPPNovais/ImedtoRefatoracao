@@ -152,6 +152,14 @@ jobs:
               --project Services/Imedto.Backend.Infrastructure \
               --startup-project Services/Imedto.Backend.API \
               --output /tmp/migrate.sql
+          # Anexa SQL puro (seeds, functions, índices CONCURRENTLY) de db/migrations/
+          # ao script final, na ordem do filename (timestamp prefix garante).
+          # Cada .sql deve ser internamente idempotente (use IF NOT EXISTS / WHERE NOT EXISTS).
+          for sql_file in $(find ../../db/migrations -maxdepth 1 -name '*.sql' | sort); do
+            echo "" >> /tmp/migrate.sql
+            echo "-- ===== $(basename "$sql_file") =====" >> /tmp/migrate.sql
+            cat "$sql_file" >> /tmp/migrate.sql
+          done
       - name: Send SQL & migrate-script to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}

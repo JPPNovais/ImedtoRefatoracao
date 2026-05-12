@@ -166,6 +166,13 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<UnitOfWorkFilter>();
     options.Filters.Add<IdempotencyFilter>();
     options.Filters.Add<OnboardingCompletadoFilter>();
+}).AddJsonOptions(opts =>
+{
+    // Normaliza DateTime/DateTime? para UTC ao deserializar — colunas Postgres
+    // `timestamp with time zone` exigem Kind=Utc; sem isso, datas ISO sem TZ
+    // (ex: "2026-05-26") chegavam com Kind=Unspecified e o Npgsql lançava 500.
+    opts.JsonSerializerOptions.Converters.Add(new Imedto.Backend.API.Json.UtcDateTimeJsonConverter());
+    opts.JsonSerializerOptions.Converters.Add(new Imedto.Backend.API.Json.UtcNullableDateTimeJsonConverter());
 });
 
 // Padroniza a resposta de 400 (validação de modelo / parser JSON) no mesmo formato
