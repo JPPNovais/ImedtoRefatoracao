@@ -115,6 +115,25 @@ public class AssinaturaService : IAssinaturaService
         }
     }
 
+    public void InvalidarCache(long estabelecimentoId)
+    {
+        if (estabelecimentoId <= 0) return;
+        // Remove a chave "ativo" e todas as chaves "feature:{X}" do estabelecimento.
+        // IMemoryCache não suporta busca por prefixo, então enumeramos as features
+        // conhecidas — adicionar nova feature exige listar aqui (defense em depth: se
+        // esquecer, a feature nova só leva 1min pra refletir).
+        _cache.Remove($"assinatura:ativo:{estabelecimentoId}");
+        foreach (var feature in new[]
+        {
+            Features.Receitas, Features.ExameFisico, Features.ProcedimentosCirurgicos,
+            Features.OrcamentoCompleto, Features.Ia, Features.RelatoriosAvancados,
+            Features.AutomacoesIlimitadas, Features.AnexosIlimitados,
+        })
+        {
+            _cache.Remove($"assinatura:feature:{estabelecimentoId}:{feature.ToLowerInvariant()}");
+        }
+    }
+
     public async Task<bool> LimiteAtingidoAsync(long estabelecimentoId, string recurso, CancellationToken ct = default)
     {
         if (estabelecimentoId <= 0) return true;

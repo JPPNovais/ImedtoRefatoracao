@@ -37,18 +37,40 @@ public class Estabelecimento : Entity
     public virtual string DatasBloqueadasJson { get; protected set; }
 
     public IReadOnlyList<int> DiasSemanaFuncionamento =>
-        JsonSerializer.Deserialize<List<int>>(DiasSemanaFuncionamentoJson ?? "[]") ?? new();
+        DeserializarSeguro<List<int>>(DiasSemanaFuncionamentoJson, _jsonOpts) ?? new();
 
     public IReadOnlyList<HorarioBloqueado> HorariosBloqueados =>
-        JsonSerializer.Deserialize<List<HorarioBloqueado>>(HorariosBloqueadosJson ?? "[]", _jsonOpts) ?? new();
+        DeserializarSeguro<List<HorarioBloqueado>>(HorariosBloqueadosJson, _jsonOpts) ?? new();
 
     public IReadOnlyList<DataBloqueada> DatasBloqueadas =>
-        JsonSerializer.Deserialize<List<DataBloqueada>>(DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new();
+        DeserializarSeguro<List<DataBloqueada>>(DatasBloqueadasJson, _jsonOpts) ?? new();
 
     private static readonly JsonSerializerOptions _jsonOpts = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
+
+    /// <summary>
+    /// Deserializa JSON dos campos de configuração com fail-open: se o JSON estiver
+    /// corrompido (formato antigo, schema-drift, valor inválido), retorna lista
+    /// vazia em vez de propagar <see cref="JsonException"/>. Sem isso, qualquer
+    /// chamada que toque <see cref="ValidarPodeAgendar"/> virava 500 ErroInterno
+    /// (achado lateral Parte 8 do qa/REPORT-V2.md). Lista vazia é o estado mais
+    /// permissivo — equivalente a "sem bloqueios", e o front oferece tela de
+    /// configuração para reconstruir o array com schema correto.
+    /// </summary>
+    private static T? DeserializarSeguro<T>(string? json, JsonSerializerOptions opts) where T : class
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, opts);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     protected Estabelecimento() { }
 

@@ -49,4 +49,12 @@ public interface IAssinaturaService
     /// </summary>
     /// <param name="recurso"><c>"profissionais"</c> ou <c>"pacientes"</c>.</param>
     Task<bool> LimiteAtingidoAsync(long estabelecimentoId, string recurso, CancellationToken ct = default);
+
+    /// <summary>
+    /// Invalida o cache interno (1 min) das decisões deste estabelecimento.
+    /// Chamado quando o status da assinatura muda (upgrade, cancelamento, webhook
+    /// de billing) — sem isso, a transição leva até 1 min pra refletir em
+    /// <see cref="TenantEstaAtivo"/> e <see cref="AvaliarFeature"/>.
+    /// </summary>
+    void InvalidarCache(long estabelecimentoId);
 }

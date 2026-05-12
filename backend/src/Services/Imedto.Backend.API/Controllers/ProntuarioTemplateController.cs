@@ -17,6 +17,7 @@ namespace Imedto.Backend.API.Controllers;
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]  // modelos de prontuário são mutação do estabelecimento; bloqueia inativos
 [ApiController]
 [Route("api/prontuario")]
 [Produces("application/json")]

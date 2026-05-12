@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
@@ -15,6 +16,7 @@ namespace Imedto.Backend.API.Controllers;
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]  // anexos clínicos são mutação; bloqueia uploads quando inativa
 [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
 [ApiController]
 [Route("api/paciente/{pacienteId:long}/prontuario/anexos")]

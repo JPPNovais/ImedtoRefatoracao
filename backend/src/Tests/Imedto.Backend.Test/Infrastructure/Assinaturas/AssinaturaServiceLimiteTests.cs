@@ -15,13 +15,19 @@ namespace Imedto.Backend.Test.Infrastructure.Assinaturas;
 /// Os cenários que chegam à query SQL estão anotados abaixo.
 /// </summary>
 [TestFixture]
-public class AssinaturaServiceLimiteTests
+public class AssinaturaServiceLimiteTests : IDisposable
 {
     private Mock<IAssinaturaRepository> _assinaturaRepo;
     private Mock<IPlanoRepository> _planoRepo;
-    private IMemoryCache _cache;
+    private MemoryCache _cache;
     private Mock<ILogger<AssinaturaService>> _logger;
     private AssinaturaService _sut;
+
+    public void Dispose()
+    {
+        _cache?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     [SetUp]
     public void SetUp()

@@ -409,7 +409,7 @@ if (!string.IsNullOrWhiteSpace(healthDbConn))
     healthChecksBuilder.AddNpgSql(
         connectionString: healthDbConn,
         name: "postgres",
-        tags: new[] { "ready" });
+        tags: HealthCheckTagsReady);
 }
 
 // --- HTTP client para Anthropic IA ---
@@ -528,3 +528,9 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 }).AllowAnonymous();
 
 app.Run();
+
+// Constantes top-level — array reaproveitado pelo health check de readiness.
+partial class Program
+{
+    private static readonly string[] HealthCheckTagsReady = ["ready"];
+}

@@ -70,5 +70,5 @@ public static class RelatorioConsole
     }
 
     private static string Truncar(string s, int n)
-        => string.IsNullOrEmpty(s) ? string.Empty : (s.Length <= n ? s : s.Substring(0, n - 1) + "…");
+        => string.IsNullOrEmpty(s) ? string.Empty : (s.Length <= n ? s : string.Concat(s.AsSpan(0, n - 1), "…"));
 }

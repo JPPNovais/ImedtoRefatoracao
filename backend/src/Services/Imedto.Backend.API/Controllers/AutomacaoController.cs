@@ -13,6 +13,7 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/automacoes")]
 [Authorize]
 [RequiresEstabelecimento]
+[RequiresAssinaturaAtiva]
 public class AutomacaoController : ControllerBase
 {
     private readonly ICommandBus _commands;

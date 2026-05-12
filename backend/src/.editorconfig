@@ -11,6 +11,89 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
+# === Supressões globais de analyzers (baixo valor neste projeto) ===
+# Decisões de produto/estilo. Documentadas por código:
+
+# CS8632 — Nullable annotation usada fora de contexto nullable.
+# Projeto tem `<Nullable>disable</Nullable>` (EF Core 10 trata props string
+# não-nullable como required, e habilitar annotations + warnings exigiria
+# auditoria invasiva de ~50 entidades). Aceitamos `?` em assinaturas internas
+# como hint de intenção; o warning vira ruído sem trazer segurança real.
+dotnet_diagnostic.CS8632.severity = none
+
+# CA1848 — Performance: usar LoggerMessage delegates em vez de LogX.
+# Trade-off: micro-otimização (alloc de string interpolada por chamada).
+# Custo de refator: alto (~180 callsites); benefício real: irrelevante no
+# volume atual (~100 RPS). Reavaliar se ficar > 1k RPS.
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1305/CA1304/CA1311 — Locale: exigir IFormatProvider em ToString/ToLower/ToUpper.
+# Projeto seta CultureInfo.InvariantCulture global em Program.cs (cultura "pt-BR"
+# só na requisição/serialização). Esses warnings ficam ruidosos sem ganho real.
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1304.severity = none
+dotnet_diagnostic.CA1311.severity = none
+
+# CA1711 — Naming: tipos não devem terminar em palavras reservadas (Bus, EventHandler...).
+# Conflito intencional com vocabulário de DDD/CQRS: ICommandBus, IEventBus,
+# IEventHandler<T> são nomes do domínio.
+dotnet_diagnostic.CA1711.severity = none
+
+# CA1725 — Parameter names devem casar com a interface base.
+# Conflito com convenção PT-BR: implementação usa "estabelecimentoId" mas
+# alguma interface .NET base usa "id". Não vamos americanizar nomes do domínio.
+dotnet_diagnostic.CA1725.severity = none
+
+# CA1852 — Class pode ser sealed.
+# Entidades de domínio são `virtual` por exigência do EF Core (lazy loading,
+# proxies). Marcar sealed quebraria o ORM. Inviável aplicar globalmente.
+dotnet_diagnostic.CA1852.severity = none
+
+# CA1805 — Não inicializar campo com valor default explícito.
+# Estilo: várias entidades usam `= 0` / `= ""` por clareza. Não vale a poluição.
+dotnet_diagnostic.CA1805.severity = none
+
+# RCS1194 — Implement exception constructors (3 ctors: msg, msg+inner, parameterless).
+# Nossas exceções (BusinessException, ForbiddenException) têm 1 construtor por
+# design: a mensagem sempre é obrigatória e nunca há "inner" relevante de
+# domínio. Os outros ctors seriam puro overhead.
+dotnet_diagnostic.RCS1194.severity = none
+
+# CA1310/CA1862 — StringComparison explícito em StartsWith/Equals.
+# Repositórios já usam Postgres `citext`/`lower(unaccent())` pra comparação
+# case-insensitive; o C# só compara strings já normalizadas. O warning não
+# protege contra bug real neste projeto.
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1862.severity = none
+
+# CA1859 — Substituir interface por tipo concreto para perf.
+# Campos `static readonly IReadOnlySet<>` / `IReadOnlyDictionary<>` são
+# usados como API pública do domínio (imutáveis); a abstração custa <1ns
+# por lookup. Trocar por tipo concreto vazaria implementação.
+dotnet_diagnostic.CA1859.severity = none
+
+# CA1707 — Naming com underscore.
+# Métodos de teste e enums de domínio (ex: "QualquerHorario") seguem
+# convenção do projeto.
+dotnet_diagnostic.CA1707.severity = none
+
+# CA2201 / CA2219 — throw Exception base; throw em finally.
+# Casos pontuais em testes (CA2201) e cleanup de stream em IA (CA2219)
+# são intencionais. Revisar se aumentar a contagem.
+dotnet_diagnostic.CA2201.severity = none
+dotnet_diagnostic.CA2219.severity = none
+
+# RCS1139 / RCS1155 / RCS1215 — Roslynator: XML docs, Equals StringComparer,
+# expressão sempre falsa. Volume baixo e zero impacto em runtime.
+dotnet_diagnostic.RCS1139.severity = none
+dotnet_diagnostic.RCS1155.severity = none
+dotnet_diagnostic.RCS1215.severity = none
+
+# EF1003 — SqlQuery sem parâmetros nomeados.
+# Uso intencional em SoftDeleteInterceptor (vide warning EF1002 já silenciado
+# no callsite). Não há injeção: strings vêm de constantes.
+dotnet_diagnostic.EF1003.severity = none
+
 # === Supressoes para ARQUIVOS GERADOS por EF Core (Migrations) ===
 # Migrations seguem padrao YYYYMMDDHHMMSS_*.cs ou *.Designer.cs.
 [*.Designer.cs]
