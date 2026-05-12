@@ -80,7 +80,7 @@ async function carregar() {
     erro.value = null
     try {
         const [pros, mods] = await Promise.all([
-            vinculoService.listarProfissionais(),
+            vinculoService.listarProfissionais({ incluirInativos: true }),
             permissaoService.listar(),
         ])
         profissionais.value = pros
@@ -154,28 +154,29 @@ function onDetalhesRemovido(p: ProfissionalVinculado) {
     notificar(`${p.nomeCompleto || p.email} foi removido(a) do estabelecimento.`)
 }
 
-async function onAcaoMassa(payload: { acao: "ativar" | "suspender" | "remover", ids: number[] }) {
-    // O backend hoje só expõe `inativar`. "Suspender" e "remover" reusam o mesmo
+async function onAcaoMassa(payload: { acao: "ativar" | "desativar" | "remover", ids: number[] }) {
+    // O backend hoje só expõe `inativar`. "Desativar" e "remover" reusam o mesmo
     // endpoint — o detalhe (manter ou apagar histórico) fica para uma feature
     // futura quando houver distinção no domínio.
     if (payload.acao === "ativar") {
         notificar("Reativação em massa ainda não disponível — abra o profissional para reativar individualmente.", "info")
         return
     }
-    const verbo = payload.acao === "remover" ? "Remover" : "Suspender"
+    const verbo = payload.acao === "remover" ? "Remover" : "Desativar"
     if (!confirm(`${verbo} ${payload.ids.length} profissional(is)?`)) return
     try {
         for (const id of payload.ids) {
             await vinculoService.inativarVinculo(id)
         }
         await carregar()
-        notificar(`${payload.ids.length} profissional(is) ${payload.acao === "remover" ? "removido(s)" : "suspenso(s)"}.`)
+        notificar(`${payload.ids.length} profissional(is) ${payload.acao === "remover" ? "removido(s)" : "desativado(s)"}.`)
     } catch (e: any) {
         notificar(e?.response?.data?.mensagem ?? "Não foi possível concluir a ação.", "error")
     }
 }
 
 async function cancelarConvite(c: ProfissionalVinculado) {
+    if (c.vinculoId == null) return  // Dono não tem vínculo; nunca chega aqui via UI.
     if (!confirm(`Cancelar convite enviado para ${c.email}?`)) return
     try {
         await vinculoService.inativarVinculo(c.vinculoId)
@@ -188,6 +189,7 @@ async function cancelarConvite(c: ProfissionalVinculado) {
 
 const reenviandoConviteId = ref<number | null>(null)
 async function reenviarConvite(c: ProfissionalVinculado) {
+    if (c.vinculoId == null) return
     reenviandoConviteId.value = c.vinculoId
     try {
         await vinculoService.reenviarConvite(c.vinculoId)

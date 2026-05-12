@@ -32,7 +32,7 @@ public class EstabelecimentoProfissionaisController : ControllerBase
     [RequiresEstabelecimento]
     [ProducesResponseType(typeof(IEnumerable<ProfissionalVinculadoDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ListarProfissionais(long estabelecimentoId)
+    public async Task<IActionResult> ListarProfissionais(long estabelecimentoId, [FromQuery] bool incluirInativos = false)
     {
         var userId = Guid.Parse(User.FindFirst("sub")!.Value);
 
@@ -40,7 +40,8 @@ public class EstabelecimentoProfissionaisController : ControllerBase
             new ListarProfissionaisEstabelecimentoQuery
             {
                 EstabelecimentoId = estabelecimentoId,
-                UsuarioSolicitanteId = userId
+                UsuarioSolicitanteId = userId,
+                IncluirInativos = incluirInativos
             });
 
         return Ok(resultado);

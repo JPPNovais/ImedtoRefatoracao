@@ -27,5 +27,5 @@ public class ListarProfissionaisEstabelecimentoQueryHandlers
     }
 
     public Task<IEnumerable<ProfissionalVinculadoDto>> Handle(ListarProfissionaisEstabelecimentoQuery query) =>
-        _queryRepository.ListarProfissionaisDoEstabelecimento(query.EstabelecimentoId);
+        _queryRepository.ListarProfissionaisDoEstabelecimento(query.EstabelecimentoId, query.IncluirInativos);
 }

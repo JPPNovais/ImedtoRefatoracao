@@ -2,7 +2,8 @@ import httpClient from "./httpClient"
 import { useTenantStore } from "@/stores/tenantStore"
 
 export interface ProfissionalVinculado {
-    vinculoId: number
+    /** null quando a linha representa o Dono (linha sintética sem vínculo formal). */
+    vinculoId: number | null
     usuarioId: string
     email: string
     nomeCompleto: string
@@ -44,12 +45,13 @@ export interface ConvidarProfissionalResponse {
 }
 
 export const vinculoService = {
-    async listarProfissionais(): Promise<ProfissionalVinculado[]> {
+    async listarProfissionais(opts?: { incluirInativos?: boolean }): Promise<ProfissionalVinculado[]> {
         const tenantStore = useTenantStore()
         const id = tenantStore.ativo?.id
         if (!id) return []
         const { data } = await httpClient.get<ProfissionalVinculado[]>(
             `/estabelecimento/${id}/profissionais`,
+            { params: opts?.incluirInativos ? { incluirInativos: true } : undefined },
         )
         return data
     },

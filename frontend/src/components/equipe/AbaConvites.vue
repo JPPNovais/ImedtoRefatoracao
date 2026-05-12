@@ -55,7 +55,7 @@ function modelo(c: ProfissionalVinculado): ModeloPermissao | undefined {
 
             <div class="invites-list">
                 <div
-                    v-for="c in convites" :key="c.vinculoId"
+                    v-for="c in convites" :key="(c.vinculoId ?? 0)"
                     class="invite-card"
                 >
                     <div class="ic-icon">
@@ -87,10 +87,10 @@ function modelo(c: ProfissionalVinculado): ModeloPermissao | undefined {
                             variant="secondary"
                             size="sm"
                             icon="fa-solid fa-paper-plane"
-                            :disabled="reenviandoId === c.vinculoId"
+                            :disabled="reenviandoId === (c.vinculoId ?? 0)"
                             @click="emit('reenviar', c)"
                         >
-                            {{ reenviandoId === c.vinculoId ? "Reenviando…" : "Reenviar" }}
+                            {{ reenviandoId === (c.vinculoId ?? 0) ? "Reenviando…" : "Reenviar" }}
                         </AppButton>
                         <AppButton variant="danger" size="sm" icon="fa-solid fa-xmark" @click="emit('cancelar', c)">
                             Cancelar

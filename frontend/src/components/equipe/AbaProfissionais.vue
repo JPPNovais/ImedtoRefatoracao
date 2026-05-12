@@ -22,7 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: "abrir-detalhes", p: ProfissionalVinculado): void
     (e: "abrir-convite"): void
-    (e: "acao-massa", payload: { acao: "ativar" | "suspender" | "remover", ids: number[] }): void
+    (e: "acao-massa", payload: { acao: "ativar" | "desativar" | "remover", ids: number[] }): void
 }>()
 
 const auth = useAuthStore()
@@ -62,21 +62,47 @@ watch([busca, filtroStatus, filtroModelo], () => {
 // ─── Bulk select ───────────────────────────────────────────────────────────
 const selecionados = ref<Set<number>>(new Set())
 
+// Dono usa vinculoId=0 (UNION sintético no backend) — não pode ser desativado.
+// Convidados ficam na outra aba; aqui não aparecem. Bloqueamos a seleção
+// para evitar confusão (e o backend recusaria com 422 de qualquer jeito).
+function podeSelecionar(p: ProfissionalVinculado): boolean {
+    return p.status !== "Dono"
+}
+
+// Narrow para excluir Dono (vinculoId null) — assim os callsites podem usar
+// vinculoId como `number` sem cast/!.
+type ProfissionalSelecionavel = ProfissionalVinculado & { vinculoId: number }
+const selecionaveis = computed<ProfissionalSelecionavel[]>(() =>
+    filtrados.value.filter((p): p is ProfissionalSelecionavel =>
+        podeSelecionar(p) && p.vinculoId !== null,
+    ),
+)
+
 const todosSelecionados = computed(() =>
-    filtrados.value.length > 0 && filtrados.value.every(p => selecionados.value.has(p.vinculoId)),
+    selecionaveis.value.length > 0 && selecionaveis.value.every(p => selecionados.value.has(p.vinculoId)),
 )
 
 function toggleTodos() {
     if (todosSelecionados.value) selecionados.value = new Set()
-    else selecionados.value = new Set(filtrados.value.map(p => p.vinculoId))
+    else selecionados.value = new Set(selecionaveis.value.map(p => p.vinculoId))
 }
 
-function toggleUm(id: number) {
+function toggleUm(id: number | null) {
+    if (id == null) return  // Dono — não selecionável.
     const next = new Set(selecionados.value)
     if (next.has(id)) next.delete(id)
     else next.add(id)
     selecionados.value = next
 }
+
+// Botões da bulk-bar só aparecem quando aplicam ao estado dos selecionados.
+// "Ativar" precisa de pelo menos 1 Inativo na seleção; "Desativar" precisa
+// de pelo menos 1 Ativo. Evita oferecer ação que seria no-op para o usuário.
+const statusDosSelecionados = computed(() =>
+    selecionaveis.value.filter(p => selecionados.value.has(p.vinculoId)).map(p => p.status),
+)
+const podeAtivar    = computed(() => statusDosSelecionados.value.includes("Inativo"))
+const podeDesativar = computed(() => statusDosSelecionados.value.includes("Ativo"))
 
 // ─── Helpers visuais ───────────────────────────────────────────────────────
 function iniciais(p: ProfissionalVinculado): string {
@@ -92,12 +118,15 @@ function iniciais(p: ProfissionalVinculado): string {
 
 function corAvatar(p: ProfissionalVinculado): string {
     // Determinismo simples — hash do vinculoId em uma paleta amigável.
+    // vinculoId pode ser null pro Dono (linha sintética sem vínculo formal);
+    // nesse caso usa o último índice da paleta como cor estável.
     const paleta = [
         "hsl(254 56% 38%)", "hsl(190 60% 45%)", "hsl(280 55% 50%)",
         "hsl(140 45% 45%)", "hsl(40 70% 50%)", "hsl(340 55% 55%)",
         "hsl(220 55% 50%)", "hsl(170 50% 40%)",
     ]
-    return paleta[p.vinculoId % paleta.length]
+    const idx = p.vinculoId == null ? paleta.length - 1 : (p.vinculoId % paleta.length)
+    return paleta[idx]
 }
 
 function modeloDe(p: ProfissionalVinculado): ModeloPermissao | undefined {
@@ -121,7 +150,7 @@ function ehVinculoProprio(p: ProfissionalVinculado): boolean {
 }
 
 // ─── Ações em massa (delegadas — emite eventos para a view-pai) ───────────
-function bulk(acao: "ativar" | "suspender" | "remover") {
+function bulk(acao: "ativar" | "desativar" | "remover") {
     if (!selecionados.value.size) return
     emit("acao-massa", { acao, ids: [...selecionados.value] })
     selecionados.value = new Set()
@@ -153,11 +182,11 @@ function bulk(acao: "ativar" | "suspender" | "remover") {
         <!-- Bulk bar -->
         <div v-if="selecionados.size > 0" class="bulk-bar">
             <span><b>{{ selecionados.size }}</b> selecionado{{ selecionados.size > 1 ? 's' : '' }}</span>
-            <button type="button" class="btn-ghost-sm" @click="bulk('ativar')">
+            <button v-if="podeAtivar" type="button" class="btn-ghost-sm" @click="bulk('ativar')">
                 <i class="fa-solid fa-circle-check"></i> Ativar
             </button>
-            <button type="button" class="btn-ghost-sm" @click="bulk('suspender')">
-                <i class="fa-solid fa-circle-pause"></i> Suspender
+            <button v-if="podeDesativar" type="button" class="btn-ghost-sm" @click="bulk('desativar')">
+                <i class="fa-solid fa-circle-pause"></i> Desativar
             </button>
             <button type="button" class="btn-ghost-sm danger" @click="bulk('remover')">
                 <i class="fa-solid fa-trash"></i> Remover
@@ -200,13 +229,23 @@ function bulk(acao: "ativar" | "suspender" | "remover") {
                 <div></div>
             </div>
             <div
-                v-for="p in filtrados" :key="p.vinculoId"
+                v-for="p in filtrados" :key="p.vinculoId ?? `dono-${p.usuarioId}`"
                 class="pros-row"
-                :class="{ selected: selecionados.has(p.vinculoId) }"
+                :class="{ selected: p.vinculoId !== null && selecionados.has(p.vinculoId) }"
                 @click="emit('abrir-detalhes', p)"
             >
-                <label class="pt-checkbox" @click.stop>
-                    <input type="checkbox" :checked="selecionados.has(p.vinculoId)" @change="toggleUm(p.vinculoId)" />
+                <label
+                    class="pt-checkbox"
+                    :class="{ disabled: !podeSelecionar(p) }"
+                    :title="podeSelecionar(p) ? '' : 'Dono não pode ser desativado por aqui.'"
+                    @click.stop
+                >
+                    <input
+                        type="checkbox"
+                        :disabled="!podeSelecionar(p)"
+                        :checked="p.vinculoId !== null && selecionados.has(p.vinculoId)"
+                        @change="toggleUm(p.vinculoId)"
+                    />
                     <span class="cb-box"></span>
                 </label>
 
@@ -334,6 +373,9 @@ function bulk(acao: "ativar" | "suspender" | "remover") {
     border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px);
 }
 .pt-checkbox:hover .cb-box { border-color: hsl(var(--primary)); }
+.pt-checkbox.disabled { cursor: not-allowed; }
+.pt-checkbox.disabled .cb-box { opacity: 0.4; background: hsl(var(--secondary) / 0.05); }
+.pt-checkbox.disabled:hover .cb-box { border-color: hsl(var(--secondary) / 0.3); }
 
 .pr-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .pr-avatar {

@@ -65,6 +65,7 @@ async function salvarPapel() {
         return
     }
     if (!modeloSelecionadoId.value) return
+    if (props.profissional.vinculoId == null) return  // Dono — não tem vínculo formal pra atribuir.
     salvando.value = true
     erro.value = null
     try {
@@ -84,6 +85,7 @@ async function salvarPapel() {
 
 async function remover() {
     if (!props.profissional || !podeRemover.value) return
+    if (props.profissional.vinculoId == null) return  // Dono não pode ser removido (status="Dono" já bloqueia podeRemover).
     if (!confirm(`Remover ${props.profissional.nomeCompleto || props.profissional.email} do estabelecimento?`)) return
     removendo.value = true
     erro.value = null

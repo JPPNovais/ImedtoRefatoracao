@@ -23,6 +23,27 @@ public static class CpfValidator
             && DigitoVerificador(digitos, 10) == (digitos[10] - '0');
     }
 
+    /// <summary>
+    /// Retorna a razão específica da invalidez do CPF, ou <c>null</c> se for válido.
+    /// Mensagens granulares ajudam o usuário a corrigir o input — "CPF inválido"
+    /// genérico não distingue se o problema é quantidade de dígitos, sequência
+    /// repetida ou dígito verificador.
+    /// </summary>
+    public static string? RazaoInvalidez(string cpf)
+    {
+        if (string.IsNullOrWhiteSpace(cpf))
+            return "CPF é obrigatório.";
+        var digitos = TextSanitizer.SomenteDigitos(cpf);
+        if (digitos.Length != 11)
+            return "CPF deve conter 11 dígitos.";
+        if (digitos.Distinct().Count() == 1)
+            return "CPF inválido (sequência repetida não é aceita).";
+        if (DigitoVerificador(digitos, 9) != (digitos[9] - '0')
+            || DigitoVerificador(digitos, 10) != (digitos[10] - '0'))
+            return "CPF inválido (dígito verificador não confere).";
+        return null;
+    }
+
     private static int DigitoVerificador(string digitos, int comprimento)
     {
         var soma = 0;

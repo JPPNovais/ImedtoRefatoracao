@@ -62,13 +62,16 @@ public class PacienteDocumentoTests
         Assert.That(p.DocumentoInternacional, Is.Null);
     }
 
-    [TestCase("12345678900")] // DV2 errado
-    [TestCase("11111111111")] // sequencia repetida
-    [TestCase("123")]         // curto demais
-    public void Cadastrar_CpfInvalido_LancaBusinessException(string cpf)
+    [TestCase("12345678900", "dígito")]      // DV2 errado
+    [TestCase("11111111111", "sequência")]   // sequência repetida
+    [TestCase("123",         "11 dígitos")]  // curto demais
+    public void Cadastrar_CpfInvalido_LancaBusinessException(string cpf, string razaoEsperada)
     {
         var ex = Assert.Throws<BusinessException>(() => CadastrarComCpf(cpf));
-        Assert.That(ex.Message, Does.Contain("CPF").And.Contain("inválido").IgnoreCase);
+        // Mensagens granulares (RazaoInvalidez do CpfValidator) — informam o motivo
+        // específico em vez de um "CPF inválido" genérico.
+        Assert.That(ex.Message, Does.Contain(razaoEsperada).IgnoreCase,
+            $"Esperava razão '{razaoEsperada}' para CPF '{cpf}', recebi: '{ex.Message}'");
     }
 
     // --- DocumentoInternacional ---

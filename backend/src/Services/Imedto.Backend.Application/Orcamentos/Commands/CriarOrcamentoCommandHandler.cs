@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Orcamentos.Commands;
 using Imedto.Backend.Domain.Cirurgias;
+using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Orcamentos;
 using Imedto.Backend.Domain.Pacientes;
@@ -14,6 +15,7 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
     private readonly IPacienteRepository _pacienteRepo;
     private readonly IProcedimentoCirurgicoRepository _procedimentoRepo;
     private readonly IItemInventarioRepository _inventarioRepo;
+    private readonly IFormaPagamentoRepository _formaRepo;
     private readonly IEventBus _events;
 
     public CriarOrcamentoCommandHandler(
@@ -21,12 +23,14 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         IPacienteRepository pacienteRepo,
         IProcedimentoCirurgicoRepository procedimentoRepo,
         IItemInventarioRepository inventarioRepo,
+        IFormaPagamentoRepository formaRepo,
         IEventBus events)
     {
         _repo = repo;
         _pacienteRepo = pacienteRepo;
         _procedimentoRepo = procedimentoRepo;
         _inventarioRepo = inventarioRepo;
+        _formaRepo = formaRepo;
         _events = events;
     }
 
@@ -48,6 +52,7 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
 
         await ValidarImplantesCatalogo(cmd.Implantes, cmd.EstabelecimentoId);
         await ValidarCirurgiasCatalogo(cmd.Cirurgias, cmd.EstabelecimentoId, cmd.PacienteId);
+        await ValidarFormasPagamentoCatalogo(cmd.FormasPagamento, cmd.EstabelecimentoId);
 
         var orcamento = Orcamento.Criar(
             cmd.EstabelecimentoId,
@@ -109,6 +114,20 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
                 ?? throw new BusinessException($"Procedimento cirúrgico {id} não encontrado.");
             if (proc.PacienteId != pacienteId)
                 throw new BusinessException($"Procedimento cirúrgico {id} não pertence ao paciente neste estabelecimento.");
+        }
+    }
+
+    private async Task ValidarFormasPagamentoCatalogo(
+        IEnumerable<OrcamentoFormaPagamentoPayload> formas,
+        long estabelecimentoId)
+    {
+        // Sem isso, FK inexistente vira FK violation no DB e cai como 500 ErroInterno
+        // (descoberto no QA — N15 do qa/REPORT-V2.md).
+        var ids = formas.Select(f => f.FormaPagamentoId).Distinct().ToList();
+        foreach (var id in ids)
+        {
+            _ = await _formaRepo.ObterPorIdOuNulo(id, estabelecimentoId)
+                ?? throw new BusinessException($"Forma de pagamento {id} não encontrada neste estabelecimento.");
         }
     }
 }

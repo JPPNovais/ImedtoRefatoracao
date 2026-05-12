@@ -58,21 +58,27 @@ function criarUsuario(overrides = {}) {
 
 function setupStoreMocks() {
     const tenantLimpar = vi.fn()
+    const tenantPopular = vi.fn()
     const profissionalLimpar = vi.fn()
     const profissionalInit = vi.fn().mockResolvedValue(undefined)
+    const profissionalSet = vi.fn()  // bootstrapPosAuth chama profissional.setProfissional(data.profissional)
     const notificacoesLimpar = vi.fn()
     const notificacoesBindRealtime = vi.fn()
     const assinaturaLimpar = vi.fn()
 
-    vi.mocked(useTenantStore).mockReturnValue({ limpar: tenantLimpar } as any)
-    vi.mocked(useProfissionalStore).mockReturnValue({ limpar: profissionalLimpar, init: profissionalInit } as any)
+    vi.mocked(useTenantStore).mockReturnValue({ limpar: tenantLimpar, popularEstabelecimentos: tenantPopular } as any)
+    vi.mocked(useProfissionalStore).mockReturnValue({
+        limpar: profissionalLimpar,
+        init: profissionalInit,
+        setProfissional: profissionalSet,
+    } as any)
     vi.mocked(useNotificacoesStore).mockReturnValue({
         limpar: notificacoesLimpar,
         bindRealtime: notificacoesBindRealtime,
     } as any)
     vi.mocked(useAssinaturaStore).mockReturnValue({ limpar: assinaturaLimpar } as any)
 
-    return { tenantLimpar, profissionalLimpar, profissionalInit, notificacoesLimpar, notificacoesBindRealtime, assinaturaLimpar }
+    return { tenantLimpar, tenantPopular, profissionalLimpar, profissionalInit, profissionalSet, notificacoesLimpar, notificacoesBindRealtime, assinaturaLimpar }
 }
 
 describe("authStore", () => {
@@ -176,12 +182,16 @@ describe("authStore", () => {
     // login()
     // ────────────────────────────────────────────────────────────────────────────
     describe("login()", () => {
-        it("POST /auth/login → recarregaMe → profissionalStore.init() → ativaRealtime", async () => {
-            const { profissionalInit, notificacoesBindRealtime } = setupStoreMocks()
+        it("POST /auth/login → bootstrapPosAuth (profissional.setProfissional, ativaRealtime)", async () => {
+            const { profissionalSet, notificacoesBindRealtime } = setupStoreMocks()
             const usuario = criarUsuario()
 
-            vi.mocked(httpClient.post).mockResolvedValueOnce({ data: { token: "x" } }) // login
-            vi.mocked(httpClient.get).mockResolvedValueOnce({ data: { usuario } })      // /auth/me
+            // login() agora chama POST /auth/login e depois bootstrapService.obter()
+            // que faz GET /auth/bootstrap retornando { usuario, profissional, estabelecimentos }.
+            vi.mocked(httpClient.post).mockResolvedValueOnce({ data: { token: "x" } })
+            vi.mocked(httpClient.get).mockResolvedValueOnce({
+                data: { usuario, profissional: null, estabelecimentos: [] },
+            })
 
             const store = useAuthStore()
             const resultado = await store.login("joao@imedto.com", "senha123")
@@ -191,7 +201,7 @@ describe("authStore", () => {
                 password: "senha123",
             })
             expect(store.usuario).toEqual(usuario)
-            expect(profissionalInit).toHaveBeenCalled()
+            expect(profissionalSet).toHaveBeenCalledWith(null)
             expect(notificacoesBindRealtime).toHaveBeenCalled()
             expect(realtimeService.start).toHaveBeenCalled()
             expect(resultado).toEqual({ token: "x" })

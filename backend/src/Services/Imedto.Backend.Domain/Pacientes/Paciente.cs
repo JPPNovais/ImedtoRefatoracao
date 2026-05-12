@@ -203,8 +203,9 @@ public class Paciente : Entity, ISoftDeletable
         string cpfNormalizado = null;
         if (cpfPreenchido)
         {
-            if (!CpfValidator.EhValido(cpf))
-                throw new BusinessException("CPF inválido.");
+            var razao = CpfValidator.RazaoInvalidez(cpf);
+            if (razao is not null)
+                throw new BusinessException(razao);
             cpfNormalizado = TextSanitizer.SomenteDigitos(cpf);
         }
 

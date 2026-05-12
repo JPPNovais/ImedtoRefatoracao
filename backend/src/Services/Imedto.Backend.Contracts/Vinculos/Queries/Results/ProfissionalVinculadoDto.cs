@@ -2,7 +2,13 @@ namespace Imedto.Backend.Contracts.Vinculos.Queries.Results;
 
 public class ProfissionalVinculadoDto
 {
-    public long VinculoId { get; set; }
+    /// <summary>
+    /// Id do vínculo profissional-estabelecimento. <c>null</c> quando a linha é
+    /// sintética para o próprio Dono — o dono não tem vínculo formal, mas aparece
+    /// na listagem por consistência da UI. O front deve identificá-lo via
+    /// <see cref="Status"/> = <c>"Dono"</c>.
+    /// </summary>
+    public long? VinculoId { get; set; }
     public Guid UsuarioId { get; set; }
     public string Email { get; set; }
     public string NomeCompleto { get; set; }

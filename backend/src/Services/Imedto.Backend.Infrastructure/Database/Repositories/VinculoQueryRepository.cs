@@ -17,12 +17,16 @@ public class VinculoQueryRepository
     }
 
     /// <summary>
-    /// Atuantes do estabelecimento: vínculos não-inativos UNION com o dono.
-    /// Reflete a regra unificada de <c>IVinculoRepository.PodeAtuarComoProfissional</c>.
+    /// Profissionais do estabelecimento (Dono UNION vínculos). Por default só
+    /// retorna não-inativos — reflete <c>IVinculoRepository.PodeAtuarComoProfissional</c>
+    /// para seletores de agenda/prontuário. A tela de gestão de equipe passa
+    /// <paramref name="incluirInativos"/>=true pra também enxergar quem foi desativado
+    /// (UX: ao Desativar, a linha continua visível em "Inativos" em vez de "sumir").
     /// </summary>
-    public async Task<IEnumerable<ProfissionalVinculadoDto>> ListarProfissionaisDoEstabelecimento(long estabelecimentoId)
+    public async Task<IEnumerable<ProfissionalVinculadoDto>> ListarProfissionaisDoEstabelecimento(long estabelecimentoId, bool incluirInativos = false)
     {
-        const string sql = """
+        var filtroStatus = incluirInativos ? string.Empty : "AND v.status <> 'Inativo'";
+        var sql = $$"""
             SELECT  v.id                       AS VinculoId,
                     v.profissional_usuario_id  AS UsuarioId,
                     u.email                    AS Email,
@@ -41,13 +45,13 @@ public class VinculoQueryRepository
             LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id
             LEFT JOIN public.profissoes pr ON pr.id = v.profissao_convidada_id
             WHERE   v.estabelecimento_id = @EstabelecimentoId
-              AND   v.status <> 'Inativo'
+              {{filtroStatus}}
               AND   v.profissional_usuario_id
                     <> (SELECT dono_usuario_id FROM public.estabelecimentos WHERE id = @EstabelecimentoId)
 
             UNION ALL
 
-            SELECT  0::bigint                  AS VinculoId,
+            SELECT  NULL::bigint               AS VinculoId,  -- sintético (Dono), front identifica por status='Dono'
                     e.dono_usuario_id          AS UsuarioId,
                     u.email                    AS Email,
                     u.nome_completo            AS NomeCompleto,
