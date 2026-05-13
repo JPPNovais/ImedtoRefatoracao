@@ -21,6 +21,7 @@ const props = defineProps<{
     secoes: SecaoModelo[]
     novaEvolucao: Record<string, any>
     salvando: boolean
+    focus?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -84,9 +85,9 @@ const modelosAlternativos = computed(
 </script>
 
 <template>
-    <div class="pront-grid">
+    <div class="pront-grid" :class="{ 'pg-focus': focus }">
         <!-- ──── Sidebar esquerda: navegação por módulos ──── -->
-        <aside class="pront-nav" aria-label="Módulos do prontuário">
+        <aside v-if="!focus" class="pront-nav" aria-label="Módulos do prontuário">
             <div class="pn-head">
                 <h4>Módulos</h4>
                 <span>{{ totalPreenchidos }}/{{ secoes.length }} ok</span>
@@ -176,7 +177,7 @@ const modelosAlternativos = computed(
         </div>
 
         <!-- ──── Sidebar direita: Modelos alternativos ──── -->
-        <aside class="mod-lib" aria-label="Modelos disponíveis">
+        <aside v-if="!focus" class="mod-lib" aria-label="Modelos disponíveis">
             <div class="mod-lib-head">
                 <h4>Trocar modelo</h4>
                 <span>{{ modelosAlternativos.length }} disponíveis</span>
@@ -222,6 +223,12 @@ const modelosAlternativos = computed(
     .pront-grid { grid-template-columns: 1fr; }
     .pront-nav { display: none; }
 }
+
+/* Modo foco — sidebars são removidas via v-if no template (mais robusto que
+   tentar sobrescrever display via CSS — o Vue scoped CSS é frágil ao
+   compor combinadores descendentes com classes do mesmo componente). */
+.pront-grid.pg-focus { grid-template-columns: 1fr; }
+.pront-grid.pg-focus .pront-main { max-width: 920px; margin: 0 auto; }
 
 /* ──── Sidebar esquerda ──── */
 .pront-nav {

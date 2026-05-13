@@ -322,6 +322,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 :secoes="secoesConsultaAtual"
                 :nova-evolucao="novaEvolucao"
                 :salvando="salvandoEvolucao"
+                :focus="focus"
                 @salvar="salvarEvolucao"
             />
 

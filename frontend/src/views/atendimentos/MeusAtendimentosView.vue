@@ -408,8 +408,11 @@ async function criarEncaixe(p: PacienteListaItem) {
 .atend-sub {
     color: hsl(var(--secondary) / 0.7);
     font-size: 14px; margin-top: 4px;
-    text-transform: capitalize;
+    /* Não usamos `text-transform: capitalize` (capitaliza CADA palavra,
+       gera "Quarta-Feira, 13 De Maio"). Capitalizamos apenas a 1a letra
+       via ::first-letter. */
 }
+.atend-sub::first-letter { text-transform: uppercase; }
 .atend-h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
 
 .atend-header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
