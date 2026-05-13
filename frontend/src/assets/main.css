@@ -65,12 +65,34 @@
     --danger:        hsl(0 84% 60%);
 
     --radius-sm: calc(0.5rem - 4px);
+    --radius-md: calc(0.5rem - 2px);
     --radius-lg: calc(0.5rem + 4px);
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --radius-full: 9999px;
 
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
     --shadow:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+    --shadow-lg: 0 12px 32px -10px rgb(0 0 0 / 0.14);
+    --shadow-primary: 0 8px 24px -8px hsl(var(--primary) / 0.35);
 
     --sidebar-w: 240px;
+    --top-h:     64px;       /* mantém em sincronia com --topbar-h do AppLayout */
+
+    /* Motion */
+    --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-fast:    150ms;
+    --dur-base:    200ms;
+    --dur-slow:    300ms;
+
+    /* Type families auxiliares (cards do prontuário/atendimentos) */
+    --font-mono:    ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --font-display: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    /* Atalho hex para o roxo escuro (usado pelo design care/prontuario) */
+    --c-primary-dark: hsl(var(--primary-dark));
 }
 
 .dark {
@@ -114,8 +136,12 @@
     --danger:        hsl(0 63% 55%);
 
     /* Sombras mais densas no escuro para manter profundidade percebida */
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.30);
     --shadow:    0 1px 3px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.30);
     --shadow-md: 0 4px 6px -1px rgba(0,0,0,.50), 0 2px 4px -2px rgba(0,0,0,.30);
+    --shadow-lg: 0 12px 32px -10px rgba(0,0,0,.55);
+
+    --c-primary-dark: hsl(var(--primary-dark));
 }
 
 /* ========================================================================== */
@@ -396,6 +422,51 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
 .badge-error    { background: hsl(var(--error)   / 0.12);    color: hsl(var(--error)); }
 .badge-info     { background: hsl(var(--info)    / 0.12);    color: hsl(var(--info)); }
 .badge-muted    { background: hsl(var(--muted));             color: hsl(var(--muted-foreground)); }
+
+/* ========================================================================== */
+/* CARE / PRONTUÁRIO — pills semânticas (status, alerta, tag)                  */
+/* ========================================================================== */
+/*
+ * Reutilizadas em Atendimentos (fila), Prontuário (header do paciente),
+ * Pacientes (tags). Cores semânticas com background tonal e texto contrastado.
+ */
+.status-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 99px;
+    font-size: 11px; font-weight: 600; line-height: 1;
+}
+.status-pill i { font-size: 10px; }
+.status-pill.success { background: hsl(155 60% 50% / 0.14); color: hsl(155 60% 30%); }
+.status-pill.info    { background: hsl(210 80% 55% / 0.14); color: hsl(210 80% 38%); }
+.status-pill.warning { background: hsl(38 92% 50% / 0.18);  color: hsl(38 80% 32%); }
+.status-pill.primary { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary-dark)); }
+.status-pill.neutral { background: hsl(var(--secondary) / 0.1); color: hsl(var(--secondary) / 0.7); }
+.status-pill.error   { background: hsl(0 75% 60% / 0.14);   color: hsl(0 75% 38%); }
+
+.alert-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 99px;
+    font-size: 11px; font-weight: 600; line-height: 1.2;
+    background: hsl(38 92% 50% / 0.18); color: hsl(38 80% 30%);
+    border: 1px solid hsl(38 92% 60% / 0.4);
+}
+.alert-pill i { font-size: 10px; }
+
+.tag-mini {
+    display: inline-flex; align-items: center;
+    font-size: 10px; padding: 2px 7px;
+    background: hsl(var(--info) / 0.12); color: hsl(var(--info));
+    border-radius: 99px; font-weight: 600; line-height: 1.4;
+}
+
+.ph-alert {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 99px;
+    font-size: 11px; font-weight: 600;
+}
+.ph-alert.err  { background: hsl(0 75% 60% / 0.12);  color: hsl(0 75% 38%); }
+.ph-alert.warn { background: hsl(38 92% 50% / 0.16); color: hsl(38 80% 32%); }
+.ph-alert i { font-size: 9px; }
 
 /* ========================================================================== */
 /* ANIMATIONS                                                                  */

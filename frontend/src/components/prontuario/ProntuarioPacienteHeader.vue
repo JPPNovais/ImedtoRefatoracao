@@ -1,19 +1,56 @@
 <!--
-    Cabeçalho do prontuário.
-    Replica o visual do legado (`modules/medical-record/components/MedicalRecordPatientHeader.vue`):
-      - Topo: nome do estabelecimento em destaque (azul-escuro).
-      - Grade 2×3: Paciente, Documento, Contato / Data horário, Tipo, Profissional.
+    Header sticky do prontuário (visual do design Imedto care):
+      - Esquerda: voltar + avatar + nome/idade/sexo/CPF/contato + alertas
+      - Direita: timer (quando há atendimento ativo) + ações (modo foco,
+        imprimir, receita, finalizar)
+    Não toca o backend — `finalizar` apenas emite evento (a view chama
+    `agendaService.concluir`).
 -->
 <script setup lang="ts">
 import { computed } from "vue"
 import type { Paciente } from "@/services/pacienteService"
 import type { Agendamento } from "@/services/agendaService"
+import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
+import { useClockTick, formatarDuracao } from "@/composables/useClockTick"
 
 const props = defineProps<{
     paciente: Paciente | null
     agendamento?: Agendamento | null
     estabelecimento?: string | null
+    /** true esconde sidebars (modo foco) */
+    focus?: boolean
+    /** Permite ocultar a coluna de ações (em telas read-only / sem agendamento) */
+    semAcoes?: boolean
 }>()
+
+const emit = defineEmits<{
+    "voltar": []
+    "toggle-focus": []
+    "imprimir": []
+    "receita": []
+    "finalizar": []
+}>()
+
+const { atual: atendimentoAtivo, ehEstePaciente } = useAtendimentoAtivo()
+const { agora } = useClockTick()
+
+const ativoAqui = computed(() =>
+    !!props.paciente && ehEstePaciente(props.paciente.id),
+)
+
+const decorridoLabel = computed(() => {
+    if (!ativoAqui.value || !atendimentoAtivo.value) return null
+    const ms = agora.value - new Date(atendimentoAtivo.value.iniciadoEm).getTime()
+    return formatarDuracao(ms)
+})
+
+const iniciais = computed(() => {
+    const nome = props.paciente?.nomeCompleto?.trim() ?? ""
+    if (!nome) return "?"
+    const partes = nome.split(/\s+/).filter(Boolean)
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
+    return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+})
 
 function calcularIdade(iso: string | null | undefined) {
     if (!iso) return null
@@ -24,119 +61,217 @@ function calcularIdade(iso: string | null | undefined) {
     if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--
     return idade
 }
-
 const idade = computed(() => calcularIdade(props.paciente?.dataNascimento))
 
-const dataHorario = computed(() => {
+const meta = computed(() => {
+    const p = props.paciente
+    if (!p) return [] as string[]
+    const linhas: string[] = []
+    if (idade.value !== null) linhas.push(`${idade.value} anos`)
+    if (p.genero) linhas.push(p.genero)
+    if (p.cpf) linhas.push(`CPF ${p.cpf}`)
+    if (p.telefone) linhas.push(p.telefone)
+    return linhas
+})
+
+// Alertas do paciente: tudo via campo livre `alertas: string[]`. O design
+// distingue "alergia" (vermelho) de outros alertas (amarelo). Heurística:
+// se o texto começa com "alergia" → vermelho.
+type Alerta = { texto: string, tipo: "err" | "warn" }
+const alertas = computed<Alerta[]>(() => {
+    return (props.paciente?.alertas ?? []).map(t => ({
+        texto: t,
+        tipo: t.toLowerCase().startsWith("alergia") ? "err" : "warn",
+    }))
+})
+
+const dataHora = computed(() => {
     const iso = props.agendamento?.inicioPrevisto
-    if (!iso) return "—"
+    if (!iso) return null
     return new Date(iso).toLocaleString("pt-BR", {
         day: "2-digit", month: "2-digit", year: "numeric",
         hour: "2-digit", minute: "2-digit",
     })
 })
 
-const tipoConsulta = computed(() => {
-    const t = props.agendamento?.tipoServico
-    if (!t) return "—"
-    return t.toLowerCase()
-})
-
-const contato = computed(() => {
-    const p = props.paciente
-    if (!p) return []
-    const linhas: string[] = []
-    if (p.telefone) linhas.push(p.telefone)
-    if (p.endereco) linhas.push(p.endereco)
-    return linhas
-})
-
-const documento = computed(() => {
-    const p = props.paciente
-    if (!p) return []
-    const linhas: string[] = []
-    if (p.cpf) linhas.push(p.cpf)
-    if (p.genero) linhas.push(p.genero.toLowerCase())
-    return linhas
-})
+void emit
 </script>
 
 <template>
-    <section class="ph">
-        <h2 v-if="estabelecimento" class="ph-estab">{{ estabelecimento }}</h2>
+    <header class="pront-header" :class="{ focus }">
+        <div class="ph-left">
+            <button type="button" class="ph-back" aria-label="Voltar" @click="emit('voltar')">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
 
-        <div class="ph-grid">
-            <div class="ph-col">
-                <span class="ph-label">Paciente</span>
-                <span class="ph-val">{{ paciente?.nomeCompleto ?? "—" }}</span>
-                <span class="ph-sub">{{ idade !== null ? `${idade} anos` : "—" }}</span>
-            </div>
+            <div class="ph-avatar" :title="paciente?.nomeCompleto ?? ''">{{ iniciais }}</div>
 
-            <div class="ph-col">
-                <span class="ph-label">Documento</span>
-                <span class="ph-val">{{ documento[0] ?? "—" }}</span>
-                <span class="ph-sub">{{ documento[1] ?? "" }}</span>
-            </div>
+            <div class="ph-info">
+                <h1>{{ paciente?.nomeCompleto ?? "—" }}</h1>
+                <div class="ph-meta">
+                    <span v-for="(t, i) in meta" :key="i">
+                        {{ t }}
+                        <span v-if="i < meta.length - 1" class="ph-meta-sep">·</span>
+                    </span>
+                    <span v-if="estabelecimento && meta.length > 0" class="ph-meta-sep">·</span>
+                    <span v-if="estabelecimento">{{ estabelecimento }}</span>
+                </div>
 
-            <div class="ph-col">
-                <span class="ph-label">Contato</span>
-                <span class="ph-val">{{ contato[0] ?? "—" }}</span>
-                <span class="ph-sub">{{ contato[1] ?? "" }}</span>
-            </div>
+                <div v-if="alertas.length > 0" class="ph-alerts">
+                    <span
+                        v-for="(a, i) in alertas"
+                        :key="i"
+                        class="ph-alert"
+                        :class="a.tipo"
+                    >
+                        <i class="fa-solid" :class="a.tipo === 'err' ? 'fa-ban' : 'fa-circle-info'"></i>
+                        {{ a.texto }}
+                    </span>
+                </div>
 
-            <div class="ph-col">
-                <span class="ph-label">Data / horário da consulta</span>
-                <span class="ph-val">{{ dataHorario }}</span>
-            </div>
-
-            <div class="ph-col">
-                <span class="ph-label">Tipo de consulta</span>
-                <span class="ph-val">{{ tipoConsulta }}</span>
-            </div>
-
-            <div class="ph-col">
-                <span class="ph-label">Profissional responsável</span>
-                <span class="ph-val">{{ agendamento?.profissionalNome ?? "—" }}</span>
+                <div v-if="dataHora && agendamento" class="ph-encounter">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    {{ dataHora }} · {{ agendamento.tipoServico || "Consulta" }}
+                    <span v-if="agendamento.profissionalNome">· {{ agendamento.profissionalNome }}</span>
+                </div>
             </div>
         </div>
-    </section>
+
+        <div v-if="!semAcoes" class="ph-right">
+            <div v-if="decorridoLabel" class="ph-timer" aria-label="Tempo de atendimento">
+                <i class="fa-solid fa-stopwatch"></i>
+                <div class="ph-timer-info">
+                    <span class="ph-timer-val">{{ decorridoLabel }}</span>
+                    <span class="ph-timer-lbl">em atendimento</span>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="ph-btn ph-btn-secondary"
+                :class="{ on: focus }"
+                :title="focus ? 'Sair do modo foco (F)' : 'Entrar no modo foco (F)'"
+                @click="emit('toggle-focus')"
+            >
+                <i class="fa-solid" :class="focus ? 'fa-eye-slash' : 'fa-eye'"></i>
+                {{ focus ? "Sair do foco" : "Modo foco" }}
+            </button>
+
+            <button type="button" class="ph-btn ph-btn-secondary" @click="emit('imprimir')">
+                <i class="fa-solid fa-print"></i>
+                Imprimir
+            </button>
+
+            <button type="button" class="ph-btn ph-btn-secondary" @click="emit('receita')">
+                <i class="fa-solid fa-prescription"></i>
+                Receita
+            </button>
+
+            <button
+                v-if="ativoAqui"
+                type="button"
+                class="ph-btn ph-btn-success"
+                @click="emit('finalizar')"
+            >
+                <i class="fa-solid fa-circle-check"></i>
+                Finalizar e assinar
+            </button>
+        </div>
+    </header>
 </template>
 
 <style scoped>
-.ph {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 1.25rem 1.5rem;
-    margin-bottom: 1.25rem;
+.pront-header {
+    position: sticky;
+    top: var(--topbar-h, var(--top-h));
+    z-index: 20;
+    background: white;
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: var(--radius-lg);
+    padding: 14px 22px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
 }
+.pront-header.focus { top: 0; }
 
-.ph-estab {
-    margin: 0 0 1rem; font-size: 1.1rem; font-weight: 700;
+.ph-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 380px; }
+.ph-back {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: hsl(var(--secondary) / 0.06);
     color: hsl(var(--primary-dark));
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; cursor: pointer; flex-shrink: 0;
+    transition: background 150ms;
 }
+.ph-back:hover { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); }
 
-.ph-grid {
-    display: grid; gap: 1.1rem 2.25rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+.ph-avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+    color: white; font-weight: 700; font-size: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
 }
-@media (max-width: 900px) {
-    .ph-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 600px) {
-    .ph-grid { grid-template-columns: 1fr; }
-}
-
-.ph-col { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-
-.ph-label {
-    font-size: 0.82em; font-weight: 700; color: var(--text);
-    margin-bottom: 0.15rem;
-}
-.ph-val {
-    font-size: 0.88em; color: var(--text);
+.ph-info { min-width: 0; flex: 1; }
+.ph-info h1 {
+    font-size: 20px; font-weight: 700;
+    color: hsl(var(--primary-dark));
+    margin: 0 0 2px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ph-sub {
-    font-size: 0.8em; color: var(--text-muted);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.ph-meta {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    font-size: 12px; color: hsl(var(--secondary) / 0.7);
+}
+.ph-meta-sep { opacity: 0.4; margin: 0 2px; }
+.ph-alerts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ph-encounter {
+    margin-top: 6px;
+    font-size: 12px; color: hsl(var(--primary));
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.ph-encounter i { font-size: 11px; }
+
+/* ──── Direita: timer + ações ──── */
+.ph-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.ph-timer {
+    display: flex; align-items: center; gap: 8px;
+    background: hsl(155 60% 50% / 0.1); color: hsl(155 60% 25%);
+    padding: 6px 14px; border-radius: var(--radius-md);
+}
+.ph-timer i { font-size: 18px; }
+.ph-timer-info { display: flex; flex-direction: column; line-height: 1; }
+.ph-timer-val { font-family: var(--font-mono); font-size: 18px; font-weight: 700; }
+.ph-timer-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; margin-top: 2px; }
+
+.ph-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 36px; padding: 0 12px;
+    border-radius: var(--radius-md);
+    font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid transparent;
+    transition: background 150ms, border-color 150ms, color 150ms, box-shadow 150ms;
+    white-space: nowrap;
+}
+.ph-btn i { font-size: 12px; }
+.ph-btn-secondary {
+    background: white; color: hsl(var(--secondary) / 0.85);
+    border-color: hsl(var(--secondary) / 0.18);
+}
+.ph-btn-secondary:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.4); }
+.ph-btn-secondary.on { background: hsl(var(--primary-dark)); color: white; border-color: hsl(var(--primary-dark)); }
+.ph-btn-success {
+    background: hsl(155 60% 50%); color: white; border-color: hsl(155 60% 50%);
+}
+.ph-btn-success:hover { background: hsl(155 60% 42%); border-color: hsl(155 60% 42%); }
+
+@media (max-width: 760px) {
+    .pront-header { padding: 12px 14px; }
+    .ph-info h1 { font-size: 17px; }
+    .ph-btn { padding: 0 10px; }
+    .ph-btn span { display: none; }
 }
 </style>
