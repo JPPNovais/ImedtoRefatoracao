@@ -82,7 +82,7 @@ async function excluirConta() {
 
 const LABELS_TIPO: Record<TipoConsentimento, string> = {
     TermosUso:         "Termos de Uso",
-    PoliticaPrivacidade: "Politica de Privacidade",
+    PoliticaPrivacidade: "Política de Privacidade",
     UsoIA:             "Uso de IA",
 }
 
@@ -104,14 +104,14 @@ onMounted(carregarConsentimentos)
     <main class="app-page app-page--narrow">
         <AppPageHeader
             titulo="Privacidade e LGPD"
-            subtitulo="Gerencie seus dados pessoais e direitos previstos na Lei Geral de Protecao de Dados."
+            subtitulo="Gerencie seus dados pessoais e direitos previstos na Lei Geral de Proteção de Dados."
         />
 
         <!-- Exportar dados -->
-        <AppCard title="Exportar meus dados" subtitle="Baixe um arquivo JSON com todas as informacoes associadas a sua conta.">
+        <AppCard title="Exportar meus dados" subtitle="Baixe um arquivo JSON com todas as informações associadas à sua conta.">
             <p class="info-texto">
-                De acordo com o Art. 18 da LGPD, voce tem direito de acessar seus dados pessoais.
-                O arquivo inclui dados de perfil, agendamentos, prontuarios e historico de atividade.
+                De acordo com o Art. 18 da LGPD, você tem direito de acessar seus dados pessoais.
+                O arquivo inclui dados de perfil, agendamentos, prontuários e histórico de atividade.
             </p>
             <p v-if="erroExportar" class="msg-erro" role="alert">{{ erroExportar }}</p>
             <template #footer>
@@ -127,7 +127,7 @@ onMounted(carregarConsentimentos)
         </AppCard>
 
         <!-- Consentimentos -->
-        <AppCard title="Meus consentimentos" subtitle="Documentos que voce aceitou ao usar a plataforma.">
+        <AppCard title="Meus consentimentos" subtitle="Documentos que você aceitou ao usar a plataforma.">
             <div v-if="carregando" class="estado-msg">
                 <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
                 Carregando...
@@ -140,7 +140,7 @@ onMounted(carregarConsentimentos)
                 <thead>
                     <tr>
                         <th>Documento</th>
-                        <th>Versao</th>
+                        <th>Versão</th>
                         <th>Aceito em</th>
                     </tr>
                 </thead>
@@ -157,15 +157,15 @@ onMounted(carregarConsentimentos)
         </AppCard>
 
         <!-- Excluir conta -->
-        <AppCard title="Excluir minha conta (LGPD)" subtitle="Solicitar anonimizacao permanente dos seus dados pessoais.">
+        <AppCard title="Excluir minha conta (LGPD)" subtitle="Solicitar anonimização permanente dos seus dados pessoais.">
             <div class="aviso-excluir" role="note">
                 <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                 <div>
-                    <strong>Esta acao e irreversivel.</strong>
+                    <strong>Esta ação é irreversível.</strong>
                     <p>
-                        Seus dados pessoais (nome, CPF, e-mail, telefone) serao anonimizados conforme o
-                        direito ao esquecimento previsto no Art. 18, IV da LGPD. Dados clinicos anonimizados
-                        sao retidos pelo prazo legal de 20 anos (CFM 1.821/07).
+                        Seus dados pessoais (nome, CPF, e-mail, telefone) serão anonimizados conforme o
+                        direito ao esquecimento previsto no Art. 18, IV da LGPD. Dados clínicos anonimizados
+                        são retidos pelo prazo legal de 20 anos (CFM 1.821/07).
                     </p>
                 </div>
             </div>
@@ -180,16 +180,16 @@ onMounted(carregarConsentimentos)
             </template>
         </AppCard>
 
-        <!-- Modal de confirmacao -->
+        <!-- Modal de confirmação -->
         <AppModal
             :aberto="confirmandoExcluir"
-            titulo="Confirmar exclusao de conta"
+            titulo="Confirmar exclusão de conta"
             largura="sm"
             @fechar="resetExcluir"
         >
             <div class="modal-excluir-corpo">
                 <p>
-                    Esta acao anonimizara permanentemente seus dados pessoais e nao pode ser desfeita.
+                    Esta ação anonimizará permanentemente seus dados pessoais e não pode ser desfeita.
                 </p>
                 <p>
                     Para confirmar, digite exatamente: <strong>{{ TEXTO_CONFIRMACAO }}</strong>
@@ -199,16 +199,16 @@ onMounted(carregarConsentimentos)
                     class="input-confirmacao"
                     type="text"
                     :placeholder="TEXTO_CONFIRMACAO"
-                    aria-label="Texto de confirmacao de exclusao"
+                    aria-label="Texto de confirmação de exclusão"
                     autocomplete="off"
                 />
-                <p>Por seguranca, informe sua senha:</p>
+                <p>Por segurança, informe sua senha:</p>
                 <input
                     v-model="confirmacaoSenha"
                     class="input-confirmacao"
                     type="password"
                     placeholder="Sua senha"
-                    aria-label="Senha de confirmacao"
+                    aria-label="Senha de confirmação"
                     autocomplete="current-password"
                 />
                 <p v-if="erroExcluir" class="msg-erro" role="alert">{{ erroExcluir }}</p>

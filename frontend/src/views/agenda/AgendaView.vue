@@ -242,16 +242,34 @@ onBeforeUnmount(() => {
     }
 })
 
-async function carregarPacientes() {
-    // O autocomplete do modal de novo agendamento usa server-side busca rápida
-    // (sem PII, sem limite duro). Esta lista é o cache local usado APENAS para
-    // detecção de CPF/documento duplicado no cadastro rápido — backend valida
-    // duplicidade no command, então 30 é suficiente como hint de UX.
-    if (pacientes.value.length > 0) return
+// Lista local de pacientes mantida APENAS para o caminho de encaixe da lista
+// de espera (precisa do `PacienteListaItem` para pré-selecionar no modal).
+// NÃO é mais usada pelo autocomplete do "Novo agendamento" — esse usa
+// `/api/paciente/busca-rapida` server-side (LGPD: minimização).
+async function carregarPacientePorId(id: number): Promise<PacienteListaItem | null> {
+    const existente = pacientes.value.find(p => p.id === id)
+    if (existente) return existente
     try {
-        const pg = await pacienteService.listar(undefined, 1, 30)
-        pacientes.value = pg.itens
-    } catch { /* não crítico — modal lida com lista vazia */ }
+        // Busca pontual (server-side, sem trazer toda a lista) — só usa o nome.
+        const lst = await pacienteService.buscaRapida("", 30)
+        const cand = lst.find(p => p.id === id)
+        if (!cand) return null
+        const item: PacienteListaItem = {
+            id: cand.id,
+            nomeCompleto: cand.nomeCompleto,
+            cpf: null,
+            documentoInternacional: null,
+            dataNascimento: null,
+            telefone: null,
+            criadoEm: "",
+            tags: [],
+            qtdAlertas: 0,
+        }
+        pacientes.value.unshift(item)
+        return item
+    } catch {
+        return null
+    }
 }
 
 // ─── Ações de status ───
@@ -325,7 +343,6 @@ async function abrirModalNovo() {
             }
         } catch { /* sem perfil ainda */ }
     }
-    await carregarPacientes()
     modalNovoAberto.value = true
 }
 
@@ -409,8 +426,7 @@ async function removerListaEspera(item: ListaEsperaItem) {
  *  passo "Detalhes" com paciente/profissional/motivo pré-preenchidos.
  *  Após o submit do modal, removemos o item da lista de espera. */
 async function encaixarListaEspera(item: ListaEsperaItem) {
-    await carregarPacientes()
-    const pac = pacientes.value.find(p => p.id === item.pacienteId) ?? null
+    const pac = await carregarPacientePorId(item.pacienteId)
     encaixandoListaEsperaId.value = item.id
     encaixePaciente.value = pac
     encaixeProfissionalId.value = item.profissionalPreferidoId
@@ -563,7 +579,6 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
     <NovoAgendamentoModal
         :aberto="modalNovoAberto"
         :profissionais="profissionaisDisponiveis"
-        :pacientes="pacientes"
         :data-padrao="dataSel"
         :paciente-pre-selecionado="encaixePaciente"
         :profissional-pre-selecionado-id="encaixeProfissionalId"

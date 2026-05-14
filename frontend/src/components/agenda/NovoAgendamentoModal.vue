@@ -43,7 +43,6 @@ import { cpfValido, somenteDigitos } from "@/utils/cpf"
 const props = defineProps<{
     aberto: boolean
     profissionais: ProfissionalVinculado[]
-    pacientes: PacienteListaItem[]
     /** Data inicial sugerida (ISO YYYY-MM-DD). */
     dataPadrao?: string
     /**
@@ -284,20 +283,17 @@ const podeStep1 = computed(() => {
         if (novoPac.nome.trim().length <= 2) return false
         if (novoPac.telefone.replace(/\D/g, "").length < 10) return false
 
-        // Documento eh OPCIONAL. Se preenchido, precisa ser valido (CPF com DV)
-        // e nao colidir com paciente existente do estabelecimento.
+        // Documento eh OPCIONAL. Se preenchido, precisa ser valido (CPF com DV).
+        // Detecção de duplicidade fica delegada ao backend (CadastrarPacienteCommand
+        // retorna 422 em CPF/documento duplicado) — evita transferir lista de pacientes
+        // com PII apenas para checar duplicidade no cliente (LGPD: minimização).
         const valor = novoPac.documento.valor.trim()
         if (!valor) return true
 
         if (novoPac.documento.tipo === "cpf") {
             if (!cpfValido(valor)) return false
-            const digitos = somenteDigitos(valor)
-            const dup = props.pacientes.some(p => p.cpf && somenteDigitos(p.cpf) === digitos)
-            if (dup) return false
         } else {
             if (valor.length > 30) return false
-            const dup = props.pacientes.some(p => (p.documentoInternacional ?? "").trim() === valor)
-            if (dup) return false
         }
         return true
     }
@@ -532,7 +528,6 @@ const profSelecionado = computed(() =>
                         <div class="field-group">
                             <DocumentoPacienteField
                                 v-model="novoPac.documento"
-                                :pacientes-existentes="pacientes"
                             />
                         </div>
                         <div class="field-group">
