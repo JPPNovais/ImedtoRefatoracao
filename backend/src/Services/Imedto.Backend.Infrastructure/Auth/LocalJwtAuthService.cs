@@ -126,7 +126,14 @@ public class LocalJwtAuthService : IAuthService
         }
 
         if (!credencial.EmailConfirmado)
-            throw new BusinessException("Confirme seu e-mail antes de entrar.");
+        {
+            // Anti-enumeração: mesma mensagem dos demais cenários (conta inexistente,
+            // senha errada). O link "Reenviar confirmação" sempre visível no front
+            // (endpoint anti-enumeração 204) cobre o caso de UX. Mensagem diferenciada
+            // permitiria ao atacante detectar contas pendentes com senha conhecida.
+            _logger.LogInformation("Login bloqueado: e-mail não confirmado para {Hash}.", HashEmail(emailNorm));
+            throw new BusinessException("Credenciais inválidas.");
+        }
 
         credencial.RegistrarLoginBemSucedido();
         _credenciaisRepo.Atualizar(credencial);
@@ -148,6 +155,37 @@ public class LocalJwtAuthService : IAuthService
         }
 
         return _hasher.Verificar(password, credencial.SenhaHash);
+    }
+
+    public async Task AlterarSenhaAsync(Guid usuarioId, string senhaAtual, string novaSenha)
+    {
+        if (string.IsNullOrEmpty(senhaAtual))
+            throw new BusinessException("Informe sua senha atual.");
+
+        // Bloqueia troca trivial (mesma senha) ANTES de bater no hasher.
+        if (senhaAtual == novaSenha)
+            throw new BusinessException("A nova senha precisa ser diferente da atual.");
+
+        ValidarSenha(novaSenha);
+
+        var credencial = await _credenciaisRepo.ObterPorIdAsync(usuarioId)
+            ?? throw new BusinessException("Conta não encontrada.");
+
+        if (credencial.Bloqueado)
+            throw new BusinessException("Conta bloqueada. Contate o suporte.");
+
+        // Reautenticação obrigatória: troca de credencial só com senha atual válida.
+        // Protege contra roubo de cookie (XSS, malware) — não permite mudar senha
+        // sem provar posse da senha vigente.
+        if (!_hasher.Verificar(senhaAtual, credencial.SenhaHash))
+            throw new BusinessException("Senha atual incorreta.");
+
+        credencial.DefinirSenha(_hasher.Hash(novaSenha));
+        _credenciaisRepo.Atualizar(credencial);
+
+        // Revoga todas as sessões: o usuário precisa logar de novo em todos os
+        // devices com a nova senha. Mitiga sessão sequestrada que motivou a troca.
+        await _refreshRepo.RevogarTodosDoUsuarioAsync(credencial.Id);
     }
 
     public async Task<AuthResult> RefreshAsync(string refreshToken)

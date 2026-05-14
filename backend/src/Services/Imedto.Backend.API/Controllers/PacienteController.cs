@@ -56,6 +56,27 @@ public class PacienteController : ControllerBase
         return Ok(pagina1);
     }
 
+    /// <summary>
+    /// Autocomplete de paciente (LGPD: apenas <c>id</c> + <c>nomeCompleto</c>).
+    /// Usado em seletores que NÃO exibem CPF/telefone/data nascimento (ex: novo
+    /// agendamento). Para a lista completa de pacientes, use <see cref="Listar"/>.
+    /// </summary>
+    [HttpGet("busca-rapida")]
+    [ProducesResponseType(typeof(IReadOnlyList<PacienteBuscaRapidaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BuscaRapida(
+        [FromQuery] string q = null,
+        [FromQuery] int limite = 10)
+    {
+        var dados = await _requestBus.Query<BuscaRapidaPacientesQuery, IReadOnlyList<PacienteBuscaRapidaDto>>(
+            new BuscaRapidaPacientesQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Q = q,
+                Limite = limite
+            });
+        return Ok(dados);
+    }
+
     /// <summary>KPIs agregados (total + novos no mês) — usados no header da lista.</summary>
     [HttpGet("stats")]
     [ProducesResponseType(typeof(PacienteStatsDto), StatusCodes.Status200OK)]

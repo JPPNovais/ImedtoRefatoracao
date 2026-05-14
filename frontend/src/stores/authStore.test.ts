@@ -322,6 +322,53 @@ describe("authStore", () => {
     })
 
     // ────────────────────────────────────────────────────────────────────────────
+    // alterarSenha() — Correção 2 (troca de senha autenticada)
+    // ────────────────────────────────────────────────────────────────────────────
+    describe("alterarSenha()", () => {
+        it("POST /auth/alterar-senha com senhaAtual e novaSenha", async () => {
+            setupStoreMocks()
+            vi.mocked(httpClient.post).mockResolvedValueOnce({})
+
+            const store = useAuthStore()
+            await store.alterarSenha("atual123", "nova456789")
+
+            expect(httpClient.post).toHaveBeenCalledWith("/auth/alterar-senha", {
+                senhaAtual: "atual123",
+                novaSenha: "nova456789",
+            })
+        })
+
+        it("propaga erro 422 do backend com mensagem", async () => {
+            setupStoreMocks()
+            const erro422 = {
+                response: { status: 422, data: { mensagem: "Senha atual incorreta." } },
+            }
+            vi.mocked(httpClient.post).mockRejectedValueOnce(erro422)
+
+            const store = useAuthStore()
+
+            const capturado = await store.alterarSenha("errada", "nova456789").catch((e) => e)
+            expect(capturado).toBe(erro422)
+            expect(capturado.response.data.mensagem).toBe("Senha atual incorreta.")
+        })
+
+        it("não altera estado de sessão (usuario continua válido)", async () => {
+            // O backend revoga sessões — mas o cookie atual fica válido até o próximo refresh.
+            // O store só faz POST; cabe à UI decidir se chama logout.
+            setupStoreMocks()
+            const usuario = criarUsuario()
+            vi.mocked(httpClient.post).mockResolvedValueOnce({})
+
+            const store = useAuthStore()
+            store.setUsuario(usuario)
+            await store.alterarSenha("a", "novaforte123")
+
+            expect(store.usuario).toEqual(usuario)
+            expect(store.isAuthenticated).toBe(true)
+        })
+    })
+
+    // ────────────────────────────────────────────────────────────────────────────
     // onboardingPendente computed
     // ────────────────────────────────────────────────────────────────────────────
     describe("onboardingPendente", () => {

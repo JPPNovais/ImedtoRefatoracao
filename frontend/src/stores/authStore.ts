@@ -150,6 +150,10 @@ export const useAuthStore = defineStore("auth", () => {
         }
     }
 
+    async function alterarSenha(senhaAtual: string, novaSenha: string) {
+        await httpClient.post("/auth/alterar-senha", { senhaAtual, novaSenha })
+    }
+
     function setUsuario(novoUsuario: Usuario | null) {
         usuario.value = novoUsuario
     }
@@ -165,6 +169,7 @@ export const useAuthStore = defineStore("auth", () => {
         confirmarEmail,
         reenviarConfirmacao,
         redefinirSenha,
+        alterarSenha,
         aceitarConvite,
         setUsuario,
         recarregarMe,

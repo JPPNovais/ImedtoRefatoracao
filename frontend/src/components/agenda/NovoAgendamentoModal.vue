@@ -22,6 +22,7 @@
  *     - botão final "Confirmar agendamento" ou "Adicionar à lista de espera"
  */
 import { computed, reactive, ref, watch } from "vue"
+import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { vMaska } from "maska/vue"
 import {
     agendaService,
@@ -33,7 +34,7 @@ import {
     type ListaEsperaPrioridade,
     type ListaEsperaPreferenciaPeriodo,
 } from "@/services/listaEsperaService"
-import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
+import { pacienteService, type PacienteListaItem, type PacienteBuscaRapida } from "@/services/pacienteService"
 import type { ProfissionalVinculado } from "@/services/vinculoService"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
 import { AppDatePicker } from "@/components/ui"
@@ -72,7 +73,11 @@ const salvando = ref(false)
 type Modo = "search" | "new"
 const modo = ref<Modo>("search")
 const busca = ref("")
-const pacienteSel = ref<PacienteListaItem | null>(null)
+// Aceita tanto o item da busca rápida (autocomplete LGPD-friendly, só
+// nome+id) quanto o item completo (recebido via pacientePreSelecionado em
+// encaixes de lista de espera).
+type PacienteSelecionado = PacienteBuscaRapida | PacienteListaItem
+const pacienteSel = ref<PacienteSelecionado | null>(null)
 
 // Paciente novo (cadastro rápido)
 const novoPac = reactive({
@@ -83,16 +88,35 @@ const novoPac = reactive({
     sexo: "",
 })
 
-const pacientesFiltrados = computed<PacienteListaItem[]>(() => {
-    const q = busca.value.trim().toLowerCase()
-    if (!q) return props.pacientes.slice(0, 8)
-    const limpa = q.replace(/\D/g, "")
-    return props.pacientes.filter(p =>
-        p.nomeCompleto.toLowerCase().includes(q)
-        || (p.cpf ?? "").replace(/\D/g, "").includes(limpa)
-        || (p.telefone ?? "").includes(busca.value),
-    ).slice(0, 8)
-})
+// Busca server-side com debounce (LGPD: o endpoint retorna apenas {id, nome} —
+// sem CPF/telefone, espelhando o que o seletor exibe). Sem `q`, retorna os
+// últimos cadastrados; com `q`, faz search ILIKE indexado por trigram no nome.
+const buscaDeb = useDebouncedRef(busca, 300)
+const pacientesEncontrados = ref<PacienteBuscaRapida[]>([])
+const buscandoPacientes = ref(false)
+// Guard contra race condition: requisições disparadas em sequência (ex: abrir o
+// modal + digitar imediatamente) podem retornar fora de ordem. Só aplica o
+// resultado da última requisição emitida.
+let buscaReqId = 0
+
+async function carregarBusca() {
+    if (!props.aberto) return
+    const reqId = ++buscaReqId
+    buscandoPacientes.value = true
+    try {
+        const resultado = await pacienteService.buscaRapida(buscaDeb.value, 8)
+        if (reqId === buscaReqId) pacientesEncontrados.value = resultado
+    } catch {
+        if (reqId === buscaReqId) pacientesEncontrados.value = []
+    } finally {
+        if (reqId === buscaReqId) buscandoPacientes.value = false
+    }
+}
+
+watch(buscaDeb, carregarBusca)
+watch(() => props.aberto, (a) => { if (a) carregarBusca() })
+
+const pacientesFiltrados = computed<PacienteBuscaRapida[]>(() => pacientesEncontrados.value)
 
 // ─── Step 2: Detalhes ───
 const TIPOS_CONSULTA = [
@@ -241,11 +265,14 @@ const pacienteEfetivo = computed(() => {
     const inic = partes.length === 1
         ? partes[0][0]?.toUpperCase() ?? "?"
         : ((partes[0][0] ?? "") + (partes[partes.length - 1][0] ?? "")).toUpperCase()
+    // PacienteBuscaRapida não traz CPF/telefone (LGPD: seletor não exibe esses
+    // campos). Fallback para "" preserva o template comum entre os dois caminhos.
+    const completo = p as Partial<PacienteListaItem>
     return {
         id: p.id,
         nome: p.nomeCompleto,
-        documento: p.cpf ?? p.documentoInternacional ?? "",
-        telefone: p.telefone ?? "",
+        documento: completo.cpf ?? completo.documentoInternacional ?? "",
+        telefone: completo.telefone ?? "",
         iniciais: inic,
         novo: false,
     }
@@ -294,7 +321,7 @@ function voltar() {
     if (step.value > 1) step.value = (step.value - 1) as 1 | 2 | 3
 }
 
-function selecionarPaciente(p: PacienteListaItem) {
+function selecionarPaciente(p: PacienteSelecionado) {
     pacienteSel.value = p
 }
 
@@ -436,11 +463,18 @@ const profSelecionado = computed(() =>
                     </div>
 
                     <div class="patient-list">
-                        <template v-if="pacientesFiltrados.length === 0">
+                        <template v-if="buscandoPacientes && pacientesFiltrados.length === 0">
+                            <div class="no-patient">
+                                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                                <span>Buscando…</span>
+                            </div>
+                        </template>
+                        <template v-else-if="pacientesFiltrados.length === 0">
                             <div class="no-patient">
                                 <i class="fa-solid fa-user-slash" aria-hidden="true"></i>
                                 <b>Nenhum paciente encontrado</b>
-                                <span>"{{ busca }}" não corresponde a nenhum paciente cadastrado.</span>
+                                <span v-if="busca">"{{ busca }}" não corresponde a nenhum paciente cadastrado.</span>
+                                <span v-else>Cadastre o primeiro paciente para começar a agendar.</span>
                                 <button type="button" class="btn-primary sm" @click="abrirCadastroNovo">
                                     <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Cadastrar novo paciente
                                 </button>
@@ -458,11 +492,6 @@ const profSelecionado = computed(() =>
                                 <div class="av">{{ ((p.nomeCompleto[0] ?? '?') + (p.nomeCompleto.split(' ').slice(-1)[0]?.[0] ?? '')).toUpperCase() }}</div>
                                 <div class="info">
                                     <b>{{ p.nomeCompleto }}</b>
-                                    <span class="meta">
-                                        <span v-if="p.cpf"><i class="fa-solid fa-id-card" aria-hidden="true"></i>{{ p.cpf }}</span>
-                                        <span v-if="p.cpf && p.telefone" class="dotsep"></span>
-                                        <span v-if="p.telefone"><i class="fa-solid fa-phone" aria-hidden="true"></i>{{ p.telefone }}</span>
-                                    </span>
                                 </div>
                                 <i v-if="pacienteSel?.id === p.id" class="fa-solid fa-circle-check check" aria-hidden="true"></i>
                             </button>

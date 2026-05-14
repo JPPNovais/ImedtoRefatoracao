@@ -104,12 +104,12 @@ async function enviar() {
         const mensagem = e?.response?.data?.mensagem ?? "Ocorreu um erro. Tente novamente."
         erro.value = mensagem
 
-        // Detecta erro de "e-mail não confirmado" e "e-mail já existe" pra oferecer reenvio.
-        const lower = mensagem.toLowerCase()
-        if (
-            lower.includes("confirme seu e-mail") ||
-            lower.includes("já existe uma conta")
-        ) {
+        // Anti-enumeração: sempre oferece reenvio de confirmação após qualquer erro de
+        // login/cadastro, independente da mensagem do backend. O endpoint de reenvio
+        // já é idempotente (204) — não revela se a conta existe. Esse padrão impede
+        // diferenciar visualmente "credencial inválida" × "conta pendente" × "conta
+        // inexistente". O cooldown e o rate limit protegem de abuso.
+        if (modo.value === "login" || modo.value === "cadastro") {
             mostrarReenvio.value = true
         }
     } finally {
@@ -173,8 +173,8 @@ function irPara(m: Modo) {
                 <div v-if="sucesso" class="alerta alerta--sucesso">{{ sucesso }}</div>
                 <div v-if="erro" class="alerta alerta--erro">{{ erro }}</div>
 
-                <!-- Reenviar e-mail de confirmação (aparece quando o backend
-                     retorna "Confirme seu e-mail" ou "Já existe uma conta"). -->
+                <!-- Reenviar e-mail de confirmação: sempre visível após erro de
+                     login/cadastro (anti-enumeração — não revela se conta existe). -->
                 <div v-if="mostrarReenvio" class="reenvio-confirmacao">
                     <button
                         type="button"

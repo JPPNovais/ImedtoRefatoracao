@@ -338,6 +338,35 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Altera a senha do usuário autenticado. Exige a senha atual (reautenticação)
+    /// e revoga todas as sessões ativas após sucesso — o usuário continua logado
+    /// nesta sessão (cookies já emitidos) mas precisa re-logar nos demais devices.
+    /// </summary>
+    /// <response code="204">Senha alterada com sucesso.</response>
+    /// <response code="422">Senha atual incorreta, senha nova fraca ou igual à atual.</response>
+    [HttpPost("alterar-senha")]
+    [Authorize]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AlterarSenha([FromBody] AlterarSenhaRequest request)
+    {
+        var userIdClaim = User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return Unauthorized();
+
+        if (request is null
+            || string.IsNullOrEmpty(request.SenhaAtual)
+            || string.IsNullOrEmpty(request.NovaSenha))
+        {
+            throw new BusinessException("Informe senha atual e nova senha.");
+        }
+
+        await _authService.AlterarSenhaAsync(userId, request.SenhaAtual, request.NovaSenha);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Aceita um convite de profissional: define senha, confirma e-mail, cria registro
     /// local de usuário e loga automaticamente (seta cookies HttpOnly).
     /// </summary>
@@ -437,3 +466,6 @@ public record RedefinirSenhaRequest(string Token, string NovaSenha);
 
 /// <summary>Payload de aceite de convite (define senha + ativa cadastro).</summary>
 public record AceitarConviteRequest(string Token, string Email, string NovaSenha);
+
+/// <summary>Payload de alteração de senha do usuário autenticado.</summary>
+public record AlterarSenhaRequest(string SenhaAtual, string NovaSenha);

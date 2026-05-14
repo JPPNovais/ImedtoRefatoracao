@@ -60,7 +60,28 @@ export interface PacienteStats {
     novosMesCorrente: number
 }
 
+/**
+ * Item mínimo retornado pelo endpoint de autocomplete `/api/paciente/busca-rapida`.
+ * Sem PII além do nome (LGPD: minimização — o seletor só exibe nome).
+ */
+export interface PacienteBuscaRapida {
+    id: number
+    nomeCompleto: string
+}
+
 export const pacienteService = {
+    /**
+     * Autocomplete leve de paciente — apenas {id, nomeCompleto}, sem CPF/telefone.
+     * Sem `q` retorna os últimos cadastrados (até `limite`); com `q` busca por nome.
+     * Use para seletores; para a listagem completa, use `listar()`.
+     */
+    async buscaRapida(q?: string, limite = 10): Promise<PacienteBuscaRapida[]> {
+        const { data } = await httpClient.get<PacienteBuscaRapida[]>("/paciente/busca-rapida", {
+            params: { q: q || undefined, limite },
+        })
+        return data
+    },
+
     async listar(busca?: string, pagina = 1, tamanho = 20): Promise<PaginaPacientes> {
         const { data } = await httpClient.get<PaginaPacientes>("/paciente", {
             params: {

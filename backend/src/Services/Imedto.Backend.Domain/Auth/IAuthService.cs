@@ -29,6 +29,13 @@ public interface IAuthService
     /// </summary>
     Task<bool> ValidarSenhaAsync(Guid usuarioId, string password);
 
+    /// <summary>
+    /// Troca a senha do usuário autenticado. Exige a senha atual (reautenticação),
+    /// valida força mínima da nova e revoga TODAS as sessões existentes (forçando
+    /// novo login em todos os devices — boa prática pós-mudança de credencial).
+    /// </summary>
+    Task AlterarSenhaAsync(Guid usuarioId, string senhaAtual, string novaSenha);
+
     /// <summary>Renova o access token usando o refresh token. Lança BusinessException se expirado.</summary>
     Task<AuthResult> RefreshAsync(string refreshToken);
 

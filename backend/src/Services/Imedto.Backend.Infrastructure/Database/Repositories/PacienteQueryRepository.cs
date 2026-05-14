@@ -93,6 +93,43 @@ public class PacienteQueryRepository
     }
 
     /// <summary>
+    /// Autocomplete de paciente (LGPD: somente nome). Sem busca → retorna os
+    /// últimos cadastrados; com busca → filtra por nome usando o índice GIN
+    /// trigram. Limite máximo enforced em 30 (proteção contra exfiltração).
+    /// </summary>
+    public async Task<IReadOnlyList<PacienteBuscaRapidaDto>> BuscaRapida(
+        long estabelecimentoId,
+        string q,
+        int limite)
+    {
+        var lim = Math.Clamp(limite, 1, 30);
+        var buscaSanitizada = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
+
+        const string sql = """
+            SELECT  id            AS Id,
+                    nome_completo AS NomeCompleto
+            FROM    public.pacientes
+            WHERE   estabelecimento_id = @EstabelecimentoId
+              AND   deletado_em IS NULL
+              AND   (@Busca::text IS NULL
+                     OR public.imutable_unaccent(lower(nome_completo))
+                        ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%')
+            ORDER BY CASE WHEN @Busca IS NULL THEN criado_em END DESC,
+                     nome_completo
+            LIMIT  @Limite
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var itens = await conn.QueryAsync<PacienteBuscaRapidaDto>(sql, new
+        {
+            EstabelecimentoId = estabelecimentoId,
+            Busca = buscaSanitizada,
+            Limite = lim
+        });
+        return itens.AsList();
+    }
+
+    /// <summary>
     /// Carrega o pacote LGPD Art. 18 — todos os campos do paciente + metadados
     /// de tratamento (criado/atualizado/deletado/anonimizado). Inclui registros
     /// soft-deletados, ja que o titular tem direito a portabilidade do historico.

@@ -22,6 +22,7 @@ import AgendaRail from "@/components/agenda/AgendaRail.vue"
 import NovoAgendamentoModal from "@/components/agenda/NovoAgendamentoModal.vue"
 import EditarAgendamentoModal from "@/components/agenda/EditarAgendamentoModal.vue"
 import CheckInModal from "@/components/agenda/CheckInModal.vue"
+import CancelarAgendamentoModal from "@/components/agenda/CancelarAgendamentoModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { listaEsperaService, type ListaEsperaItem } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
@@ -229,7 +230,9 @@ onMounted(async () => {
             }
         } catch { /* sem perfil ainda */ }
     }
-    await Promise.all([carregarDia(), carregarContagens(), carregarListaEspera(), carregarPacientes()])
+    // carregarPacientes() é lazy — só dispara ao abrir o modal de novo agendamento
+    // ou ao encaixar paciente da lista de espera. Evita carga de PII na entrada da agenda.
+    await Promise.all([carregarDia(), carregarContagens(), carregarListaEspera()])
 })
 
 onBeforeUnmount(() => {
@@ -240,9 +243,13 @@ onBeforeUnmount(() => {
 })
 
 async function carregarPacientes() {
+    // O autocomplete do modal de novo agendamento usa server-side busca rápida
+    // (sem PII, sem limite duro). Esta lista é o cache local usado APENAS para
+    // detecção de CPF/documento duplicado no cadastro rápido — backend valida
+    // duplicidade no command, então 30 é suficiente como hint de UX.
     if (pacientes.value.length > 0) return
     try {
-        const pg = await pacienteService.listar(undefined, 1, 200)
+        const pg = await pacienteService.listar(undefined, 1, 30)
         pacientes.value = pg.itens
     } catch { /* não crítico — modal lida com lista vazia */ }
 }
@@ -281,15 +288,18 @@ async function onCheckInRealizado() {
     await recarregarSemCache()
 }
 
-async function cancelarAgendamento(a: Agendamento) {
-    const motivo = prompt("Motivo do cancelamento:")
-    if (motivo === null) return
-    try {
-        await agendaService.cancelar(a.id, motivo)
-        await recarregarSemCache()
-    } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao cancelar."
-    }
+const modalCancelarAberto = ref(false)
+const agendamentoCancelar = ref<Agendamento | null>(null)
+
+function cancelarAgendamento(a: Agendamento) {
+    agendamentoCancelar.value = a
+    modalCancelarAberto.value = true
+}
+
+async function onAgendamentoCancelado() {
+    modalCancelarAberto.value = false
+    agendamentoCancelar.value = null
+    await recarregarSemCache()
 }
 
 async function recarregarSemCache() {
@@ -578,6 +588,13 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :agendamento="agendamentoCheckIn"
         @fechar="modalCheckInAberto = false; agendamentoCheckIn = null"
         @checkin-realizado="onCheckInRealizado"
+    />
+
+    <CancelarAgendamentoModal
+        :aberto="modalCancelarAberto"
+        :agendamento="agendamentoCancelar"
+        @fechar="modalCancelarAberto = false; agendamentoCancelar = null"
+        @cancelado="onAgendamentoCancelado"
     />
 </template>
 

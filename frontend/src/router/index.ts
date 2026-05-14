@@ -80,6 +80,12 @@ const router = createRouter({
             component: () => import("@/views/minhaConta/MinhaContaView.vue"),
             meta: { requiresAuth: true, ...APP },
         },
+        {
+            path: "/minha-conta/lgpd",
+            name: "MinhaContaLgpd",
+            component: () => import("@/views/minhaConta/MinhaContaLgpdView.vue"),
+            meta: { requiresAuth: true, ...APP },
+        },
 
         // Configurações (apenas Dono)
         // Rota legada — redireciona para a tela unificada Equipe na aba "papeis".

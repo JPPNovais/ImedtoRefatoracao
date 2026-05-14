@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect, onMounted } from "vue"
+import { computed, ref, watchEffect, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { useAuthStore } from "@/stores/authStore"
@@ -10,6 +10,7 @@ import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
 import { AppButton } from "@/components/ui"
 import { redimensionarImagem } from "@/services/imageUtils"
+import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
 
 const auth         = useAuthStore()
 const tenant       = useTenantStore()
@@ -221,6 +222,29 @@ async function salvarTudo() {
     }
 }
 
+// ─── Segurança (trocar senha) ────────────────────────────────────────────────
+
+const trocarSenhaAberto = ref(false)
+const senhaTrocadaMsg   = ref<string | null>(null)
+let senhaMsgTimer: number | null = null
+
+function onSenhaAlterada() {
+    trocarSenhaAberto.value = false
+    senhaTrocadaMsg.value = "Senha alterada com sucesso. As sessões em outros dispositivos foram encerradas."
+    if (senhaMsgTimer !== null) window.clearTimeout(senhaMsgTimer)
+    senhaMsgTimer = window.setTimeout(() => {
+        senhaTrocadaMsg.value = null
+        senhaMsgTimer = null
+    }, 8000)
+}
+
+onBeforeUnmount(() => {
+    if (senhaMsgTimer !== null) {
+        window.clearTimeout(senhaMsgTimer)
+        senhaMsgTimer = null
+    }
+})
+
 // ─── Estabelecimentos ─────────────────────────────────────────────────────────
 
 const estabelecimentos   = ref<Estabelecimento[]>([])
@@ -411,6 +435,39 @@ onMounted(async () => {
             </div>
         </div>
 
+        <!-- ── Card: Segurança ── -->
+        <div class="card">
+            <h2 class="card-titulo">Segurança</h2>
+            <p class="card-sub">
+                Atualize sua senha periodicamente para proteger sua conta. Ao trocar a senha,
+                as sessões abertas em outros dispositivos são encerradas automaticamente.
+            </p>
+            <p v-if="senhaTrocadaMsg" class="msg-ok">{{ senhaTrocadaMsg }}</p>
+            <div class="card-footer">
+                <AppButton variant="secondary" icon="fa-solid fa-key" @click="trocarSenhaAberto = true">
+                    Trocar senha
+                </AppButton>
+            </div>
+        </div>
+
+        <!-- ── Card: Privacidade e LGPD ── -->
+        <div class="card">
+            <h2 class="card-titulo">Privacidade e LGPD</h2>
+            <p class="card-sub">
+                Exporte seus dados pessoais (Art. 18 LGPD), revise os consentimentos aceitos e,
+                se desejar, solicite a anonimização permanente da sua conta.
+            </p>
+            <div class="card-footer">
+                <router-link
+                    :to="{ name: 'MinhaContaLgpd' }"
+                    class="lgpd-link"
+                >
+                    <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                    Gerenciar dados e privacidade
+                </router-link>
+            </div>
+        </div>
+
         <!-- ── Card: Trocar estabelecimento ── -->
         <div class="card" v-if="!carregandoEstabs && estabelecimentos.length">
             <h2 class="card-titulo">Trocar estabelecimento</h2>
@@ -437,6 +494,12 @@ onMounted(async () => {
                 Ao trocar de estabelecimento, você verá apenas os dados (pacientes, agendamentos, etc.) desse estabelecimento.
             </p>
         </div>
+
+        <AlterarSenhaModal
+            :aberto="trocarSenhaAberto"
+            @fechar="trocarSenhaAberto = false"
+            @alterada="onSenhaAlterada"
+        />
     </div>
 </template>
 
@@ -656,6 +719,26 @@ onMounted(async () => {
     border-radius: 99px;
     background: #dcfce7;
     color: #15803d;
+}
+
+.lgpd-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 0.875em;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+.lgpd-link:hover {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.04);
 }
 
 /* Botões: usar AppButton ou as classes globais .btn / .btn-primary /

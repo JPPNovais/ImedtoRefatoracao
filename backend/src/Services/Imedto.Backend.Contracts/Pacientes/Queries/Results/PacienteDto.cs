@@ -61,3 +61,14 @@ public class PaginaPacientesDto
     public int Pagina { get; set; }
     public int TamanhoPagina { get; set; }
 }
+
+/// <summary>
+/// DTO minimizado para autocomplete (LGPD): apenas <c>id</c> + <c>nomeCompleto</c>.
+/// Usado em seletores (novo agendamento, novo orçamento, etc.) onde a tela só
+/// exibe o nome — sem CPF, telefone, data nascimento.
+/// </summary>
+public class PacienteBuscaRapidaDto
+{
+    public long Id { get; set; }
+    public string NomeCompleto { get; set; } = string.Empty;
+}

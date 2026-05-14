@@ -145,6 +145,88 @@ public class PacienteQueryRepositoryIntegrationTests : IntegrationTestBase
             "Defense-in-depth: filtro por estabelecimentoId no SQL bloqueia IDOR.");
     }
 
+    // ─── BuscaRapida (Correção 5 — autocomplete LGPD-friendly) ─────────────
+
+    [Test]
+    public async Task BuscaRapida_SemBusca_RetornaUltimosCadastradosDoEstab()
+    {
+        var resultado = await _sut.BuscaRapida(EstabA, q: null, limite: 10);
+
+        // 4 ativos em EstabA (excluindo soft-deletado e os de EstabB).
+        Assert.That(resultado.Count, Is.EqualTo(4));
+        Assert.That(resultado.All(r => r.NomeCompleto != "Deletado"), Is.True);
+        Assert.That(resultado.All(r => r.NomeCompleto != "Outro Estab Maria"), Is.True,
+            "Defense-in-depth multi-tenant: BuscaRapida NÃO pode vazar pacientes de outro estab.");
+    }
+
+    [Test]
+    public async Task BuscaRapida_ComBusca_FiltraPorNomeComUnaccent()
+    {
+        // "maria" (sem acento, minúsculo) deve casar com "Maria Souza" do EstabA.
+        // E NÃO com "Outro Estab Maria" do EstabB.
+        var resultado = await _sut.BuscaRapida(EstabA, q: "maria", limite: 10);
+
+        Assert.That(resultado.Count, Is.EqualTo(1));
+        Assert.That(resultado.Single().NomeCompleto, Is.EqualTo("Maria Souza"));
+    }
+
+    [Test]
+    public async Task BuscaRapida_LimiteAcimaDoMaximo_FazClampEm30()
+    {
+        // Math.Clamp(1000, 1, 30) = 30. Como temos só 4 pacientes em EstabA,
+        // o teste se concentra em garantir que LIMIT não é injetado livre.
+        // (Cobertura comportamental — não dá pra observar o LIMIT direto sem
+        // mock do conn, mas o resultado nunca passa do que existe.)
+        var resultado = await _sut.BuscaRapida(EstabA, q: null, limite: 1000);
+
+        Assert.That(resultado.Count, Is.LessThanOrEqualTo(30));
+    }
+
+    [Test]
+    public async Task BuscaRapida_LimiteZeroOuNegativo_ClampPara1()
+    {
+        // Math.Clamp(-5, 1, 30) = 1 → no máximo 1 item.
+        var resultado = await _sut.BuscaRapida(EstabA, q: null, limite: -5);
+
+        Assert.That(resultado.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task BuscaRapida_RetornaApenasIdENomeCompleto()
+    {
+        // LGPD: DTO não pode carregar CPF/telefone/data. O teste de superfície
+        // do DTO já garante isso em compile/runtime, mas aqui validamos que o
+        // pipeline real do Dapper também produz só id + nome (sem warnings de
+        // mapping silenciosos).
+        var resultado = await _sut.BuscaRapida(EstabA, q: null, limite: 10);
+
+        foreach (var item in resultado)
+        {
+            Assert.That(item.Id, Is.GreaterThan(0));
+            Assert.That(item.NomeCompleto, Is.Not.Null.And.Not.Empty);
+        }
+    }
+
+    [Test]
+    public async Task BuscaRapida_BuscaPorEstabB_NaoVazaPacientesDeEstabA()
+    {
+        // Mesmo pesquisando por um termo que existiria em A ("joão"), só pode
+        // retornar pacientes de B (defense-in-depth multi-tenant).
+        var resultado = await _sut.BuscaRapida(EstabB, q: "joao", limite: 10);
+
+        Assert.That(resultado.All(r => r.NomeCompleto != "João Silva"), Is.True,
+            "Multi-tenant: nunca pode retornar 'João Silva' (que é de EstabA) ao buscar em EstabB.");
+    }
+
+    [Test]
+    public async Task BuscaRapida_BuscaApenasEspacos_TratadoComoSemBusca()
+    {
+        // string.IsNullOrWhiteSpace deve mandar pro caminho "sem filtro".
+        var resultado = await _sut.BuscaRapida(EstabA, q: "   ", limite: 10);
+
+        Assert.That(resultado.Count, Is.EqualTo(4));
+    }
+
     [Test]
     public async Task ObterParaExportLgpd_IncluiSoftDeletados()
     {
