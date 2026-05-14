@@ -115,6 +115,7 @@ public class ReceitaQueryRepository : IReceitaQueryRepository
                     r.emitida_em          AS EmitidaEm,
                     r.validade_ate        AS ValidadeAte,
                     r.requer_retencao     AS RequerRetencao,
+                    r.assinatura_digital_status AS AssinaturaDigitalStatus,
                     r.observacoes         AS Observacoes,
                     r.cancelada_em        AS CanceladaEm,
                     r.motivo_cancelamento AS MotivoCancelamento,

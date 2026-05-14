@@ -47,6 +47,14 @@ public class Receita : Entity, ISoftDeletable
     public virtual bool RequerRetencao { get; protected set; }
     public virtual string? Observacoes { get; protected set; }
     public virtual StatusReceita Status { get; protected set; }
+    /// <summary>
+    /// Estado da assinatura digital. Hoje toda receita emitida pelo Imedto nasce
+    /// como <see cref="StatusAssinaturaDigital.NaoAssinada"/> — o campo existe para
+    /// preparar a integração futura com ICP-Brasil/Memed sem migration adicional
+    /// e para que o front possa exibir/ocultar o aviso de "assine manualmente"
+    /// conforme o estado real do documento.
+    /// </summary>
+    public virtual StatusAssinaturaDigital AssinaturaDigitalStatus { get; protected set; }
     public virtual DateTime? CanceladaEm { get; protected set; }
     public virtual string? MotivoCancelamento { get; protected set; }
     public virtual DateTime CriadaEm { get; protected set; }
@@ -137,6 +145,9 @@ public class Receita : Entity, ISoftDeletable
             RequerRetencao = RegrasAnvisa.RequerRetencao(tipo),
             Observacoes = NormalizarObservacoes(observacoes),
             Status = StatusReceita.Emitida,
+            // Default explícito — sem integração com ICP/Memed, toda emissão
+            // nasce não-assinada digitalmente (front exibe aviso de assinar manualmente).
+            AssinaturaDigitalStatus = StatusAssinaturaDigital.NaoAssinada,
             CriadaEm = agora
         };
 
@@ -183,6 +194,7 @@ public class Receita : Entity, ISoftDeletable
             RequerRetencao = RegrasAnvisa.RequerRetencao(tipo),
             Observacoes = NormalizarObservacoes(observacoes),
             Status = StatusReceita.Rascunho,
+            AssinaturaDigitalStatus = StatusAssinaturaDigital.NaoAssinada,
             CriadaEm = agora
         };
 

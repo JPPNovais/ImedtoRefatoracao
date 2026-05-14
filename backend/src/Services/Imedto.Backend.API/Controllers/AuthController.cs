@@ -391,6 +391,17 @@ public class AuthController : ControllerBase
             Email = request.Email
         });
 
+        // Aceita automaticamente o(s) vínculo(s) pendente(s) do convidado.
+        // O usuário veio do link do e-mail justamente para se juntar a um
+        // estabelecimento — forçá-lo a abrir /meus-convites e clicar
+        // "Aceitar" depois de já ter definido senha era um furo de UX e
+        // contradizia a mensagem de sucesso ("Conta criada e convite aceito").
+        // Idempotente: se não houver pendentes, é no-op.
+        await _commandBus.Send(new Imedto.Backend.Contracts.Vinculos.Commands.AceitarConvitesPendentesDoUsuarioCommand
+        {
+            ProfissionalUsuarioId = usuarioId
+        });
+
         // Logs in via fluxo padrão (gera novo par access+refresh).
         var auth = await _authService.LoginAsync(request.Email, request.NovaSenha);
         SetAuthCookies(auth);

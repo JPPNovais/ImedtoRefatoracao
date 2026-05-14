@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Vinculos.Queries;
 using Imedto.Backend.Contracts.Vinculos.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -22,14 +23,23 @@ public class EstabelecimentoProfissionaisController : ControllerBase
     }
 
     /// <summary>
-    /// Lista os profissionais (Dono + convidados + ativos) do estabelecimento.
-    /// Liberado a qualquer membro ativo do tenant — necessário para seletores
-    /// (agenda, prontuário, orçamento) onde o usuário precisa escolher um profissional.
-    /// Operações de escrita (convidar, inativar, trocar modelo) continuam Dono-only
-    /// em seus próprios handlers.
+    /// Lista os profissionais do estabelecimento — DTO COMPLETO (com e-mail,
+    /// modelo de permissão, datas de convite/aceite e status Inativo/Convidado).
+    /// Acesso restrito a Dono ou a quem tem <c>equipe.ver</c> no modelo de
+    /// permissão — antes esse endpoint vazava e-mails/permissões/datas a
+    /// QUALQUER membro do tenant (LGPD: violação de minimização e do
+    /// princípio de necessidade de acesso).
+    ///
+    /// Para seletores (agenda/prontuário/orçamento) que só precisam de
+    /// nome + especialidade, use o endpoint público
+    /// <c>GET /api/estabelecimento/{id}/profissionais/publico</c>.
+    ///
+    /// Operações de escrita (convidar, inativar, trocar modelo) continuam
+    /// Dono-only em seus próprios handlers — defense-in-depth.
     /// </summary>
     [HttpGet("/api/estabelecimento/{estabelecimentoId:long}/profissionais")]
     [RequiresEstabelecimento]
+    [RequiresAcao("equipe", "ver")]
     [ProducesResponseType(typeof(IEnumerable<ProfissionalVinculadoDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ListarProfissionais(long estabelecimentoId, [FromQuery] bool incluirInativos = false)
@@ -42,6 +52,29 @@ public class EstabelecimentoProfissionaisController : ControllerBase
                 EstabelecimentoId = estabelecimentoId,
                 UsuarioSolicitanteId = userId,
                 IncluirInativos = incluirInativos
+            });
+
+        return Ok(resultado);
+    }
+
+    /// <summary>
+    /// Lista pública/minimizada de profissionais — só Ativos + Dono, com
+    /// nome, especialidade, conselho e status. Sem e-mail, sem datas, sem
+    /// modelo de permissão. Acessível a qualquer membro ativo do tenant
+    /// (gate via <c>[RequiresEstabelecimento]</c>).
+    ///
+    /// Usado pelo front em seletores de agenda/prontuário/orçamento — onde
+    /// a UX só pede "com qual profissional?", sem expor PII da equipe.
+    /// </summary>
+    [HttpGet("/api/estabelecimento/{estabelecimentoId:long}/profissionais/publico")]
+    [RequiresEstabelecimento]
+    [ProducesResponseType(typeof(IEnumerable<ProfissionalPublicoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarProfissionaisPublico(long estabelecimentoId)
+    {
+        var resultado = await _requestBus.Query<ListarProfissionaisPublicoQuery, IEnumerable<ProfissionalPublicoDto>>(
+            new ListarProfissionaisPublicoQuery
+            {
+                EstabelecimentoId = estabelecimentoId
             });
 
         return Ok(resultado);

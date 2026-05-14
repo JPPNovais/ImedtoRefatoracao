@@ -20,12 +20,12 @@ import {
     type Agendamento,
     type DisponibilidadeDia,
 } from "@/services/agendaService"
-import type { ProfissionalVinculado } from "@/services/vinculoService"
+import type { ProfissionalPublico } from "@/services/vinculoService"
 
 const props = defineProps<{
     aberto: boolean
     agendamento: Agendamento | null
-    profissionais: ProfissionalVinculado[]
+    profissionais: ProfissionalPublico[]
     /** Lista global de agendamentos do mês — usada para marcar slots ocupados localmente. */
     agendamentosTodos?: Agendamento[]
     /** Quando true, abre já no modo reagendamento expandido. */
@@ -452,7 +452,7 @@ async function salvar() {
                             <label>Profissional</label>
                             <select v-model="form.profissionalUsuarioId">
                                 <option v-for="p in profissionais" :key="p.usuarioId" :value="p.usuarioId">
-                                    {{ p.nomeCompleto || p.email }}{{ p.especialidade ? ` — ${p.especialidade}` : "" }}
+                                    {{ p.nomeCompleto }}{{ p.especialidade ? ` — ${p.especialidade}` : "" }}
                                 </option>
                             </select>
                         </div>

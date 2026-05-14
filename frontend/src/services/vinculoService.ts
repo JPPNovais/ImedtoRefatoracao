@@ -15,6 +15,21 @@ export interface ProfissionalVinculado {
     profissao?: string | null
 }
 
+/**
+ * Profissional em formato público/minimizado — só nome, especialidade e
+ * conselho. SEM e-mail, SEM modelo de permissão, SEM datas. Usado nos
+ * seletores (agenda/prontuário/orçamento) onde qualquer membro do tenant
+ * precisa enxergar "com quem agenda", sem ganhar acesso a PII da equipe.
+ */
+export interface ProfissionalPublico {
+    usuarioId: string
+    nomeCompleto: string
+    especialidade?: string | null
+    conselho?: string | null
+    /** "Ativo" ou "Dono". Inativos não aparecem aqui. */
+    status: string
+}
+
 export interface ConvitePendente {
     vinculoId: number
     estabelecimentoId: number
@@ -45,6 +60,15 @@ export interface ConvidarProfissionalResponse {
 }
 
 export const vinculoService = {
+    /**
+     * Listagem COMPLETA da equipe — retorna e-mail, modelo de permissão,
+     * datas e status (inclusive Inativo/Convidado). Endpoint é restrito a
+     * Dono ou perfis com permissão "equipe.ver" — chamadas a partir de
+     * perfis sem permissão devolvem 422 do backend.
+     *
+     * Use APENAS na tela de gestão de Equipe (/equipe). Para seletores em
+     * agenda/prontuário/orçamento, prefira <see cref="listarProfissionaisPublico"/>.
+     */
     async listarProfissionais(opts?: { incluirInativos?: boolean }): Promise<ProfissionalVinculado[]> {
         const tenantStore = useTenantStore()
         const id = tenantStore.ativo?.id
@@ -52,6 +76,24 @@ export const vinculoService = {
         const { data } = await httpClient.get<ProfissionalVinculado[]>(
             `/estabelecimento/${id}/profissionais`,
             { params: opts?.incluirInativos ? { incluirInativos: true } : undefined },
+        )
+        return data
+    },
+
+    /**
+     * Listagem PÚBLICA/MINIMIZADA — só nome, especialidade, conselho e status.
+     * Disponível a qualquer membro ativo do tenant (gate via [RequiresEstabelecimento]
+     * no backend). Use em seletores onde a UX só precisa de "com quem agenda?".
+     *
+     * Esta variação foi criada para fechar um vazamento de PII que existia
+     * antes (qualquer Médico ou Recepção via a lista completa com e-mails).
+     */
+    async listarProfissionaisPublico(): Promise<ProfissionalPublico[]> {
+        const tenantStore = useTenantStore()
+        const id = tenantStore.ativo?.id
+        if (!id) return []
+        const { data } = await httpClient.get<ProfissionalPublico[]>(
+            `/estabelecimento/${id}/profissionais/publico`,
         )
         return data
     },

@@ -75,6 +75,51 @@ public class VinculoQueryRepository
         return await conn.QueryAsync<ProfissionalVinculadoDto>(sql, new { EstabelecimentoId = estabelecimentoId });
     }
 
+    /// <summary>
+    /// Versão minimizada (LGPD) da lista de profissionais do estabelecimento.
+    /// Devolve apenas Dono + vínculos Ativos (sem Convidado, sem Inativo) e
+    /// somente os campos públicos: nome, especialidade, conselho, status.
+    /// SEM e-mail, sem modelo de permissão, sem datas, sem vínculoId.
+    ///
+    /// Usado pelos seletores (agenda/prontuário/orçamento) onde qualquer
+    /// membro do tenant precisa enxergar "com quem agenda" sem ganhar acesso
+    /// a PII da equipe (e-mail/permissões eram vazadas para Médico e Recepção).
+    /// </summary>
+    public async Task<IEnumerable<ProfissionalPublicoDto>> ListarProfissionaisPublicoDoEstabelecimento(long estabelecimentoId)
+    {
+        const string sql = """
+            SELECT  v.profissional_usuario_id          AS UsuarioId,
+                    COALESCE(u.nome_completo, v.nome_convidado) AS NomeCompleto,
+                    COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
+                    p.conselho                         AS Conselho,
+                    'Ativo'                            AS Status
+            FROM    public.vinculo_profissional_estabelecimento v
+            JOIN    public.usuarios u ON u.id = v.profissional_usuario_id
+            LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id
+            WHERE   v.estabelecimento_id = @EstabelecimentoId
+              AND   v.status = 'Ativo'
+              AND   v.profissional_usuario_id
+                    <> (SELECT dono_usuario_id FROM public.estabelecimentos WHERE id = @EstabelecimentoId)
+
+            UNION ALL
+
+            SELECT  e.dono_usuario_id                  AS UsuarioId,
+                    u.nome_completo                    AS NomeCompleto,
+                    p.especialidade                    AS Especialidade,
+                    p.conselho                         AS Conselho,
+                    'Dono'                             AS Status
+            FROM    public.estabelecimentos e
+            JOIN    public.usuarios u ON u.id = e.dono_usuario_id
+            LEFT JOIN public.profissionais p ON p.usuario_id = e.dono_usuario_id
+            WHERE   e.id = @EstabelecimentoId
+
+            ORDER BY NomeCompleto NULLS LAST
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.QueryAsync<ProfissionalPublicoDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+    }
+
     /// <summary>Verifica se o usuário tem vínculo ativo com o estabelecimento (não inclui donos).</summary>
     public async Task<bool> TemVinculoAtivo(Guid usuarioId, long estabelecimentoId)
     {

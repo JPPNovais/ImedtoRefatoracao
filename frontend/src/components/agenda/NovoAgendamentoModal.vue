@@ -35,14 +35,14 @@ import {
     type ListaEsperaPreferenciaPeriodo,
 } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem, type PacienteBuscaRapida } from "@/services/pacienteService"
-import type { ProfissionalVinculado } from "@/services/vinculoService"
+import type { ProfissionalPublico } from "@/services/vinculoService"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
 import { AppDatePicker } from "@/components/ui"
 import { cpfValido, somenteDigitos } from "@/utils/cpf"
 
 const props = defineProps<{
     aberto: boolean
-    profissionais: ProfissionalVinculado[]
+    profissionais: ProfissionalPublico[]
     /** Data inicial sugerida (ISO YYYY-MM-DD). */
     dataPadrao?: string
     /**
@@ -607,7 +607,7 @@ const profSelecionado = computed(() =>
                             <select v-model="detalhes.profissionalUsuarioId">
                                 <option value="" disabled>Selecione...</option>
                                 <option v-for="p in profissionais" :key="p.usuarioId" :value="p.usuarioId">
-                                    {{ p.nomeCompleto || p.email }}{{ p.especialidade ? ` — ${p.especialidade}` : "" }}
+                                    {{ p.nomeCompleto }}{{ p.especialidade ? ` — ${p.especialidade}` : "" }}
                                 </option>
                             </select>
                         </div>

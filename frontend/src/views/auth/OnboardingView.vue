@@ -946,7 +946,7 @@ const stepperPassos = computed(() => [
                         <div class="tour-card">
                             <div class="tc-icon tc-icon--success"><i class="fa-solid fa-prescription-bottle-medical" aria-hidden="true"></i></div>
                             <b>Prescrição digital</b>
-                            <span>Receituário e atestados assinados digitalmente, válidos em todo o território nacional.</span>
+                            <span>Receituário com identificação do profissional. Para validade jurídica plena, imprima e assine — integração com ICP-Brasil / Memed em breve.</span>
                         </div>
                         <div class="tour-card">
                             <div class="tc-icon tc-icon--warning"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></div>

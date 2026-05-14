@@ -15,6 +15,13 @@ public class ListarAnexosDoProntuarioQuery : IQuery<IEnumerable<AnexoDto>>
 public class ObterUrlAnexoQuery : IQuery<AnexoUrlDto>
 {
     public long AnexoId { get; set; }
+    /// <summary>
+    /// Paciente da URL pedida — defense-in-depth LGPD: o filtro garante
+    /// que o anexo só seja servido se realmente pertencer a este paciente.
+    /// Sem este filtro, qualquer membro do tenant baixava anexo trocando
+    /// somente o <c>anexoId</c> na URL.
+    /// </summary>
+    public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
 

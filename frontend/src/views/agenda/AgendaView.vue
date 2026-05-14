@@ -26,7 +26,7 @@ import CancelarAgendamentoModal from "@/components/agenda/CancelarAgendamentoMod
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { listaEsperaService, type ListaEsperaItem } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
-import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
+import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
 import { profissionalService } from "@/services/profissionalService"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
@@ -54,7 +54,9 @@ const horaAgoraLabel = computed(() => formatHora(agora.value))
 
 // ─── Estado base ───
 const agendamentos = ref<Agendamento[]>([])
-const profissionais = ref<ProfissionalVinculado[]>([])
+// Usa o DTO publico/minimizado — sem e-mail, sem modelo de permissao, sem
+// datas de convite. A Agenda so precisa de nome + especialidade + status.
+const profissionais = ref<ProfissionalPublico[]>([])
 const pacientes = ref<PacienteListaItem[]>([])
 const carregando = ref(false)
 const erro = ref<string | null>(null)
@@ -76,17 +78,16 @@ function especialidadeDoProfissional(usuarioId: string): string {
     return ""
 }
 
-const profissionaisDisponiveis = computed<ProfissionalVinculado[]>(() => {
+const profissionaisDisponiveis = computed<ProfissionalPublico[]>(() => {
     const lista = [...profissionais.value]
     if (tenant.papel === "Dono" && auth.usuario && !lista.some(p => p.usuarioId === auth.usuario!.id)) {
+        // Fallback de borda: backend deve trazer o Dono na lista publica, mas
+        // se algo falhar nessa borda (cache desatualizado, etc.) garantimos
+        // que o proprio Dono aparece. Sem expor email (uso apenas nomeCompleto).
         lista.unshift({
-            vinculoId: 0,
             usuarioId: auth.usuario.id,
-            email: auth.usuario.email,
             nomeCompleto: auth.usuario.nomeCompleto ?? auth.usuario.email,
             status: "Dono",
-            modeloPermissaoId: 0,
-            modeloPermissaoNome: "Dono do estabelecimento",
             especialidade: perfilProprio.value?.especialidade ?? null,
             conselho: perfilProprio.value?.conselho ?? null,
         })
@@ -221,7 +222,7 @@ watch(filtroProf, () => { void carregarContagens(true) })
 
 onMounted(async () => {
     agoraTimer = window.setInterval(() => { agora.value = new Date() }, 30_000)
-    profissionais.value = await vinculoService.listarProfissionais()
+    profissionais.value = await vinculoService.listarProfissionaisPublico()
     if (tenant.papel === "Dono") {
         try {
             const perfil = await profissionalService.obterMeu()
@@ -333,7 +334,7 @@ const encaixeMotivo = ref<string | null>(null)
 
 async function abrirModalNovo() {
     if (profissionais.value.length === 0) {
-        profissionais.value = await vinculoService.listarProfissionais()
+        profissionais.value = await vinculoService.listarProfissionaisPublico()
     }
     if (tenant.papel === "Dono" && !perfilProprio.value) {
         try {
@@ -518,7 +519,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                             <AppSelect v-model="filtroProf">
                                 <option value="">Todos</option>
                                 <option v-for="p in profissionaisDisponiveis" :key="p.usuarioId" :value="p.usuarioId">
-                                    {{ p.nomeCompleto || p.email }}
+                                    {{ p.nomeCompleto }}
                                 </option>
                             </AppSelect>
                         </AppField>

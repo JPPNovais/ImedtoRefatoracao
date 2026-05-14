@@ -10,9 +10,10 @@ import imedtoLogo from "@/assets/imedto-logo.png"
  *   https://app.imedto.com/auth/aceitar-convite?token=<cru>
  *
  * Backend (POST /api/auth/aceitar-convite) consome o token, define a senha,
- * confirma o e-mail, cria o registro local de usuário e já loga o profissional
- * (seta cookies HttpOnly). Em sucesso, redirecionamos para "Meus convites"
- * onde ele pode revisar e aceitar o vínculo com o estabelecimento.
+ * confirma o e-mail, cria o registro local de usuário, ACEITA AUTOMATICAMENTE
+ * o(s) vínculo(s) pendente(s) e já loga o profissional (seta cookies HttpOnly).
+ * Em sucesso, redirecionamos para a Home — o tenantStore vai escolher o
+ * estabelecimento ativo na próxima carga.
  */
 const route = useRoute()
 const router = useRouter()
@@ -43,7 +44,7 @@ async function enviar() {
     try {
         await auth.aceitarConvite(token, email.value.trim().toLowerCase(), novaSenha.value)
         estado.value = "sucesso"
-        mensagem.value = "Conta criada e convite aceito! Você já está logado."
+        mensagem.value = "Conta criada e convite aceito! Você já está logado e pronto para começar."
     } catch (e: any) {
         estado.value = "erro"
         mensagem.value =
@@ -52,8 +53,14 @@ async function enviar() {
     }
 }
 
-function irParaMeusConvites() {
-    router.push({ name: "MeusConvites" })
+/**
+ * Após aceitar o convite, o backend já ativou o vínculo automaticamente —
+ * mandamos o usuário direto para a Home (a Home cuida de selecionar o tenant
+ * via tenantStore). Não há mais o passo extra de "Aceitar manualmente em
+ * /meus-convites" que existia antes desta correção.
+ */
+function irParaHome() {
+    router.push({ name: "Home" })
 }
 
 function irParaLogin() {
@@ -124,7 +131,7 @@ function irParaLogin() {
                 <div class="icone icone-sucesso">✓</div>
                 <h1>Pronto!</h1>
                 <p>{{ mensagem }}</p>
-                <button class="btn btn-primary" @click="irParaMeusConvites">Ver meus convites</button>
+                <button class="btn btn-primary" @click="irParaHome">Entrar na plataforma</button>
             </template>
 
             <template v-else>

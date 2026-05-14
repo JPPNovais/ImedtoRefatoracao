@@ -37,5 +37,14 @@ public interface IVinculoRepository
     /// </summary>
     Task<bool> PodeAtuarComoProfissional(Guid usuarioId, long estabelecimentoId);
 
+    /// <summary>
+    /// Lista todos os vínculos do usuário em status <see cref="VinculoStatus.Convidado"/>.
+    /// Usado pelo fluxo "Aceitar convite por link de e-mail" (POST /api/auth/aceitar-convite),
+    /// que precisa ativar automaticamente o(s) vínculo(s) pendente(s) imediatamente após
+    /// o convidado definir sua senha — sem essa etapa, o usuário entra na plataforma mas
+    /// continua sem tenant ativo até clicar manualmente em "Aceitar" em /meus-convites.
+    /// </summary>
+    Task<IReadOnlyList<VinculoProfissionalEstabelecimento>> ListarPendentesPorUsuario(Guid profissionalUsuarioId);
+
     Task Salvar(VinculoProfissionalEstabelecimento vinculo);
 }

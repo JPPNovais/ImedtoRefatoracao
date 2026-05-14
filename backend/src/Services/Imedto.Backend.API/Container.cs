@@ -303,11 +303,13 @@ public static class Container
         // Vínculos
         services.AddScoped<ConvidarProfissionalCommandHandler>();
         services.AddScoped<AceitarConviteCommandHandler>();
+        services.AddScoped<AceitarConvitesPendentesDoUsuarioCommandHandler>();
         services.AddScoped<InativarVinculoCommandHandler>();
         services.AddScoped<ReativarVinculoCommandHandler>();
         services.AddScoped<ReenviarConviteCommandHandler>();
         services.AddScoped<AlterarModeloPermissaoDoVinculoCommandHandler>();
         services.AddScoped<ListarProfissionaisEstabelecimentoQueryHandlers>();
+        services.AddSingleton<ListarProfissionaisPublicoQueryHandlers>();
         services.AddSingleton<ListarMeusConvitesQueryHandlers>();
         services.AddScoped<ProfissionalConvidadoEventHandler>();
         services.AddScoped<VinculoAceitoEventHandler>();
@@ -656,6 +658,7 @@ public static class Container
             bus.Register<AlterarFotoProfissionalCommand, AlterarFotoProfissionalCommandHandler>();
             bus.Register<ConvidarProfissionalCommand, ConvidarProfissionalCommandHandler>();
             bus.Register<AceitarConviteCommand, AceitarConviteCommandHandler>();
+            bus.Register<AceitarConvitesPendentesDoUsuarioCommand, AceitarConvitesPendentesDoUsuarioCommandHandler>();
             bus.Register<InativarVinculoCommand, InativarVinculoCommandHandler>();
             bus.Register<ReativarVinculoCommand, ReativarVinculoCommandHandler>();
             bus.Register<ReenviarConviteCommand, ReenviarConviteCommandHandler>();
@@ -775,6 +778,7 @@ public static class Container
             bus.Register<ListarTiposSalaQuery, IEnumerable<TipoSalaDto>, ListarTiposSalaQueryHandlers>();
             bus.Register<ObterProfissionalMeQuery, ProfissionalDto, ObterProfissionalMeQueryHandlers>();
             bus.Register<ListarProfissionaisEstabelecimentoQuery, IEnumerable<ProfissionalVinculadoDto>, ListarProfissionaisEstabelecimentoQueryHandlers>();
+            bus.Register<ListarProfissionaisPublicoQuery, IEnumerable<ProfissionalPublicoDto>, ListarProfissionaisPublicoQueryHandlers>();
             bus.Register<ListarMeusConvitesQuery, IEnumerable<ConviteDto>, ListarMeusConvitesQueryHandlers>();
             // Item 4.2 — Solicitação inversa.
             bus.Register<ListarMinhasSolicitacoesVinculoQuery, IEnumerable<SolicitacaoVinculoDto>, ListarMinhasSolicitacoesVinculoQueryHandlers>();

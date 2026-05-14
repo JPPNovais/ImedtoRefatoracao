@@ -48,6 +48,13 @@ public class VinculoRepository : IVinculoRepository
             e.Id == estabelecimentoId && e.DonoUsuarioId == usuarioId);
     }
 
+    public async Task<IReadOnlyList<VinculoProfissionalEstabelecimento>> ListarPendentesPorUsuario(Guid profissionalUsuarioId) =>
+        await _context.Vinculos
+            .Where(v =>
+                v.ProfissionalUsuarioId == profissionalUsuarioId &&
+                v.Status == VinculoStatus.Convidado)
+            .ToListAsync();
+
     public async Task Salvar(VinculoProfissionalEstabelecimento vinculo)
     {
         if (vinculo.Id == 0)

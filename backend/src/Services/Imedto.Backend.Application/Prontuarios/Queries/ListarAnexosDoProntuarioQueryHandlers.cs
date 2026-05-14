@@ -61,9 +61,11 @@ public class ObterUrlAnexoQueryHandlers : IRequestHandler<ObterUrlAnexoQuery, An
 
     public async Task<AnexoUrlDto> Handle(ObterUrlAnexoQuery query)
     {
-        // Defense-in-depth LGPD: o repositorio ja filtra por tenant. Anexo de outro
-        // estabelecimento retorna null. Mensagem nao vaza existencia.
-        var referencia = await _queryRepository.ObterReferenciaAnexo(query.AnexoId, query.EstabelecimentoId);
+        // Defense-in-depth LGPD: o repositorio filtra por tenant E por paciente.
+        // Anexo de outro tenant ou de outro paciente do mesmo tenant retorna null —
+        // mesma mensagem generica em todos os casos para nao vazar existencia.
+        var referencia = await _queryRepository.ObterReferenciaAnexo(
+            query.AnexoId, query.PacienteId, query.EstabelecimentoId);
         if (referencia is null)
             throw new BusinessException("Anexo não encontrado.");
 

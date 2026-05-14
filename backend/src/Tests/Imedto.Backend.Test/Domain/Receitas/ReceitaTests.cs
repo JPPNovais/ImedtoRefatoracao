@@ -19,6 +19,30 @@ public class ReceitaTests
         Assert.That(receita.Itens, Has.Count.EqualTo(1));
     }
 
+    /// <summary>
+    /// Bug #3 — toda receita emitida pelo Imedto hoje nasce como
+    /// <see cref="StatusAssinaturaDigital.NaoAssinada"/>. Front exibe banner
+    /// avisando que precisa imprimir + assinar manualmente. Regulatorio CFM 2.299/2021.
+    /// </summary>
+    [Test]
+    public void Emitir_Default_AssinaturaDigitalStatusEhNaoAssinada()
+    {
+        var receita = Receita.Emitir(1, 1, Guid.NewGuid(), 1, TipoReceita.Comum, null, null, UmItem());
+
+        Assert.That(receita.AssinaturaDigitalStatus, Is.EqualTo(StatusAssinaturaDigital.NaoAssinada));
+    }
+
+    [Test]
+    public void IniciarRascunho_Default_AssinaturaDigitalStatusEhNaoAssinada()
+    {
+        var rascunho = Receita.IniciarRascunho(
+            prontuarioId: 1, pacienteId: 1, profissionalUsuarioId: Guid.NewGuid(),
+            estabelecimentoId: 1, tipo: TipoReceita.Comum, tipoNotificacao: null,
+            observacoes: null, validadeAte: null, itens: null);
+
+        Assert.That(rascunho.AssinaturaDigitalStatus, Is.EqualTo(StatusAssinaturaDigital.NaoAssinada));
+    }
+
     [Test]
     public void Emitir_ComMultiplosItens_OrdemSequencialCorreta()
     {

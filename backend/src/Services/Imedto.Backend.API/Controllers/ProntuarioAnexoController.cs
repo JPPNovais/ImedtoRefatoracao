@@ -99,6 +99,7 @@ public class ProntuarioAnexoController : ControllerBase
             new ObterUrlAnexoQuery
             {
                 AnexoId = anexoId,
+                PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId
             });

@@ -182,6 +182,7 @@ function gerarHtmlImpressao(r: Receita): string {
         .item{padding:.75rem 0;border-bottom:1px solid #eee}
         .pos{margin:.3rem 0;}
         .obs{font-size:.85rem;color:#555;margin-top:.2rem}
+        .aviso-print{margin-top:2rem;padding:.75rem 1rem;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;font-size:.85rem;color:#7c2d12;line-height:1.45}
         .rodape{margin-top:3rem;padding-top:1rem;border-top:1px dashed #ccc;font-size:.85rem;color:#555;text-align:right}
         .tipo{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:700}
         .tipo.SIMPLES{background:#dbeafe;color:#1e40af}
@@ -196,6 +197,11 @@ function gerarHtmlImpressao(r: Receita): string {
       </div>
       ${itensHtml}
       ${r.observacoes ? `<p><strong>Observações:</strong> ${escape(r.observacoes)}</p>` : ""}
+      <div class="aviso-print">
+        <strong>Atenção:</strong> esta receita não foi assinada digitalmente (ICP-Brasil / Memed).
+        Para validade jurídica plena em farmácias que exigem assinatura digital,
+        o profissional deve assinar manualmente o documento impresso (CFM 2.299/2021).
+      </div>
       <div class="rodape">___________________________<br>Assinatura</div>
     </body></html>`
 }
@@ -284,6 +290,23 @@ function statusBadgeClass(s: string) {
         </div>
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
+
+        <!--
+          Aviso obrigatório: o sistema ainda NÃO assina a receita digitalmente
+          (sem integração ICP-Brasil / Memed). Para uso em farmácias que exigem
+          assinatura digital, imprima e assine manualmente. CFM 2.299/2021.
+        -->
+        <div class="aviso-assinatura" role="note">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <div>
+                <b>Receita não assinada digitalmente.</b>
+                <span>
+                    Esta receita inclui apenas a identificação do profissional. Para validade jurídica plena
+                    em farmácias que exigem assinatura digital (ICP-Brasil / Memed), imprima e assine
+                    manualmente. A integração com provedores de assinatura está em desenvolvimento.
+                </span>
+            </div>
+        </div>
 
         <!-- Medicamentos -->
         <div class="secao">
@@ -495,6 +518,22 @@ function statusBadgeClass(s: string) {
     padding: 0.5rem 0.75rem; border-radius: 0.375rem;
     font-size: 0.85em; margin: 0;
 }
+
+/* Aviso fixo (LGPD/CFM): receita sem assinatura digital. */
+.aviso-assinatura {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    background: hsl(45 95% 95%);
+    border: 1px solid hsl(45 85% 70%);
+    color: hsl(30 70% 25%);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.aviso-assinatura > i { margin-top: 2px; color: hsl(38 90% 45%); }
+.aviso-assinatura b { display: block; margin-bottom: 2px; }
 
 .secao {
     background: hsl(var(--card));

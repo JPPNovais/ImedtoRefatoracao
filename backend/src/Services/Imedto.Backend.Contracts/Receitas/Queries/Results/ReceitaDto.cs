@@ -41,6 +41,13 @@ public class ReceitaDto
     /// RDC 471/2021 — antibióticos). Front exibe badge "RETER" no PDF/visualização.
     /// </summary>
     public bool RequerRetencao { get; set; }
+    /// <summary>
+    /// Status de assinatura digital — <c>"NaoAssinada"</c> (default), <c>"AssinadaIcp"</c>
+    /// ou <c>"AssinadaMemed"</c>. Quando <c>"NaoAssinada"</c>, o front exibe banner
+    /// informando que a receita não tem validade jurídica como receita digital e
+    /// deve ser impressa e assinada manualmente (CFM 2.299/2021).
+    /// </summary>
+    public string AssinaturaDigitalStatus { get; set; } = "NaoAssinada";
     public string? Observacoes { get; set; }
     public DateTime? CanceladaEm { get; set; }
     public string? MotivoCancelamento { get; set; }

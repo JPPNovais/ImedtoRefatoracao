@@ -28,6 +28,16 @@ public class ReceitaConfiguration : IEntityTypeConfiguration<Receita>
         builder.Property(r => r.RequerRetencao).HasColumnName("requer_retencao").IsRequired().HasDefaultValue(false);
         builder.Property(r => r.Observacoes).HasColumnName("observacoes").HasMaxLength(2000);
         builder.Property(r => r.Status).HasColumnName("status").HasMaxLength(20).HasConversion<string>().IsRequired();
+        // Default 'NaoAssinada' aplicado tanto no aggregate quanto no DDL para
+        // garantir consistência em inserts feitos fora do EF (migrações de dados
+        // ou scripts de seed que rodam direto via SQL). Reservado para futura
+        // integração com ICP-Brasil / Memed; hoje todas as receitas nascem aqui.
+        builder.Property(r => r.AssinaturaDigitalStatus)
+            .HasColumnName("assinatura_digital_status")
+            .HasMaxLength(20)
+            .HasConversion<string>()
+            .HasDefaultValue(StatusAssinaturaDigital.NaoAssinada)
+            .IsRequired();
         builder.Property(r => r.CanceladaEm).HasColumnName("cancelada_em");
         builder.Property(r => r.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
         builder.Property(r => r.CriadaEm).HasColumnName("criada_em").IsRequired();

@@ -43,25 +43,37 @@ public class ProntuarioAnexoQueryRepository
 
     /// <summary>
     /// Carrega referencia do anexo filtrando por <paramref name="estabelecimentoId"/>
-    /// dentro do SQL — defense-in-depth LGPD: anexo de outro tenant retorna null.
-    /// O handler nao precisa mais comparar estabelecimento_id manualmente.
+    /// E <paramref name="pacienteId"/> dentro do SQL — defense-in-depth LGPD:
+    /// anexo de outro tenant OU de outro paciente do mesmo tenant retorna null.
+    ///
+    /// O filtro por paciente fecha um vetor IDOR: antes, qualquer membro
+    /// autenticado conseguia baixar anexo de qualquer paciente da clínica
+    /// trocando apenas o <c>anexoId</c> na URL. Agora a URL exige o par
+    /// (paciente, anexo) consistente com o que o banco persistiu — via JOIN
+    /// com prontuários para validar a pertença do anexo ao paciente da rota.
     /// </summary>
-    public async Task<(long ProntuarioId, string StoragePath, string Nome, string Mime)?>
-        ObterReferenciaAnexo(long anexoId, long estabelecimentoId)
+    // virtual: permite Moq nos handlers (unit tests sem Postgres).
+    public virtual async Task<(long ProntuarioId, string StoragePath, string Nome, string Mime)?>
+        ObterReferenciaAnexo(long anexoId, long pacienteId, long estabelecimentoId)
     {
         const string sql = """
-            SELECT prontuario_id, storage_path, nome_original, mime_type
-            FROM   public.prontuario_anexos
-            WHERE  id = @AnexoId
-              AND  estabelecimento_id = @EstabelecimentoId
-              AND  arquivado_em IS NULL
-              AND  deletado_em IS NULL
+            SELECT a.prontuario_id, a.storage_path, a.nome_original, a.mime_type
+            FROM   public.prontuario_anexos a
+            JOIN   public.prontuarios p
+                   ON p.id = a.prontuario_id
+                  AND p.estabelecimento_id = a.estabelecimento_id
+            WHERE  a.id = @AnexoId
+              AND  a.estabelecimento_id = @EstabelecimentoId
+              AND  p.paciente_id = @PacienteId
+              AND  a.arquivado_em IS NULL
+              AND  a.deletado_em IS NULL
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
         return await conn.QuerySingleOrDefaultAsync<(long, string, string, string)?>(sql, new
         {
             AnexoId = anexoId,
+            PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId
         });
     }
