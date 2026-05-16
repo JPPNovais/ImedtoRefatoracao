@@ -8,10 +8,7 @@ import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { inventarioService, type ItemInventario } from "@/services/inventarioService"
 import {
     estoqueCadastrosService,
-    type CategoriaEstoque,
-    type FabricanteEstoque,
-    type FornecedorEstoque,
-    type LocalEstoque,
+    type CadastroOpcao,
 } from "@/services/estoqueCadastrosService"
 import { formatarMoedaBrl } from "@/utils/format"
 
@@ -28,23 +25,26 @@ const busca = useDebouncedRef(buscaInput)
 const apenasAtivos = ref(true)
 
 // ─── Catálogos (carregados 1× ao montar) ─────────────────────────────
-const categorias = ref<CategoriaEstoque[]>([])
-const fabricantes = ref<FabricanteEstoque[]>([])
-const fornecedores = ref<FornecedorEstoque[]>([])
-const locais = ref<LocalEstoque[]>([])
+// Usamos os endpoints `/opcoes` (apenas { id, nome }, só ativos, ordenados,
+// LIMIT 500) — não a listagem paginada. Servem só pra popular os 4 selects do
+// drawer "Novo/Editar produto", então não precisam de cor, ícone, CNPJ etc.
+const categorias = ref<CadastroOpcao[]>([])
+const fabricantes = ref<CadastroOpcao[]>([])
+const fornecedores = ref<CadastroOpcao[]>([])
+const locais = ref<CadastroOpcao[]>([])
 
 async function carregarCatalogos() {
     try {
         const [c, fb, fn, lc] = await Promise.all([
-            estoqueCadastrosService.categorias.listar({ tamanho: 200 }),
-            estoqueCadastrosService.fabricantes.listar({ tamanho: 200 }),
-            estoqueCadastrosService.fornecedores.listar({ tamanho: 200 }),
-            estoqueCadastrosService.locais.listar({ tamanho: 200 }),
+            estoqueCadastrosService.categorias.obterOpcoes(),
+            estoqueCadastrosService.fabricantes.obterOpcoes(),
+            estoqueCadastrosService.fornecedores.obterOpcoes(),
+            estoqueCadastrosService.locais.obterOpcoes(),
         ])
-        categorias.value = c.itens
-        fabricantes.value = fb.itens
-        fornecedores.value = fn.itens
-        locais.value = lc.itens
+        categorias.value = c
+        fabricantes.value = fb
+        fornecedores.value = fn
+        locais.value = lc
     } catch {
         // silencioso — selects ficam vazios e o usuário cria pela aba dedicada.
     }
@@ -70,6 +70,29 @@ const erroForm = ref<string | null>(null)
 const salvando = ref(false)
 
 const ehEdicao = computed(() => editando.value !== null)
+
+// Em modo edição, se a categoria/fabricante/etc. do produto foi inativada
+// depois, ela não vem em /opcoes (só retorna ativos). Pra que o select ainda
+// mostre o valor atual, prependa o item "fantasma" com o rótulo que veio na
+// linha sendo editada. Sem isso, o select ficaria vazio e o usuário podia
+// salvar trocando sem perceber.
+function comFallback(
+    opcoes: CadastroOpcao[],
+    selecionadoId: number,
+    rotuloFallback: string | null | undefined,
+): CadastroOpcao[] {
+    if (!selecionadoId || opcoes.some(o => o.id === selecionadoId)) return opcoes
+    return [{ id: selecionadoId, nome: rotuloFallback || "(inativo)" }, ...opcoes]
+}
+
+const categoriasComFallback = computed(() =>
+    comFallback(categorias.value, form.value.categoriaId, editando.value?.categoria))
+const fabricantesComFallback = computed(() =>
+    comFallback(fabricantes.value, form.value.fabricanteId, editando.value?.fabricanteNome))
+const fornecedoresComFallback = computed(() =>
+    comFallback(fornecedores.value, form.value.fornecedorPadraoId, editando.value?.fornecedorPadraoNome))
+const locaisComFallback = computed(() =>
+    comFallback(locais.value, form.value.localPadraoId, editando.value?.localPadraoNome))
 
 function abrirCriar() {
     editando.value = null
@@ -322,11 +345,7 @@ function formatarQtd(n: number) {
                     <AppField label="Categoria" required class="full">
                         <AppSelect v-model="form.categoriaId">
                             <option :value="0" disabled>Selecione</option>
-                            <option
-                                v-for="c in categorias.filter(c => c.ativo || c.id === form.categoriaId)"
-                                :key="c.id"
-                                :value="c.id"
-                            >
+                            <option v-for="c in categoriasComFallback" :key="c.id" :value="c.id">
                                 {{ c.nome }}
                             </option>
                         </AppSelect>
@@ -335,11 +354,7 @@ function formatarQtd(n: number) {
                     <AppField label="Fabricante">
                         <AppSelect v-model="form.fabricanteId">
                             <option :value="0">— Nenhum —</option>
-                            <option
-                                v-for="f in fabricantes.filter(f => f.ativo || f.id === form.fabricanteId)"
-                                :key="f.id"
-                                :value="f.id"
-                            >
+                            <option v-for="f in fabricantesComFallback" :key="f.id" :value="f.id">
                                 {{ f.nome }}
                             </option>
                         </AppSelect>
@@ -348,12 +363,8 @@ function formatarQtd(n: number) {
                     <AppField label="Fornecedor padrão">
                         <AppSelect v-model="form.fornecedorPadraoId">
                             <option :value="0">— Nenhum —</option>
-                            <option
-                                v-for="f in fornecedores.filter(f => f.ativo || f.id === form.fornecedorPadraoId)"
-                                :key="f.id"
-                                :value="f.id"
-                            >
-                                {{ f.razaoSocial }}
+                            <option v-for="f in fornecedoresComFallback" :key="f.id" :value="f.id">
+                                {{ f.nome }}
                             </option>
                         </AppSelect>
                     </AppField>
@@ -361,11 +372,7 @@ function formatarQtd(n: number) {
                     <AppField label="Local padrão">
                         <AppSelect v-model="form.localPadraoId">
                             <option :value="0">— Nenhum —</option>
-                            <option
-                                v-for="l in locais.filter(l => l.ativo || l.id === form.localPadraoId)"
-                                :key="l.id"
-                                :value="l.id"
-                            >
+                            <option v-for="l in locaisComFallback" :key="l.id" :value="l.id">
                                 {{ l.nome }}
                             </option>
                         </AppSelect>

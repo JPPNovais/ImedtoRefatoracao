@@ -40,3 +40,41 @@ public class ListarLocaisEstoqueQueryHandlers : IRequestHandler<ListarLocaisEsto
     public Task<PaginaLocaisEstoqueDto> Handle(ListarLocaisEstoqueQuery q)
         => _repo.ListarLocais(q.EstabelecimentoId, q.Busca, q.ApenasAtivos, q.Pagina, q.TamanhoPagina);
 }
+
+// ─── Handlers das queries de opções (dropdowns) ──────────────────────────────
+
+public class ObterOpcoesCategoriasEstoqueQueryHandlers : IRequestHandler<ObterOpcoesCategoriasEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    private readonly CadastrosEstoqueQueryRepository _repo;
+    public ObterOpcoesCategoriasEstoqueQueryHandlers(CadastrosEstoqueQueryRepository repo) => _repo = repo;
+
+    public Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> Handle(ObterOpcoesCategoriasEstoqueQuery q)
+        => _repo.ObterOpcoesCategorias(q.EstabelecimentoId);
+}
+
+public class ObterOpcoesFabricantesEstoqueQueryHandlers : IRequestHandler<ObterOpcoesFabricantesEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    private readonly CadastrosEstoqueQueryRepository _repo;
+    public ObterOpcoesFabricantesEstoqueQueryHandlers(CadastrosEstoqueQueryRepository repo) => _repo = repo;
+
+    public Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> Handle(ObterOpcoesFabricantesEstoqueQuery q)
+        => _repo.ObterOpcoesFabricantes(q.EstabelecimentoId);
+}
+
+public class ObterOpcoesFornecedoresEstoqueQueryHandlers : IRequestHandler<ObterOpcoesFornecedoresEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    private readonly CadastrosEstoqueQueryRepository _repo;
+    public ObterOpcoesFornecedoresEstoqueQueryHandlers(CadastrosEstoqueQueryRepository repo) => _repo = repo;
+
+    public Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> Handle(ObterOpcoesFornecedoresEstoqueQuery q)
+        => _repo.ObterOpcoesFornecedores(q.EstabelecimentoId);
+}
+
+public class ObterOpcoesLocaisEstoqueQueryHandlers : IRequestHandler<ObterOpcoesLocaisEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    private readonly CadastrosEstoqueQueryRepository _repo;
+    public ObterOpcoesLocaisEstoqueQueryHandlers(CadastrosEstoqueQueryRepository repo) => _repo = repo;
+
+    public Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> Handle(ObterOpcoesLocaisEstoqueQuery q)
+        => _repo.ObterOpcoesLocais(q.EstabelecimentoId);
+}

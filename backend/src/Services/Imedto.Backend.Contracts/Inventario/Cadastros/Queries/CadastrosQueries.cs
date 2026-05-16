@@ -38,3 +38,28 @@ public class ListarLocaisEstoqueQuery : IQuery<PaginaLocaisEstoqueDto>
     public int Pagina { get; set; } = 1;
     public int TamanhoPagina { get; set; } = 20;
 }
+
+// ─── Queries leves para popular dropdowns ────────────────────────────────────
+// Servem apenas a selects de formulário (ex.: drawer "Novo produto"). Sempre filtram
+// `ativo = true`, ordenam por nome e limitam a 500 registros — não substituem
+// as listagens paginadas acima.
+
+public class ObterOpcoesCategoriasEstoqueQuery : IQuery<IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    public long EstabelecimentoId { get; set; }
+}
+
+public class ObterOpcoesFabricantesEstoqueQuery : IQuery<IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    public long EstabelecimentoId { get; set; }
+}
+
+public class ObterOpcoesFornecedoresEstoqueQuery : IQuery<IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    public long EstabelecimentoId { get; set; }
+}
+
+public class ObterOpcoesLocaisEstoqueQuery : IQuery<IReadOnlyList<OpcaoCadastroEstoqueDto>>
+{
+    public long EstabelecimentoId { get; set; }
+}

@@ -59,6 +59,14 @@ public class CadastrosEstoqueController : ControllerBase
         return Ok(res);
     }
 
+    [HttpGet("categorias/opcoes")]
+    public async Task<ActionResult<IReadOnlyList<OpcaoCadastroEstoqueDto>>> ObterOpcoesCategorias()
+    {
+        var res = await _query.Query<ObterOpcoesCategoriasEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>(
+            new ObterOpcoesCategoriasEstoqueQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
+        return Ok(res);
+    }
+
     [HttpPost("categorias")]
     [RequiresPapel(TenantPapel.Dono, TenantPapel.Recepcionista)]
     public async Task<ActionResult<object>> CriarCategoria([FromBody] CategoriaPayloadDto dto)
@@ -134,6 +142,14 @@ public class CadastrosEstoqueController : ControllerBase
         return Ok(res);
     }
 
+    [HttpGet("fabricantes/opcoes")]
+    public async Task<ActionResult<IReadOnlyList<OpcaoCadastroEstoqueDto>>> ObterOpcoesFabricantes()
+    {
+        var res = await _query.Query<ObterOpcoesFabricantesEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>(
+            new ObterOpcoesFabricantesEstoqueQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
+        return Ok(res);
+    }
+
     [HttpPost("fabricantes")]
     [RequiresPapel(TenantPapel.Dono, TenantPapel.Recepcionista)]
     public async Task<ActionResult<object>> CriarFabricante([FromBody] FabricantePayloadDto dto)
@@ -204,6 +220,14 @@ public class CadastrosEstoqueController : ControllerBase
                 Pagina = pagina,
                 TamanhoPagina = tamanho
             });
+        return Ok(res);
+    }
+
+    [HttpGet("fornecedores/opcoes")]
+    public async Task<ActionResult<IReadOnlyList<OpcaoCadastroEstoqueDto>>> ObterOpcoesFornecedores()
+    {
+        var res = await _query.Query<ObterOpcoesFornecedoresEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>(
+            new ObterOpcoesFornecedoresEstoqueQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
         return Ok(res);
     }
 
@@ -287,6 +311,14 @@ public class CadastrosEstoqueController : ControllerBase
                 Pagina = pagina,
                 TamanhoPagina = tamanho
             });
+        return Ok(res);
+    }
+
+    [HttpGet("locais/opcoes")]
+    public async Task<ActionResult<IReadOnlyList<OpcaoCadastroEstoqueDto>>> ObterOpcoesLocais()
+    {
+        var res = await _query.Query<ObterOpcoesLocaisEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>>(
+            new ObterOpcoesLocaisEstoqueQuery { EstabelecimentoId = _tenant.EstabelecimentoId });
         return Ok(res);
     }
 

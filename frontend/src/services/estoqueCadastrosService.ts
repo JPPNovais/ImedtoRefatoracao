@@ -62,6 +62,16 @@ export interface ListarParams {
     tamanho?: number
 }
 
+/**
+ * Tipo ultra-leve para popular dropdowns (selects de formulário).
+ * Os 4 grupos do design system de "Novo produto" usam o mesmo shape — o que
+ * o `OpcaoCadastroEstoqueDto` do backend retorna nos endpoints `/opcoes`.
+ */
+export interface CadastroOpcao {
+    id: number
+    nome: string
+}
+
 // ─── Payloads (input dos forms) ───────────────────────────────────────────
 
 export interface CategoriaPayload {
@@ -113,6 +123,10 @@ export const estoqueCadastrosService = {
             const { data } = await httpClient.get<Pagina<CategoriaEstoque>>(`${base}/categorias`, { params: paramsLimpos(params) })
             return data
         },
+        async obterOpcoes(): Promise<CadastroOpcao[]> {
+            const { data } = await httpClient.get<CadastroOpcao[]>(`${base}/categorias/opcoes`)
+            return data
+        },
         async criar(payload: CategoriaPayload): Promise<{ id: number }> {
             const { data } = await httpClient.post<{ id: number }>(`${base}/categorias`, payload)
             return data
@@ -132,6 +146,10 @@ export const estoqueCadastrosService = {
     fabricantes: {
         async listar(params?: ListarParams): Promise<Pagina<FabricanteEstoque>> {
             const { data } = await httpClient.get<Pagina<FabricanteEstoque>>(`${base}/fabricantes`, { params: paramsLimpos(params) })
+            return data
+        },
+        async obterOpcoes(): Promise<CadastroOpcao[]> {
+            const { data } = await httpClient.get<CadastroOpcao[]>(`${base}/fabricantes/opcoes`)
             return data
         },
         async criar(payload: FabricantePayload): Promise<{ id: number }> {
@@ -155,6 +173,11 @@ export const estoqueCadastrosService = {
             const { data } = await httpClient.get<Pagina<FornecedorEstoque>>(`${base}/fornecedores`, { params: paramsLimpos(params) })
             return data
         },
+        /** Retorna { id, nome } onde `nome` é a razão social — pronto para uso direto em selects. */
+        async obterOpcoes(): Promise<CadastroOpcao[]> {
+            const { data } = await httpClient.get<CadastroOpcao[]>(`${base}/fornecedores/opcoes`)
+            return data
+        },
         async criar(payload: FornecedorPayload): Promise<{ id: number }> {
             const { data } = await httpClient.post<{ id: number }>(`${base}/fornecedores`, payload)
             return data
@@ -174,6 +197,10 @@ export const estoqueCadastrosService = {
     locais: {
         async listar(params?: ListarParams): Promise<Pagina<LocalEstoque>> {
             const { data } = await httpClient.get<Pagina<LocalEstoque>>(`${base}/locais`, { params: paramsLimpos(params) })
+            return data
+        },
+        async obterOpcoes(): Promise<CadastroOpcao[]> {
+            const { data } = await httpClient.get<CadastroOpcao[]>(`${base}/locais/opcoes`)
             return data
         },
         async criar(payload: LocalPayload): Promise<{ id: number }> {

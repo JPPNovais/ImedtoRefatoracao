@@ -78,3 +78,15 @@ public class PaginaLocaisEstoqueDto
     public int Pagina { get; set; }
     public int TamanhoPagina { get; set; }
 }
+
+/// <summary>
+/// DTO ultra-leve para popular dropdowns (ex.: select de categoria no drawer de "Novo produto").
+/// Só id + nome — sem contagem, sem cor, sem CNPJ, sem telefone (LGPD §minimização).
+/// Endpoints "/opcoes" devolvem `Array&lt;OpcaoCadastroEstoqueDto&gt;` direto (sem paginação),
+/// retornando apenas registros ativos, ordenados por nome, com LIMIT 500.
+/// </summary>
+public class OpcaoCadastroEstoqueDto
+{
+    public long Id { get; set; }
+    public string Nome { get; set; } = string.Empty;
+}

@@ -456,6 +456,10 @@ public static class Container
         services.AddSingleton<ListarFabricantesEstoqueQueryHandlers>();
         services.AddSingleton<ListarFornecedoresEstoqueQueryHandlers>();
         services.AddSingleton<ListarLocaisEstoqueQueryHandlers>();
+        services.AddSingleton<ObterOpcoesCategoriasEstoqueQueryHandlers>();
+        services.AddSingleton<ObterOpcoesFabricantesEstoqueQueryHandlers>();
+        services.AddSingleton<ObterOpcoesFornecedoresEstoqueQueryHandlers>();
+        services.AddSingleton<ObterOpcoesLocaisEstoqueQueryHandlers>();
         services.AddSingleton<Imedto.Backend.Infrastructure.Database.Repositories.Cadastros.CadastrosEstoqueQueryRepository>();
 
         // Orçamentos (aggregate único — sem distinção simples/completo).
@@ -852,6 +856,10 @@ public static class Container
             bus.Register<ListarFabricantesEstoqueQuery,  PaginaFabricantesEstoqueDto,  ListarFabricantesEstoqueQueryHandlers>();
             bus.Register<ListarFornecedoresEstoqueQuery, PaginaFornecedoresEstoqueDto, ListarFornecedoresEstoqueQueryHandlers>();
             bus.Register<ListarLocaisEstoqueQuery,       PaginaLocaisEstoqueDto,       ListarLocaisEstoqueQueryHandlers>();
+            bus.Register<ObterOpcoesCategoriasEstoqueQuery,   IReadOnlyList<OpcaoCadastroEstoqueDto>, ObterOpcoesCategoriasEstoqueQueryHandlers>();
+            bus.Register<ObterOpcoesFabricantesEstoqueQuery,  IReadOnlyList<OpcaoCadastroEstoqueDto>, ObterOpcoesFabricantesEstoqueQueryHandlers>();
+            bus.Register<ObterOpcoesFornecedoresEstoqueQuery, IReadOnlyList<OpcaoCadastroEstoqueDto>, ObterOpcoesFornecedoresEstoqueQueryHandlers>();
+            bus.Register<ObterOpcoesLocaisEstoqueQuery,       IReadOnlyList<OpcaoCadastroEstoqueDto>, ObterOpcoesLocaisEstoqueQueryHandlers>();
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();
             bus.Register<ObterOrcamentoQuery, OrcamentoDto, ObterOrcamentoQueryHandlers>();
             bus.Register<PreviewOrcamentoQuery, PreviewOrcamentoDto, PreviewOrcamentoQueryHandler>();

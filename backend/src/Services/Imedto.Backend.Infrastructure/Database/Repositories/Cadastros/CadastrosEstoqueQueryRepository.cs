@@ -232,4 +232,77 @@ public class CadastrosEstoqueQueryRepository
         if (tamanho < 1 || tamanho > 100)
             throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
     }
+
+    // ───────────────────────── Opções (dropdowns) ─────────────────────────
+    // Retornam apenas { id, nome } dos registros ATIVOS, ordenados por nome,
+    // limitados a 500 — servem só pra popular selects de formulário. Filtro
+    // multi-tenant é mandatório (WHERE estabelecimento_id) e o LIMIT está
+    // hardcoded pra evitar consultas abusivas via query string.
+    private const int LimiteOpcoes = 500;
+
+    public async Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> ObterOpcoesCategorias(long estabelecimentoId)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+        const string sql = """
+            SELECT c.id AS Id, c.nome AS Nome
+            FROM   categorias_estoque c
+            WHERE  c.estabelecimento_id = @EstabelecimentoId
+              AND  c.ativo = TRUE
+            ORDER BY lower(c.nome)
+            LIMIT  @Limite;
+            """;
+        var rows = await conn.QueryAsync<OpcaoCadastroEstoqueDto>(sql,
+            new { EstabelecimentoId = estabelecimentoId, Limite = LimiteOpcoes });
+        return rows.ToList();
+    }
+
+    public async Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> ObterOpcoesFabricantes(long estabelecimentoId)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+        const string sql = """
+            SELECT f.id AS Id, f.nome AS Nome
+            FROM   fabricantes_estoque f
+            WHERE  f.estabelecimento_id = @EstabelecimentoId
+              AND  f.ativo = TRUE
+            ORDER BY lower(f.nome)
+            LIMIT  @Limite;
+            """;
+        var rows = await conn.QueryAsync<OpcaoCadastroEstoqueDto>(sql,
+            new { EstabelecimentoId = estabelecimentoId, Limite = LimiteOpcoes });
+        return rows.ToList();
+    }
+
+    public async Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> ObterOpcoesFornecedores(long estabelecimentoId)
+    {
+        // Para fornecedores, o "rótulo" exibido no dropdown é a razão social
+        // (a tela já consome esse campo nos selects).
+        await using var conn = new NpgsqlConnection(_connStr);
+        const string sql = """
+            SELECT f.id AS Id, f.razao_social AS Nome
+            FROM   fornecedores_estoque f
+            WHERE  f.estabelecimento_id = @EstabelecimentoId
+              AND  f.ativo = TRUE
+            ORDER BY lower(f.razao_social)
+            LIMIT  @Limite;
+            """;
+        var rows = await conn.QueryAsync<OpcaoCadastroEstoqueDto>(sql,
+            new { EstabelecimentoId = estabelecimentoId, Limite = LimiteOpcoes });
+        return rows.ToList();
+    }
+
+    public async Task<IReadOnlyList<OpcaoCadastroEstoqueDto>> ObterOpcoesLocais(long estabelecimentoId)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+        const string sql = """
+            SELECT l.id AS Id, l.nome AS Nome
+            FROM   locais_estoque l
+            WHERE  l.estabelecimento_id = @EstabelecimentoId
+              AND  l.ativo = TRUE
+            ORDER BY lower(l.nome)
+            LIMIT  @Limite;
+            """;
+        var rows = await conn.QueryAsync<OpcaoCadastroEstoqueDto>(sql,
+            new { EstabelecimentoId = estabelecimentoId, Limite = LimiteOpcoes });
+        return rows.ToList();
+    }
 }
