@@ -20,14 +20,16 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="toast" :class="`toast-${variante ?? 'info'}`" role="status" aria-live="polite">
-        <i class="fa-solid" :class="[
-            variante === 'success' ? 'fa-circle-check' :
-            variante === 'error' ? 'fa-circle-exclamation' :
-            'fa-circle-info'
-        ]"></i>
-        {{ mensagem }}
-    </div>
+    <Teleport to="body">
+        <div class="toast" :class="`toast-${variante ?? 'info'}`" role="status" aria-live="polite">
+            <i class="fa-solid" :class="[
+                variante === 'success' ? 'fa-circle-check' :
+                variante === 'error' ? 'fa-circle-exclamation' :
+                'fa-circle-info'
+            ]"></i>
+            {{ mensagem }}
+        </div>
+    </Teleport>
 </template>
 
 <style scoped>
