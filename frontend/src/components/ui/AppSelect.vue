@@ -1,8 +1,14 @@
 <script setup lang="ts">
+interface AppSelectOption {
+    value: string | number
+    label: string
+}
+
 defineProps<{
     modelValue?:  string | number | null
     disabled?:    boolean
     class?:       string
+    options?:     ReadonlyArray<AppSelectOption>
 }>()
 
 const emit = defineEmits<{ "update:modelValue": [string | number] }>()
@@ -16,6 +22,9 @@ const emit = defineEmits<{ "update:modelValue": [string | number] }>()
         :class="$props.class"
         @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >
-        <slot />
+        <template v-if="options && options.length">
+            <option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option>
+        </template>
+        <slot v-else />
     </select>
 </template>

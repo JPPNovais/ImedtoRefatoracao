@@ -274,9 +274,11 @@ public class CriarCatalogoProdutoCommandHandler : ICommandHandler<CriarCatalogoP
 
     internal static TipoOrcamentoProduto ParseTipoProduto(string? tipo)
     {
-        if (string.IsNullOrWhiteSpace(tipo)) return TipoOrcamentoProduto.Outros;
-        if (Enum.TryParse<TipoOrcamentoProduto>(tipo, ignoreCase: true, out var t)) return t;
-        throw new BusinessException("Tipo de produto inválido.");
+        if (string.IsNullOrWhiteSpace(tipo))
+            throw new BusinessException("Tipo do produto é obrigatório.");
+        if (!Enum.TryParse<TipoOrcamentoProduto>(tipo, ignoreCase: true, out var t) || !Enum.IsDefined(t))
+            throw new BusinessException("Tipo de produto inválido.");
+        return t;
     }
 }
 
