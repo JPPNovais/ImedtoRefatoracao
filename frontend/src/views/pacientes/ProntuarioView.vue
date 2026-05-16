@@ -229,7 +229,7 @@ function imprimir() {
         notificar("Inicie o prontuário antes de imprimir.", "error")
         return
     }
-    gerarPdfProntuario(pront.value, paciente.value?.nomeCompleto ?? "paciente")
+    gerarPdfProntuario(pront.value, paciente.value ?? "paciente")
 }
 
 function abrirReceita() {
@@ -331,7 +331,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 :evolucoes="pront.evolucoes"
                 :anexos="anexos"
                 :uploadando="uploadando"
-                :gerar-pdf="() => gerarPdfProntuario(pront!, paciente?.nomeCompleto ?? 'paciente')"
+                :gerar-pdf="() => gerarPdfProntuario(pront!, paciente ?? 'paciente')"
                 @download-anexo="baixarAnexo"
                 @selecionar-arquivo="selecionarArquivo"
                 @enviar-anexo="enviarAnexo"

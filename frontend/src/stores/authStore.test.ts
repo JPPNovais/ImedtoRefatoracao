@@ -297,6 +297,127 @@ describe("authStore", () => {
     })
 
     // ────────────────────────────────────────────────────────────────────────────
+    // Regressão: vazamento de sessão entre contas (logout/login na mesma aba)
+    // ────────────────────────────────────────────────────────────────────────────
+    describe("limpeza de sessão entre contas", () => {
+        beforeEach(() => {
+            sessionStorage.clear()
+            localStorage.clear()
+        })
+
+        it("logout() limpa todas as chaves persistidas de sessão (sessionStorage + localStorage)", async () => {
+            setupStoreMocks()
+
+            // Simula estado herdado da Conta A
+            sessionStorage.setItem("imedto.estabelecimentoAtivo", JSON.stringify({
+                id: 1, nomeFantasia: "Clínica A", papel: "Dono", permissoes: [], permissoesExtras: [],
+            }))
+            localStorage.setItem("imedto.atendimento_ativo", JSON.stringify({
+                agendamentoId: 99, pacienteId: 42, iniciadoEm: "2026-05-16T10:00:00.000Z",
+            }))
+            localStorage.setItem("imedto.receitas.v1", JSON.stringify([{ id: "r_x", pacienteId: 42 }]))
+            localStorage.setItem("imedto-theme", "dark") // preferência neutra — NÃO deve ser apagada
+
+            vi.mocked(httpClient.post).mockResolvedValueOnce({})
+
+            const store = useAuthStore()
+            store.setUsuario(criarUsuario())
+            await store.logout()
+
+            // O tenantStore real (não mockado neste cenário) limparia o sessionStorage,
+            // mas como mockamos o store, validamos no nível do authStore: as chaves de
+            // localStorage gerenciadas diretamente pelo limparSessao devem ter sumido.
+            expect(localStorage.getItem("imedto.atendimento_ativo")).toBeNull()
+            expect(localStorage.getItem("imedto.receitas.v1")).toBeNull()
+            // Tema NÃO deve ser tocado — é preferência de UI neutra entre contas
+            expect(localStorage.getItem("imedto-theme")).toBe("dark")
+        })
+
+        it("login() chama limparSessao ANTES de bootstrapPosAuth (estado herdado é zerado)", async () => {
+            const { tenantLimpar, profissionalLimpar, notificacoesLimpar, assinaturaLimpar, profissionalSet } = setupStoreMocks()
+            const usuario = criarUsuario()
+
+            // Simula PII residual da Conta A em localStorage
+            localStorage.setItem("imedto.atendimento_ativo", JSON.stringify({
+                agendamentoId: 99, pacienteId: 42, iniciadoEm: "2026-05-16T10:00:00.000Z",
+            }))
+            localStorage.setItem("imedto.receitas.v1", JSON.stringify([{ id: "r_x" }]))
+
+            vi.mocked(httpClient.post).mockResolvedValueOnce({ data: { token: "x" } })
+            vi.mocked(httpClient.get).mockResolvedValueOnce({
+                data: { usuario, profissional: null, estabelecimentos: [] },
+            })
+
+            const store = useAuthStore()
+            await store.login("conta-b@imedto.com", "senha123")
+
+            // limparSessao executado antes do bootstrap → stores limpos
+            expect(tenantLimpar).toHaveBeenCalled()
+            expect(profissionalLimpar).toHaveBeenCalled()
+            expect(notificacoesLimpar).toHaveBeenCalled()
+            expect(assinaturaLimpar).toHaveBeenCalled()
+            // PII de paciente removida do localStorage
+            expect(localStorage.getItem("imedto.atendimento_ativo")).toBeNull()
+            expect(localStorage.getItem("imedto.receitas.v1")).toBeNull()
+            // bootstrap rodou DEPOIS (hidratou o usuario novo)
+            expect(store.usuario).toEqual(usuario)
+            expect(profissionalSet).toHaveBeenCalledWith(null)
+        })
+
+        it("signup() (sem confirmação) também chama limparSessao antes do bootstrap", async () => {
+            const { tenantLimpar } = setupStoreMocks()
+            const usuario = criarUsuario()
+
+            localStorage.setItem("imedto.atendimento_ativo", "{}")
+            vi.mocked(httpClient.post).mockResolvedValueOnce({ data: { requerConfirmacaoEmail: false } })
+            vi.mocked(httpClient.get).mockResolvedValueOnce({
+                data: { usuario, profissional: null, estabelecimentos: [] },
+            })
+
+            const store = useAuthStore()
+            await store.signup("novo@imedto.com", "senha123")
+
+            expect(tenantLimpar).toHaveBeenCalled()
+            expect(localStorage.getItem("imedto.atendimento_ativo")).toBeNull()
+        })
+
+        it("aceitarConvite() também chama limparSessao antes do bootstrap", async () => {
+            const { tenantLimpar } = setupStoreMocks()
+            const usuario = criarUsuario()
+
+            localStorage.setItem("imedto.receitas.v1", "[]")
+            vi.mocked(httpClient.post).mockResolvedValueOnce({ data: {} })
+            vi.mocked(httpClient.get).mockResolvedValueOnce({
+                data: { usuario, profissional: null, estabelecimentos: [] },
+            })
+
+            const store = useAuthStore()
+            await store.aceitarConvite("tok", "convidado@imedto.com", "senha123")
+
+            expect(tenantLimpar).toHaveBeenCalled()
+            expect(localStorage.getItem("imedto.receitas.v1")).toBeNull()
+        })
+
+        it("limparSessao não quebra se localStorage lançar (modo privado / quota)", async () => {
+            setupStoreMocks()
+            const original = Storage.prototype.removeItem
+            Storage.prototype.removeItem = vi.fn().mockImplementation(() => {
+                throw new Error("QuotaExceeded")
+            })
+
+            vi.mocked(httpClient.post).mockResolvedValueOnce({})
+
+            const store = useAuthStore()
+            store.setUsuario(criarUsuario())
+
+            await expect(store.logout()).resolves.toBeUndefined()
+            expect(store.usuario).toBeNull()
+
+            Storage.prototype.removeItem = original
+        })
+    })
+
+    // ────────────────────────────────────────────────────────────────────────────
     // setUsuario()
     // ────────────────────────────────────────────────────────────────────────────
     describe("setUsuario()", () => {

@@ -48,4 +48,19 @@
         <ProjectReference Include="..\Imedto.Backend.Domain\Imedto.Backend.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Fontes Nunito embarcadas no assembly. Usadas por QuestPdfReceitaService
+             para registrar a família tipográfica do PDF de receita. Licença OFL 1.1. -->
+        <EmbeddedResource Include="Receitas\Fonts\Nunito-Regular.ttf" />
+        <EmbeddedResource Include="Receitas\Fonts\Nunito-SemiBold.ttf" />
+        <EmbeddedResource Include="Receitas\Fonts\Nunito-Bold.ttf" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Expõe tipos internal para os projetos de teste, principalmente
+             para validar o gerador de PDF de receitas sem precisar de banco. -->
+        <InternalsVisibleTo Include="Imedto.Backend.Test" />
+        <InternalsVisibleTo Include="Imedto.Backend.IntegrationTest" />
+    </ItemGroup>
+
 </Project>

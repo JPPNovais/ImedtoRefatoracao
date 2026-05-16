@@ -6,7 +6,22 @@ import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
 import { useAssinaturaStore } from "@/stores/assinaturaStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
+import { useUpsellStore } from "@/stores/upsellStore"
 import { bootstrapService } from "@/services/bootstrapService"
+
+/**
+ * Chaves do localStorage que carregam dados/contexto da sessão e PRECISAM ser
+ * limpas no logout/login. `imedto-theme` (preferência UI) NÃO entra aqui — é
+ * neutra entre contas e deve sobreviver à troca de usuário.
+ *
+ * Mantida fora do store para ser auditável num lugar só. Se você adicionar
+ * uma nova chave persistida com dados de sessão/tenant/PII, adicione aqui.
+ */
+const STORAGE_KEYS_SESSAO: ReadonlyArray<string> = [
+    "imedto.atendimento_ativo", // composables/useAtendimentoAtivo.ts
+    "imedto.receitas.v1",        // services/receitaLocalService.ts (PII de paciente)
+]
 
 /**
  * Auth store — BFF pattern. Tokens ficam em cookies HttpOnly geridos pelo backend.
@@ -78,17 +93,39 @@ export const useAuthStore = defineStore("auth", () => {
         void realtimeService.start()
     }
 
+    /**
+     * Zera TODO estado em memória + persistido (sessionStorage/localStorage) que
+     * carregue identidade, tenant, papel, permissões ou PII.
+     *
+     * Chamada em DOIS momentos:
+     *  1. `logout()` — usuário pediu sair.
+     *  2. **Antes** de `bootstrapPosAuth()` em `login`, `signup`, `aceitarConvite` —
+     *     garante que o novo usuário não herde resíduo da conta anterior em browser
+     *     compartilhado (o flow do `tenantStore.popularEstabelecimentos` faz spread
+     *     do `ativo` no sessionStorage e preserva o `papel` antigo se o id casar).
+     *
+     * O que NÃO é limpo: preferências neutras (`imedto-theme`). Cookies HttpOnly
+     * de auth são gerenciados pelo backend (logout limpa via Set-Cookie).
+     */
     async function limparSessao() {
         usuario.value = null
         useTenantStore().limpar()
         useProfissionalStore().limpar()
         useNotificacoesStore().limpar()
         useAssinaturaStore().limpar()
+        usePermissoesStore().limpar()
+        useUpsellStore().fechar()
+        for (const key of STORAGE_KEYS_SESSAO) {
+            try { localStorage.removeItem(key) } catch { /* modo privado / quota */ }
+        }
         await realtimeService.stop()
     }
 
     async function login(email: string, password: string) {
         const { data } = await httpClient.post("/auth/login", { email, password })
+        // Fail-safe: zera qualquer resíduo de sessão anterior (browser compartilhado,
+        // logout que falhou, cookie expirado seguido de novo login) antes de hidratar.
+        await limparSessao()
         await bootstrapPosAuth()
         return data
     }
@@ -98,6 +135,7 @@ export const useAuthStore = defineStore("auth", () => {
         if (data.requerConfirmacaoEmail) {
             throw Object.assign(new Error("confirm-email"), { requerConfirmacaoEmail: true })
         }
+        await limparSessao()
         await bootstrapPosAuth()
         return data
     }
@@ -117,6 +155,7 @@ export const useAuthStore = defineStore("auth", () => {
     async function aceitarConvite(token: string, email: string, novaSenha: string) {
         // Backend já loga o usuário (cookies HttpOnly setados na resposta).
         await httpClient.post("/auth/aceitar-convite", { token, email, novaSenha })
+        await limparSessao()
         await bootstrapPosAuth()
     }
 

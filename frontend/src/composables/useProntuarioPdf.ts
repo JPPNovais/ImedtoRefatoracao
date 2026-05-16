@@ -1,101 +1,204 @@
 import type { ProntuarioCompleto } from "@/services/prontuarioService"
+import type { Paciente } from "@/services/pacienteService"
+import { useTenantStore } from "@/stores/tenantStore"
 
 function dataFmt(s: string) {
     return new Date(s).toLocaleString("pt-BR")
 }
 
+function nomePaciente(p: Paciente | string | null | undefined): string {
+    if (!p) return "paciente"
+    return typeof p === "string" ? p : p.nomeCompleto
+}
+
+function slug(nome: string): string {
+    return nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "paciente"
+}
+
+/**
+ * Renderiza o valor textual de uma seção da evolução. O conteúdo de cada
+ * seção é `unknown` no DTO — pode ser string, array, ou objeto JSON. Quando
+ * é objeto, formatamos como `chave: valor` em múltiplas linhas. Vazio retorna "".
+ */
+function valorParaTexto(v: unknown): string {
+    if (v == null) return ""
+    if (typeof v === "string") return v.trim()
+    if (typeof v === "number" || typeof v === "boolean") return String(v)
+    if (Array.isArray(v)) {
+        return v.map(item => valorParaTexto(item)).filter(Boolean).join("\n")
+    }
+    if (typeof v === "object") {
+        const entradas: string[] = []
+        for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+            const texto = valorParaTexto(val)
+            if (texto) entradas.push(`${k}: ${texto}`)
+        }
+        return entradas.join("\n")
+    }
+    return ""
+}
+
 export function useProntuarioPdf() {
-    async function gerarPdf(pront: ProntuarioCompleto, pacienteNome: string) {
-        // Lazy: jsPDF + autotable (~600 KB) só carregam ao clicar "Baixar PDF".
-        const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+    /**
+     * Gera o PDF do prontuário (todas as evoluções) aplicando o layout
+     * institucional do Imedto (cabeçalho com logo + marca d'água IMEDTO
+     * diagonal + rodapé com aviso "Assine manualmente"). Tudo lazy: o
+     * primeiro `await import` é o que dispara o chunk com jsPDF + Nunito.
+     *
+     * Aceita o paciente como objeto completo (preferido — preenche o bloco
+     * de paciente do design) ou como string (modo legado — só usa o nome).
+     */
+    async function gerarPdf(pront: ProntuarioCompleto, paciente: Paciente | string) {
+        // Lazy: jsPDF + autotable + Nunito (~700 KB combinados) só carregam
+        // quando o usuário clica "Baixar PDF".
+        const [{ jsPDF }, { default: autoTable }, helper] = await Promise.all([
             import("jspdf"),
             import("jspdf-autotable"),
+            import("@/composables/usePdfHeader"),
         ])
+        const {
+            registrarFontesNunito,
+            carregarEstabelecimentoAtivo,
+            carregarLogoComoDataUrl,
+            desenharCabecalho,
+            desenharBlocoPaciente,
+            finalizarPaginas,
+            PDF_MARGIN,
+            PDF_THEME,
+            NUNITO_FAMILY,
+        } = helper
+
+        const tenant = useTenantStore()
+        const est = await carregarEstabelecimentoAtivo(tenant.estabelecimentoAtivoId)
+        const logo = await carregarLogoComoDataUrl(est)
+
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
-        const pageW = doc.internal.pageSize.getWidth()
+        registrarFontesNunito(doc)
 
-        // Cabeçalho
-        doc.setFontSize(18)
-        doc.setFont("helvetica", "bold")
-        doc.text("Imedto — Prontuário Médico", 14, 20)
+        const w = doc.internal.pageSize.getWidth()
+        const h = doc.internal.pageSize.getHeight()
+        const left = PDF_MARGIN.side
+        const right = w - PDF_MARGIN.side
+        const limiteY = h - PDF_MARGIN.bottom - 18 // reserva 18mm para o rodapé
 
-        doc.setFontSize(11)
-        doc.setFont("helvetica", "normal")
-        doc.setTextColor(60)
-        doc.text(`Paciente: ${pacienteNome}`, 14, 30)
-        doc.text(`Modelo: ${pront.prontuario.modeloNome}`, 14, 37)
-        doc.setTextColor(30)
+        // ── Cabeçalho institucional ─────────────────────────────────────────
+        let y = desenharCabecalho(doc, est, logo, {
+            docTitle: "PRONTUÁRIO MÉDICO",
+            docSubtitle: `Emitido em ${new Date().toLocaleDateString("pt-BR")}`,
+        })
 
-        doc.setDrawColor(200)
-        doc.line(14, 42, pageW - 14, 42)
+        // ── Bloco do paciente ───────────────────────────────────────────────
+        const pacObj: Paciente | { nomeCompleto: string } = typeof paciente === "string"
+            ? { nomeCompleto: paciente }
+            : paciente
+        y = desenharBlocoPaciente(doc, pacObj, y)
 
-        let y = 50
+        // ── Modelo do prontuário (informação curta) ─────────────────────────
+        doc.setFont(NUNITO_FAMILY, "normal")
+        doc.setFontSize(8)
+        doc.setTextColor(PDF_THEME.mute[0], PDF_THEME.mute[1], PDF_THEME.mute[2])
+        doc.text(`Modelo: ${pront.prontuario.modeloNome}`, left, y + 1)
+        y += 6
 
+        // ── Evoluções ───────────────────────────────────────────────────────
         if (pront.evolucoes.length === 0) {
+            // Empty state pontilhado
+            const altura = 24
+            doc.setDrawColor(PDF_THEME.borderStrong[0], PDF_THEME.borderStrong[1], PDF_THEME.borderStrong[2])
+            doc.setLineWidth(0.3)
+            doc.setLineDashPattern([1, 1], 0)
+            doc.roundedRect(left, y, right - left, altura, 2, 2, "D")
+            doc.setLineDashPattern([], 0)
+            doc.setFont(NUNITO_FAMILY, "normal")
             doc.setFontSize(10)
-            doc.setTextColor(150)
-            doc.text("Nenhuma evolução registrada.", 14, y)
+            doc.setTextColor(PDF_THEME.muteLight[0], PDF_THEME.muteLight[1], PDF_THEME.muteLight[2])
+            doc.text("Nenhuma evolução registrada para este paciente.",
+                left + (right - left) / 2, y + altura / 2 + 1, { align: "center", baseline: "middle" })
         }
 
         for (const evol of pront.evolucoes) {
-            // Verifica se cabe na página atual
-            if (y > 250) {
+            // Quebra de página se a evolução não cabe minimamente (16mm de margem)
+            if (y > limiteY - 16) {
                 doc.addPage()
-                y = 20
+                y = desenharCabecalho(doc, est, logo, {
+                    docTitle: "PRONTUÁRIO MÉDICO",
+                    docSubtitle: `Emitido em ${new Date().toLocaleDateString("pt-BR")}`,
+                })
+                y = desenharBlocoPaciente(doc, pacObj, y)
+                y += 2
             }
 
-            doc.setFontSize(10)
-            doc.setFont("helvetica", "bold")
-            doc.setTextColor(37, 99, 235)
-            doc.text(`Evolução — ${dataFmt(evol.criadaEm)}`, 14, y)
-
+            // Cabeçalho da evolução (h3 azul-marinho uppercase)
+            doc.setFont(NUNITO_FAMILY, "bold")
             doc.setFontSize(9)
-            doc.setFont("helvetica", "normal")
-            doc.setTextColor(100)
-            doc.text(`Por: ${evol.autorNome ?? "—"}`, 14, y + 5)
-            doc.setTextColor(30)
+            doc.setTextColor(PDF_THEME.inkTitle[0], PDF_THEME.inkTitle[1], PDF_THEME.inkTitle[2])
+            doc.text(`EVOLUÇÃO — ${dataFmt(evol.criadaEm)}`.toUpperCase(), left, y, { charSpace: 0.4 })
 
-            y += 12
+            // Linha divisória
+            doc.setDrawColor(PDF_THEME.borderStrong[0], PDF_THEME.borderStrong[1], PDF_THEME.borderStrong[2])
+            doc.setLineWidth(0.2)
+            doc.line(left, y + 1.5, right, y + 1.5)
 
-            const seccoesPreenchidas = evol.modeloSnapshot.filter(
-                s => evol.conteudo[s.chave],
-            )
+            // Autor
+            doc.setFont(NUNITO_FAMILY, "normal")
+            doc.setFontSize(8)
+            doc.setTextColor(PDF_THEME.mute[0], PDF_THEME.mute[1], PDF_THEME.mute[2])
+            doc.text(`Por: ${evol.autorNome ?? "—"}`, left, y + 5)
+
+            const seccoesPreenchidas = evol.modeloSnapshot
+                .map(s => ({ titulo: s.titulo, valor: valorParaTexto(evol.conteudo[s.chave]) }))
+                .filter(s => s.valor.length > 0)
 
             autoTable(doc, {
-                startY: y,
-                body: seccoesPreenchidas.map(s => [s.titulo, evol.conteudo[s.chave] ?? ""]),
-                styles: { fontSize: 9, cellPadding: 3 },
-                columnStyles: {
-                    0: { fontStyle: "bold", cellWidth: 40, textColor: [55, 65, 81] },
-                    1: { cellWidth: "auto", minCellHeight: 8 },
+                startY: y + 7,
+                body: seccoesPreenchidas.map(s => [s.titulo, s.valor]),
+                styles: {
+                    font: NUNITO_FAMILY,
+                    fontSize: 8.5,
+                    cellPadding: 2.5,
+                    textColor: [PDF_THEME.ink[0], PDF_THEME.ink[1], PDF_THEME.ink[2]],
+                    lineColor: [PDF_THEME.border[0], PDF_THEME.border[1], PDF_THEME.border[2]],
+                    lineWidth: 0.1,
                 },
+                columnStyles: {
+                    0: { fontStyle: "bold", cellWidth: 42, textColor: [PDF_THEME.inkTitle[0], PDF_THEME.inkTitle[1], PDF_THEME.inkTitle[2]] },
+                    1: { cellWidth: "auto" },
+                },
+                margin: { left, right: PDF_MARGIN.side },
                 theme: "plain",
-                tableLineColor: [229, 231, 235],
-                tableLineWidth: 0.1,
+                pageBreak: "auto",
+                rowPageBreak: "avoid",
+                didDrawPage: () => {
+                    // Em quebra de página, redesenha cabeçalho (rodape vem do finalizarPaginas)
+                    const pageAtual = doc.getCurrentPageInfo().pageNumber
+                    if (pageAtual > 1 && (doc as any).__cabecalhoDesenhadoEmPagina !== pageAtual) {
+                        ;(doc as any).__cabecalhoDesenhadoEmPagina = pageAtual
+                        desenharCabecalho(doc, est, logo, {
+                            docTitle: "PRONTUÁRIO MÉDICO",
+                            docSubtitle: `Emitido em ${new Date().toLocaleDateString("pt-BR")}`,
+                        })
+                    }
+                },
             })
 
-            y = (doc as any).lastAutoTable.finalY + 8
-
-            doc.setDrawColor(240)
-            doc.line(14, y - 2, pageW - 14, y - 2)
+            y = (doc as any).lastAutoTable.finalY + 6
         }
 
-        // Rodapé
-        const rodapeY = doc.internal.pageSize.getHeight() - 10
-        doc.setFontSize(8)
-        doc.setTextColor(150)
-        doc.text(
-            `Imedto — Prontuário Médico  |  Gerado em ${new Date().toLocaleString("pt-BR")}`,
-            14,
-            rodapeY,
-        )
+        // ── Watermark + Rodapé em todas as páginas ──────────────────────────
+        finalizarPaginas(doc, {
+            assinatura: {
+                nome: pront.evolucoes[0]?.autorNome ?? "Profissional responsável",
+                aviso: "Assine manualmente no espaço acima",
+            },
+        })
 
-        doc.save(`prontuario-${pacienteNome.toLowerCase().replace(/\s+/g, "-")}.pdf`)
+        doc.save(`prontuario-${slug(nomePaciente(paciente))}.pdf`)
     }
 
     // Captura visual da seção de prontuário usando html2canvas
+    // Mantida sem mudanças — usada em fluxo separado, fora do escopo do redesign.
     async function capturarImagemPdf(elemento: HTMLElement, pacienteNome: string) {
-        // Lazy: html2canvas (~200 KB) + jsPDF (~150 KB) só carregam ao usar a captura visual.
         const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
             import("html2canvas"),
             import("jspdf"),
@@ -119,11 +222,10 @@ export function useProntuarioPdf() {
         const imgW = pageW - 20
         const imgH = imgW / ratio
 
-        let posY = 10
+        const posY = 10
         if (imgH <= pageH - 20) {
             doc.addImage(imgData, "PNG", 10, posY, imgW, imgH)
         } else {
-            // Imagem maior que a página: corta em múltiplas páginas
             const paginaH = (pageH - 20) * (canvas.width / imgW)
             let srcY = 0
             while (srcY < canvas.height) {
@@ -140,7 +242,7 @@ export function useProntuarioPdf() {
             }
         }
 
-        doc.save(`prontuario-${pacienteNome.toLowerCase().replace(/\s+/g, "-")}.pdf`)
+        doc.save(`prontuario-${slug(pacienteNome)}.pdf`)
     }
 
     return { gerarPdf, capturarImagemPdf }

@@ -228,6 +228,39 @@ describe("tenantStore", () => {
     })
 
     // ────────────────────────────────────────────────────────────────────────────
+    // Regressão: vazamento de papel entre contas (bug do QA pós-deploy)
+    // Cenário: Conta A (Dono) → logout → Conta B (Profissional) na mesma aba.
+    // Se o tenantStore.limpar() não rodar antes do popularEstabelecimentos da
+    // Conta B, o spread no branch "match" preserva o papel "Dono" antigo.
+    // ────────────────────────────────────────────────────────────────────────────
+    describe("regressão: troca de conta no mesmo browser", () => {
+        it("após limpar(), popularEstabelecimentos hidrata com o papel novo (não vaza Dono → Profissional)", () => {
+            // Estado herdado da Conta A: Dono do estabelecimento 1
+            sessionStorage.setItem("imedto.estabelecimentoAtivo", JSON.stringify(
+                criarEstabelecimento({ id: 1, papel: "Dono", permissoes: [], permissoesExtras: [] }),
+            ))
+            setActivePinia(createPinia())
+            const store = useTenantStore()
+
+            // Sanity: reidratou como Dono
+            expect(store.papel).toBe("Dono")
+
+            // Fluxo correto: authStore chama limpar() ANTES do bootstrapPosAuth
+            store.limpar()
+            expect(store.ativo).toBeNull()
+            expect(sessionStorage.getItem("imedto.estabelecimentoAtivo")).toBeNull()
+
+            // bootstrap da Conta B vem com o mesmo id de estabelecimento mas papel Profissional
+            store.popularEstabelecimentos([
+                { id: 1, nomeFantasia: "Clínica A", papelDoUsuario: "Profissional", permissoes: ["agenda.ver"], permissoesExtras: [] },
+            ])
+
+            expect(store.papel).toBe("Profissional")
+            expect(store.ativo?.permissoes).toEqual(["agenda.ver"])
+        })
+    })
+
+    // ────────────────────────────────────────────────────────────────────────────
     // computeds derivados
     // ────────────────────────────────────────────────────────────────────────────
     describe("computeds", () => {
