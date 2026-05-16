@@ -6,3 +6,8 @@
 - [QA pós-deploy a55ec79 2026-05-16 (Config Orçamento 5 abas)](project_qa_posdeploy_a55ec79_2026_05_16.md) — P0: AppSelect com :options não renderiza; quebra 7 selects em 4 componentes. Devolvido.
 - [QA pós-deploy 48543c3 2026-05-16 (fix AppSelect)](project_qa_posdeploy_48543c3_2026_05_16.md) — todos os 6 testes OK; P0 da a55ec79 resolvido; tipo de produto valida em 422.
 - [Login QA via signup + UPDATE em RDS](feedback_qa_login_via_signup_e_rds_confirm.md) — fluxo para criar conta de QA quando não há credencial salva.
+- [QA pós-deploy 992d5bd 2026-05-16 (Config Orçamento end-to-end)](project_qa_posdeploy_992d5bd_2026_05_16.md) — 6 abas funcionais; P1 alert/confirm nativos + LGPD telefone na listagem de anestesistas.
+- [QA pós-deploy 59a5226 2026-05-16 ("+ Novo" inline nos selects)](project_qa_posdeploy_59a5226_2026_05_16.md) — 6/6 verde; 4 cenários OK em prod; débito: tipoAcesso no Bootstrap.
+- [QA pós-deploy b39f12b 2026-05-16 (fix P1 toast+ConfirmDialog)](project_qa_posdeploy_b39f12b_2026_05_16.md) — AppConfirmDialog OK; LGPD anestesista OK; P0: toast dentro do drawer fica atrás do overlay (z-index trapping).
+- [QA pós-deploy 2d659b1 2026-05-16 (Teleport AppToast)](project_qa_posdeploy_2d659b1_2026_05_16.md) — 5/5 abas com toast visível acima do overlay; P0 do loop 2 eliminado.
+- [elementFromPoint engana com Reka Dialog aberto](feedback_elementfrompoint_armadilha_reka_dialog.md) — validar toast por screenshot + DOM props, não por hit-testing.
