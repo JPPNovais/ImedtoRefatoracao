@@ -258,6 +258,46 @@ describe("tenantStore", () => {
             expect(store.papel).toBe("Profissional")
             expect(store.ativo?.permissoes).toEqual(["agenda.ver"])
         })
+
+        // Cenário E sintético: cookies trocados via fetch direto + reload da SPA.
+        // Pinia inicia vazio, mas sessionStorage tem dados stale da Conta A com
+        // mesmo id do tenant. popularEstabelecimentos NÃO pode preservar o papel
+        // antigo via spread — o papelDoUsuario do servidor é fonte da verdade.
+        it("init com sessionStorage stale + bootstrap com papelDoUsuario diferente força sobrescrita do papel", () => {
+            // sessionStorage stale da Conta A (Profissional)
+            sessionStorage.setItem("imedto.estabelecimentoAtivo", JSON.stringify(
+                criarEstabelecimento({
+                    id: 1,
+                    nomeFantasia: "novaEra",
+                    papel: "Profissional",
+                    permissoes: ["agenda.ver", "pacientes.ver"],
+                    permissoesExtras: [],
+                }),
+            ))
+            // Pinia reinicia (reload da SPA) — ativo é reidratado do storage
+            setActivePinia(createPinia())
+            const store = useTenantStore()
+            expect(store.papel).toBe("Profissional")
+
+            // Bootstrap responde com a Conta B (Dono) no MESMO id de estabelecimento.
+            // O fluxo do init NÃO chamou limpar() porque usuario.value era null no reload.
+            // popularEstabelecimentos PRECISA sobrescrever o papel mesmo sem limpar antes.
+            store.popularEstabelecimentos([
+                {
+                    id: 1,
+                    nomeFantasia: "novaEra",
+                    papelDoUsuario: "Dono",
+                    permissoes: [],
+                    permissoesExtras: [],
+                },
+            ])
+
+            expect(store.papel).toBe("Dono")
+            expect(store.ativo?.permissoes).toEqual([])
+            // Persistido com o papel novo
+            const persisted = JSON.parse(sessionStorage.getItem("imedto.estabelecimentoAtivo")!)
+            expect(persisted.papel).toBe("Dono")
+        })
     })
 
     // ────────────────────────────────────────────────────────────────────────────

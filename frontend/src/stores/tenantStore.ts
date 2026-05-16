@@ -119,11 +119,16 @@ export const useTenantStore = defineStore("tenant", () => {
         if (ativo.value) {
             // Já tem tenant em memória (sessionStorage). Re-hidrata o permissoesStore
             // a partir da lista atual — o sessionStorage pode estar desatualizado se as
-            // permissões mudaram desde o último login.
+            // permissões OU o papel mudaram desde o último login (caso clássico:
+            // browser compartilhado + relogin com outra conta no mesmo estabelecimento).
+            // Servidor é a fonte da verdade — papelDoUsuario do bootstrap SEMPRE
+            // sobrescreve o cache, nunca preservar.
             const match = lista.find(e => e.id === ativo.value!.id)
             if (match) {
                 ativo.value = {
                     ...ativo.value,
+                    papel: match.papelDoUsuario,
+                    nomeFantasia: match.nomeFantasia,
                     permissoes: match.permissoes ?? [],
                     permissoesExtras: match.permissoesExtras ?? [],
                 }
