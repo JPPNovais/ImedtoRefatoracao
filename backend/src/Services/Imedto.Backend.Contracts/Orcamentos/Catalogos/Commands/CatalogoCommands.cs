@@ -2,14 +2,15 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Contracts.Orcamentos.Catalogos.Commands;
 
-// ──────────── Cirurgias ────────────
-
 public class CriarCatalogoCirurgiaCommand : ICommand
 {
     public long EstabelecimentoId { get; set; }
     public string Descricao { get; set; } = string.Empty;
     public decimal ValorBase { get; set; }
     public int? DuracaoPadraoMinutos { get; set; }
+    public string? CodigoInterno { get; set; }
+    public string? CodigoTuss { get; set; }
+    public string? Categoria { get; set; }
     public long IdCriado { get; set; }
 }
 
@@ -20,6 +21,9 @@ public class AtualizarCatalogoCirurgiaCommand : ICommand
     public string Descricao { get; set; } = string.Empty;
     public decimal ValorBase { get; set; }
     public int? DuracaoPadraoMinutos { get; set; }
+    public string? CodigoInterno { get; set; }
+    public string? CodigoTuss { get; set; }
+    public string? Categoria { get; set; }
 }
 
 public class RemoverCatalogoCirurgiaCommand : ICommand
@@ -27,8 +31,6 @@ public class RemoverCatalogoCirurgiaCommand : ICommand
     public long Id { get; set; }
     public long EstabelecimentoId { get; set; }
 }
-
-// ──────────── Valor profissional ────────────
 
 public class CriarValorProfissionalCommand : ICommand
 {
@@ -61,8 +63,6 @@ public class RemoverValorProfissionalCommand : ICommand
     public long EstabelecimentoId { get; set; }
 }
 
-// ──────────── Configuração local cirurgia (1:1 por tipo) ────────────
-
 public class SalvarConfiguracaoLocalCommand : ICommand
 {
     public long EstabelecimentoId { get; set; }
@@ -73,8 +73,6 @@ public class SalvarConfiguracaoLocalCommand : ICommand
     public decimal ValorAdicional { get; set; }
     public long IdSalvo { get; set; }
 }
-
-// ──────────── Equipes ────────────
 
 public class CriarCatalogoEquipeCommand : ICommand
 {
@@ -97,8 +95,6 @@ public class RemoverCatalogoEquipeCommand : ICommand
     public long Id { get; set; }
     public long EstabelecimentoId { get; set; }
 }
-
-// ──────────── Implantes ────────────
 
 public class CriarCatalogoImplanteCommand : ICommand
 {
@@ -123,8 +119,6 @@ public class RemoverCatalogoImplanteCommand : ICommand
     public long Id { get; set; }
     public long EstabelecimentoId { get; set; }
 }
-
-// ──────────── Configuração pagamento ────────────
 
 public class CriarConfiguracaoPagamentoCommand : ICommand
 {
@@ -153,8 +147,6 @@ public class RemoverConfiguracaoPagamentoCommand : ICommand
     public long EstabelecimentoId { get; set; }
 }
 
-// ──────────── Produtos ────────────
-
 public class CriarCatalogoProdutoCommand : ICommand
 {
     public long EstabelecimentoId { get; set; }
@@ -162,6 +154,11 @@ public class CriarCatalogoProdutoCommand : ICommand
     public string? Descricao { get; set; }
     public decimal? ValorReferencia { get; set; }
     public bool UsoUnico { get; set; }
+    public string? Tipo { get; set; }
+    public string? Marca { get; set; }
+    public string? Unidade { get; set; }
+    public string? FornecedorNome { get; set; }
+    public string? CodigoSku { get; set; }
     public long IdCriado { get; set; }
 }
 
@@ -173,6 +170,11 @@ public class AtualizarCatalogoProdutoCommand : ICommand
     public string? Descricao { get; set; }
     public decimal? ValorReferencia { get; set; }
     public bool UsoUnico { get; set; }
+    public string? Tipo { get; set; }
+    public string? Marca { get; set; }
+    public string? Unidade { get; set; }
+    public string? FornecedorNome { get; set; }
+    public string? CodigoSku { get; set; }
 }
 
 public class RemoverCatalogoProdutoCommand : ICommand
@@ -181,8 +183,6 @@ public class RemoverCatalogoProdutoCommand : ICommand
     public long EstabelecimentoId { get; set; }
 }
 
-// ──────────── Vínculo cirurgia × produto ────────────
-
 public class VincularProdutoCirurgiaCommand : ICommand
 {
     public long CatalogoCirurgiaId { get; set; }
@@ -190,6 +190,7 @@ public class VincularProdutoCirurgiaCommand : ICommand
     public long EstabelecimentoId { get; set; }
     public decimal QuantidadePadrao { get; set; } = 1m;
     public bool Obrigatorio { get; set; }
+    public bool Incluido { get; set; } = true;
     public long IdCriado { get; set; }
 }
 
@@ -199,10 +200,117 @@ public class AtualizarVinculoProdutoCirurgiaCommand : ICommand
     public long EstabelecimentoId { get; set; }
     public decimal QuantidadePadrao { get; set; }
     public bool Obrigatorio { get; set; }
+    public bool Incluido { get; set; } = true;
 }
 
 public class DesvincularProdutoCirurgiaCommand : ICommand
 {
     public long VinculoId { get; set; }
+    public long EstabelecimentoId { get; set; }
+}
+
+public class CriarOrcamentoTeamRoleCommand : ICommand
+{
+    public long EstabelecimentoId { get; set; }
+    public string Papel { get; set; } = string.Empty;
+    public Guid? ProfissionalUsuarioId { get; set; }
+    public string? NomePadrao { get; set; }
+    public string TipoHonorario { get; set; } = "Percentual";
+    public decimal Valor { get; set; }
+    public string BaseCalculo { get; set; } = "procedimento";
+    public long IdCriado { get; set; }
+}
+
+public class AtualizarOrcamentoTeamRoleCommand : ICommand
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+    public string Papel { get; set; } = string.Empty;
+    public Guid? ProfissionalUsuarioId { get; set; }
+    public string? NomePadrao { get; set; }
+    public string TipoHonorario { get; set; } = "Percentual";
+    public decimal Valor { get; set; }
+    public string BaseCalculo { get; set; } = "procedimento";
+}
+
+public class RemoverOrcamentoTeamRoleCommand : ICommand
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+}
+
+public class FaixaAnestesistaInput
+{
+    public string Descricao { get; set; } = string.Empty;
+    public decimal Valor { get; set; }
+}
+
+public class CriarOrcamentoAnestesistaCommand : ICommand
+{
+    public long EstabelecimentoId { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public Guid? ProfissionalUsuarioId { get; set; }
+    public string? Crm { get; set; }
+    public string? Especialidade { get; set; }
+    public string? Telefone { get; set; }
+    public string? TabelaHonorarios { get; set; }
+    public List<FaixaAnestesistaInput> Faixas { get; set; } = new();
+    public long IdCriado { get; set; }
+}
+
+public class AtualizarOrcamentoAnestesistaCommand : ICommand
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public Guid? ProfissionalUsuarioId { get; set; }
+    public string? Crm { get; set; }
+    public string? Especialidade { get; set; }
+    public string? Telefone { get; set; }
+    public string? TabelaHonorarios { get; set; }
+    public List<FaixaAnestesistaInput> Faixas { get; set; } = new();
+}
+
+public class RemoverOrcamentoAnestesistaCommand : ICommand
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+}
+
+public class ProdutoDoPacoteInput
+{
+    public long ProdutoId { get; set; }
+    public decimal Quantidade { get; set; } = 1m;
+}
+
+public class CriarOrcamentoPacoteCommand : ICommand
+{
+    public long EstabelecimentoId { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public string? Descricao { get; set; }
+    public long? AnestesistaId { get; set; }
+    public decimal? ValorTotalSugerido { get; set; }
+    public List<long> ProcedimentoIds { get; set; } = new();
+    public List<ProdutoDoPacoteInput> Produtos { get; set; } = new();
+    public List<long> TeamRoleIds { get; set; } = new();
+    public long IdCriado { get; set; }
+}
+
+public class AtualizarOrcamentoPacoteCommand : ICommand
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public string? Descricao { get; set; }
+    public long? AnestesistaId { get; set; }
+    public decimal? ValorTotalSugerido { get; set; }
+    public List<long> ProcedimentoIds { get; set; } = new();
+    public List<ProdutoDoPacoteInput> Produtos { get; set; } = new();
+    public List<long> TeamRoleIds { get; set; } = new();
+}
+
+public class RemoverOrcamentoPacoteCommand : ICommand
+{
+    public long Id { get; set; }
     public long EstabelecimentoId { get; set; }
 }

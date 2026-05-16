@@ -68,3 +68,43 @@ public class ListarConfiguracoesPagamentoQueryHandlers : IRequestHandler<ListarC
     public Task<IEnumerable<ConfiguracaoPagamentoCatalogoDto>> Handle(ListarConfiguracoesPagamentoQuery q)
         => _repo.ListarConfiguracoesPagamento(q.EstabelecimentoId, q.Ativas);
 }
+
+public class ListarOrcamentoTeamRolesQueryHandlers : IRequestHandler<ListarOrcamentoTeamRolesQuery, IEnumerable<OrcamentoTeamRoleDto>>
+{
+    private readonly OrcamentoCatalogoQueryRepository _repo;
+    public ListarOrcamentoTeamRolesQueryHandlers(OrcamentoCatalogoQueryRepository repo) => _repo = repo;
+    public Task<IEnumerable<OrcamentoTeamRoleDto>> Handle(ListarOrcamentoTeamRolesQuery q)
+        => _repo.ListarTeamRoles(q.EstabelecimentoId, q.Ativos);
+}
+
+public class ListarOrcamentoAnestesistasQueryHandlers : IRequestHandler<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaDto>>
+{
+    private readonly OrcamentoCatalogoQueryRepository _repo;
+    public ListarOrcamentoAnestesistasQueryHandlers(OrcamentoCatalogoQueryRepository repo) => _repo = repo;
+    public Task<IEnumerable<OrcamentoAnestesistaDto>> Handle(ListarOrcamentoAnestesistasQuery q)
+        => _repo.ListarAnestesistas(q.EstabelecimentoId, q.Ativos);
+}
+
+public class ObterOrcamentoAnestesistaQueryHandlers : IRequestHandler<ObterOrcamentoAnestesistaQuery, OrcamentoAnestesistaDto?>
+{
+    private readonly OrcamentoCatalogoQueryRepository _repo;
+    public ObterOrcamentoAnestesistaQueryHandlers(OrcamentoCatalogoQueryRepository repo) => _repo = repo;
+    public Task<OrcamentoAnestesistaDto?> Handle(ObterOrcamentoAnestesistaQuery q)
+        => _repo.ObterAnestesista(q.Id, q.EstabelecimentoId);
+}
+
+public class ListarOrcamentoPacotesQueryHandlers : IRequestHandler<ListarOrcamentoPacotesQuery, IEnumerable<OrcamentoPacoteResumoDto>>
+{
+    private readonly OrcamentoCatalogoQueryRepository _repo;
+    public ListarOrcamentoPacotesQueryHandlers(OrcamentoCatalogoQueryRepository repo) => _repo = repo;
+    public Task<IEnumerable<OrcamentoPacoteResumoDto>> Handle(ListarOrcamentoPacotesQuery q)
+        => _repo.ListarPacotes(q.EstabelecimentoId, q.Ativos);
+}
+
+public class ObterOrcamentoPacoteQueryHandlers : IRequestHandler<ObterOrcamentoPacoteQuery, OrcamentoPacoteDetalheDto?>
+{
+    private readonly OrcamentoCatalogoQueryRepository _repo;
+    public ObterOrcamentoPacoteQueryHandlers(OrcamentoCatalogoQueryRepository repo) => _repo = repo;
+    public Task<OrcamentoPacoteDetalheDto?> Handle(ObterOrcamentoPacoteQuery q)
+        => _repo.ObterPacote(q.Id, q.EstabelecimentoId);
+}

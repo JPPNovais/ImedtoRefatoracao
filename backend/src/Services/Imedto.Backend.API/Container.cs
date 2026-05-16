@@ -517,6 +517,25 @@ public static class Container
         services.AddSingleton<ListarConfiguracoesPagamentoQueryHandlers>();
         services.AddSingleton<ListarCatalogoProdutosQueryHandlers>();
         services.AddSingleton<ListarProdutosDaCirurgiaQueryHandlers>();
+        // Config-orcamento 2026-05-16 — Team Roles, Anestesistas, Pacotes.
+        services.AddScoped<IOrcamentoTeamRoleRepository, OrcamentoTeamRoleRepository>();
+        services.AddScoped<IOrcamentoAnestesistaRepository, OrcamentoAnestesistaRepository>();
+        services.AddScoped<IOrcamentoPacoteRepository, OrcamentoPacoteRepository>();
+        services.AddScoped<CriarOrcamentoTeamRoleCommandHandler>();
+        services.AddScoped<AtualizarOrcamentoTeamRoleCommandHandler>();
+        services.AddScoped<RemoverOrcamentoTeamRoleCommandHandler>();
+        services.AddScoped<CriarOrcamentoAnestesistaCommandHandler>();
+        services.AddScoped<AtualizarOrcamentoAnestesistaCommandHandler>();
+        services.AddScoped<RemoverOrcamentoAnestesistaCommandHandler>();
+        services.AddScoped<CriarOrcamentoPacoteCommandHandler>();
+        services.AddScoped<AtualizarOrcamentoPacoteCommandHandler>();
+        services.AddScoped<RemoverOrcamentoPacoteCommandHandler>();
+        services.AddSingleton<ListarOrcamentoTeamRolesQueryHandlers>();
+        services.AddSingleton<ListarOrcamentoAnestesistasQueryHandlers>();
+        services.AddSingleton<ObterOrcamentoAnestesistaQueryHandlers>();
+        services.AddSingleton<ListarOrcamentoPacotesQueryHandlers>();
+        services.AddSingleton<ObterOrcamentoPacoteQueryHandlers>();
+
 
         // Item 3.3.A — Procedimentos cirúrgicos. Repositório de escrita registrado em
         // Infrastructure.Container (junto com os outros do domínio).
@@ -774,6 +793,15 @@ public static class Container
             bus.Register<VincularProdutoCirurgiaCommand, VincularProdutoCirurgiaCommandHandler>();
             bus.Register<AtualizarVinculoProdutoCirurgiaCommand, AtualizarVinculoProdutoCirurgiaCommandHandler>();
             bus.Register<DesvincularProdutoCirurgiaCommand, DesvincularProdutoCirurgiaCommandHandler>();
+            bus.Register<CriarOrcamentoTeamRoleCommand, CriarOrcamentoTeamRoleCommandHandler>();
+            bus.Register<AtualizarOrcamentoTeamRoleCommand, AtualizarOrcamentoTeamRoleCommandHandler>();
+            bus.Register<RemoverOrcamentoTeamRoleCommand, RemoverOrcamentoTeamRoleCommandHandler>();
+            bus.Register<CriarOrcamentoAnestesistaCommand, CriarOrcamentoAnestesistaCommandHandler>();
+            bus.Register<AtualizarOrcamentoAnestesistaCommand, AtualizarOrcamentoAnestesistaCommandHandler>();
+            bus.Register<RemoverOrcamentoAnestesistaCommand, RemoverOrcamentoAnestesistaCommandHandler>();
+            bus.Register<CriarOrcamentoPacoteCommand, CriarOrcamentoPacoteCommandHandler>();
+            bus.Register<AtualizarOrcamentoPacoteCommand, AtualizarOrcamentoPacoteCommandHandler>();
+            bus.Register<RemoverOrcamentoPacoteCommand, RemoverOrcamentoPacoteCommandHandler>();
             // Item 3.3.A — procedimentos cirúrgicos.
             bus.Register<PlanejarProcedimentoCommand, PlanejarProcedimentoCommandHandler>();
             bus.Register<ConfirmarProcedimentoCommand, ConfirmarProcedimentoCommandHandler>();
@@ -872,6 +900,11 @@ public static class Container
             bus.Register<ListarConfiguracoesPagamentoQuery, IEnumerable<ConfiguracaoPagamentoCatalogoDto>, ListarConfiguracoesPagamentoQueryHandlers>();
             bus.Register<ListarCatalogoProdutosQuery, IEnumerable<CatalogoProdutoDto>, ListarCatalogoProdutosQueryHandlers>();
             bus.Register<ListarProdutosDaCirurgiaQuery, IEnumerable<CatalogoCirurgiaProdutoDto>, ListarProdutosDaCirurgiaQueryHandlers>();
+            bus.Register<ListarOrcamentoTeamRolesQuery, IEnumerable<OrcamentoTeamRoleDto>, ListarOrcamentoTeamRolesQueryHandlers>();
+            bus.Register<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaDto>, ListarOrcamentoAnestesistasQueryHandlers>();
+            bus.Register<ObterOrcamentoAnestesistaQuery, OrcamentoAnestesistaDto?, ObterOrcamentoAnestesistaQueryHandlers>();
+            bus.Register<ListarOrcamentoPacotesQuery, IEnumerable<OrcamentoPacoteResumoDto>, ListarOrcamentoPacotesQueryHandlers>();
+            bus.Register<ObterOrcamentoPacoteQuery, OrcamentoPacoteDetalheDto?, ObterOrcamentoPacoteQueryHandlers>();
             // Item 3.3.A — procedimentos cirúrgicos.
             bus.Register<ObterProcedimentoQuery, ProcedimentoCirurgicoDto, ObterProcedimentoQueryHandlers>();
             bus.Register<ListarProcedimentosDoPacienteQuery, IEnumerable<ProcedimentoCirurgicoResumoDto>, ObterProcedimentoQueryHandlers>();

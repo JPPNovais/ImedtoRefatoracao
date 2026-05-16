@@ -1,8 +1,5 @@
 namespace Imedto.Backend.Domain.Orcamentos.Catalogos;
 
-// Cada catalogo de orcamento e per-tenant: ObterPorIdOuNulo exige estabelecimentoId
-// para evitar IDOR (handler nao precisa mais fazer post-check).
-
 public interface ICatalogoCirurgiaRepository
 {
     Task<CatalogoCirurgia?> ObterPorIdOuNulo(long id, long estabelecimentoId);
@@ -52,8 +49,6 @@ public interface ICatalogoProdutoRepository
     Task Remover(CatalogoProduto entity);
 }
 
-// Vinculo associativo cirurgia x produto: nao tem EstabelecimentoId proprio.
-// O tenant guard e feito carregando a cirurgia (que carrega o tenant).
 public interface ICatalogoCirurgiaProdutoRepository
 {
     Task<CatalogoCirurgiaProduto?> ObterPorIdOuNulo(long id);
@@ -61,4 +56,25 @@ public interface ICatalogoCirurgiaProdutoRepository
     Task<IReadOnlyList<CatalogoCirurgiaProduto>> ListarDaCirurgia(long catalogoCirurgiaId);
     Task Salvar(CatalogoCirurgiaProduto entity);
     Task Remover(CatalogoCirurgiaProduto entity);
+}
+
+public interface IOrcamentoTeamRoleRepository
+{
+    Task<OrcamentoTeamRole?> ObterPorIdOuNulo(long id, long estabelecimentoId);
+    Task Salvar(OrcamentoTeamRole entity);
+}
+
+public interface IOrcamentoAnestesistaRepository
+{
+    Task<OrcamentoAnestesista?> ObterPorIdOuNulo(long id, long estabelecimentoId);
+    Task<OrcamentoAnestesista?> ObterComFaixasOuNulo(long id, long estabelecimentoId);
+    Task Salvar(OrcamentoAnestesista entity);
+}
+
+public interface IOrcamentoPacoteRepository
+{
+    Task<OrcamentoPacote?> ObterPorIdOuNulo(long id, long estabelecimentoId);
+    Task<OrcamentoPacote?> ObterComAssociacoesOuNulo(long id, long estabelecimentoId);
+    Task<bool> ExistePacoteAtivoComProcedimento(long catalogoCirurgiaId, long estabelecimentoId);
+    Task Salvar(OrcamentoPacote entity);
 }

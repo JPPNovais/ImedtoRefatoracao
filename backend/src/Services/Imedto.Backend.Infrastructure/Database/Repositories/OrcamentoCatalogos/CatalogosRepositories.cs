@@ -10,8 +10,7 @@ public class CatalogoCirurgiaRepository : ICatalogoCirurgiaRepository
     public CatalogoCirurgiaRepository(AppDbContext db) => _db = db;
 
     public Task<CatalogoCirurgia?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.CatalogoCirurgias
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.CatalogoCirurgias.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(CatalogoCirurgia entity)
     {
@@ -33,8 +32,7 @@ public class ValorProfissionalOrcamentoRepository : IValorProfissionalOrcamentoR
     public ValorProfissionalOrcamentoRepository(AppDbContext db) => _db = db;
 
     public Task<ValorProfissionalOrcamento?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.ValoresProfissionalOrcamento
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.ValoresProfissionalOrcamento.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(ValorProfissionalOrcamento entity)
     {
@@ -56,12 +54,10 @@ public class ConfiguracaoLocalCirurgiaRepository : IConfiguracaoLocalCirurgiaRep
     public ConfiguracaoLocalCirurgiaRepository(AppDbContext db) => _db = db;
 
     public Task<ConfiguracaoLocalCirurgia?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.ConfiguracoesLocalCirurgia
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.ConfiguracoesLocalCirurgia.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public Task<ConfiguracaoLocalCirurgia?> ObterPorEstabelecimentoETipo(long estabelecimentoId, TipoInternacao tipo)
-        => _db.ConfiguracoesLocalCirurgia.FirstOrDefaultAsync(
-            x => x.EstabelecimentoId == estabelecimentoId && x.TipoInternacao == tipo);
+        => _db.ConfiguracoesLocalCirurgia.FirstOrDefaultAsync(x => x.EstabelecimentoId == estabelecimentoId && x.TipoInternacao == tipo);
 
     public async Task Salvar(ConfiguracaoLocalCirurgia entity)
     {
@@ -77,8 +73,7 @@ public class CatalogoEquipeEspecializadaRepository : ICatalogoEquipeEspecializad
     public CatalogoEquipeEspecializadaRepository(AppDbContext db) => _db = db;
 
     public Task<CatalogoEquipeEspecializada?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.CatalogoEquipesEspecializadas
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.CatalogoEquipesEspecializadas.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(CatalogoEquipeEspecializada entity)
     {
@@ -100,8 +95,7 @@ public class CatalogoImplanteRepository : ICatalogoImplanteRepository
     public CatalogoImplanteRepository(AppDbContext db) => _db = db;
 
     public Task<CatalogoImplante?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.CatalogoImplantes
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.CatalogoImplantes.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(CatalogoImplante entity)
     {
@@ -123,8 +117,7 @@ public class CatalogoProdutoRepository : ICatalogoProdutoRepository
     public CatalogoProdutoRepository(AppDbContext db) => _db = db;
 
     public Task<CatalogoProduto?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.CatalogoProdutos
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.CatalogoProdutos.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(CatalogoProduto entity)
     {
@@ -150,13 +143,10 @@ public class CatalogoCirurgiaProdutoRepository : ICatalogoCirurgiaProdutoReposit
 
     public Task<CatalogoCirurgiaProduto?> ObterPorCirurgiaProduto(long catalogoCirurgiaId, long catalogoProdutoId)
         => _db.CatalogoCirurgiaProdutos.FirstOrDefaultAsync(
-            x => x.CatalogoCirurgiaId == catalogoCirurgiaId
-              && x.CatalogoProdutoId == catalogoProdutoId);
+            x => x.CatalogoCirurgiaId == catalogoCirurgiaId && x.CatalogoProdutoId == catalogoProdutoId);
 
     public async Task<IReadOnlyList<CatalogoCirurgiaProduto>> ListarDaCirurgia(long catalogoCirurgiaId)
-        => await _db.CatalogoCirurgiaProdutos
-            .Where(x => x.CatalogoCirurgiaId == catalogoCirurgiaId)
-            .ToListAsync();
+        => await _db.CatalogoCirurgiaProdutos.Where(x => x.CatalogoCirurgiaId == catalogoCirurgiaId).ToListAsync();
 
     public async Task Salvar(CatalogoCirurgiaProduto entity)
     {
@@ -178,8 +168,7 @@ public class ConfiguracaoPagamentoCatalogoRepository : IConfiguracaoPagamentoCat
     public ConfiguracaoPagamentoCatalogoRepository(AppDbContext db) => _db = db;
 
     public Task<ConfiguracaoPagamentoCatalogo?> ObterPorIdOuNulo(long id, long estabelecimentoId)
-        => _db.ConfiguracoesPagamentoCatalogo
-            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+        => _db.ConfiguracoesPagamentoCatalogo.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(ConfiguracaoPagamentoCatalogo entity)
     {
@@ -191,6 +180,73 @@ public class ConfiguracaoPagamentoCatalogoRepository : IConfiguracaoPagamentoCat
     public async Task Remover(ConfiguracaoPagamentoCatalogo entity)
     {
         _db.ConfiguracoesPagamentoCatalogo.Remove(entity);
+        await _db.SaveChangesAsync();
+    }
+}
+
+public class OrcamentoTeamRoleRepository : IOrcamentoTeamRoleRepository
+{
+    private readonly AppDbContext _db;
+    public OrcamentoTeamRoleRepository(AppDbContext db) => _db = db;
+
+    public Task<OrcamentoTeamRole?> ObterPorIdOuNulo(long id, long estabelecimentoId)
+        => _db.OrcamentoTeamRoles.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+
+    public async Task Salvar(OrcamentoTeamRole entity)
+    {
+        if (entity.Id == 0) _db.OrcamentoTeamRoles.Add(entity);
+        else _db.OrcamentoTeamRoles.Update(entity);
+        await _db.SaveChangesAsync();
+    }
+}
+
+public class OrcamentoAnestesistaRepository : IOrcamentoAnestesistaRepository
+{
+    private readonly AppDbContext _db;
+    public OrcamentoAnestesistaRepository(AppDbContext db) => _db = db;
+
+    public Task<OrcamentoAnestesista?> ObterPorIdOuNulo(long id, long estabelecimentoId)
+        => _db.OrcamentoAnestesistas.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+
+    public Task<OrcamentoAnestesista?> ObterComFaixasOuNulo(long id, long estabelecimentoId)
+        => _db.OrcamentoAnestesistas.Include("_faixas")
+            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+
+    public async Task Salvar(OrcamentoAnestesista entity)
+    {
+        if (entity.Id == 0) _db.OrcamentoAnestesistas.Add(entity);
+        else _db.OrcamentoAnestesistas.Update(entity);
+        await _db.SaveChangesAsync();
+    }
+}
+
+public class OrcamentoPacoteRepository : IOrcamentoPacoteRepository
+{
+    private readonly AppDbContext _db;
+    public OrcamentoPacoteRepository(AppDbContext db) => _db = db;
+
+    public Task<OrcamentoPacote?> ObterPorIdOuNulo(long id, long estabelecimentoId)
+        => _db.OrcamentoPacotes.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+
+    public Task<OrcamentoPacote?> ObterComAssociacoesOuNulo(long id, long estabelecimentoId)
+        => _db.OrcamentoPacotes
+            .Include("_procedimentos")
+            .Include("_produtos")
+            .Include("_teamRoles")
+            .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
+
+    public async Task<bool> ExistePacoteAtivoComProcedimento(long catalogoCirurgiaId, long estabelecimentoId)
+    {
+        return await _db.OrcamentoPacotes
+            .Where(p => p.EstabelecimentoId == estabelecimentoId && p.Ativo)
+            .AnyAsync(p => _db.Set<OrcamentoPacoteProcedimento>()
+                .Any(pp => pp.PacoteId == p.Id && pp.CatalogoCirurgiaId == catalogoCirurgiaId));
+    }
+
+    public async Task Salvar(OrcamentoPacote entity)
+    {
+        if (entity.Id == 0) _db.OrcamentoPacotes.Add(entity);
+        else _db.OrcamentoPacotes.Update(entity);
         await _db.SaveChangesAsync();
     }
 }

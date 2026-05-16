@@ -49,3 +49,33 @@ public class ListarProdutosDaCirurgiaQuery : IQuery<IEnumerable<CatalogoCirurgia
     public long CatalogoCirurgiaId { get; set; }
     public long EstabelecimentoId { get; set; }
 }
+
+public class ListarOrcamentoTeamRolesQuery : IQuery<IEnumerable<OrcamentoTeamRoleDto>>
+{
+    public long EstabelecimentoId { get; set; }
+    public bool? Ativos { get; set; }
+}
+
+public class ListarOrcamentoAnestesistasQuery : IQuery<IEnumerable<OrcamentoAnestesistaDto>>
+{
+    public long EstabelecimentoId { get; set; }
+    public bool? Ativos { get; set; }
+}
+
+public class ObterOrcamentoAnestesistaQuery : IQuery<OrcamentoAnestesistaDto?>
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+}
+
+public class ListarOrcamentoPacotesQuery : IQuery<IEnumerable<OrcamentoPacoteResumoDto>>
+{
+    public long EstabelecimentoId { get; set; }
+    public bool? Ativos { get; set; }
+}
+
+public class ObterOrcamentoPacoteQuery : IQuery<OrcamentoPacoteDetalheDto?>
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+}

@@ -106,6 +106,15 @@ public class AppDbContext : DbContext
     public DbSet<ConfiguracaoPagamentoCatalogo> ConfiguracoesPagamentoCatalogo => Set<ConfiguracaoPagamentoCatalogo>();
     public DbSet<CatalogoProduto> CatalogoProdutos => Set<CatalogoProduto>();
     public DbSet<CatalogoCirurgiaProduto> CatalogoCirurgiaProdutos => Set<CatalogoCirurgiaProduto>();
+    // Config-orcamento 2026-05-16 — design ConfigOrcamento (5 abas).
+    public DbSet<OrcamentoTeamRole> OrcamentoTeamRoles => Set<OrcamentoTeamRole>();
+    public DbSet<OrcamentoAnestesista> OrcamentoAnestesistas => Set<OrcamentoAnestesista>();
+    public DbSet<OrcamentoAnestesistaFaixa> OrcamentoAnestesistaFaixas => Set<OrcamentoAnestesistaFaixa>();
+    public DbSet<OrcamentoPacote> OrcamentoPacotes => Set<OrcamentoPacote>();
+    public DbSet<OrcamentoPacoteProcedimento> OrcamentoPacoteProcedimentos => Set<OrcamentoPacoteProcedimento>();
+    public DbSet<OrcamentoPacoteProduto> OrcamentoPacoteProdutos => Set<OrcamentoPacoteProduto>();
+    public DbSet<OrcamentoPacoteTeamRole> OrcamentoPacoteTeamRoles => Set<OrcamentoPacoteTeamRole>();
+
 
     // Item 4.3 — LGPD: anonimizações e consentimentos.
     public DbSet<LgpdAnonimizacao> LgpdAnonimizacoes => Set<LgpdAnonimizacao>();
