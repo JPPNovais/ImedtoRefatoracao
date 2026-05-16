@@ -8,7 +8,7 @@ import {
 import OrcamentoKpis   from "@/components/orcamento/OrcamentoKpis.vue"
 import OrcamentoTabela from "@/components/orcamento/OrcamentoTabela.vue"
 import { orcamentoService, type OrcamentoResumo, type OrcamentoStatus } from "@/services/orcamentoService"
-import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
+import { pacienteService, type PacienteBuscaRapida } from "@/services/pacienteService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 
 const router = useRouter()
@@ -17,7 +17,16 @@ const router = useRouter()
 const orcamentos = ref<OrcamentoResumo[]>([])
 const carregando = ref(false)
 const erro = ref<string | null>(null)
-const pacientes = ref<PacienteListaItem[]>([])
+// Apenas {id, nomeCompleto} — o seletor só exibe o nome do paciente.
+// Usar `listar()` (DTO completo com CPF/telefone/data nascimento/tags) aqui
+// vazaria PII de centenas de pacientes só para popular um seletor (LGPD).
+// O endpoint `busca-rapida` enforça LIMIT 30 server-side (anti-exfiltração);
+// usuário com mais pacientes refina por nome no input de busca.
+const pacientes = ref<PacienteBuscaRapida[]>([])
+const buscaPacienteInput = ref("")
+const buscaPaciente = useDebouncedRef(buscaPacienteInput)
+const buscandoPacientes = ref(false)
+let buscaPacienteReqId = 0
 
 // ── Filtros
 type TabKey = "todos" | "pendentes" | "aprovados" | "quitados" | "perdidos"
@@ -72,14 +81,24 @@ async function carregar() {
     }
 }
 
-async function carregarPacientes() {
+async function carregarPacientes(termo?: string) {
+    const reqId = ++buscaPacienteReqId
+    buscandoPacientes.value = true
     try {
-        const r = await pacienteService.listar(undefined, 1, 500)
-        pacientes.value = r.itens
+        // `busca-rapida` aplica LIMIT 30 server-side. Quando o termo está vazio,
+        // mostra os 30 mais recentes; com termo, filtra por nome (índice trigram).
+        const resultado = await pacienteService.buscaRapida(termo || undefined, 30)
+        if (reqId === buscaPacienteReqId) pacientes.value = resultado
     } catch {
-        // não-crítico
+        if (reqId === buscaPacienteReqId) pacientes.value = []
+    } finally {
+        if (reqId === buscaPacienteReqId) buscandoPacientes.value = false
     }
 }
+
+watch(buscaPaciente, (termo) => {
+    if (modalNovoAberto.value) void carregarPacientes(termo)
+})
 
 // ── Contadores por tab (antes do filtro de busca)
 const contagemTab = computed(() => {
@@ -152,7 +171,9 @@ function abrirModalNovo() {
     novoPacienteId.value = ""
     novoValidade.value = formatarData(new Date(Date.now() + 30 * 86400_000))
     erroModal.value = null
+    buscaPacienteInput.value = ""
     modalNovoAberto.value = true
+    void carregarPacientes()
 }
 
 async function criarNovo() {
@@ -182,7 +203,8 @@ async function criarNovo() {
 
 onMounted(() => {
     void carregar()
-    void carregarPacientes()
+    // Lista de pacientes é carregada sob demanda quando o modal "Novo orçamento"
+    // abre (ver `abrirModalNovo`) — evita request desnecessário no mount.
 })
 </script>
 
@@ -255,10 +277,20 @@ onMounted(() => {
                 <div v-if="erroModal" class="erro-banner" role="alert">{{ erroModal }}</div>
 
                 <AppField label="Paciente" for="novo-paciente">
-                    <AppSelect id="novo-paciente" v-model="novoPacienteId">
-                        <option value="">Selecione o paciente...</option>
+                    <AppSearchInput
+                        v-model="buscaPacienteInput"
+                        placeholder="Buscar paciente por nome..."
+                        class="paciente-busca"
+                    />
+                    <AppSelect id="novo-paciente" v-model="novoPacienteId" class="paciente-select">
+                        <option value="">
+                            {{ buscandoPacientes ? "Buscando..." : pacientes.length === 0 ? "Nenhum paciente encontrado" : "Selecione o paciente..." }}
+                        </option>
                         <option v-for="p in pacientes" :key="p.id" :value="p.id">{{ p.nomeCompleto }}</option>
                     </AppSelect>
+                    <p class="texto-aux">
+                        Exibindo até 30 pacientes — refine pelo nome se não encontrar.
+                    </p>
                 </AppField>
                 <AppField label="Validade">
                     <AppDatePicker v-model="novoValidade" placeholder="DD/MM/AAAA" />
@@ -360,6 +392,9 @@ onMounted(() => {
 /* Modal */
 .form-novo { display: flex; flex-direction: column; gap: 0.85rem; }
 .texto-aux { color: var(--text-muted); font-size: 0.82em; margin: 0; }
+
+.paciente-busca { margin-bottom: 8px; }
+.paciente-select { width: 100%; }
 
 @media (max-width: 900px) {
     .toolbar { flex-direction: column; align-items: stretch; }

@@ -27,15 +27,10 @@ const router = useRouter()
 const route = useRoute()
 const tenant = useTenantStore()
 
-// Defense-in-depth front: o backend já bloqueia. Reagimos em watchEffect para
-// não redirecionar antes do tenant resolver — entrar com `papel: null` é o
-// estado inicial legítimo durante o boot.
-import { watchEffect } from "vue"
-watchEffect(() => {
-    if (tenant.temTenantSelecionado && tenant.papel && tenant.papel !== "Dono") {
-        router.replace({ name: "Home" })
-    }
-})
+// O gate de acesso vive no router (`router/routePermissions.ts`) — quem não
+// tem `equipe.ver` / `gerir_profissionais` / `gerir_permissoes` nunca chega
+// nesta view. O backend continua aplicando o filtro por endpoint (422 em
+// operações fora do escopo do papel, ex: convidar sem `gerir_profissionais`).
 
 type Aba = "profissionais" | "papeis" | "convites"
 

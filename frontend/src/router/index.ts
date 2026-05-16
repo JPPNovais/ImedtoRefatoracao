@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAssinaturaStore } from "@/stores/assinaturaStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
+import { podeAcessarRota, rotaRestrita } from "./routePermissions"
 
 /**
  * Rotas isentas do bloqueio por assinatura — necessárias para o fluxo de
@@ -343,6 +345,26 @@ router.beforeEach(async (to) => {
 
     if (to.name === "Landing" && auth.isAuthenticated && tenant.temTenantSelecionado) {
         return { name: "Home" }
+    }
+
+    // Defense-in-depth UX: bloqueia rotas restritas para quem não tem a
+    // permissão correspondente, em vez de deixar a view renderizar e cair
+    // num 422 pequeno no meio da tela. O backend continua sendo a fonte da
+    // verdade — este guard é apenas espelho do `[RequiresAcao]` dos controllers.
+    // Skip quando o tenant ainda não resolveu (popularEstabelecimentos roda no boot).
+    if (
+        tenant.temTenantSelecionado
+        && rotaRestrita(to.name as string | null)
+    ) {
+        const permissoes = usePermissoesStore()
+        const acessivel = podeAcessarRota(to.name as string, {
+            ehDono: permissoes.ehDono,
+            pode: (k) => permissoes.pode(k),
+            podeExtra: (k) => permissoes.podeExtra(k),
+        })
+        if (!acessivel) {
+            return { name: "Home" }
+        }
     }
 
     // Bloqueio por assinatura inativa (trial expirado / suspensa / cancelada / expirada).

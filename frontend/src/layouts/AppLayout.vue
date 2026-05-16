@@ -18,6 +18,7 @@ import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
 import { useTheme, type Theme } from "@/composables/useTheme"
 import { AppTopBar, AppSidebar } from "@/components/ui"
+import { podeAcessarRota } from "@/router/routePermissions"
 import logoBranco from "@/assets/imedto-logo-branco.png"
 
 const { tema, definirTema } = useTheme()
@@ -36,31 +37,49 @@ const permissoes = usePermissoesStore()
 const profissional = useProfissionalStore()
 const notificacoes = useNotificacoesStore()
 
+// Catálogo do menu principal — a permissão de cada item segue o que está
+// declarado em `router/routePermissions.ts`. Mantém menu e router guard em
+// sincronia: se um Profissional não pode abrir /equipe, ele também não vê
+// "Equipe" no nav. Home aparece sempre (é a landing do tenant ativo).
+const ITENS_MENU: { name: string; label: string; icon: string; to: { name: string } }[] = [
+    { name: "Home",            label: "Painel inicial",   icon: "fa-solid fa-house",                  to: { name: "Home" } },
+    { name: "Agenda",          label: "Agendamentos",     icon: "fa-solid fa-calendar-days",          to: { name: "Agenda" } },
+    { name: "MinhasConsultas", label: "Minhas consultas", icon: "fa-solid fa-stethoscope",            to: { name: "MinhasConsultas" } },
+    { name: "Pacientes",       label: "Pacientes",        icon: "fa-solid fa-people-group",           to: { name: "Pacientes" } },
+    { name: "Equipe",          label: "Equipe",           icon: "fa-solid fa-user-doctor",            to: { name: "Equipe" } },
+    { name: "Financeiro",      label: "Financeiro",       icon: "fa-solid fa-chart-line",             to: { name: "Financeiro" } },
+    { name: "Orcamentos",      label: "Orçamentos",       icon: "fa-solid fa-file-invoice-dollar",    to: { name: "Orcamentos" } },
+    { name: "Inventario",      label: "Estoque",          icon: "fa-solid fa-boxes-stacked",          to: { name: "Inventario" } },
+    { name: "Relatorios",      label: "Relatórios",       icon: "fa-solid fa-chart-pie",              to: { name: "Relatorios" } },
+    { name: "Automacoes",      label: "Automação",        icon: "fa-solid fa-bolt",                   to: { name: "Automacoes" } },
+]
+
 const navMain = computed(() => {
     // Sem vínculo: sidebar vazia. Acesso a perfil/convites é via dropdown da topbar.
     if (tenant.semEstabelecimento || !tenant.ativo) return []
 
-    // Cada item lista as capabilities que o concedem. Item aparece se o usuário
-    // tem QUALQUER uma. Dono passa em tudo (permissoes.pode/podeExtra retornam true).
-    // Home aparece sempre (é a landing page do tenant ativo).
-    const items: { name: string; label: string; icon: string; to: { name: string }; mostrar: boolean }[] = [
-        { name: "Home",            label: "Painel inicial",   icon: "fa-solid fa-house",                  to: { name: "Home" },            mostrar: true },
-        { name: "Agenda",          label: "Agendamentos",     icon: "fa-solid fa-calendar-days",          to: { name: "Agenda" },          mostrar: permissoes.pode("agenda.ver") },
-        { name: "MinhasConsultas", label: "Minhas consultas", icon: "fa-solid fa-stethoscope",            to: { name: "MinhasConsultas" }, mostrar: permissoes.pode("agenda.ver") },
-        { name: "Pacientes",       label: "Pacientes",        icon: "fa-solid fa-people-group",           to: { name: "Pacientes" },       mostrar: permissoes.pode("pacientes.ver") },
-        { name: "Equipe",          label: "Equipe",           icon: "fa-solid fa-user-doctor",            to: { name: "Equipe" },          mostrar: permissoes.pode("equipe.ver") || permissoes.podeExtra("gerir_profissionais") || permissoes.podeExtra("gerir_permissoes") },
-        { name: "Financeiro",      label: "Financeiro",       icon: "fa-solid fa-chart-line",             to: { name: "Financeiro" },      mostrar: permissoes.pode("financeiro.ver") },
-        { name: "Orcamentos",      label: "Orçamentos",       icon: "fa-solid fa-file-invoice-dollar",    to: { name: "Orcamentos" },      mostrar: permissoes.pode("orcamento.ver") },
-        { name: "Inventario",      label: "Estoque",          icon: "fa-solid fa-boxes-stacked",          to: { name: "Inventario" },      mostrar: permissoes.pode("estoque.ver") },
-        { name: "Relatorios",      label: "Relatórios",       icon: "fa-solid fa-chart-pie",              to: { name: "Relatorios" },      mostrar: permissoes.pode("relatorios.ver") },
-        { name: "Automacoes",      label: "Automação",        icon: "fa-solid fa-bolt",                   to: { name: "Automacoes" },      mostrar: permissoes.podeExtra("automacao_config") },
-    ]
-    return items.filter(i => i.mostrar).map(({ mostrar: _, ...rest }) => rest)
+    const helpers = {
+        ehDono: permissoes.ehDono,
+        pode: (k: string) => permissoes.pode(k),
+        podeExtra: (k: string) => permissoes.podeExtra(k),
+    }
+    return ITENS_MENU.filter(i => podeAcessarRota(i.name, helpers))
 })
 
-const podeVerConfig = computed(() =>
-    permissoes.podeExtra("config_estabelecimento") || permissoes.ehDono,
-)
+// Configurações no footer agrupa várias telas (Estabelecimento, IA, modelos
+// de prontuário). Mostrar enquanto qualquer uma delas estiver acessível, e
+// apontar para a primeira que o usuário pode abrir — evita router redirecionar
+// para Home se ele só tem `modelos_prontuario`, por exemplo.
+const ROTAS_CONFIG = ["Estabelecimento", "IaSettings", "ModelosProntuario"] as const
+const configDestino = computed(() => {
+    const helpers = {
+        ehDono: permissoes.ehDono,
+        pode: (k: string) => permissoes.pode(k),
+        podeExtra: (k: string) => permissoes.podeExtra(k),
+    }
+    return ROTAS_CONFIG.find(n => podeAcessarRota(n, helpers)) ?? null
+})
+const podeVerConfig = computed(() => configDestino.value !== null)
 
 const brandTo = computed(() =>
     tenant.semEstabelecimento ? { name: "MeusConvites" } : { name: "Home" }
@@ -216,8 +235,8 @@ async function sincronizarNotificacoes() {
     <AppSidebar :items="navMain" :active-map="activeMap">
         <template #footer="{ expanded }">
             <router-link
-                v-if="podeVerConfig"
-                :to="{ name: 'Estabelecimento' }"
+                v-if="podeVerConfig && configDestino"
+                :to="{ name: configDestino }"
                 class="foot-item"
                 :class="{ active: configuracoesAtiva, 'is-expanded': expanded }"
                 :title="!expanded ? 'Configurações' : ''"
