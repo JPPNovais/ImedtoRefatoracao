@@ -1,0 +1,7 @@
+- [Baseline QA prod 2026-05-12](project_qa_baseline_2026_05_12.md) — estado funcional, endpoints LGPD órfãos, anti-padrões e gap de "trocar senha"; fonte para regressões e próximas sessões.
+- [Rodada 2 QA 2026-05-13](project_qa_rodada2_2026_05_13.md) — convite/onboarding, receita "digital" sem assinatura, teleconsulta só label, vazamento /profissionais para Médico, export LGPD incompleto.
+- [Rodada 3 QA 2026-05-13](project_qa_rodada3_2026_05_13.md) — anexos S3/presigned URL ok, bypass do pacienteId no /url, audit log inexistente, receita controlada sem CID/Portaria 344, lista de espera órfã, ProblemDetails vazando RFC.
+- [Pós-deploy 5ed930c 2026-05-13](project_qa_posdeploy_5ed930c_2026_05_13.md) — só P1 trocar-senha entregue 100%; cancelar modal, autocomplete PII, encoding LGPD e link reenviar do login com falhas.
+- [Re-validação P1 rodada 4 2026-05-13](project_qa_rodada4_2026_05_13.md) — após hard reload bust-cache: 4/5 P1 OK; LGPD com acentuação quebrada no source; modal Novo agendamento ainda traz PII via /api/paciente?tamanho=30.
+- [Cache Chrome MCP](feedback_cache_chrome_mcp.md) — sempre ignoreCache:true + ?nocache=N ao validar deploys recentes (MCP serve bundles stale 404).
+- [Pós-deploy a53e7cc 2026-05-14](project_qa_posdeploy_a53e7cc_2026_05_14.md) — 4 críticos resolvidos no backend, gaps de UI (sidebar não respeita papel, /equipe sem permissão abre layout) + login API usa `password` não `senha`.

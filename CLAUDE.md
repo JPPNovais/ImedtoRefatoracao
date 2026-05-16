@@ -426,3 +426,28 @@ Requisitos obrigatórios:
   - todos os componentes do frontend do projeto deve pegar do design system, com objetivo de padronizar os componentes atuais. so deve criar algo quando for bem especifico para aquele cenário e nao for algo reutilizavel, mas deve sempre dar prioridade para usar os componentes do design system.
   - caso o componente nao exista ainda, e pode ser reutilizado, deve ser criado no design system primeiro, e depois importado no front, a fim de manter a padronização
   - antes de criar um componente novo no front verifique se ele existe no design system para uso na plataforma e padronização
+
+### Agents Disponíveis
+ 
+| Agent | Responsabilidade |
+|-------|-----------------|
+| `fullstack-clinica-senior` | Design de arquitetura, decisões técnicas complexas, refatorações grandes, desenvolvimento das tarefas |
+| `qa-clinica-senior` | Testes da implementação (browser, unit tests, E2E) |
+| `clinica-qa-specialist` | Planejamento e Validação da entrega contra requisitos e critérios de aceite |
+
+### Pipeline
+ 
+```
+1. clinica-qa-specialist - busca entender a tarefa, valida o que faz sentido ser feito, pergunta o que nao estiver claro ou de entendimento ambíguo para refinar a tarefa em si, para entregar a melhor experiencia de usuário, e ao mesmo tempo ser assertivo com a entrega da tarefa. depois cria um planejamento de como fazer o desenvolvimento da tarefa com seus requisitos para o agente que vai desenvolver.
+2. fullstack-clinica-senior - pega todos os requisitos e planejamento da tarefa para criar tanto o backend quanto frontend e migrations para o banco de dados quando necessário. cria também os teste unitários, de integração e E2E.
+3. qa-clinica-senior          — testa a funcionalidade, faz o commit no github, aguarda o deploy, e quando finalizar o deploy, testa no browser (imedto.com) e verifica se a funcionalidade condiz com o que estava no requisito, se nao estiver condizente, junta todos os problemas ocorridos e volta para o passo 2 com os problemas como novos requisitos de correções.
+
+ 
+### Regras dos Pipelines
+ 
+- **OBRIGATÓRIO: Validar ANTES de commitar** — NUNCA commitar código sem antes rodar o pipeline. Commits só devem ser feitos DEPOIS que os agents passarem.
+- **Sempre anunciar** qual agent está sendo chamado antes de invocá-lo.
+- **Parar e reportar** se um agent encontrar problema crítico.
+- **Relatório final** ao terminar o pipeline: resumo de cada agent e status (passou / falhou / avisos).
+ 
+**Como acionar:** "execute o pipeline", "rode os agents", "execute o pipeline de bug fix", "valida a UI", "valida a migration".
