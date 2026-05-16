@@ -58,8 +58,7 @@ export const useAuthStore = defineStore("auth", () => {
         // Tentativa 1: token atual (cookie de access-token)
         try {
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
-            await hidratarUsuario(data.usuario)
-            ativarRealtime()
+            await aplicarSessao(data.usuario)
             return
         } catch (err: any) {
             if (err?.response?.status !== 401) {
@@ -73,11 +72,30 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             await httpClient.post("/auth/refresh", {}, noAutoRefresh)
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
-            await hidratarUsuario(data.usuario)
-            ativarRealtime()
+            await aplicarSessao(data.usuario)
         } catch {
             await limparSessao()
         }
+    }
+
+    /**
+     * Aplica a sessão validada por /auth/me: se houve troca de identidade vs.
+     * o estado em memória/storage, limpa primeiro. Em seguida, repopula
+     * tenant/profissional via /auth/bootstrap (não confia no sessionStorage,
+     * que pode estar stale entre logins ou após cookies trocados externamente).
+     * Ativa realtime ao final.
+     */
+    async function aplicarSessao(usuarioServidor: Usuario | null) {
+        if (!usuarioServidor) {
+            await limparSessao()
+            return
+        }
+        if (usuario.value && usuario.value.id !== usuarioServidor.id) {
+            await limparSessao()
+        }
+        // bootstrapPosAuth chama hidratarUsuario internamente; usuario.value
+        // está vazio (após limpeza) ou já alinhado com o servidor.
+        await bootstrapPosAuth()
     }
 
     /**

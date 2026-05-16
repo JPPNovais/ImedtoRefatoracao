@@ -96,10 +96,14 @@ describe("authStore", () => {
     // init()
     // ────────────────────────────────────────────────────────────────────────────
     describe("init()", () => {
-        it("GET /auth/me 200 → popula usuario e ativa realtime", async () => {
+        it("GET /auth/me 200 → bootstrap repopula tudo e ativa realtime", async () => {
             const { notificacoesBindRealtime } = setupStoreMocks()
             const usuario = criarUsuario()
-            vi.mocked(httpClient.get).mockResolvedValueOnce({ data: { usuario } })
+            // init() valida sessão via /auth/me e depois bootstrap repopula
+            // usuario+tenant+profissional (não confia no sessionStorage).
+            vi.mocked(httpClient.get)
+                .mockResolvedValueOnce({ data: { usuario } })  // /auth/me
+                .mockResolvedValueOnce({ data: { usuario, profissional: null, estabelecimentos: [] } })  // /auth/bootstrap
 
             const store = useAuthStore()
             await store.init()
@@ -110,14 +114,15 @@ describe("authStore", () => {
             expect(realtimeService.start).toHaveBeenCalled()
         })
 
-        it("GET /auth/me 401 → tenta refresh → GET /auth/me 200 → usuario populado", async () => {
+        it("GET /auth/me 401 → tenta refresh → GET /auth/me 200 → bootstrap repopula", async () => {
             const { notificacoesBindRealtime } = setupStoreMocks()
             const usuario = criarUsuario()
             const erro401 = { response: { status: 401 } }
 
             vi.mocked(httpClient.get)
-                .mockRejectedValueOnce(erro401)     // tentativa 1 → 401
-                .mockResolvedValueOnce({ data: { usuario } }) // tentativa 2 → OK
+                .mockRejectedValueOnce(erro401)     // tentativa 1 /auth/me → 401
+                .mockResolvedValueOnce({ data: { usuario } }) // tentativa 2 /auth/me → OK
+                .mockResolvedValueOnce({ data: { usuario, profissional: null, estabelecimentos: [] } })  // /auth/bootstrap
             vi.mocked(httpClient.post).mockResolvedValueOnce({}) // refresh OK
 
             const store = useAuthStore()
@@ -437,6 +442,30 @@ describe("authStore", () => {
             expect(tenantLimpar).toHaveBeenCalled()
             expect(localStorage.getItem("imedto.atendimento_ativo")).toBeNull()
             // Estado final: usuário novo já hidratado.
+            expect(store.usuario).toEqual(dono)
+        })
+
+        it("init() detecta troca de identidade entre estado em memória e /auth/me + repopula via bootstrap (cenário E)", async () => {
+            const { tenantLimpar } = setupStoreMocks()
+            const store = useAuthStore()
+
+            // Estado prévio em memória: Conta A (Médico)
+            const medico = criarUsuario({ id: "user-a-medico" })
+            store.setUsuario(medico)
+            localStorage.setItem("imedto.atendimento_ativo", "{}")
+
+            // Cookies trocados externamente: agora servidor responde como Conta B (Dono)
+            const dono = criarUsuario({ id: "user-b-dono", email: "dono@imedto.com" })
+            vi.mocked(httpClient.get)
+                .mockResolvedValueOnce({ data: { usuario: dono } })  // /auth/me → identidade B
+                .mockResolvedValueOnce({ data: { usuario: dono, profissional: null, estabelecimentos: [] } })  // /auth/bootstrap
+
+            await store.init()
+
+            // limparSessao foi disparado por causa da troca de id detectada
+            expect(tenantLimpar).toHaveBeenCalled()
+            expect(localStorage.getItem("imedto.atendimento_ativo")).toBeNull()
+            // bootstrap repopulou com Conta B
             expect(store.usuario).toEqual(dono)
         })
 
