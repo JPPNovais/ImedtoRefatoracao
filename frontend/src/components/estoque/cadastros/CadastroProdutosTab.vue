@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, computed } from "vue"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
-    AppField, AppInput, AppSelect, AppStatusPill,
+    AppField, AppInput, AppSelect, AppSelectComCriacao, AppStatusPill, AppToast,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { inventarioService, type ItemInventario } from "@/services/inventarioService"
@@ -11,6 +11,10 @@ import {
     type CadastroOpcao,
 } from "@/services/estoqueCadastrosService"
 import { formatarMoedaBrl } from "@/utils/format"
+import ModalNovaCategoriaRapida   from "./modais/ModalNovaCategoriaRapida.vue"
+import ModalNovoFabricanteRapido  from "./modais/ModalNovoFabricanteRapido.vue"
+import ModalNovoFornecedorRapido  from "./modais/ModalNovoFornecedorRapido.vue"
+import ModalNovoLocalRapido       from "./modais/ModalNovoLocalRapido.vue"
 
 // ─── Estado da lista ─────────────────────────────────────────────────
 const itens = ref<ItemInventario[]>([])
@@ -93,6 +97,76 @@ const fornecedoresComFallback = computed(() =>
     comFallback(fornecedores.value, form.value.fornecedorPadraoId, editando.value?.fornecedorPadraoNome))
 const locaisComFallback = computed(() =>
     comFallback(locais.value, form.value.localPadraoId, editando.value?.localPadraoNome))
+
+// ─── Modais de cadastro rápido (atalho "+ Novo" inline nos selects) ──
+// O botão "+ Novo" aparece para todo usuário com acesso à tela — `estoque.ver`
+// já restringe a rota. Quem não tiver permissão de criar (Profissional puro)
+// recebe 403/422 do backend e a mensagem aparece dentro do modal. Backend é
+// fonte da verdade (RequiresPapel Dono/Recepcionista nos POSTs).
+const modalCategoriaAberta   = ref(false)
+const modalFabricanteAberto  = ref(false)
+const modalFornecedorAberto  = ref(false)
+const modalLocalAberto       = ref(false)
+
+const toastMsg = ref<string | null>(null)
+
+function notificarSucesso(mensagem: string) {
+    toastMsg.value = mensagem
+}
+
+function onCriadaCategoria(opcao: CadastroOpcao) {
+    // 1) append local (resposta instantânea) — refetch silencioso só pra
+    //    manter consistência caso alguém crie outra coisa em outra aba.
+    if (!categorias.value.some(c => c.id === opcao.id)) {
+        categorias.value = [...categorias.value, opcao]
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    }
+    form.value.categoriaId = opcao.id
+    modalCategoriaAberta.value = false
+    notificarSucesso(`Categoria "${opcao.nome}" criada.`)
+    estoqueCadastrosService.categorias.obterOpcoes()
+        .then(c => { categorias.value = c })
+        .catch(() => { /* silencioso — já temos a opção localmente */ })
+}
+
+function onCriadoFabricante(opcao: CadastroOpcao) {
+    if (!fabricantes.value.some(f => f.id === opcao.id)) {
+        fabricantes.value = [...fabricantes.value, opcao]
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    }
+    form.value.fabricanteId = opcao.id
+    modalFabricanteAberto.value = false
+    notificarSucesso(`Fabricante "${opcao.nome}" criado.`)
+    estoqueCadastrosService.fabricantes.obterOpcoes()
+        .then(f => { fabricantes.value = f })
+        .catch(() => { /* silencioso */ })
+}
+
+function onCriadoFornecedor(opcao: CadastroOpcao) {
+    if (!fornecedores.value.some(f => f.id === opcao.id)) {
+        fornecedores.value = [...fornecedores.value, opcao]
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    }
+    form.value.fornecedorPadraoId = opcao.id
+    modalFornecedorAberto.value = false
+    notificarSucesso(`Fornecedor "${opcao.nome}" criado.`)
+    estoqueCadastrosService.fornecedores.obterOpcoes()
+        .then(f => { fornecedores.value = f })
+        .catch(() => { /* silencioso */ })
+}
+
+function onCriadoLocal(opcao: CadastroOpcao) {
+    if (!locais.value.some(l => l.id === opcao.id)) {
+        locais.value = [...locais.value, opcao]
+            .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+    }
+    form.value.localPadraoId = opcao.id
+    modalLocalAberto.value = false
+    notificarSucesso(`Local "${opcao.nome}" criado.`)
+    estoqueCadastrosService.locais.obterOpcoes()
+        .then(l => { locais.value = l })
+        .catch(() => { /* silencioso */ })
+}
 
 function abrirCriar() {
     editando.value = null
@@ -343,39 +417,41 @@ function formatarQtd(n: number) {
                     </AppField>
 
                     <AppField label="Categoria" required class="full">
-                        <AppSelect v-model="form.categoriaId">
-                            <option :value="0" disabled>Selecione</option>
-                            <option v-for="c in categoriasComFallback" :key="c.id" :value="c.id">
-                                {{ c.nome }}
-                            </option>
-                        </AppSelect>
+                        <AppSelectComCriacao
+                            v-model="form.categoriaId"
+                            :opcoes="categoriasComFallback"
+                            placeholder="Selecione"
+                            rotulo-criar="Nova categoria"
+                            :obrigatorio="true"
+                            @criar="modalCategoriaAberta = true"
+                        />
                     </AppField>
 
                     <AppField label="Fabricante">
-                        <AppSelect v-model="form.fabricanteId">
-                            <option :value="0">— Nenhum —</option>
-                            <option v-for="f in fabricantesComFallback" :key="f.id" :value="f.id">
-                                {{ f.nome }}
-                            </option>
-                        </AppSelect>
+                        <AppSelectComCriacao
+                            v-model="form.fabricanteId"
+                            :opcoes="fabricantesComFallback"
+                            rotulo-criar="Novo fabricante"
+                            @criar="modalFabricanteAberto = true"
+                        />
                     </AppField>
 
                     <AppField label="Fornecedor padrão">
-                        <AppSelect v-model="form.fornecedorPadraoId">
-                            <option :value="0">— Nenhum —</option>
-                            <option v-for="f in fornecedoresComFallback" :key="f.id" :value="f.id">
-                                {{ f.nome }}
-                            </option>
-                        </AppSelect>
+                        <AppSelectComCriacao
+                            v-model="form.fornecedorPadraoId"
+                            :opcoes="fornecedoresComFallback"
+                            rotulo-criar="Novo fornecedor"
+                            @criar="modalFornecedorAberto = true"
+                        />
                     </AppField>
 
                     <AppField label="Local padrão">
-                        <AppSelect v-model="form.localPadraoId">
-                            <option :value="0">— Nenhum —</option>
-                            <option v-for="l in locaisComFallback" :key="l.id" :value="l.id">
-                                {{ l.nome }}
-                            </option>
-                        </AppSelect>
+                        <AppSelectComCriacao
+                            v-model="form.localPadraoId"
+                            :opcoes="locaisComFallback"
+                            rotulo-criar="Novo local"
+                            @criar="modalLocalAberto = true"
+                        />
                     </AppField>
 
                     <AppField label="Custo unitário (R$)" hint="Referência para pedidos de compra.">
@@ -417,6 +493,35 @@ function formatarQtd(n: number) {
                 </div>
             </div>
         </AppDrawer>
+
+        <!-- Cadastros rápidos (atalho "+ Novo" inline nos selects do drawer) -->
+        <ModalNovaCategoriaRapida
+            :aberto="modalCategoriaAberta"
+            @criada="onCriadaCategoria"
+            @fechar="modalCategoriaAberta = false"
+        />
+        <ModalNovoFabricanteRapido
+            :aberto="modalFabricanteAberto"
+            @criada="onCriadoFabricante"
+            @fechar="modalFabricanteAberto = false"
+        />
+        <ModalNovoFornecedorRapido
+            :aberto="modalFornecedorAberto"
+            @criada="onCriadoFornecedor"
+            @fechar="modalFornecedorAberto = false"
+        />
+        <ModalNovoLocalRapido
+            :aberto="modalLocalAberto"
+            @criada="onCriadoLocal"
+            @fechar="modalLocalAberto = false"
+        />
+
+        <AppToast
+            v-if="toastMsg"
+            :mensagem="toastMsg"
+            variante="success"
+            @fechar="toastMsg = null"
+        />
     </div>
 </template>
 
