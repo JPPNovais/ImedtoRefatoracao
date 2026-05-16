@@ -51,6 +51,7 @@ public class InventarioController : ControllerBase
     }
 
     [HttpPost("itens")]
+    [RequiresPapel(TenantPapel.Dono, TenantPapel.Recepcionista)]
     public async Task<ActionResult> CriarItem([FromBody] CriarItemInventarioDto dto)
     {
         var cmd = new CriarItemInventarioCommand
@@ -58,11 +59,15 @@ public class InventarioController : ControllerBase
             EstabelecimentoId = _tenant.EstabelecimentoId,
             Codigo = dto.Codigo,
             Nome = dto.Nome,
-            Categoria = dto.Categoria,
+            CategoriaId = dto.CategoriaId,
+            FabricanteId = dto.FabricanteId,
+            FornecedorPadraoId = dto.FornecedorPadraoId,
+            LocalPadraoId = dto.LocalPadraoId,
             UnidadeMedida = dto.UnidadeMedida,
             QuantidadeInicial = dto.QuantidadeInicial,
             QuantidadeMinima = dto.QuantidadeMinima,
             CustoUnitarioInicial = dto.CustoUnitarioInicial,
+            CustoUnitario = dto.CustoUnitario,
             CriadoPorUsuarioId = _tenant.UsuarioId
         };
 
@@ -71,6 +76,7 @@ public class InventarioController : ControllerBase
     }
 
     [HttpPut("itens/{id:long}")]
+    [RequiresPapel(TenantPapel.Dono, TenantPapel.Recepcionista)]
     public async Task<ActionResult> AtualizarItem(long id, [FromBody] AtualizarItemInventarioDto dto)
     {
         await _cmd.Send(new AtualizarItemInventarioCommand
@@ -78,14 +84,19 @@ public class InventarioController : ControllerBase
             ItemId = id,
             EstabelecimentoId = _tenant.EstabelecimentoId,
             Nome = dto.Nome,
-            Categoria = dto.Categoria,
+            CategoriaId = dto.CategoriaId,
+            FabricanteId = dto.FabricanteId,
+            FornecedorPadraoId = dto.FornecedorPadraoId,
+            LocalPadraoId = dto.LocalPadraoId,
             UnidadeMedida = dto.UnidadeMedida,
-            QuantidadeMinima = dto.QuantidadeMinima
+            QuantidadeMinima = dto.QuantidadeMinima,
+            CustoUnitario = dto.CustoUnitario
         });
         return NoContent();
     }
 
     [HttpPost("itens/{id:long}/inativar")]
+    [RequiresPapel(TenantPapel.Dono, TenantPapel.Recepcionista)]
     public async Task<ActionResult> InativarItem(long id)
     {
         await _cmd.Send(new InativarItemInventarioCommand
@@ -138,17 +149,25 @@ public class InventarioController : ControllerBase
 public record CriarItemInventarioDto(
     string Codigo,
     string Nome,
-    string Categoria,
+    long CategoriaId,
+    long? FabricanteId,
+    long? FornecedorPadraoId,
+    long? LocalPadraoId,
     string UnidadeMedida,
     decimal QuantidadeInicial,
     decimal QuantidadeMinima,
-    decimal CustoUnitarioInicial);
+    decimal CustoUnitarioInicial,
+    decimal? CustoUnitario);
 
 public record AtualizarItemInventarioDto(
     string Nome,
-    string Categoria,
+    long CategoriaId,
+    long? FabricanteId,
+    long? FornecedorPadraoId,
+    long? LocalPadraoId,
     string UnidadeMedida,
-    decimal QuantidadeMinima);
+    decimal QuantidadeMinima,
+    decimal? CustoUnitario);
 
 public record RegistrarMovimentacaoDto(
     long ItemInventarioId,

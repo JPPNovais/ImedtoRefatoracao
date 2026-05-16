@@ -32,7 +32,10 @@ public class RegistrarMovimentacaoEstoqueCommandHandlerTests
 
     private static ItemInventario ItemComEstoque(long estabId)
     {
-        var item = ItemInventario.Criar(estabId, "COD-1", "Item", "Cat", "un", 0m);
+        var item = ItemInventario.Criar(estabId, "COD-1", "Item",
+            categoriaId: 10, categoriaNomeSnapshot: "Cat",
+            unidadeMedida: "un", quantidadeMinima: 0m,
+            fabricanteId: null, fornecedorPadraoId: null, localPadraoId: null, custoUnitario: null);
         // Estoque inicial via Entrada para permitir Saida posterior.
         item.RegistrarEntrada(10m, Guid.NewGuid(), 5m, "init");
         return item;

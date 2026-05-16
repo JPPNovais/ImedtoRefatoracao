@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue"
 import { inventarioService, type ItemInventario, type MovimentacaoEstoque } from "@/services/inventarioService"
+import { estoqueCadastrosService, type CategoriaEstoque } from "@/services/estoqueCadastrosService"
+import { useRouter } from "vue-router"
 import { AppPageHeader, AppButton, AppTabs } from "@/components/ui"
+
+const router = useRouter()
 import { formatarMoedaBrl } from "@/utils/format"
 
 import EstoqueKpis from "@/components/estoque/EstoqueKpis.vue"
@@ -56,7 +60,12 @@ const baixoCount = computed(() =>
 // Sem dado de vencimento na API atual — mostrar 0 como placeholder
 const vencendoCount = computed(() => 0)
 
-const categorias = computed(() =>
+// Categorias completas (com id/cor/icone) — necessárias para os modais de criar/editar.
+// Fallback para categorias derivadas dos itens enquanto a busca não retorna.
+const categoriasCadastradas = ref<CategoriaEstoque[]>([])
+const categorias = computed(() => categoriasCadastradas.value)
+// Strings únicas para o filtro de categoria (mantém a UX existente do <select> no Itens tab).
+const categoriasNomes = computed(() =>
     [...new Set(itens.value.map(i => i.categoria))].sort()
 )
 
@@ -161,15 +170,31 @@ function abrirEditar(item: ItemInventario) {
     drawerAberto.value = false
 }
 
-async function confirmarEditar(payload: { nome: string; categoria: string; unidadeMedida: string; quantidadeMinima: number }) {
+async function confirmarEditar(payload: { nome: string; categoriaId: number; unidadeMedida: string; quantidadeMinima: number }) {
     if (!itemEditando.value) return
     salvandoEditar.value = true
     try {
-        await inventarioService.atualizarItem(itemEditando.value.id, payload)
+        // Mantém os FKs opcionais existentes ao editar via modal simples (não os altera).
+        await inventarioService.atualizarItem(itemEditando.value.id, {
+            ...payload,
+            fabricanteId: itemEditando.value.fabricanteId,
+            fornecedorPadraoId: itemEditando.value.fornecedorPadraoId,
+            localPadraoId: itemEditando.value.localPadraoId,
+            custoUnitario: itemEditando.value.custoUnitario,
+        })
         itemEditando.value = null
         await carregarItens()
     } finally {
         salvandoEditar.value = false
+    }
+}
+
+async function carregarCategorias() {
+    try {
+        const pg = await estoqueCadastrosService.categorias.listar({ tamanho: 100 })
+        categoriasCadastradas.value = pg.itens
+    } catch {
+        categoriasCadastradas.value = []
     }
 }
 
@@ -237,7 +262,7 @@ watch(filtroCategoriaItens, () => { paginaItens.value = 1; carregarItens() })
 
 // Carrega ambas as abas na montagem para ter KPIs corretos
 onMounted(async () => {
-    await Promise.all([carregarItens(), carregarMovimentacoes()])
+    await Promise.all([carregarItens(), carregarMovimentacoes(), carregarCategorias()])
 })
 </script>
 
@@ -250,9 +275,10 @@ onMounted(async () => {
             <template #acoes>
                 <AppButton
                     variant="ghost"
-                    icon="fa-solid fa-clipboard-check"
+                    icon="fa-solid fa-sliders"
+                    @click="router.push('/inventario/cadastros')"
                 >
-                    Inventário
+                    Cadastros
                 </AppButton>
                 <AppButton
                     variant="secondary"
@@ -297,7 +323,7 @@ onMounted(async () => {
                 :pagina="paginaItens"
                 :tamanho="tamanhoItens"
                 :carregando="carregandoItens"
-                :categorias="categorias"
+                :categorias="categoriasNomes"
                 @update:pagina="paginaItens = $event"
                 @update:tamanho="tamanhoItens = $event"
                 @abrir-item="abrirDrawer"

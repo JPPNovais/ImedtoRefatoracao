@@ -12,9 +12,14 @@ public class ItemInventarioTests
             estabelecimentoId: 1,
             codigo: "MED001",
             nome: "Seringa",
-            categoria: "Material",
+            categoriaId: 10,
+            categoriaNomeSnapshot: "Material",
             unidadeMedida: "un",
-            quantidadeMinima: 5);
+            quantidadeMinima: 5,
+            fabricanteId: null,
+            fornecedorPadraoId: null,
+            localPadraoId: null,
+            custoUnitario: null);
 
     // --- CustoMedio ---
 

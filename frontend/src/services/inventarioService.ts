@@ -6,10 +6,20 @@ export interface ItemInventario {
     codigo: string
     nome: string
     categoria: string
+    categoriaId: number | null
+    categoriaCor: string | null
+    categoriaIcone: string | null
+    fabricanteId: number | null
+    fabricanteNome: string | null
+    fornecedorPadraoId: number | null
+    fornecedorPadraoNome: string | null
+    localPadraoId: number | null
+    localPadraoNome: string | null
     unidadeMedida: string
     quantidadeAtual: number
     quantidadeMinima: number
     custoMedio: number
+    custoUnitario: number | null
     estoqueAbaixoMinimo: boolean
     ativo: boolean
     criadoEm: string
@@ -44,6 +54,31 @@ export interface PaginaMovimentacoesEstoque {
     tamanhoPagina: number
 }
 
+export interface CriarItemInventarioPayload {
+    codigo: string
+    nome: string
+    categoriaId: number
+    fabricanteId?: number | null
+    fornecedorPadraoId?: number | null
+    localPadraoId?: number | null
+    unidadeMedida: string
+    quantidadeInicial: number
+    quantidadeMinima: number
+    custoUnitarioInicial?: number
+    custoUnitario?: number | null
+}
+
+export interface AtualizarItemInventarioPayload {
+    nome: string
+    categoriaId: number
+    fabricanteId?: number | null
+    fornecedorPadraoId?: number | null
+    localPadraoId?: number | null
+    unidadeMedida: string
+    quantidadeMinima: number
+    custoUnitario?: number | null
+}
+
 export const inventarioService = {
     async listarItens(params?: {
         categoria?: string
@@ -56,25 +91,12 @@ export const inventarioService = {
         return data
     },
 
-    async criarItem(payload: {
-        codigo: string
-        nome: string
-        categoria: string
-        unidadeMedida: string
-        quantidadeInicial: number
-        quantidadeMinima: number
-        custoUnitarioInicial?: number
-    }): Promise<{ itemId: number }> {
+    async criarItem(payload: CriarItemInventarioPayload): Promise<{ itemId: number }> {
         const { data } = await httpClient.post<{ itemId: number }>("/inventario/itens", payload)
         return data
     },
 
-    async atualizarItem(id: number, payload: {
-        nome: string
-        categoria: string
-        unidadeMedida: string
-        quantidadeMinima: number
-    }): Promise<void> {
+    async atualizarItem(id: number, payload: AtualizarItemInventarioPayload): Promise<void> {
         await httpClient.put(`/inventario/itens/${id}`, payload)
     },
 

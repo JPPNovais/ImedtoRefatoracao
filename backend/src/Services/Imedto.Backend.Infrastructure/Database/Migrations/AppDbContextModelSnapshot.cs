@@ -1488,6 +1488,224 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("idempotency_keys", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.CategoriaEstoque", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<string>("Cor")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("cor");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("Icone")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("icone");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nome");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "Ativo")
+                        .HasDatabaseName("ix_categorias_estoque_estab_ativo");
+
+                    b.ToTable("categorias_estoque", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.FabricanteEstoque", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Pais")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("pais");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "Ativo")
+                        .HasDatabaseName("ix_fabricantes_estoque_estab_ativo");
+
+                    b.ToTable("fabricantes_estoque", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.FornecedorEstoque", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<string>("Cnpj")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)")
+                        .HasColumnName("cnpj");
+
+                    b.Property<string>("ContatoEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("contato_email");
+
+                    b.Property<string>("ContatoNome")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("contato_nome");
+
+                    b.Property<string>("ContatoTelefone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("contato_telefone");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("NomeFantasia")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("nome_fantasia");
+
+                    b.Property<int>("PrazoEntregaDias")
+                        .HasColumnType("integer")
+                        .HasColumnName("prazo_entrega_dias");
+
+                    b.Property<string>("RazaoSocial")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("razao_social");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "Ativo")
+                        .HasDatabaseName("ix_fornecedores_estoque_estab_ativo");
+
+                    b.ToTable("fornecedores_estoque", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.LocalEstoque", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AndarSetor")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("andar_setor");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Responsavel")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("responsavel");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "Ativo")
+                        .HasDatabaseName("ix_locais_estoque_estab_ativo");
+
+                    b.ToTable("locais_estoque", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Inventario.ItemInventario", b =>
                 {
                     b.Property<long>("Id")
@@ -1511,6 +1729,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("categoria");
 
+                    b.Property<long>("CategoriaId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("categoria_id");
+
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1526,9 +1748,26 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("custo_medio");
 
+                    b.Property<decimal?>("CustoUnitario")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("custo_unitario");
+
                     b.Property<long>("EstabelecimentoId")
                         .HasColumnType("bigint")
                         .HasColumnName("estabelecimento_id");
+
+                    b.Property<long?>("FabricanteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fabricante_id");
+
+                    b.Property<long?>("FornecedorPadraoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("fornecedor_padrao_id");
+
+                    b.Property<long?>("LocalPadraoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("local_padrao_id");
 
                     b.Property<string>("Nome")
                         .IsRequired()
@@ -1554,8 +1793,19 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoriaId");
+
+                    b.HasIndex("FabricanteId");
+
+                    b.HasIndex("FornecedorPadraoId");
+
+                    b.HasIndex("LocalPadraoId");
+
                     b.HasIndex("EstabelecimentoId", "Ativo")
                         .HasDatabaseName("ix_inventario_estab_ativo");
+
+                    b.HasIndex("EstabelecimentoId", "CategoriaId")
+                        .HasDatabaseName("ix_inventario_estab_categoria");
 
                     b.HasIndex("EstabelecimentoId", "Codigo")
                         .IsUnique()
@@ -4260,14 +4510,79 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.ItemInventario", b =>
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.CategoriaEstoque", b =>
                 {
                     b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
                         .WithMany()
                         .HasForeignKey("EstabelecimentoId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
+                        .HasConstraintName("fk_categorias_estoque_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.FabricanteEstoque", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_fabricantes_estoque_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.FornecedorEstoque", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_fornecedores_estoque_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.Cadastros.LocalEstoque", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_locais_estoque_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Inventario.ItemInventario", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Inventario.Cadastros.CategoriaEstoque", null)
+                        .WithMany()
+                        .HasForeignKey("CategoriaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_inventario_categoria");
+
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_inventario_estabelecimento");
+
+                    b.HasOne("Imedto.Backend.Domain.Inventario.Cadastros.FabricanteEstoque", null)
+                        .WithMany()
+                        .HasForeignKey("FabricanteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_inventario_fabricante");
+
+                    b.HasOne("Imedto.Backend.Domain.Inventario.Cadastros.FornecedorEstoque", null)
+                        .WithMany()
+                        .HasForeignKey("FornecedorPadraoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_inventario_fornecedor_padrao");
+
+                    b.HasOne("Imedto.Backend.Domain.Inventario.Cadastros.LocalEstoque", null)
+                        .WithMany()
+                        .HasForeignKey("LocalPadraoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_inventario_local_padrao");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Inventario.MovimentacaoEstoque", b =>

@@ -5,3 +5,10 @@
 - [Re-validação P1 rodada 4 2026-05-13](project_qa_rodada4_2026_05_13.md) — após hard reload bust-cache: 4/5 P1 OK; LGPD com acentuação quebrada no source; modal Novo agendamento ainda traz PII via /api/paciente?tamanho=30.
 - [Cache Chrome MCP](feedback_cache_chrome_mcp.md) — sempre ignoreCache:true + ?nocache=N ao validar deploys recentes (MCP serve bundles stale 404).
 - [Pós-deploy a53e7cc 2026-05-14](project_qa_posdeploy_a53e7cc_2026_05_14.md) — 4 críticos resolvidos no backend, gaps de UI (sidebar não respeita papel, /equipe sem permissão abre layout) + login API usa `password` não `senha`.
+- [Pós-deploy f42ef48 2026-05-16](project_qa_posdeploy_f42ef48_2026_05_16.md) — sidebar por papel + router guard + orçamentos sem pré-carga PII todos OK; gap residual: cards dashboard /home não filtram por papel.
+- [Gaps de domínio para PDFs](project_gaps_dominio_pdf.md) — Estabelecimento sem email/site/tagline/cidade; Receita sem flag UsoContinuo; assinatura digital sempre NaoAssinada (sem ICP-Brasil).
+- [Pós-deploy 4cc451e 2026-05-16](project_qa_posdeploy_4cc451e_2026_05_16.md) — 3 itens OK (cards/toast/donoUsuarioId); novo crítico: sessionStorage estabelecimentoAtivo persiste entre logins (vazamento de papel).
+- [Pós-deploy 19da92c 2026-05-16](project_qa_posdeploy_19da92c_2026_05_16.md) — UI logout/login OK (A/B/C/D), mas relogin sem logout (cookie expirado/API direto) ainda vaza papel via sessionStorage stale.
+- [Pós-deploy 8ad2f2c 2026-05-16](project_qa_posdeploy_8ad2f2c_2026_05_16.md) — A/B/C/D OK; Cenário E parcialmente mitigado: detecta mas não recupera (UI fica em estado misto com badge stale + sidebar capada).
+- [Pós-deploy ede04a6 2026-05-16](project_qa_posdeploy_ede04a6_2026_05_16.md) — Cenário E pós-reload ainda quebrado (badge/sidebar stale apesar de /auth/bootstrap mandar Dono); recupera ao clicar "Trocar estabelecimento".
+- [Pós-deploy 2af23b6 2026-05-16](project_qa_posdeploy_2af23b6_2026_05_16.md) — Cenário E RESOLVIDO via sobrescrita explícita de papel em popularEstabelecimentos; badge/sidebar/cards/sessionStorage refletem novo papel após reload.

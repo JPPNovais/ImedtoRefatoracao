@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
-import { AppModal, AppField, AppInput, AppButton } from "@/components/ui"
+import { AppModal, AppField, AppInput, AppSelect, AppButton } from "@/components/ui"
+import type { CategoriaEstoque } from "@/services/estoqueCadastrosService"
 
 const props = defineProps<{
     aberto: boolean
-    categorias: string[]
+    categorias: CategoriaEstoque[]
 }>()
 
 const emit = defineEmits<{
@@ -12,7 +13,7 @@ const emit = defineEmits<{
     confirmar: [payload: {
         codigo: string
         nome: string
-        categoria: string
+        categoriaId: number
         unidadeMedida: string
         quantidadeInicial: number
         quantidadeMinima: number
@@ -23,7 +24,7 @@ const emit = defineEmits<{
 const form = ref({
     codigo: "",
     nome: "",
-    categoria: "",
+    categoriaId: 0,
     unidadeMedida: "",
     quantidadeInicial: 0,
     quantidadeMinima: 0,
@@ -34,7 +35,7 @@ const salvando = ref(false)
 
 watch(() => props.aberto, (v) => {
     if (v) {
-        form.value = { codigo: "", nome: "", categoria: "", unidadeMedida: "", quantidadeInicial: 0, quantidadeMinima: 0, custoUnitarioInicial: 0 }
+        form.value = { codigo: "", nome: "", categoriaId: 0, unidadeMedida: "", quantidadeInicial: 0, quantidadeMinima: 0, custoUnitarioInicial: 0 }
         erro.value = null
     }
 })
@@ -43,7 +44,7 @@ async function confirmar() {
     erro.value = null
     if (!form.value.codigo.trim()) { erro.value = "Código é obrigatório."; return }
     if (!form.value.nome.trim()) { erro.value = "Nome é obrigatório."; return }
-    if (!form.value.categoria.trim()) { erro.value = "Categoria é obrigatória."; return }
+    if (!form.value.categoriaId) { erro.value = "Selecione uma categoria."; return }
     if (!form.value.unidadeMedida.trim()) { erro.value = "Unidade de medida é obrigatória."; return }
     if (form.value.quantidadeInicial > 0 && form.value.custoUnitarioInicial <= 0) {
         erro.value = "Custo unitário deve ser maior que zero quando há quantidade inicial."
@@ -73,10 +74,16 @@ async function confirmar() {
                 <AppInput v-model="form.nome" placeholder="Nome completo do produto" />
             </AppField>
             <AppField label="Categoria" required class="full">
-                <AppInput v-model="form.categoria" list="cats-criar" placeholder="Ex: Medicamento, Insumo..." />
-                <datalist id="cats-criar">
-                    <option v-for="c in categorias" :key="c" :value="c" />
-                </datalist>
+                <AppSelect v-model="form.categoriaId">
+                    <option :value="0" disabled>Selecione uma categoria</option>
+                    <option
+                        v-for="c in categorias.filter(c => c.ativo)"
+                        :key="c.id"
+                        :value="c.id"
+                    >
+                        {{ c.nome }}
+                    </option>
+                </AppSelect>
             </AppField>
             <AppField label="Quantidade inicial">
                 <AppInput v-model="form.quantidadeInicial" type="number" :min="0" :step="0.001" />

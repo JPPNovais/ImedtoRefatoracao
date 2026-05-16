@@ -27,8 +27,9 @@ public class InventarioQueryRepository
 
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // SELECT minimizado (LGPD): estabelecimento_id e atualizado_em removidos —
-        // front nao consome (so estavam na interface TS).
+        // SELECT minimizado (LGPD): só os campos que a tela usa.
+        // Joins LEFT pra suportar período de deprecation (CategoriaEstoque obrigatória,
+        // mas Fabricante/Fornecedor/Local são opcionais).
         const string sql = """
             SELECT count(*)
             FROM   itens_inventario i
@@ -42,14 +43,28 @@ public class InventarioQueryRepository
                 i.codigo                                    AS Codigo,
                 i.nome                                      AS Nome,
                 i.categoria                                 AS Categoria,
+                i.categoria_id                              AS CategoriaId,
+                c.cor                                       AS CategoriaCor,
+                c.icone                                     AS CategoriaIcone,
+                i.fabricante_id                             AS FabricanteId,
+                fb.nome                                     AS FabricanteNome,
+                i.fornecedor_padrao_id                      AS FornecedorPadraoId,
+                fn.razao_social                             AS FornecedorPadraoNome,
+                i.local_padrao_id                           AS LocalPadraoId,
+                lc.nome                                     AS LocalPadraoNome,
                 i.unidade_medida                            AS UnidadeMedida,
                 i.quantidade_atual                          AS QuantidadeAtual,
                 i.quantidade_minima                         AS QuantidadeMinima,
                 i.custo_medio                               AS CustoMedio,
+                i.custo_unitario                            AS CustoUnitario,
                 (i.quantidade_atual < i.quantidade_minima)  AS EstoqueAbaixoMinimo,
                 i.ativo                                     AS Ativo,
                 i.criado_em                                 AS CriadoEm
             FROM itens_inventario i
+            LEFT JOIN categorias_estoque    c  ON c.id  = i.categoria_id          AND c.estabelecimento_id  = i.estabelecimento_id
+            LEFT JOIN fabricantes_estoque   fb ON fb.id = i.fabricante_id         AND fb.estabelecimento_id = i.estabelecimento_id
+            LEFT JOIN fornecedores_estoque  fn ON fn.id = i.fornecedor_padrao_id  AND fn.estabelecimento_id = i.estabelecimento_id
+            LEFT JOIN locais_estoque        lc ON lc.id = i.local_padrao_id       AND lc.estabelecimento_id = i.estabelecimento_id
             WHERE i.estabelecimento_id = @EstabelecimentoId
               AND (@Categoria::text          IS NULL OR i.categoria = @Categoria::text)
               AND (@ApenasAbaixoMinimo::boolean IS NULL OR NOT @ApenasAbaixoMinimo::boolean OR i.quantidade_atual < i.quantidade_minima)

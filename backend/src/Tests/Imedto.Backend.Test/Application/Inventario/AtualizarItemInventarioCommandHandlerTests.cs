@@ -1,6 +1,7 @@
 using Imedto.Backend.Application.Inventario.Commands;
 using Imedto.Backend.Contracts.Inventario.Commands;
 using Imedto.Backend.Domain.Inventario;
+using Imedto.Backend.Domain.Inventario.Cadastros;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
 using NUnit.Framework;
@@ -11,28 +12,45 @@ namespace Imedto.Backend.Test.Application.Inventario;
 public class AtualizarItemInventarioCommandHandlerTests
 {
     private Mock<IItemInventarioRepository> _repo;
+    private Mock<ICategoriaEstoqueRepository> _catRepo;
+    private Mock<IFabricanteEstoqueRepository> _fabRepo;
+    private Mock<IFornecedorEstoqueRepository> _fornRepo;
+    private Mock<ILocalEstoqueRepository> _localRepo;
     private AtualizarItemInventarioCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
-    private const long OutroEstabId = 2;
     private const long ItemId = 50;
+    private const long CategoriaId = 10;
 
     [SetUp]
     public void SetUp()
     {
         _repo = new Mock<IItemInventarioRepository>();
-        _sut = new AtualizarItemInventarioCommandHandler(_repo.Object);
+        _catRepo = new Mock<ICategoriaEstoqueRepository>();
+        _fabRepo = new Mock<IFabricanteEstoqueRepository>();
+        _fornRepo = new Mock<IFornecedorEstoqueRepository>();
+        _localRepo = new Mock<ILocalEstoqueRepository>();
+
+        var categoria = CategoriaEstoque.Criar(EstabelecimentoId, "Nova Cat", "hsl(218 70% 50%)", "fa-tag");
+        typeof(CategoriaEstoque).GetProperty("Id")!.SetValue(categoria, CategoriaId);
+        _catRepo.Setup(r => r.ObterPorIdOuNulo(CategoriaId, EstabelecimentoId)).ReturnsAsync(categoria);
+
+        _sut = new AtualizarItemInventarioCommandHandler(
+            _repo.Object, _catRepo.Object, _fabRepo.Object, _fornRepo.Object, _localRepo.Object);
     }
 
     private static ItemInventario ItemNoEstab(long estabId) =>
-        ItemInventario.Criar(estabId, "COD-1", "Original", "Categoria", "un", 0m);
+        ItemInventario.Criar(estabId, "COD-1", "Original",
+            categoriaId: CategoriaId, categoriaNomeSnapshot: "Categoria",
+            unidadeMedida: "un", quantidadeMinima: 0m,
+            fabricanteId: null, fornecedorPadraoId: null, localPadraoId: null, custoUnitario: null);
 
     private static AtualizarItemInventarioCommand Cmd() => new()
     {
         ItemId = ItemId,
         EstabelecimentoId = EstabelecimentoId,
         Nome = "Atualizado",
-        Categoria = "Nova Cat",
+        CategoriaId = CategoriaId,
         UnidadeMedida = "kg",
         QuantidadeMinima = 5m,
     };

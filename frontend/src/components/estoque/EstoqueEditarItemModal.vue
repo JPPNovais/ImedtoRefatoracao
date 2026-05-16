@@ -1,26 +1,32 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
-import { AppModal, AppField, AppInput, AppButton } from "@/components/ui"
+import { AppModal, AppField, AppInput, AppSelect, AppButton } from "@/components/ui"
 import type { ItemInventario } from "@/services/inventarioService"
+import type { CategoriaEstoque } from "@/services/estoqueCadastrosService"
 
 const props = defineProps<{
     aberto: boolean
     item: ItemInventario | null
-    categorias: string[]
+    categorias: CategoriaEstoque[]
 }>()
 
 const emit = defineEmits<{
     fechar: []
-    confirmar: [payload: { nome: string; categoria: string; unidadeMedida: string; quantidadeMinima: number }]
+    confirmar: [payload: { nome: string; categoriaId: number; unidadeMedida: string; quantidadeMinima: number }]
 }>()
 
-const form = ref({ nome: "", categoria: "", unidadeMedida: "", quantidadeMinima: 0 })
+const form = ref({ nome: "", categoriaId: 0, unidadeMedida: "", quantidadeMinima: 0 })
 const erro = ref<string | null>(null)
 const salvando = ref(false)
 
 watch(() => props.item, (item) => {
     if (item) {
-        form.value = { nome: item.nome, categoria: item.categoria, unidadeMedida: item.unidadeMedida, quantidadeMinima: item.quantidadeMinima }
+        form.value = {
+            nome: item.nome,
+            categoriaId: item.categoriaId ?? 0,
+            unidadeMedida: item.unidadeMedida,
+            quantidadeMinima: item.quantidadeMinima,
+        }
         erro.value = null
     }
 }, { immediate: true })
@@ -28,6 +34,7 @@ watch(() => props.item, (item) => {
 async function confirmar() {
     erro.value = null
     if (!form.value.nome.trim()) { erro.value = "Nome é obrigatório."; return }
+    if (!form.value.categoriaId) { erro.value = "Selecione uma categoria."; return }
     salvando.value = true
     try {
         emit("confirmar", { ...form.value })
@@ -48,10 +55,16 @@ async function confirmar() {
                 <AppInput v-model="form.nome" />
             </AppField>
             <AppField label="Categoria" required>
-                <AppInput v-model="form.categoria" list="cats-editar" />
-                <datalist id="cats-editar">
-                    <option v-for="c in categorias" :key="c" :value="c" />
-                </datalist>
+                <AppSelect v-model="form.categoriaId">
+                    <option :value="0" disabled>Selecione</option>
+                    <option
+                        v-for="c in categorias.filter(c => c.ativo || c.id === form.categoriaId)"
+                        :key="c.id"
+                        :value="c.id"
+                    >
+                        {{ c.nome }}
+                    </option>
+                </AppSelect>
             </AppField>
             <AppField label="Unidade de medida" required>
                 <AppInput v-model="form.unidadeMedida" />

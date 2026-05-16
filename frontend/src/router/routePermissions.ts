@@ -64,7 +64,8 @@ export const ROTAS_RESTRITAS: Record<string, RegraRota> = {
     OrcamentoSettings:  { acao: "orcamento.ver" },
 
     // Estoque
-    Inventario:         { acao: "estoque.ver" },
+    Inventario:           { acao: "estoque.ver" },
+    InventarioCadastros:  { acao: "estoque.ver" },
 
     // Relatórios
     Relatorios:         { acao: "relatorios.ver" },

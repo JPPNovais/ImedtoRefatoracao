@@ -25,7 +25,10 @@ public class InativarItemInventarioCommandHandlerTests
     }
 
     private static ItemInventario ItemNoEstab(long estabId) =>
-        ItemInventario.Criar(estabId, "COD-1", "Item", "Cat", "un", 0m);
+        ItemInventario.Criar(estabId, "COD-1", "Item",
+            categoriaId: 10, categoriaNomeSnapshot: "Cat",
+            unidadeMedida: "un", quantidadeMinima: 0m,
+            fabricanteId: null, fornecedorPadraoId: null, localPadraoId: null, custoUnitario: null);
 
     [Test]
     public async Task Handle_DoMesmoTenant_Inativa()

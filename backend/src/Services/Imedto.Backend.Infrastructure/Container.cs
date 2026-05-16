@@ -102,6 +102,12 @@ public static class InfrastructureExtensions
         services.AddScoped<Domain.Inventario.IItemInventarioRepository, Database.Repositories.ItemInventarioRepository>();
         services.AddScoped<Domain.Inventario.IMovimentacaoEstoqueRepository, Database.Repositories.MovimentacaoEstoqueRepository>();
 
+        // Inventário — cadastros mestre (categoria/fabricante/fornecedor/local).
+        services.AddScoped<Domain.Inventario.Cadastros.ICategoriaEstoqueRepository, Database.Repositories.Cadastros.CategoriaEstoqueRepository>();
+        services.AddScoped<Domain.Inventario.Cadastros.IFabricanteEstoqueRepository, Database.Repositories.Cadastros.FabricanteEstoqueRepository>();
+        services.AddScoped<Domain.Inventario.Cadastros.IFornecedorEstoqueRepository, Database.Repositories.Cadastros.FornecedorEstoqueRepository>();
+        services.AddScoped<Domain.Inventario.Cadastros.ILocalEstoqueRepository, Database.Repositories.Cadastros.LocalEstoqueRepository>();
+
         // Orçamentos
         services.AddScoped<Domain.Orcamentos.IOrcamentoRepository, Database.Repositories.OrcamentoRepository>();
 

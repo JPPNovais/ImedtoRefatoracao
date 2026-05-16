@@ -9,6 +9,8 @@ using Imedto.Backend.Application.Agendamentos.Queries;
 using Imedto.Backend.Application.Inventario.Commands;
 using Imedto.Backend.Application.Inventario.Events;
 using Imedto.Backend.Application.Inventario.Queries;
+using Imedto.Backend.Application.Inventario.Cadastros.Commands;
+using Imedto.Backend.Application.Inventario.Cadastros.Queries;
 using Imedto.Backend.Application.Dashboard;
 using Imedto.Backend.Application.Financeiro.Commands;
 using Imedto.Backend.Application.Financeiro.Events;
@@ -99,6 +101,9 @@ using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
 using Imedto.Backend.Contracts.Inventario.Commands;
 using Imedto.Backend.Contracts.Inventario.Queries;
 using Imedto.Backend.Contracts.Inventario.Queries.Results;
+using Imedto.Backend.Contracts.Inventario.Cadastros.Commands;
+using Imedto.Backend.Contracts.Inventario.Cadastros.Queries;
+using Imedto.Backend.Contracts.Inventario.Cadastros.Queries.Results;
 using Imedto.Backend.Contracts.Dashboard;
 using Imedto.Backend.Contracts.Financeiro.Commands;
 using Imedto.Backend.Contracts.Financeiro.Queries;
@@ -430,6 +435,29 @@ public static class Container
         services.AddSingleton<InventarioQueryRepository>();
         services.AddScoped<EstoqueAbaixoMinimoEventHandler>();
 
+        // Inventário — cadastros mestre (4 aggregates × 4 commands + 4 query handlers).
+        services.AddScoped<CriarCategoriaEstoqueCommandHandler>();
+        services.AddScoped<AtualizarCategoriaEstoqueCommandHandler>();
+        services.AddScoped<InativarCategoriaEstoqueCommandHandler>();
+        services.AddScoped<ReativarCategoriaEstoqueCommandHandler>();
+        services.AddScoped<CriarFabricanteEstoqueCommandHandler>();
+        services.AddScoped<AtualizarFabricanteEstoqueCommandHandler>();
+        services.AddScoped<InativarFabricanteEstoqueCommandHandler>();
+        services.AddScoped<ReativarFabricanteEstoqueCommandHandler>();
+        services.AddScoped<CriarFornecedorEstoqueCommandHandler>();
+        services.AddScoped<AtualizarFornecedorEstoqueCommandHandler>();
+        services.AddScoped<InativarFornecedorEstoqueCommandHandler>();
+        services.AddScoped<ReativarFornecedorEstoqueCommandHandler>();
+        services.AddScoped<CriarLocalEstoqueCommandHandler>();
+        services.AddScoped<AtualizarLocalEstoqueCommandHandler>();
+        services.AddScoped<InativarLocalEstoqueCommandHandler>();
+        services.AddScoped<ReativarLocalEstoqueCommandHandler>();
+        services.AddSingleton<ListarCategoriasEstoqueQueryHandlers>();
+        services.AddSingleton<ListarFabricantesEstoqueQueryHandlers>();
+        services.AddSingleton<ListarFornecedoresEstoqueQueryHandlers>();
+        services.AddSingleton<ListarLocaisEstoqueQueryHandlers>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Database.Repositories.Cadastros.CadastrosEstoqueQueryRepository>();
+
         // Orçamentos (aggregate único — sem distinção simples/completo).
         services.AddScoped<CriarOrcamentoCommandHandler>();
         services.AddScoped<AtualizarOrcamentoCommandHandler>();
@@ -695,6 +723,23 @@ public static class Container
             bus.Register<AtualizarItemInventarioCommand, AtualizarItemInventarioCommandHandler>();
             bus.Register<RegistrarMovimentacaoEstoqueCommand, RegistrarMovimentacaoEstoqueCommandHandler>();
             bus.Register<InativarItemInventarioCommand, InativarItemInventarioCommandHandler>();
+            // Inventário — cadastros mestre (categoria/fabricante/fornecedor/local).
+            bus.Register<CriarCategoriaEstoqueCommand,      CriarCategoriaEstoqueCommandHandler>();
+            bus.Register<AtualizarCategoriaEstoqueCommand,  AtualizarCategoriaEstoqueCommandHandler>();
+            bus.Register<InativarCategoriaEstoqueCommand,   InativarCategoriaEstoqueCommandHandler>();
+            bus.Register<ReativarCategoriaEstoqueCommand,   ReativarCategoriaEstoqueCommandHandler>();
+            bus.Register<CriarFabricanteEstoqueCommand,     CriarFabricanteEstoqueCommandHandler>();
+            bus.Register<AtualizarFabricanteEstoqueCommand, AtualizarFabricanteEstoqueCommandHandler>();
+            bus.Register<InativarFabricanteEstoqueCommand,  InativarFabricanteEstoqueCommandHandler>();
+            bus.Register<ReativarFabricanteEstoqueCommand,  ReativarFabricanteEstoqueCommandHandler>();
+            bus.Register<CriarFornecedorEstoqueCommand,     CriarFornecedorEstoqueCommandHandler>();
+            bus.Register<AtualizarFornecedorEstoqueCommand, AtualizarFornecedorEstoqueCommandHandler>();
+            bus.Register<InativarFornecedorEstoqueCommand,  InativarFornecedorEstoqueCommandHandler>();
+            bus.Register<ReativarFornecedorEstoqueCommand,  ReativarFornecedorEstoqueCommandHandler>();
+            bus.Register<CriarLocalEstoqueCommand,          CriarLocalEstoqueCommandHandler>();
+            bus.Register<AtualizarLocalEstoqueCommand,      AtualizarLocalEstoqueCommandHandler>();
+            bus.Register<InativarLocalEstoqueCommand,       InativarLocalEstoqueCommandHandler>();
+            bus.Register<ReativarLocalEstoqueCommand,       ReativarLocalEstoqueCommandHandler>();
             bus.Register<CriarOrcamentoCommand, CriarOrcamentoCommandHandler>();
             bus.Register<AtualizarOrcamentoCommand, AtualizarOrcamentoCommandHandler>();
             bus.Register<EnviarOrcamentoCommand, EnviarOrcamentoCommandHandler>();
@@ -803,6 +848,10 @@ public static class Container
             bus.Register<ListarListaEsperaQuery, PaginaListaEsperaDto, ListarListaEsperaQueryHandler>();
             bus.Register<ListarItensInventarioQuery, PaginaItensInventarioDto, ListarItensInventarioQueryHandlers>();
             bus.Register<ListarMovimentacoesQuery, PaginaMovimentacoesEstoqueDto, ListarMovimentacoesQueryHandlers>();
+            bus.Register<ListarCategoriasEstoqueQuery,   PaginaCategoriasEstoqueDto,   ListarCategoriasEstoqueQueryHandlers>();
+            bus.Register<ListarFabricantesEstoqueQuery,  PaginaFabricantesEstoqueDto,  ListarFabricantesEstoqueQueryHandlers>();
+            bus.Register<ListarFornecedoresEstoqueQuery, PaginaFornecedoresEstoqueDto, ListarFornecedoresEstoqueQueryHandlers>();
+            bus.Register<ListarLocaisEstoqueQuery,       PaginaLocaisEstoqueDto,       ListarLocaisEstoqueQueryHandlers>();
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();
             bus.Register<ObterOrcamentoQuery, OrcamentoDto, ObterOrcamentoQueryHandlers>();
             bus.Register<PreviewOrcamentoQuery, PreviewOrcamentoDto, PreviewOrcamentoQueryHandler>();

@@ -11,6 +11,7 @@ using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Inventario;
+using Imedto.Backend.Domain.Inventario.Cadastros;
 using Imedto.Backend.Domain.Jobs;
 using Imedto.Backend.Domain.Lgpd;
 using Imedto.Backend.Domain.Orcamentos;
@@ -63,6 +64,10 @@ public class AppDbContext : DbContext
     public DbSet<ListaEsperaAgendamento> ListaEsperaAgendamentos => Set<ListaEsperaAgendamento>();
     public DbSet<ItemInventario> ItensInventario => Set<ItemInventario>();
     public DbSet<MovimentacaoEstoque> MovimentacoesEstoque => Set<MovimentacaoEstoque>();
+    public DbSet<CategoriaEstoque> CategoriasEstoque => Set<CategoriaEstoque>();
+    public DbSet<FabricanteEstoque> FabricantesEstoque => Set<FabricanteEstoque>();
+    public DbSet<FornecedorEstoque> FornecedoresEstoque => Set<FornecedorEstoque>();
+    public DbSet<LocalEstoque> LocaisEstoque => Set<LocalEstoque>();
     public DbSet<Orcamento> Orcamentos => Set<Orcamento>();
     public DbSet<ItemOrcamento> ItensOrcamento => Set<ItemOrcamento>();
     public DbSet<Lancamento> Lancamentos => Set<Lancamento>();

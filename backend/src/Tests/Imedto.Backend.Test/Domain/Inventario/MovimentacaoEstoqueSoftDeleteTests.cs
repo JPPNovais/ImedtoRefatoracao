@@ -9,7 +9,18 @@ public class MovimentacaoEstoqueSoftDeleteTests
 {
     private static MovimentacaoEstoque CriarMovimentacao()
     {
-        var item = ItemInventario.Criar(1, "MED001", "Seringa", "Material", "un", 0);
+        var item = ItemInventario.Criar(
+            estabelecimentoId: 1,
+            codigo: "MED001",
+            nome: "Seringa",
+            categoriaId: 10,
+            categoriaNomeSnapshot: "Material",
+            unidadeMedida: "un",
+            quantidadeMinima: 0,
+            fabricanteId: null,
+            fornecedorPadraoId: null,
+            localPadraoId: null,
+            custoUnitario: null);
         item.RegistrarEntrada(10, Guid.NewGuid(), 5m, null);
         return item.RegistrarSaida(2, Guid.NewGuid(), null);
     }

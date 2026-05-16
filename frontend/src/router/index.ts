@@ -267,6 +267,12 @@ const router = createRouter({
             component: () => import("@/views/inventario/InventarioView.vue"),
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
+        {
+            path: "/inventario/cadastros",
+            name: "InventarioCadastros",
+            component: () => import("@/views/inventario/EstoqueCadastrosView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
 
         // Agenda
         {
