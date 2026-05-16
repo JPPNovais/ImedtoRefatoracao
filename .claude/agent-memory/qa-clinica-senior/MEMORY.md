@@ -1,0 +1,8 @@
+- [Split commits quando working tree mistura tópicos](feedback_split_commits_quando_mistura_tópicos.md) — separar em 2+ commits; `--soft`/`--mixed`, nunca `--hard`.
+- [Validar chunk lazy em prod pelo hash de runtime](feedback_validar_chunk_lazy_em_prod.md) — hashes Vite divergem entre build local e Docker; achar via fetch do bundle pai.
+- [QA pós-deploy 19da92c 2026-05-16 (PDF + authStore)](project_qa_posdeploy_19da92c_2026_05_16.md) — pipeline ok; E2E logado pendente por falta de credencial; useRelatorioPdf sem caller; logo S3 backend é TODO.
+- [QA pós-deploy 54a7292 2026-05-16 (Estoque-Cadastros)](project_qa_posdeploy_54a7292_2026_05_16.md) — pipeline ok; 4/5 abas funcionais; bug crítico: CadastroProdutosTab pede tamanho=200, back trava em >100 → drawer Novo Produto inutilizado.
+- [QA hotfix c641771 2026-05-16 (Estoque-Cadastros)](project_qa_hotfix_c641771_2026_05_16.md) — endpoints /opcoes resolvem 422; drawer Novo produto OK em prod; POST itens 201.
+- [QA pós-deploy a55ec79 2026-05-16 (Config Orçamento 5 abas)](project_qa_posdeploy_a55ec79_2026_05_16.md) — P0: AppSelect com :options não renderiza; quebra 7 selects em 4 componentes. Devolvido.
+- [QA pós-deploy 48543c3 2026-05-16 (fix AppSelect)](project_qa_posdeploy_48543c3_2026_05_16.md) — todos os 6 testes OK; P0 da a55ec79 resolvido; tipo de produto valida em 422.
+- [Login QA via signup + UPDATE em RDS](feedback_qa_login_via_signup_e_rds_confirm.md) — fluxo para criar conta de QA quando não há credencial salva.
