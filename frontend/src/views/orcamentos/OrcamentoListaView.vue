@@ -215,6 +215,13 @@ onMounted(() => {
             subtitulo="Crie, envie e acompanhe orçamentos de procedimentos"
         >
             <template #acoes>
+                <AppButton
+                    variant="ghost"
+                    icon="fa-solid fa-sliders"
+                    @click="router.push('/configuracoes/orcamento')"
+                >
+                    Configurações
+                </AppButton>
                 <AppButton variant="secondary" icon="fa-solid fa-file-export">Exportar</AppButton>
                 <AppButton icon="fa-solid fa-plus" @click="abrirModalNovo">Novo orçamento</AppButton>
             </template>
