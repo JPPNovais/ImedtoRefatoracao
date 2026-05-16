@@ -79,6 +79,27 @@ describe("router — guard de permissão por rota (Bug C)", () => {
         expect(router.currentRoute.value.name).toBe("Home")
     })
 
+    it("redirect por permissão anexa querystring `bloqueado=<rota>` para a Home sinalizar o aviso", async () => {
+        // Sem este sinal, o usuário só vê a URL trocar e fica perdido. A
+        // Home observa o querystring para exibir um toast discreto.
+        await router.push({ name: "Home" })
+
+        await router.push({ name: "Financeiro" })
+
+        expect(router.currentRoute.value.name).toBe("Home")
+        expect(router.currentRoute.value.query.bloqueado).toBe("Financeiro")
+    })
+
+    it("acesso autorizado NÃO injeta querystring `bloqueado` (toast só aparece quando o guard barra)", async () => {
+        permissoesMock.pode = vi.fn((k: string) => k === "agenda.ver")
+
+        await router.push({ name: "Home" })
+        await router.push({ name: "Agenda" })
+
+        expect(router.currentRoute.value.name).toBe("Agenda")
+        expect(router.currentRoute.value.query.bloqueado).toBeUndefined()
+    })
+
     it("Profissional com `equipe.ver` consegue navegar para /equipe", async () => {
         permissoesMock.pode = vi.fn((k: string) => k === "equipe.ver")
 

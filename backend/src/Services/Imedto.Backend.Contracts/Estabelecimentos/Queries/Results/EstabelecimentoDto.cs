@@ -3,7 +3,11 @@ namespace Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
 public class EstabelecimentoDto
 {
     public long Id { get; set; }
-    public Guid DonoUsuarioId { get; set; }
+    // DonoUsuarioId removido (LGPD — minimizacao). O front diferencia Dono x
+    // Profissional via PapelDoUsuario; nao ha nenhum cenario de UI que precise
+    // do Guid auth interno do dono. Manter este campo no DTO vazava o id do
+    // proprietario para qualquer membro do tenant (e ainda saia mascarado como
+    // Guid.Empty quando o solicitante nao era Dono — "valor morto" sem motivo).
     public string NomeFantasia { get; set; }
     public string RazaoSocial { get; set; }
     public string Cnpj { get; set; }

@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 import { dashboardService, type DashboardData } from "@/services/dashboardService"
+import { podeAcessarRota } from "@/router/routePermissions"
+import { AppToast } from "@/components/ui"
 
 const auth = useAuthStore()
 const tenant = useTenantStore()
+const permissoes = usePermissoesStore()
+const route = useRoute()
+const router = useRouter()
 
 const dashboard = ref<DashboardData | null>(null)
 const carregando = ref(false)
@@ -55,6 +62,54 @@ const statusCor: Record<string, string> = {
     Cancelado: "#ef4444",
     Concluido: "#6b7280",
 }
+
+// Catálogo de cards do dashboard. Cada item declara explicitamente a rota
+// nomeada — assim a regra de exibição reusa o mesmo `podeAcessarRota` que o
+// router guard e o `AppLayout` consomem (single source of truth em
+// `routePermissions.ts`). Sem isso, um Médico via "Financeiro" e "Inventário"
+// no Home, clicava e era jogado de volta para Home — UX ruim e confusa.
+interface CardAtalho {
+    routeName: string
+    titulo: string
+    descricao: string
+}
+
+const CARDS_ATALHO: readonly CardAtalho[] = [
+    { routeName: "Agenda",      titulo: "Agenda",      descricao: "Agendar e gerenciar consultas e procedimentos." },
+    { routeName: "Pacientes",   titulo: "Pacientes",   descricao: "Gerenciar pacientes deste estabelecimento." },
+    { routeName: "Financeiro",  titulo: "Financeiro",  descricao: "Controlar receitas, despesas e fluxo de caixa." },
+    { routeName: "Orcamentos",  titulo: "Orçamentos",  descricao: "Cotações de cirurgias e procedimentos." },
+    { routeName: "Inventario",  titulo: "Inventário",  descricao: "Controlar estoque de insumos e materiais." },
+    { routeName: "Relatorios",  titulo: "Relatórios",  descricao: "Faturamento por categoria e resumo de agendamentos." },
+] as const
+
+const cardsVisiveis = computed<readonly CardAtalho[]>(() => {
+    const helpers = {
+        ehDono: permissoes.ehDono,
+        pode: (k: string) => permissoes.pode(k),
+        podeExtra: (k: string) => permissoes.podeExtra(k),
+    }
+    return CARDS_ATALHO.filter(c => podeAcessarRota(c.routeName, helpers))
+})
+
+// Toast pós-redirect: o router insere `?bloqueado=<rota>` quando manda para
+// /home por falta de permissão. Aqui consumimos o querystring (mostra toast +
+// limpa a URL para não reaparecer no F5 ou ao compartilhar o link).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+
+function tratarRedirectBloqueado() {
+    if (!route.query.bloqueado) return
+    toast.value = {
+        mensagem: "Esta área é restrita ao seu papel.",
+        variante: "info",
+    }
+    // Remove o querystring sem disparar nova navegação no histórico.
+    const { bloqueado, ...resto } = route.query
+    void bloqueado
+    router.replace({ query: resto })
+}
+
+watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate: true })
 </script>
 
 <template>
@@ -179,34 +234,27 @@ const statusCor: Record<string, string> = {
             </section>
         </div>
 
-        <!-- Navegação rápida -->
-        <nav class="menu">
-            <router-link :to="{ name: 'Agenda' }" class="card">
-                <h3>Agenda</h3>
-                <p>Agendar e gerenciar consultas e procedimentos.</p>
-            </router-link>
-            <router-link :to="{ name: 'Pacientes' }" class="card">
-                <h3>Pacientes</h3>
-                <p>Gerenciar pacientes deste estabelecimento.</p>
-            </router-link>
-            <router-link :to="{ name: 'Financeiro' }" class="card">
-                <h3>Financeiro</h3>
-                <p>Controlar receitas, despesas e fluxo de caixa.</p>
-            </router-link>
-            <router-link :to="{ name: 'Orcamentos' }" class="card">
-                <h3>Orçamentos</h3>
-                <p>Cotações de cirurgias e procedimentos.</p>
-            </router-link>
-            <router-link :to="{ name: 'Inventario' }" class="card">
-                <h3>Inventário</h3>
-                <p>Controlar estoque de insumos e materiais.</p>
-            </router-link>
-            <router-link :to="{ name: 'Relatorios' }" class="card">
-                <h3>Relatórios</h3>
-                <p>Faturamento por categoria e resumo de agendamentos.</p>
+        <!-- Navegação rápida — cards filtrados pelo papel/permissões do
+             usuário corrente (single source of truth: routePermissions.ts). -->
+        <nav v-if="cardsVisiveis.length > 0" class="menu">
+            <router-link
+                v-for="card in cardsVisiveis"
+                :key="card.routeName"
+                :to="{ name: card.routeName }"
+                class="card"
+            >
+                <h3>{{ card.titulo }}</h3>
+                <p>{{ card.descricao }}</p>
             </router-link>
         </nav>
         </template>
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </main>
 </template>
 

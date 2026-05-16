@@ -363,7 +363,12 @@ router.beforeEach(async (to) => {
             podeExtra: (k) => permissoes.podeExtra(k),
         })
         if (!acessivel) {
-            return { name: "Home" }
+            // Sinaliza para a Home exibir um toast discreto explicando o
+            // redirecionamento. Sem isso, o usuário só vê a URL trocar e
+            // pensa que clicou errado. O nome da rota bloqueada acompanha o
+            // querystring para permitir uma mensagem contextual futuramente —
+            // hoje a Home usa o mesmo texto para qualquer rota.
+            return { name: "Home", query: { bloqueado: String(to.name ?? "") } }
         }
     }
 
