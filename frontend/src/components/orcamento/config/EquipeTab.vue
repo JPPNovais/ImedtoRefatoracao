@@ -7,6 +7,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import {
     AppStatCard, AppSearchInput, AppFilterPills, AppDrawer, AppField, AppInput,
     AppSelect, AppButton, AppStatusPill, AppPagination, AppEmptyState,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { formatarMoedaBrl } from "@/utils/format"
@@ -31,6 +32,15 @@ const idEditando = ref<number | null>(null)
 const form = ref<TeamRolePayload>({
     papel: "", profissionalUsuarioId: null, nomePadrao: null,
     tipoHonorario: "Percentual", valor: 0, baseCalculo: "procedimento",
+})
+
+// Toast e confirmação (substituem window.alert/confirm).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: OrcamentoTeamRole | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
 })
 
 const opcoesTipo = [
@@ -101,27 +111,38 @@ function editar(item: OrcamentoTeamRole) {
 }
 
 async function salvar() {
-    if (!form.value.papel.trim()) { alert("Papel é obrigatório."); return }
+    if (!form.value.papel.trim()) { notificar("Papel é obrigatório.", "error"); return }
     try {
         if (idEditando.value === null) {
             await orcamentoCatalogoService.criarTeamRole(form.value)
+            notificar("Papel criado.", "success")
         } else {
             await orcamentoCatalogoService.atualizarTeamRole(idEditando.value, form.value)
+            notificar("Papel atualizado.", "success")
         }
         drawerAberto.value = false
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao salvar.")
+        notificar(e?.response?.data?.mensagem ?? "Falha ao salvar.", "error")
     }
 }
 
-async function remover(item: OrcamentoTeamRole) {
-    if (!confirm(`Inativar "${item.papel}"?`)) return
+function pedirRemocao(item: OrcamentoTeamRole) {
+    confirmacao.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarRemocao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await orcamentoCatalogoService.removerTeamRole(item.id)
+        await orcamentoCatalogoService.removerTeamRole(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Papel inativado.", "success")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Falha ao inativar.", "error")
     }
 }
 
@@ -199,7 +220,7 @@ function iniciais(nome: string): string {
                             <button class="btn-icon btn-icon-editar" title="Editar" @click="editar(item)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
-                            <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="remover(item)">
+                            <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirRemocao(item)">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
@@ -243,6 +264,24 @@ function iniciais(nome: string): string {
                 <AppButton @click="salvar">Salvar</AppButton>
             </template>
         </AppDrawer>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar papel?"
+            :mensagem="confirmacao.alvo ? `Deseja inativar “${confirmacao.alvo.papel}”?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            icone="fa-solid fa-trash"
+            :executando="confirmacao.executando"
+            @confirmar="executarRemocao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

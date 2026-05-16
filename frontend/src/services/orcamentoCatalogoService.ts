@@ -258,6 +258,9 @@ export interface FaixaAnestesista {
     ordem?: number
 }
 
+/**
+ * Detalhe completo do anestesista (GET /anestesistas/{id}). Inclui telefone (PII).
+ */
 export interface OrcamentoAnestesista {
     id: number
     estabelecimentoId: number
@@ -266,6 +269,24 @@ export interface OrcamentoAnestesista {
     crm: string | null
     especialidade: string | null
     telefone: string | null
+    tabelaHonorarios: string | null
+    ativo: boolean
+    criadaEm: string
+    atualizadaEm: string | null
+    faixas: FaixaAnestesista[]
+}
+
+/**
+ * Versão de listagem (GET /anestesistas). LGPD: SEM telefone.
+ * O drawer de edição faz GET /anestesistas/{id} para puxar o telefone.
+ */
+export interface OrcamentoAnestesistaLista {
+    id: number
+    estabelecimentoId: number
+    profissionalUsuarioId: string | null
+    nome: string
+    crm: string | null
+    especialidade: string | null
     tabelaHonorarios: string | null
     ativo: boolean
     criadaEm: string
@@ -466,7 +487,7 @@ export const orcamentoCatalogoService = {
 
     // ─── Anestesistas (novo) ───
     listarAnestesistas(ativos?: boolean) {
-        return httpClient.get<OrcamentoAnestesista[]>(`${BASE}/anestesistas`, { params: { ativos } }).then(r => r.data)
+        return httpClient.get<OrcamentoAnestesistaLista[]>(`${BASE}/anestesistas`, { params: { ativos } }).then(r => r.data)
     },
     obterAnestesista(id: number) {
         return httpClient.get<OrcamentoAnestesista>(`${BASE}/anestesistas/${id}`).then(r => r.data)

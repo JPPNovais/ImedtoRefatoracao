@@ -6,6 +6,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import {
     AppStatCard, AppSearchInput, AppFilterPills, AppDrawer, AppField, AppInput,
     AppSelect, AppCheckbox, AppButton, AppStatusPill, AppPagination, AppEmptyState,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { formatarMoedaBrl } from "@/utils/format"
@@ -32,6 +33,15 @@ const idEditando = ref<number | null>(null)
 const form = ref<CatalogoProdutoPayload>({
     nome: "", descricao: null, valorReferencia: null, usoUnico: false,
     tipo: "Outros", marca: null, unidade: "un", fornecedorNome: null, codigoSku: null,
+})
+
+// Toast e confirmação (substituem window.alert/confirm).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: CatalogoProduto | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
 })
 
 const opcoesTipo = [
@@ -103,27 +113,38 @@ function editar(item: CatalogoProduto) {
 }
 
 async function salvar() {
-    if (!form.value.nome.trim()) { alert("Nome é obrigatório."); return }
+    if (!form.value.nome.trim()) { notificar("Nome é obrigatório.", "error"); return }
     try {
         if (idEditando.value === null) {
             await orcamentoCatalogoService.criarProduto(form.value)
+            notificar("Produto criado.", "success")
         } else {
             await orcamentoCatalogoService.atualizarProduto(idEditando.value, form.value)
+            notificar("Produto atualizado.", "success")
         }
         drawerAberto.value = false
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao salvar.")
+        notificar(e?.response?.data?.mensagem ?? "Falha ao salvar.", "error")
     }
 }
 
-async function remover(item: CatalogoProduto) {
-    if (!confirm(`Inativar "${item.nome}"?`)) return
+function pedirRemocao(item: CatalogoProduto) {
+    confirmacao.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarRemocao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await orcamentoCatalogoService.removerProduto(item.id)
+        await orcamentoCatalogoService.removerProduto(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Produto inativado.", "success")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Falha ao inativar.", "error")
     }
 }
 </script>
@@ -193,7 +214,7 @@ async function remover(item: CatalogoProduto) {
                             <button class="btn-icon btn-icon-editar" title="Editar" @click="editar(item)">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
-                            <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="remover(item)">
+                            <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirRemocao(item)">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </td>
@@ -251,6 +272,24 @@ async function remover(item: CatalogoProduto) {
                 <AppButton @click="salvar">Salvar</AppButton>
             </template>
         </AppDrawer>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar produto?"
+            :mensagem="confirmacao.alvo ? `Deseja inativar “${confirmacao.alvo.nome}”?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            icone="fa-solid fa-trash"
+            :executando="confirmacao.executando"
+            @confirmar="executarRemocao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

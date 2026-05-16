@@ -140,6 +140,9 @@ public class OrcamentoAnestesistaFaixaDto
     public int Ordem { get; set; }
 }
 
+/// <summary>
+/// DTO de detalhe (GET /anestesistas/{id}). Inclui PII (telefone) para edição.
+/// </summary>
 public class OrcamentoAnestesistaDto
 {
     public long Id { get; set; }
@@ -149,6 +152,26 @@ public class OrcamentoAnestesistaDto
     public string? Crm { get; set; }
     public string? Especialidade { get; set; }
     public string? Telefone { get; set; }
+    public string? TabelaHonorarios { get; set; }
+    public bool Ativo { get; set; }
+    public DateTime CriadaEm { get; set; }
+    public DateTime? AtualizadaEm { get; set; }
+    public List<OrcamentoAnestesistaFaixaDto> Faixas { get; set; } = new();
+}
+
+/// <summary>
+/// DTO de listagem (GET /anestesistas). LGPD: NÃO expõe telefone — a tela de
+/// listagem não exibe esse campo. Para editar, o front faz GET /anestesistas/{id}
+/// e recebe o <see cref="OrcamentoAnestesistaDto"/>.
+/// </summary>
+public class OrcamentoAnestesistaListaDto
+{
+    public long Id { get; set; }
+    public long EstabelecimentoId { get; set; }
+    public Guid? ProfissionalUsuarioId { get; set; }
+    public string Nome { get; set; } = string.Empty;
+    public string? Crm { get; set; }
+    public string? Especialidade { get; set; }
     public string? TabelaHonorarios { get; set; }
     public bool Ativo { get; set; }
     public DateTime CriadaEm { get; set; }

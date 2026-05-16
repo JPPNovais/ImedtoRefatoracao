@@ -56,7 +56,7 @@ public class ListarOrcamentoTeamRolesQuery : IQuery<IEnumerable<OrcamentoTeamRol
     public bool? Ativos { get; set; }
 }
 
-public class ListarOrcamentoAnestesistasQuery : IQuery<IEnumerable<OrcamentoAnestesistaDto>>
+public class ListarOrcamentoAnestesistasQuery : IQuery<IEnumerable<OrcamentoAnestesistaListaDto>>
 {
     public long EstabelecimentoId { get; set; }
     public bool? Ativos { get; set; }

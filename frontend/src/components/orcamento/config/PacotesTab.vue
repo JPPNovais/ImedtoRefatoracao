@@ -6,7 +6,8 @@
 import { ref, computed, onMounted, watch } from "vue"
 import {
     AppStatCard, AppSearchInput, AppFilterPills, AppDrawer, AppField, AppInput,
-    AppSelect, AppButton, AppStatusPill, AppPagination, AppEmptyState, AppCheckbox,
+    AppSelect, AppButton, AppStatusPill, AppPagination, AppEmptyState,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { formatarMoedaBrl } from "@/utils/format"
@@ -14,7 +15,7 @@ import {
     orcamentoCatalogoService,
     type OrcamentoPacoteResumo, type PacotePayload,
     type CatalogoCirurgia, type CatalogoProduto,
-    type OrcamentoTeamRole, type OrcamentoAnestesista,
+    type OrcamentoTeamRole, type OrcamentoAnestesistaLista,
 } from "@/services/orcamentoCatalogoService"
 
 const emit = defineEmits<{ (e: "contagem", v: number): void }>()
@@ -24,7 +25,7 @@ const lista = ref<OrcamentoPacoteResumo[]>([])
 const procedimentos = ref<CatalogoCirurgia[]>([])
 const produtos = ref<CatalogoProduto[]>([])
 const teamRoles = ref<OrcamentoTeamRole[]>([])
-const anestesistas = ref<OrcamentoAnestesista[]>([])
+const anestesistas = ref<OrcamentoAnestesistaLista[]>([])
 
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
@@ -44,6 +45,15 @@ const novoProcId = ref<number | null>(null)
 const novoProdutoId = ref<number | null>(null)
 const novoProdutoQtd = ref(1)
 const novoRoleId = ref<number | null>(null)
+
+// Toast e confirmação (substituem window.alert/confirm).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: OrcamentoPacoteResumo | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 const filtrada = computed(() => {
     let l = lista.value
@@ -180,27 +190,38 @@ function removerRole(id: number) {
 }
 
 async function salvar() {
-    if (!form.value.nome.trim()) { alert("Nome é obrigatório."); return }
+    if (!form.value.nome.trim()) { notificar("Nome é obrigatório.", "error"); return }
     try {
         if (idEditando.value === null) {
             await orcamentoCatalogoService.criarPacote(form.value)
+            notificar("Pacote criado.", "success")
         } else {
             await orcamentoCatalogoService.atualizarPacote(idEditando.value, form.value)
+            notificar("Pacote atualizado.", "success")
         }
         drawerAberto.value = false
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao salvar pacote.")
+        notificar(e?.response?.data?.mensagem ?? "Falha ao salvar pacote.", "error")
     }
 }
 
-async function remover(item: OrcamentoPacoteResumo) {
-    if (!confirm(`Inativar pacote "${item.nome}"?`)) return
+function pedirRemocao(item: OrcamentoPacoteResumo) {
+    confirmacao.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarRemocao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await orcamentoCatalogoService.removerPacote(item.id)
+        await orcamentoCatalogoService.removerPacote(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Pacote inativado.", "success")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Falha ao inativar.", "error")
     }
 }
 </script>
@@ -258,7 +279,7 @@ async function remover(item: OrcamentoPacoteResumo) {
                         <button class="btn-icon btn-icon-editar" title="Editar" @click="editar(item)">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="remover(item)">
+                        <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirRemocao(item)">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
@@ -349,6 +370,24 @@ async function remover(item: OrcamentoPacoteResumo) {
                 <AppButton @click="salvar">Salvar</AppButton>
             </template>
         </AppDrawer>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar pacote?"
+            :mensagem="confirmacao.alvo ? `Deseja inativar “${confirmacao.alvo.nome}”?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            icone="fa-solid fa-trash"
+            :executando="confirmacao.executando"
+            @confirmar="executarRemocao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

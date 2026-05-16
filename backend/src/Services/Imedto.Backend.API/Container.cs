@@ -901,7 +901,7 @@ public static class Container
             bus.Register<ListarCatalogoProdutosQuery, IEnumerable<CatalogoProdutoDto>, ListarCatalogoProdutosQueryHandlers>();
             bus.Register<ListarProdutosDaCirurgiaQuery, IEnumerable<CatalogoCirurgiaProdutoDto>, ListarProdutosDaCirurgiaQueryHandlers>();
             bus.Register<ListarOrcamentoTeamRolesQuery, IEnumerable<OrcamentoTeamRoleDto>, ListarOrcamentoTeamRolesQueryHandlers>();
-            bus.Register<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaDto>, ListarOrcamentoAnestesistasQueryHandlers>();
+            bus.Register<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaListaDto>, ListarOrcamentoAnestesistasQueryHandlers>();
             bus.Register<ObterOrcamentoAnestesistaQuery, OrcamentoAnestesistaDto?, ObterOrcamentoAnestesistaQueryHandlers>();
             bus.Register<ListarOrcamentoPacotesQuery, IEnumerable<OrcamentoPacoteResumoDto>, ListarOrcamentoPacotesQueryHandlers>();
             bus.Register<ObterOrcamentoPacoteQuery, OrcamentoPacoteDetalheDto?, ObterOrcamentoPacoteQueryHandlers>();

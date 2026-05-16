@@ -9,7 +9,7 @@ import {
     type CatalogoCirurgiaProdutoVinculo,
 } from "@/services/orcamentoCatalogoService"
 import { formatarMoedaBrl } from "@/utils/format"
-import { AppButton, AppSelect, AppInput } from "@/components/ui"
+import { AppButton, AppSelect, AppInput, AppToast, AppConfirmDialog } from "@/components/ui"
 
 const props = defineProps<{
     cirurgiaId: number
@@ -21,6 +21,15 @@ const produtos = ref<CatalogoProduto[]>([])
 const novoProdutoId = ref<number | null>(null)
 const novoQtd = ref(1)
 const carregando = ref(false)
+
+// Toast e confirmação (substituem window.alert/confirm).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: CatalogoCirurgiaProdutoVinculo | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 const produtosDisponiveis = computed(() => {
     const usados = new Set(vinculos.value.map(v => v.catalogoProdutoId))
@@ -75,7 +84,7 @@ async function vincular() {
         novoQtd.value = 1
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao vincular produto.")
+        notificar(e?.response?.data?.mensagem ?? "Falha ao vincular produto.", "error")
     }
 }
 
@@ -88,18 +97,27 @@ async function atualizarVinculo(v: CatalogoCirurgiaProdutoVinculo, patch: Partia
             incluido: v.incluido,
         })
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao atualizar.")
+        notificar(e?.response?.data?.mensagem ?? "Falha ao atualizar.", "error")
         await carregar()
     }
 }
 
-async function desvincular(v: CatalogoCirurgiaProdutoVinculo) {
-    if (!confirm(`Desvincular "${v.produtoNome}"?`)) return
+function pedirDesvincular(v: CatalogoCirurgiaProdutoVinculo) {
+    confirmacao.value = { aberto: true, alvo: v, executando: false }
+}
+
+async function executarDesvincular() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await orcamentoCatalogoService.desvincularProdutoCirurgia(v.id)
+        await orcamentoCatalogoService.desvincularProdutoCirurgia(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Produto desvinculado.", "success")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao desvincular.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Falha ao desvincular.", "error")
     }
 }
 </script>
@@ -131,7 +149,7 @@ async function desvincular(v: CatalogoCirurgiaProdutoVinculo) {
                     :title="v.incluido ? 'Incluído no total' : 'Opcional (cobrado à parte)'"
                     @click="atualizarVinculo(v, { incluido: !v.incluido })"
                 >{{ v.incluido ? "Incluído" : "Opcional" }}</button>
-                <button type="button" class="btn-icon btn-icon-excluir" title="Desvincular" @click="desvincular(v)">
+                <button type="button" class="btn-icon btn-icon-excluir" title="Desvincular" @click="pedirDesvincular(v)">
                     <i class="fa-solid fa-trash"></i>
                 </button>
             </div>
@@ -163,6 +181,24 @@ async function desvincular(v: CatalogoCirurgiaProdutoVinculo) {
                 <strong>{{ formatarMoedaBrl(totalSugerido) }}</strong>
             </div>
         </div>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Desvincular produto?"
+            :mensagem="confirmacao.alvo ? `Deseja desvincular “${confirmacao.alvo.produtoNome}” do procedimento?` : ''"
+            confirmar-rotulo="Desvincular"
+            variante="danger"
+            icone="fa-solid fa-trash"
+            :executando="confirmacao.executando"
+            @confirmar="executarDesvincular"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

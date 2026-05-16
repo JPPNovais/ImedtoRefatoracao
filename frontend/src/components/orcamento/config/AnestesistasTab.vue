@@ -6,18 +6,19 @@ import { ref, computed, onMounted, watch } from "vue"
 import {
     AppStatCard, AppSearchInput, AppFilterPills, AppDrawer, AppField, AppInput,
     AppButton, AppStatusPill, AppPagination, AppEmptyState,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { formatarMoedaBrl } from "@/utils/format"
 import {
     orcamentoCatalogoService,
-    type OrcamentoAnestesista, type AnestesistaPayload,
+    type OrcamentoAnestesistaLista, type AnestesistaPayload,
 } from "@/services/orcamentoCatalogoService"
 
 const emit = defineEmits<{ (e: "contagem", v: number): void }>()
 
 const carregando = ref(false)
-const lista = ref<OrcamentoAnestesista[]>([])
+const lista = ref<OrcamentoAnestesistaLista[]>([])
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
 type FiltroStatus = "todos" | "ativos" | "inativos"
@@ -31,6 +32,15 @@ const form = ref<AnestesistaPayload>({
     nome: "", profissionalUsuarioId: null,
     crm: null, especialidade: null, telefone: null, tabelaHonorarios: null,
     faixas: [],
+})
+
+// Toast e confirmação (substituem window.alert/confirm).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: OrcamentoAnestesistaLista | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
 })
 
 const filtrada = computed(() => {
@@ -85,9 +95,9 @@ function novo() {
     drawerAberto.value = true
 }
 
-async function editar(item: OrcamentoAnestesista) {
+async function editar(item: OrcamentoAnestesistaLista) {
     idEditando.value = item.id
-    // Carrega detalhe (faixas) — listagem já traz, mas garantimos sincronia.
+    // Listagem NÃO traz telefone (LGPD) — buscamos o detalhe completo para o drawer.
     const detalhe = await orcamentoCatalogoService.obterAnestesista(item.id)
     form.value = {
         nome: detalhe.nome,
@@ -109,32 +119,43 @@ function removerFaixa(idx: number) {
 }
 
 async function salvar() {
-    if (!form.value.nome.trim()) { alert("Nome é obrigatório."); return }
+    if (!form.value.nome.trim()) { notificar("Nome é obrigatório.", "error"); return }
     // Validação de duplicados (espelho da regra do back).
     const descricoes = form.value.faixas.map(f => f.descricao.trim().toLowerCase())
     const dup = descricoes.filter((d, i) => d && descricoes.indexOf(d) !== i)
-    if (dup.length) { alert(`Faixa duplicada: ${dup[0]}`); return }
+    if (dup.length) { notificar(`Faixa duplicada: ${dup[0]}`, "error"); return }
 
     try {
         if (idEditando.value === null) {
             await orcamentoCatalogoService.criarAnestesista(form.value)
+            notificar("Anestesista criado.", "success")
         } else {
             await orcamentoCatalogoService.atualizarAnestesista(idEditando.value, form.value)
+            notificar("Anestesista atualizado.", "success")
         }
         drawerAberto.value = false
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao salvar.")
+        notificar(e?.response?.data?.mensagem ?? "Falha ao salvar.", "error")
     }
 }
 
-async function remover(item: OrcamentoAnestesista) {
-    if (!confirm(`Inativar "${item.nome}"?`)) return
+function pedirRemocao(item: OrcamentoAnestesistaLista) {
+    confirmacao.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarRemocao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await orcamentoCatalogoService.removerAnestesista(item.id)
+        await orcamentoCatalogoService.removerAnestesista(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Anestesista inativado.", "success")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Falha ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Falha ao inativar.", "error")
     }
 }
 
@@ -198,7 +219,7 @@ function iniciais(nome: string): string {
                     <button class="btn-icon btn-icon-editar" title="Editar" @click="editar(item)">
                         <i class="fa-solid fa-pen"></i>
                     </button>
-                    <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="remover(item)">
+                    <button v-if="item.ativo" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirRemocao(item)">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -261,6 +282,24 @@ function iniciais(nome: string): string {
                 <AppButton @click="salvar">Salvar</AppButton>
             </template>
         </AppDrawer>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar anestesista?"
+            :mensagem="confirmacao.alvo ? `Deseja inativar “${confirmacao.alvo.nome}”?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            icone="fa-solid fa-trash"
+            :executando="confirmacao.executando"
+            @confirmar="executarRemocao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

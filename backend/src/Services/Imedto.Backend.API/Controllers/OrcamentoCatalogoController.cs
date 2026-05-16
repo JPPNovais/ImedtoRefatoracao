@@ -397,9 +397,9 @@ public class OrcamentoCatalogoController : ControllerBase
 
     // ─── Anestesistas ───
     [HttpGet("anestesistas")]
-    public async Task<ActionResult<IEnumerable<OrcamentoAnestesistaDto>>> ListarAnestesistas([FromQuery] bool? ativos)
+    public async Task<ActionResult<IEnumerable<OrcamentoAnestesistaListaDto>>> ListarAnestesistas([FromQuery] bool? ativos)
     {
-        var data = await _query.Query<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaDto>>(
+        var data = await _query.Query<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaListaDto>>(
             new ListarOrcamentoAnestesistasQuery { EstabelecimentoId = _tenant.EstabelecimentoId, Ativos = ativos });
         return Ok(data);
     }

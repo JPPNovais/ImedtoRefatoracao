@@ -177,21 +177,23 @@ public class OrcamentoCatalogoQueryRepository
         return await conn.QueryAsync<OrcamentoTeamRoleDto>(sql, new { EstabelecimentoId = estabelecimentoId, Ativos = ativos });
     }
 
-    public async Task<IEnumerable<OrcamentoAnestesistaDto>> ListarAnestesistas(long estabelecimentoId, bool? ativos)
+    public async Task<IEnumerable<OrcamentoAnestesistaListaDto>> ListarAnestesistas(long estabelecimentoId, bool? ativos)
     {
         await using var conn = new NpgsqlConnection(_connStr);
+        // LGPD: SELECT NÃO inclui telefone — tela de listagem não exibe esse campo.
+        // Telefone só vem em ObterAnestesista (drawer de edição).
         const string sqlAnest = """
             SELECT id AS Id, estabelecimento_id AS EstabelecimentoId,
                    profissional_usuario_id AS ProfissionalUsuarioId,
                    nome AS Nome, crm AS Crm, especialidade AS Especialidade,
-                   telefone AS Telefone, tabela_honorarios AS TabelaHonorarios,
+                   tabela_honorarios AS TabelaHonorarios,
                    ativo AS Ativo, criada_em AS CriadaEm, atualizada_em AS AtualizadaEm
             FROM orcamento_anestesista
             WHERE estabelecimento_id = @EstabelecimentoId
               AND (@Ativos::boolean IS NULL OR ativo = @Ativos::boolean)
             ORDER BY nome
             """;
-        var anestesistas = (await conn.QueryAsync<OrcamentoAnestesistaDto>(sqlAnest,
+        var anestesistas = (await conn.QueryAsync<OrcamentoAnestesistaListaDto>(sqlAnest,
             new { EstabelecimentoId = estabelecimentoId, Ativos = ativos })).ToList();
 
         if (anestesistas.Count == 0) return anestesistas;

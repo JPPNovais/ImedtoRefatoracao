@@ -77,11 +77,11 @@ public class ListarOrcamentoTeamRolesQueryHandlers : IRequestHandler<ListarOrcam
         => _repo.ListarTeamRoles(q.EstabelecimentoId, q.Ativos);
 }
 
-public class ListarOrcamentoAnestesistasQueryHandlers : IRequestHandler<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaDto>>
+public class ListarOrcamentoAnestesistasQueryHandlers : IRequestHandler<ListarOrcamentoAnestesistasQuery, IEnumerable<OrcamentoAnestesistaListaDto>>
 {
     private readonly OrcamentoCatalogoQueryRepository _repo;
     public ListarOrcamentoAnestesistasQueryHandlers(OrcamentoCatalogoQueryRepository repo) => _repo = repo;
-    public Task<IEnumerable<OrcamentoAnestesistaDto>> Handle(ListarOrcamentoAnestesistasQuery q)
+    public Task<IEnumerable<OrcamentoAnestesistaListaDto>> Handle(ListarOrcamentoAnestesistasQuery q)
         => _repo.ListarAnestesistas(q.EstabelecimentoId, q.Ativos);
 }
 
