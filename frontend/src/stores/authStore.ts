@@ -58,7 +58,7 @@ export const useAuthStore = defineStore("auth", () => {
         // Tentativa 1: token atual (cookie de access-token)
         try {
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
-            usuario.value = data.usuario
+            await hidratarUsuario(data.usuario)
             ativarRealtime()
             return
         } catch (err: any) {
@@ -73,11 +73,25 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             await httpClient.post("/auth/refresh", {}, noAutoRefresh)
             const { data } = await httpClient.get("/auth/me", noAutoRefresh)
-            usuario.value = data.usuario
+            await hidratarUsuario(data.usuario)
             ativarRealtime()
         } catch {
             await limparSessao()
         }
+    }
+
+    /**
+     * Atribui `usuario.value` detectando troca de identidade — se o id que vem
+     * do servidor diverge do atual em memória, limpa toda a sessão antes de
+     * setar. Defense-in-depth contra qualquer caminho que reidrata sem ter
+     * passado por `login()` (cookies trocados externamente, segundo init,
+     * recarregarMe após login programático, etc.).
+     */
+    async function hidratarUsuario(novo: Usuario | null) {
+        if (novo && usuario.value && usuario.value.id !== novo.id) {
+            await limparSessao()
+        }
+        usuario.value = novo
     }
 
     /**
@@ -161,7 +175,7 @@ export const useAuthStore = defineStore("auth", () => {
 
     async function recarregarMe() {
         const { data } = await httpClient.get("/auth/me")
-        usuario.value = data.usuario
+        await hidratarUsuario(data.usuario)
     }
 
     /**
@@ -173,7 +187,7 @@ export const useAuthStore = defineStore("auth", () => {
      */
     async function bootstrapPosAuth() {
         const data = await bootstrapService.obter()
-        usuario.value = data.usuario
+        await hidratarUsuario(data.usuario)
         useProfissionalStore().setProfissional(data.profissional)
         if (!onboardingPendente.value) {
             useTenantStore().popularEstabelecimentos(data.estabelecimentos)

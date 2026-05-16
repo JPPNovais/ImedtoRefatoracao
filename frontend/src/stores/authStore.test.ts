@@ -415,6 +415,47 @@ describe("authStore", () => {
 
             Storage.prototype.removeItem = original
         })
+
+        it("recarregarMe() força limparSessao se o id do usuário muda (defense-in-depth contra relogin sem logout)", async () => {
+            const { tenantLimpar } = setupStoreMocks()
+            const store = useAuthStore()
+
+            // Estado inicial: Médico (Conta A)
+            const medico = criarUsuario({ id: "user-a-medico" })
+            store.setUsuario(medico)
+            localStorage.setItem("imedto.atendimento_ativo", "{}")
+
+            // Servidor agora responde com OUTRA identidade (Conta B fez login
+            // sem que o app tenha passado por logout — cenário: cookies trocados
+            // externamente, login programático bypassando authStore.login()).
+            const dono = criarUsuario({ id: "user-b-dono", email: "dono@imedto.com" })
+            vi.mocked(httpClient.get).mockResolvedValueOnce({ data: { usuario: dono } })
+
+            await store.recarregarMe()
+
+            // Detectou troca → limparSessao foi chamado ANTES de setar o novo usuario.
+            expect(tenantLimpar).toHaveBeenCalled()
+            expect(localStorage.getItem("imedto.atendimento_ativo")).toBeNull()
+            // Estado final: usuário novo já hidratado.
+            expect(store.usuario).toEqual(dono)
+        })
+
+        it("recarregarMe() NÃO limpa sessão quando o id é o mesmo (refresh de dados)", async () => {
+            const { tenantLimpar } = setupStoreMocks()
+            const store = useAuthStore()
+
+            const usuario = criarUsuario({ id: "user-a", nomeCompleto: "Antigo" })
+            store.setUsuario(usuario)
+
+            // Mesmo id, apenas nomeCompleto atualizado
+            const atualizado = criarUsuario({ id: "user-a", nomeCompleto: "Novo Nome" })
+            vi.mocked(httpClient.get).mockResolvedValueOnce({ data: { usuario: atualizado } })
+
+            await store.recarregarMe()
+
+            expect(tenantLimpar).not.toHaveBeenCalled()
+            expect(store.usuario?.nomeCompleto).toBe("Novo Nome")
+        })
     })
 
     // ────────────────────────────────────────────────────────────────────────────
