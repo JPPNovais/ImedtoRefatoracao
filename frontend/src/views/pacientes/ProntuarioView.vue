@@ -234,9 +234,14 @@ function toggleFocus() {
  * Chrome/Safari. Abrimos `about:blank` aqui mesmo e devolvemos a referência;
  * depois do PDF gerado, redirecionamos a janela para o blob URL. Se retornar
  * null (popup bloqueado), avisamos o usuário e caímos para download.
+ *
+ * NÃO usar "noopener,noreferrer": no Chrome 88+ a janela retorna handle não
+ * nulo mas ignora silenciosamente `janela.location.href = blobUrl` posterior,
+ * deixando a aba travada em about:blank. O blob é same-origin (sem risco de
+ * tabnabbing) e browsers modernos já aplicam noopener implícito em cross-origin.
  */
 function abrirJanelaParaVisualizacao(): Window | null {
-    return window.open("about:blank", "_blank", "noopener,noreferrer")
+    return window.open("about:blank", "_blank")
 }
 
 async function exportarHistorico(modo: PdfSaidaModo) {

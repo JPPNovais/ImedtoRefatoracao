@@ -12,3 +12,5 @@
 - [QA pós-deploy 2d659b1 2026-05-16 (Teleport AppToast)](project_qa_posdeploy_2d659b1_2026_05_16.md) — 5/5 abas com toast visível acima do overlay; P0 do loop 2 eliminado.
 - [elementFromPoint engana com Reka Dialog aberto](feedback_elementfrompoint_armadilha_reka_dialog.md) — validar toast por screenshot + DOM props, não por hit-testing.
 - [QA pós-deploy c867914 2026-05-17 (PDF por evolução + timeline compacta)](project_qa_posdeploy_c867914_2026_05_17.md) — 6/6 critérios verde; audit trail LGPD ok; guard de double-click confirmado.
+- [QA pós-deploy 043704e 2026-05-17 (Ver PDF em nova aba)](project_qa_posdeploy_043704e_2026_05_17.md) — 8/10 ✅; downloads OK; ⚠️ Visualizar fica em about:blank por bug do noopener. Entregue com débito P1.
+- [window.open("noopener") quebra janela.location.href posterior](feedback_window_open_noopener_quebra_navegacao.md) — Chrome 88+ ignora navegação programática após noopener.
