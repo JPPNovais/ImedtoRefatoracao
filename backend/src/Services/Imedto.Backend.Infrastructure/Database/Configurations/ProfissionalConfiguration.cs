@@ -18,7 +18,7 @@ public class ProfissionalConfiguration : IEntityTypeConfiguration<Profissional>
         builder.Property(p => p.NumeroRegistro).HasColumnName("numero_registro").IsRequired().HasMaxLength(30);
         builder.Property(p => p.Especialidade).HasColumnName("especialidade").HasMaxLength(200);
         builder.Property(p => p.Bio).HasColumnName("bio").HasMaxLength(2000);
-        builder.Property(p => p.FotoUrl).HasColumnName("foto_url").HasMaxLength(500);
+        builder.Property(p => p.FotoUrl).HasColumnName("foto_url").HasMaxLength(2000);
         builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
         builder.Property(p => p.DeletadoEm).HasColumnName("deletado_em");
