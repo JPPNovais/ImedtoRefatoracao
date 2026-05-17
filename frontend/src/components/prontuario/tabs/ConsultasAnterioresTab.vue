@@ -1,22 +1,23 @@
 <!--
     Aba "Consultas anteriores" — visual timeline do design Imedto care:
       - Filtro por ano (chips no topo).
-      - Linha do tempo vertical com cards (httf-card) por evolução: data
-        destacada, modelo, profissional, resumo, badge "Em andamento" se for
-        a evolução mais recente.
+      - Linha do tempo vertical com cards (EvolucaoTimelineItem) por evolução:
+        data destacada, modelo, profissional, resumo e badge "Mais recente".
+      - Cada card tem botão "PDF" individual; um botão geral "Exportar histórico"
+        permanece no header.
       - Card de Anexos (lista + upload) abaixo.
-
-    Mantém todas as ações que existiam (gerar PDF, upload, download).
 -->
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { AppButton, AppEmptyState } from "@/components/ui"
+import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
 import type { Evolucao, Anexo } from "@/services/prontuarioService"
 
 const props = defineProps<{
     evolucoes: Evolucao[]
     anexos: Anexo[]
     uploadando: boolean
+    evolucaoSendoBaixada: number | null
     gerarPdf: () => void
 }>()
 
@@ -24,6 +25,7 @@ const emit = defineEmits<{
     downloadAnexo: [anexo: Anexo]
     selecionarArquivo: [event: Event]
     enviarAnexo: []
+    gerarPdfEvolucao: [evolucao: Evolucao]
 }>()
 
 // ─── Upload local ────────────────────────────────────────────────────────────
@@ -73,41 +75,12 @@ const evolucoesFiltradas = computed(() => {
 
 const idMaisRecente = computed(() => evolucoesFiltradas.value[0]?.id ?? null)
 
-// ─── Helpers de formatação ───────────────────────────────────────────────────
-const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+// ─── Helpers de formatação (anexos) ─────────────────────────────────────────
 function fmtData(iso: string) { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) }
-function fmtHora(iso: string) { return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }
-function dia(iso: string)  { return String(new Date(iso).getDate()).padStart(2, "0") }
-function mes(iso: string)  { return MESES[new Date(iso).getMonth()] }
-function ano(iso: string)  { return String(new Date(iso).getFullYear()) }
-
 function fmtTamanho(bytes: number) {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function resumo(e: Evolucao): string {
-    // Pega o primeiro campo de texto não vazio (queixa principal, evolução, etc.)
-    for (const s of e.modeloSnapshot) {
-        const v = e.conteudo[s.chave]
-        if (typeof v === "string" && v.trim()) {
-            const t = v.trim().replace(/\s+/g, " ")
-            return t.length > 220 ? t.slice(0, 220) + "..." : t
-        }
-    }
-    return "Sem resumo textual disponível."
-}
-
-function contarSecoesPreenchidas(e: Evolucao): number {
-    return e.modeloSnapshot.filter(s => {
-        const v = e.conteudo[s.chave]
-        if (v === null || v === undefined) return false
-        if (typeof v === "string") return v.trim().length > 0
-        if (typeof v === "object" && !Array.isArray(v)) return Object.values(v as Record<string, unknown>).some(x => x !== null && x !== undefined && String(x).trim() !== "")
-        if (Array.isArray(v)) return (v as unknown[]).length > 0
-        return true
-    }).length
 }
 </script>
 
@@ -162,48 +135,14 @@ function contarSecoesPreenchidas(e: Evolucao): number {
 
         <!-- Timeline -->
         <div v-else class="ht-timeline-full" role="list">
-            <article
+            <EvolucaoTimelineItem
                 v-for="evo in evolucoesFiltradas"
                 :key="evo.id"
-                class="httf-item"
-                :class="{ current: evo.id === idMaisRecente }"
-                role="listitem"
-            >
-                <div class="httf-dot" aria-hidden="true"></div>
-                <div class="httf-card">
-                    <div class="httf-top">
-                        <div class="httf-date-block">
-                            <div class="httf-day">{{ dia(evo.criadaEm) }}</div>
-                            <div class="httf-monthyr">
-                                {{ mes(evo.criadaEm) }}<span>{{ ano(evo.criadaEm) }}</span>
-                            </div>
-                        </div>
-
-                        <div class="httf-info">
-                            <div class="httf-tpl-row">
-                                <span class="httf-tpl">
-                                    <i class="fa-solid fa-file-medical"></i>
-                                    {{ evo.modeloNome || "Evolução" }}
-                                </span>
-                                <span class="httf-time">{{ fmtHora(evo.criadaEm) }}</span>
-                                <span v-if="evo.id === idMaisRecente" class="httf-now">Mais recente</span>
-                            </div>
-                            <div class="httf-prof">
-                                <i class="fa-solid fa-user-doctor"></i>
-                                {{ evo.autorNome || "—" }}
-                            </div>
-                            <p class="httf-sum">{{ resumo(evo) }}</p>
-                            <div class="httf-meta">
-                                <span class="httf-meta-pill">
-                                    <i class="fa-solid fa-list-check"></i>
-                                    {{ contarSecoesPreenchidas(evo) }}/{{ evo.modeloSnapshot.length }} seções
-                                </span>
-                                <span class="httf-meta-pill">{{ fmtData(evo.criadaEm) }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </article>
+                :evolucao="evo"
+                :destaque="evo.id === idMaisRecente"
+                :gerando-pdf="evolucaoSendoBaixada === evo.id"
+                @gerar-pdf="emit('gerarPdfEvolucao', $event)"
+            />
         </div>
 
         <!-- Card de Anexos -->
@@ -281,7 +220,7 @@ function contarSecoesPreenchidas(e: Evolucao): number {
 .fchip:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.4); }
 .fchip.active { background: hsl(var(--primary)); color: white; border-color: hsl(var(--primary)); }
 
-/* ──── Timeline ──── */
+/* ──── Wrapper de timeline (compartilhado com PacienteDetalheView via EvolucaoTimelineItem) ──── */
 .ht-timeline-full {
     display: flex; flex-direction: column; gap: 16px;
     position: relative; padding-left: 50px;
@@ -292,96 +231,6 @@ function contarSecoesPreenchidas(e: Evolucao): number {
     background: linear-gradient(to bottom,
         hsl(var(--primary) / 0.3),
         hsl(var(--secondary) / 0.08));
-}
-
-.httf-item { position: relative; }
-.httf-dot {
-    position: absolute; left: -36px; top: 26px;
-    width: 14px; height: 14px; border-radius: 50%;
-    background: white;
-    border: 3px solid hsl(var(--secondary) / 0.3);
-    box-shadow: 0 0 0 4px white;
-}
-.httf-item.current .httf-dot {
-    background: hsl(155 60% 50%);
-    border-color: hsl(155 60% 50%);
-    box-shadow: 0 0 0 4px white, 0 0 0 8px hsl(155 60% 50% / 0.2);
-    animation: pulseDot 2s ease-in-out infinite;
-}
-@keyframes pulseDot { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
-
-.httf-card {
-    background: white;
-    border-radius: var(--radius-lg);
-    border: 1px solid hsl(var(--secondary) / 0.08);
-    padding: 16px 18px;
-    transition: box-shadow 150ms, border-color 150ms;
-}
-.httf-card:hover {
-    box-shadow: var(--shadow);
-    border-color: hsl(var(--primary) / 0.2);
-}
-.httf-item.current .httf-card {
-    border-color: hsl(155 60% 50% / 0.4);
-    background: hsl(155 60% 50% / 0.03);
-}
-
-.httf-top { display: flex; gap: 16px; align-items: flex-start; }
-.httf-date-block {
-    width: 64px; flex-shrink: 0; text-align: center;
-    padding: 8px 0;
-    background: hsl(var(--primary) / 0.06);
-    border-radius: var(--radius-md);
-}
-.httf-day { font-size: 24px; font-weight: 700; color: hsl(var(--primary-dark)); line-height: 1; }
-.httf-monthyr {
-    font-size: 11px; text-transform: uppercase; font-weight: 700;
-    color: hsl(var(--primary)); letter-spacing: 0.06em; margin-top: 4px;
-}
-.httf-monthyr span {
-    display: block; font-size: 10px;
-    color: hsl(var(--secondary) / 0.55);
-    font-weight: 600; margin-top: 1px;
-}
-
-.httf-info { flex: 1; min-width: 0; }
-.httf-tpl-row {
-    display: flex; align-items: center; gap: 10px;
-    flex-wrap: wrap; margin-bottom: 4px;
-}
-.httf-tpl {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13px; font-weight: 700;
-    color: hsl(var(--primary-dark));
-}
-.httf-tpl i { color: hsl(var(--primary)); font-size: 12px; }
-.httf-time { font-size: 12px; color: hsl(var(--secondary) / 0.6); }
-.httf-now {
-    background: hsl(155 60% 50%); color: white;
-    font-size: 10px; padding: 2px 8px; border-radius: 99px;
-    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
-}
-.httf-prof {
-    font-size: 12px;
-    color: hsl(var(--secondary) / 0.7);
-    margin-bottom: 8px;
-    display: inline-flex; align-items: center; gap: 6px;
-}
-.httf-prof i { font-size: 10px; opacity: 0.6; }
-.httf-sum {
-    margin: 0 0 8px;
-    font-size: 13px;
-    color: hsl(var(--secondary) / 0.9);
-    line-height: 1.55;
-}
-.httf-meta { display: flex; gap: 6px; flex-wrap: wrap; }
-.httf-meta-pill {
-    display: inline-flex; align-items: center; gap: 5px;
-    font-size: 11px;
-    background: hsl(var(--secondary) / 0.06);
-    color: hsl(var(--secondary) / 0.7);
-    padding: 2px 8px; border-radius: 99px;
-    font-weight: 600;
 }
 
 /* ──── Card de anexos ──── */

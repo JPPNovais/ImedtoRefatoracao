@@ -15,4 +15,12 @@ public interface IProntuarioRepository
 public interface IProntuarioEvolucaoRepository
 {
     Task Salvar(ProntuarioEvolucao evolucao);
+
+    /// <summary>
+    /// Carrega a evolução validando que ela pertence ao prontuário informado
+    /// (defense-in-depth IDOR/LGPD). Retorna null se não existir ou se o
+    /// vínculo prontuário↔evolução não bater — o handler converte em mensagem
+    /// genérica "Evolução não encontrada." para não revelar existência cross-tenant.
+    /// </summary>
+    Task<ProntuarioEvolucao?> ObterDoProntuarioOuNulo(long evolucaoId, long prontuarioId);
 }

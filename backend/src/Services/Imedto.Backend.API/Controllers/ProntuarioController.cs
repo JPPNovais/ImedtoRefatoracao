@@ -109,6 +109,43 @@ public class ProntuarioController : ControllerBase
         });
         return Created(string.Empty, null);
     }
+
+    /// <summary>
+    /// Audit LGPD — registra que o histórico completo do prontuário foi exportado em PDF.
+    /// O front chama este endpoint ANTES de gerar o doc; um 422 aqui impede a geração.
+    /// </summary>
+    [HttpPost("registrar-exportacao")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RegistrarExportacaoHistorico(long pacienteId)
+    {
+        await _commandBus.Send(new RegistrarExportacaoProntuarioCommand
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId
+        });
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Audit LGPD — registra que uma evolução individual foi exportada em PDF.
+    /// O front chama este endpoint ANTES de gerar o doc; um 422 aqui impede a geração.
+    /// </summary>
+    [HttpPost("evolucoes/{evolucaoId:long}/registrar-exportacao")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RegistrarExportacaoEvolucao(long pacienteId, long evolucaoId)
+    {
+        await _commandBus.Send(new RegistrarExportacaoEvolucaoCommand
+        {
+            PacienteId = pacienteId,
+            EvolucaoId = evolucaoId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId
+        });
+        return NoContent();
+    }
 }
 
 public record IniciarProntuarioRequest(long ModeloDeProntuarioId);

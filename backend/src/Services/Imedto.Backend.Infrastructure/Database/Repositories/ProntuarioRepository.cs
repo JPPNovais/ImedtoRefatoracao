@@ -58,4 +58,8 @@ public class ProntuarioEvolucaoRepository : IProntuarioEvolucaoRepository
             _context.ProntuarioEvolucoes.Update(evolucao);
         }
     }
+
+    public async Task<ProntuarioEvolucao?> ObterDoProntuarioOuNulo(long evolucaoId, long prontuarioId) =>
+        await _context.ProntuarioEvolucoes
+            .FirstOrDefaultAsync(e => e.Id == evolucaoId && e.ProntuarioId == prontuarioId);
 }

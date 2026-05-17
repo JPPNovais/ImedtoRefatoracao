@@ -84,6 +84,17 @@ public class ProntuarioIntegrationTests : IntegrationTestBase
             new ProntuarioAcessoLogService(ctx),
             new Mock<IEventBus>().Object);
 
+    private RegistrarExportacaoProntuarioCommandHandler ExportarProntSut(AppDbContext ctx) =>
+        new(new PacienteRepository(ctx),
+            new ProntuarioRepository(ctx),
+            new ProntuarioAcessoLogService(ctx));
+
+    private RegistrarExportacaoEvolucaoCommandHandler ExportarEvolSut(AppDbContext ctx) =>
+        new(new PacienteRepository(ctx),
+            new ProntuarioRepository(ctx),
+            new ProntuarioEvolucaoRepository(ctx),
+            new ProntuarioAcessoLogService(ctx));
+
     [Test]
     public async Task FluxoIniciarERegistrarEvolucao_PersisteAggregatesEAudit()
     {
@@ -218,5 +229,220 @@ public class ProntuarioIntegrationTests : IntegrationTestBase
 
         await using (var ctx = NewContext())
             Assert.That(await ctx.Set<Prontuario>().CountAsync(), Is.EqualTo(1));
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Exportação (audit LGPD)
+    // ──────────────────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task RegistrarExportacaoEvolucao_CrossTenant_LancaENaoAudita()
+    {
+        var solicitante = Guid.NewGuid();
+
+        // Cria prontuário + evolução em EstabA
+        await using (var ctx = NewContext())
+        {
+            await IniciarSut(ctx).Handle(new IniciarProntuarioCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EstabelecimentoId = EstabA,
+                ModeloDeProntuarioId = _modeloEstabAId,
+                SolicitanteUsuarioId = solicitante,
+            });
+        }
+        await using (var ctx = NewContext())
+        {
+            await RegistrarSut(ctx).Handle(new RegistrarEvolucaoCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EstabelecimentoId = EstabA,
+                AutorUsuarioId = solicitante,
+                ConteudoJson = "{\"queixa\":\"a\"}",
+            });
+        }
+
+        long evolucaoId;
+        long auditsAntes;
+        await using (var ctx = NewContext())
+        {
+            evolucaoId = (await ctx.Set<ProntuarioEvolucao>().SingleAsync()).Id;
+            auditsAntes = await ctx.Set<ProntuarioAcessoLog>().CountAsync();
+        }
+
+        // EstabB tenta exportar evolução do paciente de EstabA — deve falhar
+        await using (var ctx = NewContext())
+        {
+            var ex = Assert.ThrowsAsync<BusinessException>(() =>
+                ExportarEvolSut(ctx).Handle(new RegistrarExportacaoEvolucaoCommand
+                {
+                    PacienteId = _pacienteEstabAId,
+                    EvolucaoId = evolucaoId,
+                    EstabelecimentoId = EstabB,
+                    SolicitanteUsuarioId = Guid.NewGuid(),
+                }));
+            Assert.That(ex.Message, Is.EqualTo("Paciente não encontrado."),
+                "Mensagem genérica — não revela existência cross-tenant.");
+        }
+
+        await using (var ctx = NewContext())
+        {
+            Assert.That(await ctx.Set<ProntuarioAcessoLog>().CountAsync(), Is.EqualTo(auditsAntes),
+                "Tentativa cross-tenant não pode adicionar audit de Exportação.");
+        }
+    }
+
+    [Test]
+    public async Task RegistrarExportacaoEvolucao_EvolucaoDeOutroPaciente_LancaENaoAudita()
+    {
+        var solicitante = Guid.NewGuid();
+
+        // Cria prontuários + 1 evolução em cada estab
+        await using (var ctx = NewContext())
+        {
+            await IniciarSut(ctx).Handle(new IniciarProntuarioCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EstabelecimentoId = EstabA,
+                ModeloDeProntuarioId = _modeloEstabAId,
+                SolicitanteUsuarioId = solicitante,
+            });
+            await IniciarSut(ctx).Handle(new IniciarProntuarioCommand
+            {
+                PacienteId = _pacienteEstabBId,
+                EstabelecimentoId = EstabB,
+                ModeloDeProntuarioId = _modeloEstabBId,
+                SolicitanteUsuarioId = solicitante,
+            });
+        }
+        await using (var ctx = NewContext())
+        {
+            await RegistrarSut(ctx).Handle(new RegistrarEvolucaoCommand
+            {
+                PacienteId = _pacienteEstabBId,
+                EstabelecimentoId = EstabB,
+                AutorUsuarioId = solicitante,
+                ConteudoJson = "{\"queixa\":\"b\"}",
+            });
+        }
+
+        long evolucaoDeBId;
+        long auditsAntes;
+        await using (var ctx = NewContext())
+        {
+            evolucaoDeBId = (await ctx.Set<ProntuarioEvolucao>().SingleAsync()).Id;
+            auditsAntes = await ctx.Set<ProntuarioAcessoLog>().CountAsync();
+        }
+
+        // EstabA pede para exportar a evolução de B (que existe, mas é de outro prontuário)
+        await using (var ctx = NewContext())
+        {
+            var ex = Assert.ThrowsAsync<BusinessException>(() =>
+                ExportarEvolSut(ctx).Handle(new RegistrarExportacaoEvolucaoCommand
+                {
+                    PacienteId = _pacienteEstabAId,
+                    EvolucaoId = evolucaoDeBId,
+                    EstabelecimentoId = EstabA,
+                    SolicitanteUsuarioId = solicitante,
+                }));
+            Assert.That(ex.Message, Is.EqualTo("Evolução não encontrada."));
+        }
+
+        await using (var ctx = NewContext())
+        {
+            Assert.That(await ctx.Set<ProntuarioAcessoLog>().CountAsync(), Is.EqualTo(auditsAntes),
+                "Tentativa de exportar evolução fora do prontuário não pode auditar.");
+        }
+    }
+
+    [Test]
+    public async Task RegistrarExportacaoEvolucao_Valida_RegistraAuditExportacao()
+    {
+        var solicitante = Guid.NewGuid();
+
+        await using (var ctx = NewContext())
+        {
+            await IniciarSut(ctx).Handle(new IniciarProntuarioCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EstabelecimentoId = EstabA,
+                ModeloDeProntuarioId = _modeloEstabAId,
+                SolicitanteUsuarioId = solicitante,
+            });
+        }
+        await using (var ctx = NewContext())
+        {
+            await RegistrarSut(ctx).Handle(new RegistrarEvolucaoCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EstabelecimentoId = EstabA,
+                AutorUsuarioId = solicitante,
+                ConteudoJson = "{\"queixa\":\"a\"}",
+            });
+        }
+
+        long evolucaoId;
+        await using (var ctx = NewContext())
+            evolucaoId = (await ctx.Set<ProntuarioEvolucao>().SingleAsync()).Id;
+
+        await using (var ctx = NewContext())
+        {
+            await ExportarEvolSut(ctx).Handle(new RegistrarExportacaoEvolucaoCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EvolucaoId = evolucaoId,
+                EstabelecimentoId = EstabA,
+                SolicitanteUsuarioId = solicitante,
+            });
+        }
+
+        await using (var ctx = NewContext())
+        {
+            var exportacoes = await ctx.Set<ProntuarioAcessoLog>()
+                .Where(l => l.TipoAcesso == TipoAcessoProntuario.Exportacao)
+                .ToListAsync();
+            Assert.That(exportacoes, Has.Count.EqualTo(1),
+                "Exportação válida deve gerar exatamente 1 audit de Exportacao.");
+            Assert.That(exportacoes[0].UsuarioId, Is.EqualTo(solicitante));
+            Assert.That(exportacoes[0].EstabelecimentoId, Is.EqualTo(EstabA));
+        }
+    }
+
+    [Test]
+    public async Task RegistrarExportacaoProntuario_CrossTenant_LancaENaoAudita()
+    {
+        var solicitante = Guid.NewGuid();
+
+        await using (var ctx = NewContext())
+        {
+            await IniciarSut(ctx).Handle(new IniciarProntuarioCommand
+            {
+                PacienteId = _pacienteEstabAId,
+                EstabelecimentoId = EstabA,
+                ModeloDeProntuarioId = _modeloEstabAId,
+                SolicitanteUsuarioId = solicitante,
+            });
+        }
+
+        long auditsAntes;
+        await using (var ctx = NewContext())
+            auditsAntes = await ctx.Set<ProntuarioAcessoLog>().CountAsync();
+
+        await using (var ctx = NewContext())
+        {
+            var ex = Assert.ThrowsAsync<BusinessException>(() =>
+                ExportarProntSut(ctx).Handle(new RegistrarExportacaoProntuarioCommand
+                {
+                    PacienteId = _pacienteEstabAId, // paciente de A
+                    EstabelecimentoId = EstabB,      // tenant B
+                    SolicitanteUsuarioId = Guid.NewGuid(),
+                }));
+            Assert.That(ex.Message, Is.EqualTo("Paciente não encontrado."));
+        }
+
+        await using (var ctx = NewContext())
+        {
+            Assert.That(await ctx.Set<ProntuarioAcessoLog>().CountAsync(), Is.EqualTo(auditsAntes));
+        }
     }
 }

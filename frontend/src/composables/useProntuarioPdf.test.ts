@@ -202,3 +202,64 @@ describe("useProntuarioPdf — redesign institucional", () => {
         expect(rodape.assinatura.assinadoDigitalmente).toBeUndefined()
     })
 })
+
+describe("useProntuarioPdf — gerarPdfEvolucao (PDF individual)", () => {
+    beforeEach(async () => {
+        setActivePinia(createPinia())
+        Object.values(helperMocks).forEach(m => {
+            if (typeof m === "function") (m as any).mockClear?.()
+        })
+        Object.values(docMock).forEach(m => {
+            if (typeof m === "function") (m as any).mockClear?.()
+        })
+        docMock.save.mockClear()
+        const autoTable = (await import("jspdf-autotable")).default as any
+        autoTable.mockClear()
+    })
+
+    const evolucao = prontComEvolucoes.evolucoes[0]!
+
+    it("usa título institucional e subtítulo com a data da evolução", async () => {
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        await gerarPdfEvolucao(prontComEvolucoes, evolucao, pacienteCompleto)
+
+        expect(helperMocks.desenharCabecalho).toHaveBeenCalled()
+        const argumentos = helperMocks.desenharCabecalho.mock.calls[0] as unknown as any[]
+        const opts = argumentos[3] as { docTitle: string, docSubtitle: string }
+        expect(opts.docTitle).toBe("PRONTUÁRIO MÉDICO — EVOLUÇÃO")
+        // data da evolução (2026-05-12T10:30:00Z) — tolerante a timezone:
+        // o subtítulo precisa começar com "Evolução de " e conter o ano.
+        expect(opts.docSubtitle).toMatch(/^Evolução de /)
+        expect(opts.docSubtitle).toContain("2026")
+    })
+
+    it("nome do arquivo contém slug do paciente e timestamp YYYYMMDD-HHmm da evolução", async () => {
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        await gerarPdfEvolucao(prontComEvolucoes, evolucao, pacienteCompleto)
+
+        expect(docMock.save).toHaveBeenCalled()
+        const nomeArquivo = docMock.save.mock.calls[0][0] as string
+        expect(nomeArquivo).toMatch(/^evolucao-maria-aparecida-da-silva-\d{8}-\d{4}\.pdf$/)
+    })
+
+    it("renderiza apenas as seções preenchidas dessa evolução", async () => {
+        const autoTable = (await import("jspdf-autotable")).default as any
+        const evolPreenchidaParcial = {
+            ...evolucao,
+            conteudo: { queixa: "Algo", conduta: "" },
+        }
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        await gerarPdfEvolucao(prontComEvolucoes, evolPreenchidaParcial, pacienteCompleto)
+
+        const chamada = autoTable.mock.calls[0][1]
+        expect(chamada.body).toHaveLength(1)
+        expect(chamada.body[0][0]).toBe("Queixa principal")
+    })
+
+    it("aceita paciente como string sem crashar", async () => {
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        await gerarPdfEvolucao(prontComEvolucoes, evolucao, "Joao Soares")
+        const nomeArquivo = docMock.save.mock.calls[0][0] as string
+        expect(nomeArquivo).toContain("joao-soares")
+    })
+})

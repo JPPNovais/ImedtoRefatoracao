@@ -6,5 +6,8 @@ public enum TipoAcessoProntuario
     Leitura,
 
     /// <summary>POST / registro de evolução, início, etc.</summary>
-    Escrita
+    Escrita,
+
+    /// <summary>Exportação (PDF) — histórico completo ou evolução individual.</summary>
+    Exportacao
 }

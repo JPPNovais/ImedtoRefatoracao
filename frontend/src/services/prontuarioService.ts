@@ -142,4 +142,22 @@ export const prontuarioService = {
         )
         return data
     },
+
+    /**
+     * Audit LGPD — registra que o histórico completo do prontuário foi exportado em PDF.
+     * Deve ser chamado ANTES de gerar o doc; um 422 aqui impede a geração.
+     */
+    async registrarExportacaoHistorico(pacienteId: number): Promise<void> {
+        await httpClient.post(`/paciente/${pacienteId}/prontuario/registrar-exportacao`)
+    },
+
+    /**
+     * Audit LGPD — registra que uma evolução individual foi exportada em PDF.
+     * Deve ser chamado ANTES de gerar o doc; um 422 aqui impede a geração.
+     */
+    async registrarExportacaoEvolucao(pacienteId: number, evolucaoId: number): Promise<void> {
+        await httpClient.post(
+            `/paciente/${pacienteId}/prontuario/evolucoes/${evolucaoId}/registrar-exportacao`,
+        )
+    },
 }

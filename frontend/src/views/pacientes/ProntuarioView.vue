@@ -15,6 +15,7 @@ import { useRoute, useRouter } from "vue-router"
 import {
     prontuarioService,
     type Anexo,
+    type Evolucao,
     type ModeloProntuario,
     type ProntuarioCompleto,
 } from "@/services/prontuarioService"
@@ -31,7 +32,7 @@ import ConsultasAnterioresTab      from "@/components/prontuario/tabs/ConsultasA
 import ExameFisicoTab              from "@/components/prontuario/tabs/ExameFisicoTab.vue"
 import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTab.vue"
 
-const { gerarPdf: gerarPdfProntuario } = useProntuarioPdf()
+const { gerarPdf: gerarPdfProntuario, gerarPdfEvolucao } = useProntuarioPdf()
 
 const route  = useRoute()
 const router = useRouter()
@@ -87,6 +88,9 @@ const SECOES_ESTRUTURADAS = new Set([
 
 const uploadPendente = ref<File | null>(null)
 const uploadando     = ref(false)
+
+// PDF individual de evolução — id em geração (pra mostrar spinner só no card certo).
+const evolucaoSendoBaixada = ref<number | null>(null)
 
 onMounted(carregar)
 
@@ -224,12 +228,33 @@ function toggleFocus() {
     focus.value = !focus.value
 }
 
-function imprimir() {
+async function imprimir() {
     if (!pront.value) {
         notificar("Inicie o prontuário antes de imprimir.", "error")
         return
     }
-    gerarPdfProntuario(pront.value, paciente.value ?? "paciente")
+    try {
+        // Audit LGPD: registra a exportação antes de gerar o PDF.
+        // Se falhar (422/permissão), o doc não é produzido.
+        await prontuarioService.registrarExportacaoHistorico(pacienteId.value)
+        await gerarPdfProntuario(pront.value, paciente.value ?? "paciente")
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao exportar prontuário.", "error")
+    }
+}
+
+async function exportarPdfEvolucao(evolucao: Evolucao) {
+    if (!pront.value) return
+    if (evolucaoSendoBaixada.value !== null) return
+    evolucaoSendoBaixada.value = evolucao.id
+    try {
+        await prontuarioService.registrarExportacaoEvolucao(pacienteId.value, evolucao.id)
+        await gerarPdfEvolucao(pront.value, evolucao, paciente.value ?? "paciente")
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao exportar evolução.", "error")
+    } finally {
+        evolucaoSendoBaixada.value = null
+    }
 }
 
 function abrirReceita() {
@@ -331,10 +356,12 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 :evolucoes="pront.evolucoes"
                 :anexos="anexos"
                 :uploadando="uploadando"
-                :gerar-pdf="() => gerarPdfProntuario(pront!, paciente ?? 'paciente')"
+                :evolucao-sendo-baixada="evolucaoSendoBaixada"
+                :gerar-pdf="imprimir"
                 @download-anexo="baixarAnexo"
                 @selecionar-arquivo="selecionarArquivo"
                 @enviar-anexo="enviarAnexo"
+                @gerar-pdf-evolucao="exportarPdfEvolucao"
             />
 
             <ExameFisicoTab

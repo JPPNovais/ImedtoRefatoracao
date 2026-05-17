@@ -360,6 +360,8 @@ public static class Container
         // Prontuários (aggregate + evoluções)
         services.AddScoped<IniciarProntuarioCommandHandler>();
         services.AddScoped<RegistrarEvolucaoCommandHandler>();
+        services.AddScoped<RegistrarExportacaoProntuarioCommandHandler>();
+        services.AddScoped<RegistrarExportacaoEvolucaoCommandHandler>();
         services.AddScoped<ObterProntuarioDoPacienteQueryHandlers>(); // scoped — injeta IProntuarioAcessoLogService (scoped)
         services.AddSingleton<ContarEvolucoesProntuarioPacienteQueryHandlers>(); // só COUNT, sem audit — pode ser singleton
         services.AddSingleton<ProntuarioQueryRepository>();
@@ -730,6 +732,8 @@ public static class Container
             bus.Register<ExcluirVariavelPoolCommand, ExcluirVariavelPoolCommandHandler>();
             bus.Register<IniciarProntuarioCommand, IniciarProntuarioCommandHandler>();
             bus.Register<RegistrarEvolucaoCommand, RegistrarEvolucaoCommandHandler>();
+            bus.Register<RegistrarExportacaoProntuarioCommand, RegistrarExportacaoProntuarioCommandHandler>();
+            bus.Register<RegistrarExportacaoEvolucaoCommand, RegistrarExportacaoEvolucaoCommandHandler>();
             bus.Register<AdicionarAnexoCommand, AdicionarAnexoCommandHandler>();
             bus.Register<CriarModeloPermissaoCommand, CriarModeloPermissaoCommandHandler>();
             bus.Register<AtualizarModeloPermissaoCommand, AtualizarModeloPermissaoCommandHandler>();

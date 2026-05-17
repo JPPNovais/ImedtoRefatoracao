@@ -6,7 +6,9 @@ import {
 } from "@/components/ui"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
-import { prontuarioService, type ProntuarioCompleto, type Anexo } from "@/services/prontuarioService"
+import { prontuarioService, type ProntuarioCompleto, type Anexo, type Evolucao } from "@/services/prontuarioService"
+import { useProntuarioPdf } from "@/composables/useProntuarioPdf"
+import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { resolverTag } from "@/constants/pacienteTags"
@@ -52,6 +54,33 @@ const carregandoOrc = ref(false)
 
 const anexos = ref<Anexo[]>([])
 const carregandoAnexos = ref(false)
+
+const { gerarPdfEvolucao } = useProntuarioPdf()
+const evolucaoSendoBaixada = ref<number | null>(null)
+
+async function exportarPdfEvolucao(evolucao: Evolucao) {
+    if (!prontuario.value || !paciente.value) return
+    if (evolucaoSendoBaixada.value !== null) return
+    evolucaoSendoBaixada.value = evolucao.id
+    try {
+        // Audit LGPD: registra antes de gerar; 422 impede a geração.
+        await prontuarioService.registrarExportacaoEvolucao(pacienteId.value, evolucao.id)
+        await gerarPdfEvolucao(prontuario.value, evolucao, paciente.value)
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao exportar evolução.", "error")
+    } finally {
+        evolucaoSendoBaixada.value = null
+    }
+}
+
+// Identifica a evolução mais recente (para destaque "Mais recente" no card).
+const idEvolucaoMaisRecente = computed(() => {
+    const lista = prontuario.value?.evolucoes ?? []
+    if (!lista.length) return null
+    return [...lista].sort((a, b) =>
+        new Date(b.criadaEm).getTime() - new Date(a.criadaEm).getTime(),
+    )[0]!.id
+})
 
 const proximaConsulta = ref<Agendamento | null>(null)
 const totalConsultas = ref(0)
@@ -453,38 +482,15 @@ function orcStatusClass(s: string): string {
                         </template>
                     </AppEmptyState>
 
-                    <div v-else class="timeline">
-                        <div
-                            v-for="ev in prontuario.evolucoes" :key="ev.id"
-                            class="tl-entry"
-                        >
-                            <div class="tl-head">
-                                <div class="tl-date">
-                                    <span class="day">{{ new Date(ev.criadaEm).getDate() }}</span>
-                                    <span class="month">{{ new Date(ev.criadaEm).toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase() }}</span>
-                                    <span class="year">{{ new Date(ev.criadaEm).getFullYear() }}</span>
-                                </div>
-                                <div class="tl-meta">
-                                    <div class="tl-type">
-                                        <span class="tl-type-pill"><i class="fa-solid fa-stethoscope"></i> {{ ev.modeloNome || "Evolução" }}</span>
-                                        <span class="tl-time">{{ new Date(ev.criadaEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) }}</span>
-                                    </div>
-                                    <div class="tl-doctor">
-                                        <i class="fa-solid fa-user-doctor"></i>
-                                        {{ ev.autorNome }}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="tl-body">
-                                <div
-                                    v-for="secao in ev.modeloSnapshot" :key="secao.chave"
-                                    class="tl-section"
-                                >
-                                    <h5><i class="fa-solid fa-circle-dot"></i> {{ secao.titulo }}</h5>
-                                    <p>{{ valorSecao(secao.chave, ev.conteudo) || "—" }}</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div v-else class="ht-timeline-full" role="list">
+                        <EvolucaoTimelineItem
+                            v-for="ev in prontuario.evolucoes"
+                            :key="ev.id"
+                            :evolucao="ev"
+                            :destaque="ev.id === idEvolucaoMaisRecente"
+                            :gerando-pdf="evolucaoSendoBaixada === ev.id"
+                            @gerar-pdf="exportarPdfEvolucao"
+                        />
                     </div>
                 </section>
 
@@ -846,60 +852,18 @@ function orcStatusClass(s: string): string {
 .prontuario-head h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
 .prontuario-head p { font-size: 13px; color: hsl(var(--secondary) / 0.7); margin: 4px 0 0; }
 
-.timeline { position: relative; padding-left: 30px; }
-.timeline::before {
-    content: ''; position: absolute; left: 11px; top: 14px; bottom: 14px;
-    width: 2px; background: hsl(var(--secondary) / 0.1);
+/* Wrapper de timeline (compartilhado com ConsultasAnterioresTab via EvolucaoTimelineItem) */
+.ht-timeline-full {
+    display: flex; flex-direction: column; gap: 16px;
+    position: relative; padding-left: 50px;
 }
-.tl-entry {
-    position: relative; margin-bottom: 16px;
-    background: white;
-    border: 1px solid hsl(var(--secondary) / 0.08);
-    border-radius: 12px;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
-    overflow: hidden;
+.ht-timeline-full::before {
+    content: ""; position: absolute; left: 21px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: linear-gradient(to bottom,
+        hsl(var(--primary) / 0.3),
+        hsl(var(--secondary) / 0.08));
 }
-.tl-entry::before {
-    content: ''; position: absolute; left: -24px; top: 18px;
-    width: 14px; height: 14px; border-radius: 50%;
-    background: white; border: 3px solid hsl(var(--primary));
-    box-shadow: 0 0 0 3px white;
-    z-index: 1;
-}
-.tl-head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; }
-.tl-date {
-    display: flex; flex-direction: column; align-items: center;
-    flex-shrink: 0; min-width: 56px;
-    padding: 6px 10px; border-radius: 8px;
-    background: hsl(var(--primary) / 0.08); color: hsl(var(--primary-dark));
-}
-.tl-date .day { font-size: 18px; font-weight: 800; line-height: 1; }
-.tl-date .month { font-size: 10px; font-weight: 700; text-transform: uppercase; }
-.tl-date .year { font-size: 10px; color: hsl(var(--primary) / 0.7); }
-.tl-meta { flex: 1; min-width: 0; }
-.tl-type { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.tl-type-pill {
-    font-size: 11px; font-weight: 700;
-    padding: 3px 8px; border-radius: 999px;
-    background: hsl(var(--primary) / 0.1); color: hsl(var(--primary));
-    display: inline-flex; align-items: center; gap: 4px;
-}
-.tl-time { font-size: 11px; color: hsl(var(--secondary) / 0.6); }
-.tl-doctor { font-size: 13px; color: hsl(var(--primary-dark)); font-weight: 600; }
-.tl-doctor i { color: hsl(var(--secondary) / 0.5); margin-right: 4px; }
-
-.tl-body {
-    padding: 0 20px 18px;
-    border-top: 1px solid hsl(var(--secondary) / 0.06);
-}
-.tl-section { margin-top: 14px; }
-.tl-section h5 {
-    font-size: 11px; font-weight: 700; color: hsl(var(--secondary) / 0.55);
-    text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 6px;
-    display: inline-flex; align-items: center; gap: 6px;
-}
-.tl-section h5 i { color: hsl(var(--primary)); font-size: 8px; }
-.tl-section p { font-size: 13px; color: hsl(var(--secondary)); line-height: 1.55; margin: 0; white-space: pre-line; }
 
 /* Anamnese */
 .anamn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
