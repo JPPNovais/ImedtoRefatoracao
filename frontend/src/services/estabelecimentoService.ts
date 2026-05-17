@@ -102,4 +102,9 @@ export const estabelecimentoService = {
         )
         return data.fotoUrl
     },
+
+    /** Remove a foto/logo do estabelecimento (idempotente). */
+    async removerFoto(id: number): Promise<void> {
+        await httpClient.delete(`/estabelecimento/${id}/foto`)
+    },
 }

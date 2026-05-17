@@ -264,6 +264,19 @@ public class Estabelecimento : Entity
         AtualizadoEm = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Limpa a foto/logo do estabelecimento. Idempotente — se já não havia foto,
+    /// não atualiza <see cref="AtualizadoEm"/> (evita ruído em audit). O caller
+    /// (handler) é quem apaga o blob no storage.
+    /// </summary>
+    public virtual void RemoverFoto()
+    {
+        if (string.IsNullOrWhiteSpace(FotoUrl)) return;
+
+        FotoUrl = null;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
     public virtual void Inativar()
     {
         if (Status == EstabelecimentoStatus.Inativo)

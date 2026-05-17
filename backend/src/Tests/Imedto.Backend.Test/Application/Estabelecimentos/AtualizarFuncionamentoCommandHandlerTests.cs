@@ -1,6 +1,7 @@
 using Imedto.Backend.Application.Estabelecimentos.Commands;
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
 using NUnit.Framework;
@@ -11,9 +12,11 @@ namespace Imedto.Backend.Test.Application.Estabelecimentos;
 public class AtualizarFuncionamentoCommandHandlerTests
 {
     private Mock<IEstabelecimentoRepository> _repo;
+    private Mock<IModeloPermissaoRepository> _permissoes;
     private AtualizarFuncionamentoCommandHandler _sut;
 
     private readonly Guid _donoId = Guid.NewGuid();
+    private readonly Guid _adminComPermissao = Guid.NewGuid();
     private readonly Guid _outroId = Guid.NewGuid();
     private const long EstabelecimentoId = 1;
 
@@ -21,7 +24,24 @@ public class AtualizarFuncionamentoCommandHandlerTests
     public void SetUp()
     {
         _repo = new Mock<IEstabelecimentoRepository>();
-        _sut = new AtualizarFuncionamentoCommandHandler(_repo.Object);
+        _permissoes = new Mock<IModeloPermissaoRepository>();
+        _sut = new AtualizarFuncionamentoCommandHandler(_repo.Object, _permissoes.Object);
+
+        _permissoes
+            .Setup(p => p.UsuarioTemPermissaoExtra(
+                _donoId, EstabelecimentoId, PermissoesExtras.ConfigEstabelecimento,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissoes
+            .Setup(p => p.UsuarioTemPermissaoExtra(
+                _adminComPermissao, EstabelecimentoId, PermissoesExtras.ConfigEstabelecimento,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _permissoes
+            .Setup(p => p.UsuarioTemPermissaoExtra(
+                _outroId, EstabelecimentoId, PermissoesExtras.ConfigEstabelecimento,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
     }
 
     private Estabelecimento Estab() =>
@@ -61,12 +81,26 @@ public class AtualizarFuncionamentoCommandHandlerTests
     }
 
     [Test]
-    public void Handle_NaoEhDono_LancaBusinessException()
+    public async Task Handle_AdminComPermissaoConfigEstabelecimento_PodeAtualizarFuncionamento()
     {
+        // Admin (não-dono) com `config_estabelecimento` também consegue atualizar funcionamento.
+        var estab = Estab();
+        _repo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(estab);
+
+        await _sut.Handle(Cmd(solicitante: _adminComPermissao));
+
+        Assert.That(estab.HorarioInicio, Is.EqualTo(new TimeOnly(7, 0)));
+        _repo.Verify(r => r.Salvar(estab), Times.Once);
+    }
+
+    [Test]
+    public void Handle_UsuarioSemPermissao_LancaBusinessExceptionGenerica()
+    {
+        // Mensagem genérica (LGPD/multi-tenant).
         _repo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd(solicitante: _outroId)));
-        Assert.That(ex.Message, Does.Contain("dono"));
+        Assert.That(ex.Message, Does.Contain("permissão"));
         _repo.Verify(r => r.Salvar(It.IsAny<Estabelecimento>()), Times.Never);
     }
 

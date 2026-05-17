@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -8,10 +9,14 @@ namespace Imedto.Backend.Application.Estabelecimentos.Commands;
 public class AtualizarFuncionamentoCommandHandler : ICommandHandler<AtualizarFuncionamentoCommand>
 {
     private readonly IEstabelecimentoRepository _repository;
+    private readonly IModeloPermissaoRepository _permissoes;
 
-    public AtualizarFuncionamentoCommandHandler(IEstabelecimentoRepository repository)
+    public AtualizarFuncionamentoCommandHandler(
+        IEstabelecimentoRepository repository,
+        IModeloPermissaoRepository permissoes)
     {
         _repository = repository;
+        _permissoes = permissoes;
     }
 
     public async Task Handle(AtualizarFuncionamentoCommand command)
@@ -19,8 +24,13 @@ public class AtualizarFuncionamentoCommandHandler : ICommandHandler<AtualizarFun
         var estab = await _repository.ObterPorIdOuNulo(command.EstabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");
 
-        if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)
-            throw new BusinessException("Apenas o dono do estabelecimento pode editar o funcionamento.");
+        // Dono OU Admin com permissão extra `config_estabelecimento` (dono é pass-through).
+        var podeEditar = await _permissoes.UsuarioTemPermissaoExtra(
+            command.UsuarioSolicitanteId,
+            command.EstabelecimentoId,
+            PermissoesExtras.ConfigEstabelecimento);
+        if (!podeEditar)
+            throw new BusinessException("Você não tem permissão para alterar este estabelecimento.");
 
         var horarios = command.HorariosBloqueados
             .Select(h => new HorarioBloqueado(h.Id ?? Guid.Empty, h.Inicio, h.Fim, h.Descricao ?? string.Empty))

@@ -428,6 +428,14 @@ builder.Services.AddHttpClient("Resend", client =>
     client.BaseAddress = new Uri("https://api.resend.com/");
 });
 
+// --- HTTP client para baixar a logo do estabelecimento no PDF da receita ---
+// Sem BaseAddress (URL absoluta vinda do S3 presigned). Timeout curto vem do
+// CancellationToken no caller — aqui só dimensionamos a conexão.
+builder.Services.AddHttpClient(Imedto.Backend.Infrastructure.Receitas.QuestPdfReceitaService.HttpClientName, client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5); // ceiling absoluto; cts no caller usa 3s
+});
+
 var app = builder.Build();
 
 // --- Middleware de exceções (deve ser o primeiro no pipeline) ---

@@ -46,6 +46,17 @@ public class S3FotoStorageService : IFotoStorageService
         return _s3.GetPreSignedURL(req);
     }
 
+    public async Task RemoverFotoAsync(string path, CancellationToken ct = default)
+    {
+        var key = NormalizarKey(path);
+        // S3 DeleteObject é idempotente — 204 mesmo se a chave não existir.
+        await _s3.DeleteObjectAsync(new DeleteObjectRequest
+        {
+            BucketName = _options.BucketFotos,
+            Key = key,
+        }, ct);
+    }
+
     private static string NormalizarKey(string path) =>
         path?.TrimStart('/') ?? throw new ArgumentNullException(nameof(path));
 }

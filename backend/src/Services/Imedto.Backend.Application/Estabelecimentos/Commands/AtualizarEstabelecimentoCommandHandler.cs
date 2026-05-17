@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -8,10 +9,14 @@ namespace Imedto.Backend.Application.Estabelecimentos.Commands;
 public class AtualizarEstabelecimentoCommandHandler : ICommandHandler<AtualizarEstabelecimentoCommand>
 {
     private readonly IEstabelecimentoRepository _repository;
+    private readonly IModeloPermissaoRepository _permissoes;
 
-    public AtualizarEstabelecimentoCommandHandler(IEstabelecimentoRepository repository)
+    public AtualizarEstabelecimentoCommandHandler(
+        IEstabelecimentoRepository repository,
+        IModeloPermissaoRepository permissoes)
     {
         _repository = repository;
+        _permissoes = permissoes;
     }
 
     public async Task Handle(AtualizarEstabelecimentoCommand command)
@@ -19,10 +24,14 @@ public class AtualizarEstabelecimentoCommandHandler : ICommandHandler<AtualizarE
         var estab = await _repository.ObterPorIdOuNulo(command.EstabelecimentoId)
             ?? throw new BusinessException("Estabelecimento não encontrado.");
 
-        // Controle de acesso: só o dono pode editar o estabelecimento (na Fase 5 isso vira
-        // uma permissão granular via vínculo profissional).
-        if (estab.DonoUsuarioId != command.UsuarioSolicitanteId)
-            throw new BusinessException("Apenas o dono do estabelecimento pode editá-lo.");
+        // Controle de acesso: Dono OU Admin com permissão extra `config_estabelecimento`.
+        // UsuarioTemPermissaoExtra já trata Dono como pass-through.
+        var podeEditar = await _permissoes.UsuarioTemPermissaoExtra(
+            command.UsuarioSolicitanteId,
+            command.EstabelecimentoId,
+            PermissoesExtras.ConfigEstabelecimento);
+        if (!podeEditar)
+            throw new BusinessException("Você não tem permissão para alterar este estabelecimento.");
 
         var cnpjDigitos = new string((command.Cnpj ?? "").Where(char.IsDigit).ToArray());
         if (cnpjDigitos.Length > 0 && await _repository.ExisteCnpj(cnpjDigitos, estab.Id))

@@ -175,6 +175,28 @@ public class EstabelecimentoController : ControllerBase
         return Ok(new { fotoUrl = atualizado?.FotoUrl });
     }
 
+    /// <summary>Remove a foto/logo do estabelecimento (idempotente). Dono ou usuário com permissão de configuração.</summary>
+    /// <response code="204">Foto removida (ou já estava ausente).</response>
+    /// <response code="404">Estabelecimento não encontrado.</response>
+    /// <response code="422">Sem permissão.</response>
+    [HttpDelete("{id:long}/foto")]
+    [RequiresPermissaoExtra(PermissoesExtras.ConfigEstabelecimento, "id")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RemoverFoto(long id)
+    {
+        var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+
+        await _commandBus.Send(new RemoverFotoEstabelecimentoCommand
+        {
+            EstabelecimentoId = id,
+            UsuarioSolicitanteId = userId,
+        });
+
+        return NoContent();
+    }
+
     private static string ValidarFoto(IFormFile arquivo)
     {
         if (arquivo is null || arquivo.Length == 0)

@@ -1,4 +1,5 @@
 import type { Orcamento } from "@/services/orcamentoService"
+import { useTenantStore } from "@/stores/tenantStore"
 
 function moeda(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -21,50 +22,60 @@ const STATUS_COR: Record<string, [number, number, number]> = {
  * Gera PDF do orçamento com todas as seções do aggregate completo: cirurgias,
  * equipe, implantes, internação/anestesia, formas de pagamento detalhadas e
  * resumo final. Usa jsPDF + jspdf-autotable.
+ *
+ * Cabeçalho institucional via `usePdfHeader` (logo do estabelecimento + nome +
+ * endereço/CNPJ) — mesmo padrão de Prontuário/Relatórios. Corpo da tabela
+ * mantém o design legado (helvetica) para evitar regressão visual no PDF de
+ * orçamento.
  */
 export function useOrcamentoPdf() {
     async function gerarPdf(orc: Orcamento) {
-        // Lazy: jsPDF + autotable (~600 KB) só carregam quando o usuário clica em "Baixar PDF".
-        const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        // Lazy: jsPDF + autotable + helper (Nunito) só carregam quando o usuário clica em "Baixar PDF".
+        const [{ jsPDF }, { default: autoTable }, helper] = await Promise.all([
             import("jspdf"),
             import("jspdf-autotable"),
+            import("@/composables/usePdfHeader"),
         ])
+        const {
+            registrarFontesNunito,
+            carregarEstabelecimentoAtivo,
+            carregarLogoComoDataUrl,
+            desenharCabecalho,
+        } = helper
+
+        const tenant = useTenantStore()
+        const est = await carregarEstabelecimentoAtivo(tenant.estabelecimentoAtivoId)
+        const logo = await carregarLogoComoDataUrl(est)
+
         const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+        registrarFontesNunito(doc)
         const pageW = doc.internal.pageSize.getWidth()
         const margem = 14
 
-        // ─── Cabeçalho ────────────────────────────────────────────────────
-        doc.setFontSize(20)
-        doc.setFont("helvetica", "bold")
-        doc.text("Imedto", margem, 20)
-        doc.setFontSize(10)
-        doc.setFont("helvetica", "normal")
-        doc.setTextColor(100)
-        doc.text("Sistema de Gestão em Saúde", margem, 27)
-        doc.setDrawColor(200)
-        doc.line(margem, 32, pageW - margem, 32)
+        // ─── Cabeçalho institucional (logo + nome + endereço/CNPJ) ───────────
+        // Fallback gracioso: sem foto, desenharCabecalho renderiza placeholder
+        // com iniciais do estabelecimento (mesma regra de Receita/Prontuário).
+        let y = desenharCabecalho(doc, est, logo, {
+            docTitle: `ORÇAMENTO ${orc.numero || `#${orc.id}`}`,
+            docSubtitle: `Emitido em ${dataFmt(orc.criadoEm)}`,
+        })
 
-        // ─── Título + status ──────────────────────────────────────────────
-        doc.setFontSize(16)
-        doc.setFont("helvetica", "bold")
-        doc.setTextColor(30)
-        doc.text(`Orçamento ${orc.numero || `#${orc.id}`}`, margem, 42)
-
+        // ─── Status (badge à direita) — mantido logo abaixo do cabeçalho ─────
         const [r, g, b] = STATUS_COR[orc.status] ?? [50, 50, 50]
-        doc.setTextColor(r, g, b)
+        doc.setFont("helvetica", "bold")
         doc.setFontSize(11)
-        doc.text(orc.status, pageW - margem - doc.getTextWidth(orc.status), 42)
+        doc.setTextColor(r, g, b)
+        doc.text(orc.status, pageW - margem, y + 1, { align: "right" })
         doc.setTextColor(30)
+        y += 6
 
-        // ─── Cabeçalho de dados (paciente / emissão) ──────────────────────
+        // ─── Cabeçalho de dados (paciente / validade / emitido por) ──────────
         doc.setFontSize(10)
         doc.setFont("helvetica", "normal")
-        let y = 54
         doc.text(`Paciente: ${orc.pacienteNome}`, margem, y)
         doc.text(`Validade: ${dataFmt(orc.validade)}`, pageW - margem - 55, y)
         y += 7
         doc.text(`Emitido por: ${orc.criadoPorNome}`, margem, y)
-        doc.text(`Emitido em: ${dataFmt(orc.criadoEm)}`, pageW - margem - 55, y)
 
         if (orc.observacoes) {
             y += 10

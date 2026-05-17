@@ -13,4 +13,12 @@ public interface IFotoStorageService
     /// Se já existir um arquivo no path, é sobrescrito.
     /// </summary>
     Task<string> UploadFotoAsync(string path, Stream conteudo, string mimeType, CancellationToken ct = default);
+
+    /// <summary>
+    /// Remove a foto do bucket. Idempotente: se o objeto não existe, não lança —
+    /// o caller (handler que limpa <c>FotoUrl</c>) precisa que a operação seja
+    /// "lossy-safe" para não travar UX quando o S3 e o banco saem de sincronia.
+    /// O caller compõe o path da mesma forma que em <see cref="UploadFotoAsync"/>.
+    /// </summary>
+    Task RemoverFotoAsync(string path, CancellationToken ct = default);
 }

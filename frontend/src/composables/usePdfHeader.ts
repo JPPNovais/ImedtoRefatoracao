@@ -48,8 +48,15 @@ export const NUNITO_FAMILY = "Nunito"
 
 // ─── Cache em sessão ─────────────────────────────────────────────────────────
 
-/** Logo do estabelecimento já convertida para data URL (uma por sessão). */
-let logoCache: { id: number; dataUrl: string | null } | null = null
+/**
+ * Logo do estabelecimento já convertida para data URL (uma por sessão).
+ *
+ * A chave de cache combina <c>id</c> + <c>fotoUrl</c> propositalmente: quando o
+ * usuário troca/remove a foto na tela de configurações, a fotoUrl muda e a
+ * cache em memória ficaria stale (mostrando a logo antiga no PDF até o reload).
+ * Usando a URL como parte da chave, a próxima geração de PDF re-baixa.
+ */
+let logoCache: { id: number; fotoUrl: string | null; dataUrl: string | null } | null = null
 /** Dados do estabelecimento ativo (uma por sessão). */
 let estabelecimentoCache: { id: number; dados: Estabelecimento } | null = null
 
@@ -60,6 +67,16 @@ let estabelecimentoCache: { id: number; dados: Estabelecimento } | null = null
 export function _resetPdfHeaderCacheParaTestes() {
     logoCache = null
     estabelecimentoCache = null
+}
+
+/**
+ * Invalida o cache de dados do estabelecimento ativo. Chamado pela tela de
+ * configurações após upload/remoção de foto — sem isso, o próximo PDF gerado
+ * na mesma sessão renderizaria a foto antiga (cache em memória).
+ */
+export function invalidarCacheEstabelecimentoAtivo() {
+    estabelecimentoCache = null
+    logoCache = null
 }
 
 // ─── Carregamento de fontes + estabelecimento ─────────────────────────────────
@@ -107,9 +124,13 @@ export async function carregarEstabelecimentoAtivo(tenantId: number | null): Pro
  */
 export async function carregarLogoComoDataUrl(est: Estabelecimento | null): Promise<string | null> {
     if (!est) return null
-    if (logoCache && logoCache.id === est.id) return logoCache.dataUrl
+    // Cache hit: mesma combinação id + fotoUrl. Quando o usuário troca a foto, a
+    // URL muda (S3 path diferente OU sig nova) — invalida sozinho.
+    if (logoCache && logoCache.id === est.id && logoCache.fotoUrl === est.fotoUrl) {
+        return logoCache.dataUrl
+    }
     if (!est.fotoUrl) {
-        logoCache = { id: est.id, dataUrl: null }
+        logoCache = { id: est.id, fotoUrl: null, dataUrl: null }
         return null
     }
     try {
@@ -117,10 +138,10 @@ export async function carregarLogoComoDataUrl(est: Estabelecimento | null): Prom
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
         const blob = await resp.blob()
         const dataUrl = await blobParaDataUrl(blob)
-        logoCache = { id: est.id, dataUrl }
+        logoCache = { id: est.id, fotoUrl: est.fotoUrl, dataUrl }
         return dataUrl
     } catch {
-        logoCache = { id: est.id, dataUrl: null }
+        logoCache = { id: est.id, fotoUrl: est.fotoUrl, dataUrl: null }
         return null
     }
 }

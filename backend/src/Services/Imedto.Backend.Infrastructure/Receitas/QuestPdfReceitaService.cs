@@ -69,10 +69,15 @@ public class QuestPdfReceitaService : IReceitaPdfService
     private static bool _fontesRegistradas;
 
     private readonly string _connStr;
+    private readonly IHttpClientFactory _httpFactory;
 
-    public QuestPdfReceitaService(AppReadConnectionString conn)
+    /// <summary>Nome lógico do HttpClient usado para baixar a logo (registrado no Program.cs).</summary>
+    public const string HttpClientName = "PdfReceitaLogo";
+
+    public QuestPdfReceitaService(AppReadConnectionString conn, IHttpClientFactory httpFactory)
     {
         _connStr = conn.Value;
+        _httpFactory = httpFactory;
         InicializarQuestPdf();
     }
 
@@ -89,7 +94,38 @@ public class QuestPdfReceitaService : IReceitaPdfService
         if (dados is null)
             throw new SharedKernel.Domain.BusinessException("Receita não encontrada.");
 
-        return GerarPdf(dados);
+        // Baixa a logo (best-effort) — se falhar, o layout usa o placeholder
+        // com iniciais sem propagar erro: emissão de receita é prioridade.
+        var logoBytes = await BaixarLogoAsync(dados.Receita.EstabelecimentoFotoUrl);
+
+        return GerarPdf(dados with { LogoBytes = logoBytes });
+    }
+
+    /// <summary>
+    /// Baixa os bytes da logo a partir da presigned URL do S3 com timeout curto
+    /// (3s). Qualquer falha (timeout, 4xx, rede, conteúdo inválido) retorna null
+    /// e o template cai no placeholder de iniciais — nunca bloqueamos a receita.
+    /// </summary>
+    private async Task<byte[]> BaixarLogoAsync(string fotoUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fotoUrl)) return null;
+
+        try
+        {
+            using var client = _httpFactory.CreateClient(HttpClientName);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            using var resp = await client.GetAsync(fotoUrl, cts.Token);
+            if (!resp.IsSuccessStatusCode) return null;
+            var bytes = await resp.Content.ReadAsByteArrayAsync(cts.Token);
+            // Limite defensivo (5 MB) — bloqueia conteúdo gigante eventual
+            // (a foto do estabelecimento é validada em 2 MB no upload).
+            if (bytes.Length is 0 or > 5 * 1024 * 1024) return null;
+            return bytes;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -197,7 +233,7 @@ public class QuestPdfReceitaService : IReceitaPdfService
                     .Column(col =>
                 {
                     // Cabeçalho institucional
-                    col.Item().Element(c => DesenharCabecalho(c, r, accent, ehControlada));
+                    col.Item().Element(c => DesenharCabecalho(c, r, accent, ehControlada, dados.LogoBytes));
 
                     // Bloco do paciente
                     col.Item().PaddingTop(4, Unit.Millimetre).Element(c => DesenharBlocoPaciente(c, r));
@@ -263,7 +299,7 @@ public class QuestPdfReceitaService : IReceitaPdfService
     // Componentes do layout
     // ────────────────────────────────────────────────────────────────
 
-    private static void DesenharCabecalho(IContainer container, ReceitaRow r, string accent, bool ehControlada)
+    private static void DesenharCabecalho(IContainer container, ReceitaRow r, string accent, bool ehControlada, byte[] logoBytes)
     {
         container.Column(col =>
         {
@@ -274,7 +310,7 @@ public class QuestPdfReceitaService : IReceitaPdfService
                 {
                     brand.ConstantItem(14, Unit.Millimetre).AlignMiddle()
                         .Width(12, Unit.Millimetre).Height(12, Unit.Millimetre)
-                        .Element(c => DesenharLogo(c, r, accent));
+                        .Element(c => DesenharLogo(c, r, accent, logoBytes));
 
                     brand.RelativeItem().PaddingLeft(2, Unit.Millimetre).AlignMiddle().Text(r.EstabelecimentoNomeFantasia ?? "Estabelecimento")
                         .FontSize(15).Bold().FontColor(accent);
@@ -317,10 +353,26 @@ public class QuestPdfReceitaService : IReceitaPdfService
         });
     }
 
-    private static void DesenharLogo(IContainer container, ReceitaRow r, string accent)
+    private static void DesenharLogo(IContainer container, ReceitaRow r, string accent, byte[] logoBytes)
     {
-        // Placeholder com iniciais (sem download remoto — TODO: cache S3 fora do escopo).
-        // Quando vier integração de logo, basta trocar este método por addImage(bytes).
+        // Foto/logo do estabelecimento quando disponível; placeholder com iniciais como fallback.
+        // O download remoto acontece em BaixarLogoAsync — se falhou, logoBytes é null e
+        // o usuário ainda recebe um cabeçalho coerente. Nunca bloqueia emissão.
+        if (logoBytes is { Length: > 0 })
+        {
+            try
+            {
+                container.AlignCenter().AlignMiddle()
+                    .Width(12, Unit.Millimetre).Height(12, Unit.Millimetre)
+                    .Image(logoBytes).FitArea();
+                return;
+            }
+            catch
+            {
+                // Imagem corrompida ou formato não suportado pelo QuestPDF — cai no placeholder.
+            }
+        }
+
         var iniciais = ObterIniciais(r.EstabelecimentoNomeFantasia);
         container.AlignCenter().AlignMiddle()
             .Background(accent)
@@ -743,7 +795,11 @@ public class QuestPdfReceitaService : IReceitaPdfService
         string Duracao,
         string Observacao);
 
-    internal sealed record DadosPdf(ReceitaRow Receita, List<ItemRow> Itens);
+    internal sealed record DadosPdf(ReceitaRow Receita, List<ItemRow> Itens)
+    {
+        /// <summary>Bytes da logo do estabelecimento (null = usa placeholder de iniciais).</summary>
+        public byte[] LogoBytes { get; init; }
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────

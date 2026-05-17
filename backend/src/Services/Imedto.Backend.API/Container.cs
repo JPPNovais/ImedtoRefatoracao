@@ -265,6 +265,7 @@ public static class Container
         services.AddScoped<AtualizarEstabelecimentoCommandHandler>();
         services.AddScoped<AtualizarFuncionamentoCommandHandler>();
         services.AddScoped<AlterarFotoEstabelecimentoCommandHandler>();
+        services.AddScoped<RemoverFotoEstabelecimentoCommandHandler>();
         services.AddSingleton<ListarMeusEstabelecimentosQueryHandlers>();
         services.AddSingleton<VerificarCnpjDisponivelQueryHandler>();
         services.AddScoped<EstabelecimentoCriadoEventHandler>();
@@ -700,6 +701,7 @@ public static class Container
             bus.Register<AtualizarEstabelecimentoCommand, AtualizarEstabelecimentoCommandHandler>();
             bus.Register<AtualizarFuncionamentoCommand, AtualizarFuncionamentoCommandHandler>();
             bus.Register<AlterarFotoEstabelecimentoCommand, AlterarFotoEstabelecimentoCommandHandler>();
+            bus.Register<RemoverFotoEstabelecimentoCommand, RemoverFotoEstabelecimentoCommandHandler>();
             bus.Register<CriarUnidadeCommand, CriarUnidadeCommandHandler>();
             bus.Register<AtualizarUnidadeCommand, AtualizarUnidadeCommandHandler>();
             bus.Register<DeletarUnidadeCommand, DeletarUnidadeCommandHandler>();

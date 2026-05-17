@@ -3,12 +3,14 @@ import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
+import { redimensionarImagem } from "@/services/imageUtils"
+import { invalidarCacheEstabelecimentoAtivo } from "@/composables/usePdfHeader"
 import { useTenantStore } from "@/stores/tenantStore"
 import FuncionamentoTab from "@/components/estabelecimento/FuncionamentoTab.vue"
 import UnidadesTab from "@/components/estabelecimento/UnidadesTab.vue"
 import ReparticoesTab from "@/components/estabelecimento/ReparticoesTab.vue"
 import ListasVariaveisTab from "@/components/estabelecimento/ListasVariaveisTab.vue"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppPhotoUpload, AppConfirmDialog, AppToast } from "@/components/ui"
 
 const router = useRouter()
 const tenant = useTenantStore()
@@ -82,6 +84,61 @@ async function salvar() {
 }
 
 const podeEditar = ref(true)
+
+// ─── Foto / logo do estabelecimento ──────────────────────────────────────────
+// Edição local da fotoUrl (não persistimos em outro lugar — o reload reidrata via
+// `carregar`). O componente AppPhotoUpload já valida tipo/tamanho client-side
+// antes de emitir; o handler espelha o backend (422 é fonte da verdade).
+const enviandoFoto    = ref(false)
+const erroFoto        = ref<string | null>(null)
+const toastFoto       = ref<{ texto: string; tipo: "success" | "error" } | null>(null)
+const confirmarRemocao = ref(false)
+
+async function aoEnviarFoto(arquivo: File) {
+    if (!estab.value) return
+    erroFoto.value = null
+    enviandoFoto.value = true
+    try {
+        // Redimensiona para 512x512 antes do envio — mesmo padrão do upload de foto
+        // do profissional (em torno de 50-100 KB, suficiente para a logo em PDFs).
+        const reduzida = await redimensionarImagem(arquivo, 512, 0.85)
+        const novaUrl = await estabelecimentoService.uploadFoto(estab.value.id, reduzida)
+        estab.value = { ...estab.value, fotoUrl: novaUrl }
+        // Próximo PDF gerado nesta sessão re-baixa a logo (cache de PDF é por sessão).
+        invalidarCacheEstabelecimentoAtivo()
+        toastFoto.value = { texto: "Foto atualizada com sucesso.", tipo: "success" }
+    } catch (e: any) {
+        erroFoto.value = e?.response?.data?.mensagem ?? "Não foi possível enviar a foto."
+    } finally {
+        enviandoFoto.value = false
+    }
+}
+
+function aoErroValidacaoFoto(mensagem: string) {
+    // Espelho UX da validação que o backend também faz — não chega a bater na API.
+    erroFoto.value = mensagem
+}
+
+function pedirRemocaoFoto() {
+    erroFoto.value = null
+    confirmarRemocao.value = true
+}
+
+async function confirmarRemocaoFoto() {
+    if (!estab.value) return
+    enviandoFoto.value = true
+    try {
+        await estabelecimentoService.removerFoto(estab.value.id)
+        estab.value = { ...estab.value, fotoUrl: null }
+        invalidarCacheEstabelecimentoAtivo()
+        confirmarRemocao.value = false
+        toastFoto.value = { texto: "Foto removida.", tipo: "success" }
+    } catch (e: any) {
+        erroFoto.value = e?.response?.data?.mensagem ?? "Não foi possível remover a foto."
+    } finally {
+        enviandoFoto.value = false
+    }
+}
 
 onMounted(async () => {
     podeEditar.value = tenant.papel === "Dono"
@@ -195,6 +252,23 @@ onMounted(async () => {
                     Apenas o dono pode alterar estes dados. Você está visualizando em modo leitura.
                 </p>
 
+                <!-- Foto / logo institucional -->
+                <AppPhotoUpload
+                    :foto-url="estab.fotoUrl"
+                    :iniciais-fallback="estab.nomeFantasia"
+                    titulo="Logo do estabelecimento"
+                    descricao="Aparece nos PDFs de receita, prontuário, orçamentos e relatórios. JPG, PNG, WebP ou GIF até 2 MB. Recomendado: imagem quadrada de 400×400px."
+                    :loading="enviandoFoto"
+                    :disabled="!podeEditar"
+                    motivo-disabled="Apenas o dono pode alterar a foto."
+                    :erro="erroFoto"
+                    @upload="aoEnviarFoto"
+                    @remover="pedirRemocaoFoto"
+                    @erro-validacao="aoErroValidacaoFoto"
+                />
+
+                <div class="separador-foto" />
+
                 <div class="grade-2">
                     <div class="campo">
                         <label class="campo-label">Nome fantasia <span class="obrig">*</span></label>
@@ -289,6 +363,26 @@ onMounted(async () => {
         <section v-else-if="abaAtiva === 'variaveis'" class="aba-conteudo">
             <ListasVariaveisTab :pode-editar="podeEditar" />
         </section>
+
+        <!-- Confirmação destrutiva da remoção de foto -->
+        <AppConfirmDialog
+            v-model:aberto="confirmarRemocao"
+            titulo="Remover foto?"
+            mensagem="A logo será removida dos PDFs e relatórios do estabelecimento. Você pode enviar outra a qualquer momento."
+            confirmar-rotulo="Remover"
+            variante="danger"
+            icone="fa-solid fa-trash"
+            :executando="enviandoFoto"
+            @confirmar="confirmarRemocaoFoto"
+        />
+
+        <!-- Feedback de upload/remoção -->
+        <AppToast
+            v-if="toastFoto"
+            :mensagem="toastFoto.texto"
+            :variante="toastFoto.tipo"
+            @fechar="toastFoto = null"
+        />
     </div>
 </template>
 
@@ -365,6 +459,11 @@ onMounted(async () => {
 }
 
 .card-footer { display: flex; justify-content: flex-end; }
+
+/* Linha sutil separando a logo do bloco de campos textuais. */
+.separador-foto {
+    height: 1px; background: var(--border); margin: 0.25rem 0;
+}
 
 .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
