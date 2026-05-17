@@ -17,6 +17,45 @@ function slug(nome: string): string {
 }
 
 /**
+ * Modo de saída do PDF:
+ *  - "download"   → `doc.save(arquivo)` (comportamento padrão).
+ *  - "visualizar" → retorna o blob URL e seta o título de aba. Quem chama é
+ *    responsável por abrir a janela (precisa ser sincrônico ao clique, senão
+ *    o browser bloqueia o popup).
+ *
+ * Em "visualizar", a função NÃO chama `window.open` por dentro — o handler
+ * da view abre uma janela `about:blank` antes do `await` e depois aponta
+ * `w.location.href = blobUrl`. O blob é liberado via `URL.revokeObjectURL`
+ * após ~60s.
+ */
+export type PdfSaidaModo = "download" | "visualizar"
+
+/** Resultado do gerador: vazio quando download; blob URL quando visualizar. */
+export interface PdfResultado {
+    blobUrl: string | null
+}
+
+/**
+ * Finaliza o documento conforme o modo escolhido. Para "visualizar",
+ * agenda `URL.revokeObjectURL` em ~60s para evitar leak no tab atual.
+ */
+function finalizarDocumento(doc: any, nomeArquivo: string, modo: PdfSaidaModo): PdfResultado {
+    if (modo === "download") {
+        doc.save(nomeArquivo)
+        return { blobUrl: null }
+    }
+    // Define o título da aba do PDF para "<nome sem .pdf>".
+    const tituloAba = nomeArquivo.replace(/\.pdf$/i, "")
+    doc.setProperties({ title: tituloAba })
+    const blobUrl: string = doc.output("bloburl") as unknown as string
+    // Libera o blob depois de 60s — o tab já carregou o PDF nesse intervalo.
+    setTimeout(() => {
+        try { URL.revokeObjectURL(blobUrl) } catch { /* ignore */ }
+    }, 60_000)
+    return { blobUrl }
+}
+
+/**
  * Formato YYYYMMDD-HHmm a partir de um ISO string. Usado em nomes de arquivo
  * de PDF de evolução para evitar trafegar nome/id no filename (LGPD: nome do
  * paciente já vai por slug, mas a data identifica univocamente a evolução).
@@ -61,7 +100,11 @@ export function useProntuarioPdf() {
      * Aceita o paciente como objeto completo (preferido — preenche o bloco
      * de paciente do design) ou como string (modo legado — só usa o nome).
      */
-    async function gerarPdf(pront: ProntuarioCompleto, paciente: Paciente | string) {
+    async function gerarPdf(
+        pront: ProntuarioCompleto,
+        paciente: Paciente | string,
+        modo: PdfSaidaModo = "download",
+    ): Promise<PdfResultado> {
         // Lazy: jsPDF + autotable + Nunito (~700 KB combinados) só carregam
         // quando o usuário clica "Baixar PDF".
         const [{ jsPDF }, { default: autoTable }, helper] = await Promise.all([
@@ -205,7 +248,7 @@ export function useProntuarioPdf() {
             },
         })
 
-        doc.save(`prontuario-${slug(nomePaciente(paciente))}.pdf`)
+        return finalizarDocumento(doc, `prontuario-${slug(nomePaciente(paciente))}.pdf`, modo)
     }
 
     /**
@@ -218,7 +261,8 @@ export function useProntuarioPdf() {
         pront: ProntuarioCompleto,
         evolucao: Evolucao,
         paciente: Paciente | string,
-    ) {
+        modo: PdfSaidaModo = "download",
+    ): Promise<PdfResultado> {
         const [{ jsPDF }, { default: autoTable }, helper] = await Promise.all([
             import("jspdf"),
             import("jspdf-autotable"),
@@ -318,7 +362,11 @@ export function useProntuarioPdf() {
             },
         })
 
-        doc.save(`evolucao-${slug(nomePaciente(paciente))}-${dataParaArquivo(evolucao.criadaEm)}.pdf`)
+        return finalizarDocumento(
+            doc,
+            `evolucao-${slug(nomePaciente(paciente))}-${dataParaArquivo(evolucao.criadaEm)}.pdf`,
+            modo,
+        )
     }
 
     // Captura visual da seção de prontuário usando html2canvas

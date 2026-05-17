@@ -5,13 +5,14 @@
 
     Mostra apenas os dados principais (data, modelo, profissional, resumo curto,
     quantas seções foram preenchidas) — sem expandir o conteúdo inteiro de cada
-    seção. O botão "PDF" emite o evento para o pai gerar o PDF apenas dessa
-    evolução individual.
+    seção. Dois botões de PDF (visualizar ou baixar) emitem o mesmo evento
+    `gerar-pdf` com o modo escolhido, e o pai cuida da geração e do audit LGPD.
 -->
 <script setup lang="ts">
 import { computed } from "vue"
 import { AppButton } from "@/components/ui"
 import type { Evolucao } from "@/services/prontuarioService"
+import type { PdfSaidaModo } from "@/composables/useProntuarioPdf"
 import { resumoTextual, contarSecoesPreenchidas } from "@/composables/useEvolucaoResumo"
 
 const props = defineProps<{
@@ -21,7 +22,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-    "gerar-pdf": [evolucao: Evolucao]
+    "gerar-pdf": [payload: { evolucao: Evolucao, modo: PdfSaidaModo }]
 }>()
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -36,9 +37,9 @@ const data   = computed(() => fmtData(props.evolucao.criadaEm))
 const resumo = computed(() => resumoTextual(props.evolucao))
 const secoes = computed(() => contarSecoesPreenchidas(props.evolucao))
 
-function emitirPdf() {
+function emitirPdf(modo: PdfSaidaModo) {
     if (props.gerandoPdf) return
-    emit("gerar-pdf", props.evolucao)
+    emit("gerar-pdf", { evolucao: props.evolucao, modo })
 }
 </script>
 
@@ -77,18 +78,29 @@ function emitirPdf() {
                     </div>
                 </div>
 
-                <div class="httf-acoes">
+                <div class="httf-acoes acoes-pdf">
+                    <AppButton
+                        variant="secondary"
+                        size="sm"
+                        icon="fa-solid fa-eye"
+                        :loading="gerandoPdf"
+                        :disabled="gerandoPdf"
+                        aria-label="Visualizar PDF desta evolução"
+                        data-test="btn-pdf-visualizar"
+                        @click="emitirPdf('visualizar')"
+                    >
+                        Ver PDF
+                    </AppButton>
                     <AppButton
                         variant="ghost"
                         size="sm"
-                        icon="fa-solid fa-file-pdf"
+                        icon="fa-solid fa-download"
                         :loading="gerandoPdf"
                         :disabled="gerandoPdf"
-                        aria-label="Gerar PDF desta evolução"
-                        @click="emitirPdf"
-                    >
-                        PDF
-                    </AppButton>
+                        aria-label="Baixar PDF desta evolução"
+                        data-test="btn-pdf-baixar"
+                        @click="emitirPdf('download')"
+                    />
                 </div>
             </div>
         </div>
@@ -187,4 +199,8 @@ function emitirPdf() {
 }
 
 .httf-acoes { flex-shrink: 0; display: flex; align-items: flex-start; }
+.acoes-pdf { gap: 6px; }
+@media (max-width: 480px) {
+    .acoes-pdf { flex-direction: column; align-items: stretch; }
+}
 </style>

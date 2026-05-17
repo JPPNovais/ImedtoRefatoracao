@@ -1,3 +1,4 @@
 - [Padrão dos PDFs institucionais Imedto](project_pdfs_institucionais.md) — helper `usePdfHeader` (front) + `QuestPdfReceitaService` (back) compartilham PDF_THEME e Nunito embarcada (resource).
 - [Lacunas no domínio de PDF da receita](project_gaps_pdf_receita.md) — sem ICP-Brasil, sem "uso contínuo", sem campos email/site/tagline/cidade no Estabelecimento.
 - [Estoque — Cadastros MVP](project_estoque_cadastros_mvp.md) — tela `/inventario/cadastros` + evolução de `itens_inventario` com FKs (categoria obrigatória, demais opcionais).
+- [Visualizar PDF em nova aba (popup blocker)](feedback_visualizar_pdf_no_browser.md) — composable retorna `blobUrl`; view abre `about:blank` ANTES do await; fallback download se bloqueado.

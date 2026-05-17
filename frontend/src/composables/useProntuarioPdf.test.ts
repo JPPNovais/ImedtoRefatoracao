@@ -18,6 +18,8 @@ const docMock = {
     getNumberOfPages: vi.fn(() => 1),
     getCurrentPageInfo: vi.fn(() => ({ pageNumber: 1 })),
     save: vi.fn(),
+    output: vi.fn((kind: string) => kind === "bloburl" ? "blob:https://app.imedto.com/fake-blob" : ""),
+    setProperties: vi.fn(),
     setFont: vi.fn(),
     setFontSize: vi.fn(),
     setTextColor: vi.fn(),
@@ -261,5 +263,75 @@ describe("useProntuarioPdf — gerarPdfEvolucao (PDF individual)", () => {
         await gerarPdfEvolucao(prontComEvolucoes, evolucao, "Joao Soares")
         const nomeArquivo = docMock.save.mock.calls[0][0] as string
         expect(nomeArquivo).toContain("joao-soares")
+    })
+})
+
+describe("useProntuarioPdf — modo visualizar (blob URL)", () => {
+    const evolucao = prontComEvolucoes.evolucoes[0]!
+
+    beforeEach(async () => {
+        setActivePinia(createPinia())
+        Object.values(helperMocks).forEach(m => {
+            if (typeof m === "function") (m as any).mockClear?.()
+        })
+        Object.values(docMock).forEach(m => {
+            if (typeof m === "function") (m as any).mockClear?.()
+        })
+        const autoTable = (await import("jspdf-autotable")).default as any
+        autoTable.mockClear()
+        // Stub global de URL.revokeObjectURL (chamado via setTimeout 60s — basta existir).
+        if (!(globalThis as any).URL.revokeObjectURL) {
+            (globalThis as any).URL.revokeObjectURL = vi.fn()
+        }
+    })
+
+    it("gerarPdf('visualizar') chama output('bloburl'), NÃO chama save e retorna blobUrl", async () => {
+        const { gerarPdf } = useProntuarioPdf()
+        const resultado = await gerarPdf(prontComEvolucoes, pacienteCompleto, "visualizar")
+
+        expect(docMock.output).toHaveBeenCalledWith("bloburl")
+        expect(docMock.save).not.toHaveBeenCalled()
+        expect(resultado.blobUrl).toBe("blob:https://app.imedto.com/fake-blob")
+        // Título da aba: nome do arquivo sem .pdf
+        expect(docMock.setProperties).toHaveBeenCalledWith(
+            expect.objectContaining({ title: expect.stringMatching(/^prontuario-/) }),
+        )
+        expect(docMock.setProperties.mock.calls[0][0].title).not.toMatch(/\.pdf$/)
+    })
+
+    it("gerarPdf('download') chama save e retorna blobUrl=null (sem alterar comportamento atual)", async () => {
+        const { gerarPdf } = useProntuarioPdf()
+        const resultado = await gerarPdf(prontComEvolucoes, pacienteCompleto, "download")
+
+        expect(docMock.save).toHaveBeenCalledOnce()
+        expect(docMock.output).not.toHaveBeenCalled()
+        expect(resultado.blobUrl).toBeNull()
+    })
+
+    it("gerarPdf() sem modo cai em 'download' (default não-breaking)", async () => {
+        const { gerarPdf } = useProntuarioPdf()
+        await gerarPdf(prontComEvolucoes, pacienteCompleto)
+        expect(docMock.save).toHaveBeenCalledOnce()
+        expect(docMock.output).not.toHaveBeenCalled()
+    })
+
+    it("gerarPdfEvolucao('visualizar') chama output('bloburl'), NÃO chama save e retorna blobUrl", async () => {
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        const resultado = await gerarPdfEvolucao(prontComEvolucoes, evolucao, pacienteCompleto, "visualizar")
+
+        expect(docMock.output).toHaveBeenCalledWith("bloburl")
+        expect(docMock.save).not.toHaveBeenCalled()
+        expect(resultado.blobUrl).toBe("blob:https://app.imedto.com/fake-blob")
+        expect(docMock.setProperties).toHaveBeenCalledWith(
+            expect.objectContaining({ title: expect.stringMatching(/^evolucao-/) }),
+        )
+    })
+
+    it("gerarPdfEvolucao('download') chama save (sem alterar comportamento atual)", async () => {
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        const resultado = await gerarPdfEvolucao(prontComEvolucoes, evolucao, pacienteCompleto, "download")
+        expect(docMock.save).toHaveBeenCalledOnce()
+        expect(docMock.output).not.toHaveBeenCalled()
+        expect(resultado.blobUrl).toBeNull()
     })
 })

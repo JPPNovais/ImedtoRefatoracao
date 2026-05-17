@@ -21,7 +21,7 @@ import {
 } from "@/services/prontuarioService"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
-import { useProntuarioPdf } from "@/composables/useProntuarioPdf"
+import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { AppButton, AppField, AppSelect, AppToast } from "@/components/ui"
@@ -228,29 +228,72 @@ function toggleFocus() {
     focus.value = !focus.value
 }
 
-async function imprimir() {
+/**
+ * Para o modo "visualizar", precisamos chamar `window.open` SINCRONICAMENTE
+ * ao clique do usuário — qualquer `await` antes dispara popup blocker em
+ * Chrome/Safari. Abrimos `about:blank` aqui mesmo e devolvemos a referência;
+ * depois do PDF gerado, redirecionamos a janela para o blob URL. Se retornar
+ * null (popup bloqueado), avisamos o usuário e caímos para download.
+ */
+function abrirJanelaParaVisualizacao(): Window | null {
+    return window.open("about:blank", "_blank", "noopener,noreferrer")
+}
+
+async function exportarHistorico(modo: PdfSaidaModo) {
     if (!pront.value) {
-        notificar("Inicie o prontuário antes de imprimir.", "error")
+        notificar("Inicie o prontuário antes de exportar.", "error")
         return
+    }
+    let janela: Window | null = null
+    let modoEfetivo: PdfSaidaModo = modo
+    if (modo === "visualizar") {
+        janela = abrirJanelaParaVisualizacao()
+        if (!janela) {
+            notificar("Permita pop-ups para visualizar o PDF. Baixando como alternativa.", "info")
+            modoEfetivo = "download"
+        }
     }
     try {
         // Audit LGPD: registra a exportação antes de gerar o PDF.
         // Se falhar (422/permissão), o doc não é produzido.
         await prontuarioService.registrarExportacaoHistorico(pacienteId.value)
-        await gerarPdfProntuario(pront.value, paciente.value ?? "paciente")
+        const { blobUrl } = await gerarPdfProntuario(pront.value, paciente.value ?? "paciente", modoEfetivo)
+        if (modoEfetivo === "visualizar" && janela && blobUrl) {
+            janela.location.href = blobUrl
+        }
     } catch (e: any) {
+        if (janela) janela.close()
         notificar(e?.response?.data?.mensagem ?? "Erro ao exportar prontuário.", "error")
     }
 }
 
-async function exportarPdfEvolucao(evolucao: Evolucao) {
+// Mantido como atalho do header sticky (botão "Imprimir") — comportamento
+// histórico era download direto. Não mudamos a UX do header agora.
+async function imprimir() {
+    await exportarHistorico("download")
+}
+
+async function exportarPdfEvolucao(evolucao: Evolucao, modo: PdfSaidaModo = "download") {
     if (!pront.value) return
     if (evolucaoSendoBaixada.value !== null) return
     evolucaoSendoBaixada.value = evolucao.id
+    let janela: Window | null = null
+    let modoEfetivo: PdfSaidaModo = modo
+    if (modo === "visualizar") {
+        janela = abrirJanelaParaVisualizacao()
+        if (!janela) {
+            notificar("Permita pop-ups para visualizar o PDF. Baixando como alternativa.", "info")
+            modoEfetivo = "download"
+        }
+    }
     try {
         await prontuarioService.registrarExportacaoEvolucao(pacienteId.value, evolucao.id)
-        await gerarPdfEvolucao(pront.value, evolucao, paciente.value ?? "paciente")
+        const { blobUrl } = await gerarPdfEvolucao(pront.value, evolucao, paciente.value ?? "paciente", modoEfetivo)
+        if (modoEfetivo === "visualizar" && janela && blobUrl) {
+            janela.location.href = blobUrl
+        }
     } catch (e: any) {
+        if (janela) janela.close()
         notificar(e?.response?.data?.mensagem ?? "Erro ao exportar evolução.", "error")
     } finally {
         evolucaoSendoBaixada.value = null
@@ -357,11 +400,11 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 :anexos="anexos"
                 :uploadando="uploadando"
                 :evolucao-sendo-baixada="evolucaoSendoBaixada"
-                :gerar-pdf="imprimir"
+                :gerar-historico="exportarHistorico"
                 @download-anexo="baixarAnexo"
                 @selecionar-arquivo="selecionarArquivo"
                 @enviar-anexo="enviarAnexo"
-                @gerar-pdf-evolucao="exportarPdfEvolucao"
+                @gerar-pdf-evolucao="exportarPdfEvolucao($event.evolucao, $event.modo)"
             />
 
             <ExameFisicoTab

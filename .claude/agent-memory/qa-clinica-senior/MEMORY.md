@@ -11,3 +11,4 @@
 - [QA pós-deploy b39f12b 2026-05-16 (fix P1 toast+ConfirmDialog)](project_qa_posdeploy_b39f12b_2026_05_16.md) — AppConfirmDialog OK; LGPD anestesista OK; P0: toast dentro do drawer fica atrás do overlay (z-index trapping).
 - [QA pós-deploy 2d659b1 2026-05-16 (Teleport AppToast)](project_qa_posdeploy_2d659b1_2026_05_16.md) — 5/5 abas com toast visível acima do overlay; P0 do loop 2 eliminado.
 - [elementFromPoint engana com Reka Dialog aberto](feedback_elementfrompoint_armadilha_reka_dialog.md) — validar toast por screenshot + DOM props, não por hit-testing.
+- [QA pós-deploy c867914 2026-05-17 (PDF por evolução + timeline compacta)](project_qa_posdeploy_c867914_2026_05_17.md) — 6/6 critérios verde; audit trail LGPD ok; guard de double-click confirmado.

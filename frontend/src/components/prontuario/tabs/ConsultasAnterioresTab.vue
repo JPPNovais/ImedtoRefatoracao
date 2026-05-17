@@ -12,20 +12,22 @@ import { ref, computed, watch } from "vue"
 import { AppButton, AppEmptyState } from "@/components/ui"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
 import type { Evolucao, Anexo } from "@/services/prontuarioService"
+import type { PdfSaidaModo } from "@/composables/useProntuarioPdf"
 
 const props = defineProps<{
     evolucoes: Evolucao[]
     anexos: Anexo[]
     uploadando: boolean
     evolucaoSendoBaixada: number | null
-    gerarPdf: () => void
+    /** Callback do pai que cuida do audit LGPD + geração do PDF do histórico. */
+    gerarHistorico: (modo: PdfSaidaModo) => void
 }>()
 
 const emit = defineEmits<{
     downloadAnexo: [anexo: Anexo]
     selecionarArquivo: [event: Event]
     enviarAnexo: []
-    gerarPdfEvolucao: [evolucao: Evolucao]
+    gerarPdfEvolucao: [payload: { evolucao: Evolucao, modo: PdfSaidaModo }]
 }>()
 
 // ─── Upload local ────────────────────────────────────────────────────────────
@@ -94,14 +96,22 @@ function fmtTamanho(bytes: number) {
                     {{ evolucoes.length }} {{ evolucoes.length === 1 ? "evolução registrada" : "evoluções registradas" }}
                 </p>
             </div>
-            <div class="ht-actions">
+            <div v-if="evolucoes.length > 0" class="ht-actions">
                 <AppButton
-                    v-if="evolucoes.length > 0"
                     variant="secondary"
-                    icon="fa-solid fa-file-pdf"
-                    @click="gerarPdf"
+                    icon="fa-solid fa-eye"
+                    aria-label="Visualizar PDF do histórico de evoluções"
+                    @click="props.gerarHistorico('visualizar')"
                 >
-                    Exportar histórico
+                    Visualizar histórico
+                </AppButton>
+                <AppButton
+                    variant="ghost"
+                    icon="fa-solid fa-download"
+                    aria-label="Baixar PDF do histórico de evoluções"
+                    @click="props.gerarHistorico('download')"
+                >
+                    Baixar
                 </AppButton>
             </div>
         </div>

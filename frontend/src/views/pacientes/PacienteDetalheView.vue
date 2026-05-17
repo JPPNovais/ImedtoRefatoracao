@@ -7,7 +7,7 @@ import {
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { prontuarioService, type ProntuarioCompleto, type Anexo, type Evolucao } from "@/services/prontuarioService"
-import { useProntuarioPdf } from "@/composables/useProntuarioPdf"
+import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
@@ -58,15 +58,38 @@ const carregandoAnexos = ref(false)
 const { gerarPdfEvolucao } = useProntuarioPdf()
 const evolucaoSendoBaixada = ref<number | null>(null)
 
-async function exportarPdfEvolucao(evolucao: Evolucao) {
+/**
+ * Para "visualizar" precisamos abrir `window.open` SINCRONICAMENTE ao clique
+ * (antes de qualquer await) para evitar popup blocker. Depois do PDF gerado,
+ * apontamos a janela para o blob URL. Popup bloqueado → fallback download.
+ */
+function abrirJanelaParaVisualizacao(): Window | null {
+    return window.open("about:blank", "_blank", "noopener,noreferrer")
+}
+
+async function exportarPdfEvolucao(payload: { evolucao: Evolucao, modo: PdfSaidaModo }) {
     if (!prontuario.value || !paciente.value) return
     if (evolucaoSendoBaixada.value !== null) return
+    const { evolucao, modo } = payload
     evolucaoSendoBaixada.value = evolucao.id
+    let janela: Window | null = null
+    let modoEfetivo: PdfSaidaModo = modo
+    if (modo === "visualizar") {
+        janela = abrirJanelaParaVisualizacao()
+        if (!janela) {
+            notificar("Permita pop-ups para visualizar o PDF. Baixando como alternativa.", "info")
+            modoEfetivo = "download"
+        }
+    }
     try {
         // Audit LGPD: registra antes de gerar; 422 impede a geração.
         await prontuarioService.registrarExportacaoEvolucao(pacienteId.value, evolucao.id)
-        await gerarPdfEvolucao(prontuario.value, evolucao, paciente.value)
+        const { blobUrl } = await gerarPdfEvolucao(prontuario.value, evolucao, paciente.value, modoEfetivo)
+        if (modoEfetivo === "visualizar" && janela && blobUrl) {
+            janela.location.href = blobUrl
+        }
     } catch (e: any) {
+        if (janela) janela.close()
         notificar(e?.response?.data?.mensagem ?? "Erro ao exportar evolução.", "error")
     } finally {
         evolucaoSendoBaixada.value = null

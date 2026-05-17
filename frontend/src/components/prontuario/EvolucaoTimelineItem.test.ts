@@ -3,12 +3,15 @@ import { mount } from "@vue/test-utils"
 import type { Evolucao } from "@/services/prontuarioService"
 
 vi.mock("@/components/ui", () => {
+    // Stub propaga $attrs (inclusive data-test) para o <button> via v-bind.
+    // Assim cada AppButton no template pode ter seu próprio data-test.
     const AppButton = {
+        inheritAttrs: false,
         props: ["variant", "size", "icon", "loading", "disabled"],
         emits: ["click"],
         template: `<button
+            v-bind="$attrs"
             :disabled="disabled || loading"
-            data-test="btn-pdf"
             :data-loading="loading ? 'true' : 'false'"
             @click="$emit('click')"
         ><slot /></button>`,
@@ -44,26 +47,38 @@ describe("EvolucaoTimelineItem", () => {
         expect(texto).toContain("1/2 seções")
     })
 
-    it("emite 'gerar-pdf' com a evolução ao clicar no botão", async () => {
+    it("clique em 'Ver PDF' emite { evolucao, modo: 'visualizar' }", async () => {
         const w = mount(EvolucaoTimelineItem, { props: { evolucao: evolucaoMock } })
-        await w.find("[data-test='btn-pdf']").trigger("click")
+        await w.find("[data-test='btn-pdf-visualizar']").trigger("click")
 
         const eventos = w.emitted("gerar-pdf")
         expect(eventos).toBeTruthy()
-        expect(eventos![0][0]).toEqual(evolucaoMock)
+        expect(eventos![0][0]).toEqual({ evolucao: evolucaoMock, modo: "visualizar" })
     })
 
-    it("não emite quando 'gerandoPdf' é true e propaga loading ao botão", async () => {
+    it("clique em 'Baixar' emite { evolucao, modo: 'download' }", async () => {
+        const w = mount(EvolucaoTimelineItem, { props: { evolucao: evolucaoMock } })
+        await w.find("[data-test='btn-pdf-baixar']").trigger("click")
+
+        const eventos = w.emitted("gerar-pdf")
+        expect(eventos).toBeTruthy()
+        expect(eventos![0][0]).toEqual({ evolucao: evolucaoMock, modo: "download" })
+    })
+
+    it("não emite quando 'gerandoPdf' é true e propaga loading aos dois botões", async () => {
         const w = mount(EvolucaoTimelineItem, {
             props: { evolucao: evolucaoMock, gerandoPdf: true },
         })
-        const botao = w.find("[data-test='btn-pdf']")
-        expect(botao.attributes("data-loading")).toBe("true")
-        expect((botao.element as HTMLButtonElement).disabled).toBe(true)
+        const verBtn    = w.find("[data-test='btn-pdf-visualizar']")
+        const baixarBtn = w.find("[data-test='btn-pdf-baixar']")
+        expect(verBtn.attributes("data-loading")).toBe("true")
+        expect(baixarBtn.attributes("data-loading")).toBe("true")
+        expect((verBtn.element as HTMLButtonElement).disabled).toBe(true)
+        expect((baixarBtn.element as HTMLButtonElement).disabled).toBe(true)
 
-        await botao.trigger("click")
-        // O AppButton disabled bloqueia o click DOM; o handler do componente
-        // também tem guard interno — em ambos os caminhos, não deve emitir.
+        await verBtn.trigger("click")
+        await baixarBtn.trigger("click")
+        // Disabled bloqueia o click DOM e o handler tem guard interno.
         expect(w.emitted("gerar-pdf")).toBeFalsy()
     })
 
