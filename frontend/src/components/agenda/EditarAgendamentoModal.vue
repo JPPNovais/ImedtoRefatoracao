@@ -21,6 +21,8 @@ import {
     type DisponibilidadeDia,
 } from "@/services/agendaService"
 import type { ProfissionalPublico } from "@/services/vinculoService"
+import { salaService, type Sala } from "@/services/salaService"
+import { useTenantStore } from "@/stores/tenantStore"
 
 const props = defineProps<{
     aberto: boolean
@@ -64,7 +66,20 @@ const form = reactive({
     hora: "",
     origData: "",
     origHora: "",
+    salaId: null as number | null,
+    origSalaId: null as number | null,
 })
+
+const tenant = useTenantStore()
+const salas = ref<Sala[]>([])
+
+async function garantirSalas() {
+    if (salas.value.length > 0) return
+    if (!tenant.estabelecimentoAtivoId) return
+    try {
+        salas.value = await salaService.listar(tenant.estabelecimentoAtivoId, true)
+    } catch { /* não crítico */ }
+}
 
 // ─── Helpers ───
 function isoDataHora(iso: string) {
@@ -186,6 +201,7 @@ const detalhesAlterados = computed(() => {
         || a.tipoServico !== form.tipo
         || duracaoOrig !== form.duracaoMin
         || (a.observacoes ?? "") !== (form.observacoes ?? "")
+        || (a.salaId ?? null) !== (form.salaId ?? null)
 })
 
 const podeSalvar = computed(() => {
@@ -231,9 +247,12 @@ function inicializar() {
         hora: ini.hora,
         origData: ini.data,
         origHora: ini.hora,
+        salaId: a.salaId ?? null,
+        origSalaId: a.salaId ?? null,
     })
     mostrarReagendar.value = !!props.focoReagendar
     void carregarDisponibilidade()
+    void garantirSalas()
 }
 
 watch(() => props.aberto, (v) => { if (v) inicializar() })
@@ -278,6 +297,13 @@ async function salvar() {
             tipoServico: form.tipo,
             observacoes: form.observacoes.trim() || null,
         })
+        if ((form.salaId ?? null) !== (form.origSalaId ?? null)) {
+            await agendaService.alocarSala(
+                tenant.estabelecimentoAtivoId ?? 0,
+                props.agendamento.id,
+                form.salaId ?? null,
+            )
+        }
         emit("atualizado")
         emit("fechar")
     } catch (e: any) {
@@ -468,6 +494,16 @@ async function salvar() {
                             <label>Duração</label>
                             <select v-model.number="form.duracaoMin">
                                 <option v-for="d in DURACOES" :key="d" :value="d">{{ d }} minutos</option>
+                            </select>
+                        </div>
+
+                        <div v-if="salas.length > 0" class="field-group">
+                            <label>Sala <span class="opt">opcional</span></label>
+                            <select v-model.number="form.salaId">
+                                <option :value="null">— Sem sala —</option>
+                                <option v-for="s in salas" :key="s.id" :value="s.id">
+                                    {{ s.nome }}<template v-if="s.tipoSalaNome"> · {{ s.tipoSalaNome }}</template>
+                                </option>
                             </select>
                         </div>
 
