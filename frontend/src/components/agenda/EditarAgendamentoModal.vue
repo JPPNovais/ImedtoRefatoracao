@@ -502,7 +502,7 @@ async function salvar() {
                             <select v-model.number="form.salaId">
                                 <option :value="null">— Sem sala —</option>
                                 <option v-for="s in salas" :key="s.id" :value="s.id">
-                                    {{ s.nome }}<template v-if="s.tipoSalaNome"> · {{ s.tipoSalaNome }}</template>
+                                    {{ s.nome }} — {{ s.unidadeNome }}<template v-if="s.tipoSalaNome"> · {{ s.tipoSalaNome }}</template>
                                 </option>
                             </select>
                         </div>
