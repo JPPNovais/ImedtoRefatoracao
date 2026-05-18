@@ -14,3 +14,6 @@
 - [QA pós-deploy c867914 2026-05-17 (PDF por evolução + timeline compacta)](project_qa_posdeploy_c867914_2026_05_17.md) — 6/6 critérios verde; audit trail LGPD ok; guard de double-click confirmado.
 - [QA pós-deploy 043704e 2026-05-17 (Ver PDF em nova aba)](project_qa_posdeploy_043704e_2026_05_17.md) — 8/10 ✅; downloads OK; ⚠️ Visualizar fica em about:blank por bug do noopener. Entregue com débito P1.
 - [window.open("noopener") quebra janela.location.href posterior](feedback_window_open_noopener_quebra_navegacao.md) — Chrome 88+ ignora navegação programática após noopener.
+- [QA pós-deploy 7637447 2026-05-17 (fix noopener)](project_qa_posdeploy_7637447_2026_05_17.md) — 5/7 ✅ + 2 ⚠️ não-bloqueantes; bug P1 do ciclo 1 corrigido; PDFs abrem em blob: real.
+- [QA pós-deploy 6414fe2 2026-05-17 (foto + PDFs)](project_qa_posdeploy_6414fe2_2026_05_17.md) — P0: foto_url varchar(500) não comporta presigned URL S3 (~700-1200 chars). Mesma falha latente em profissionais. Devolvido.
+- [QA pós-deploy f2dfa9b 2026-05-17 (hotfix foto_url 2000)](project_qa_posdeploy_f2dfa9b_2026_05_17.md) — pipeline ok inc. migrate; upload/persist/remove/re-upload OK; URL 1826 chars cabe em varchar(2000). PDFs com logo não revalidados (conta sem assinatura).
