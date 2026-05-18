@@ -34,8 +34,8 @@ public class CriarSalaCommandHandler : ICommandHandler<CriarSalaCommand>
         var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId, command.EstabelecimentoId)
             ?? throw new BusinessException("Unidade não encontrada.");
 
-        if (await _salas.ExisteOutraComMesmoNome(estab.Id, command.Nome ?? string.Empty, 0))
-            throw new BusinessException("Já existe uma repartição com esse nome neste estabelecimento.");
+        if (await _salas.ExisteOutraComMesmoNomeNaUnidade(estab.Id, command.UnidadeId, command.Nome ?? string.Empty, 0))
+            throw new BusinessException("Já existe uma repartição com esse nome nesta unidade.");
 
         var sala = Sala.Criar(estab.Id, command.UnidadeId, command.TipoSalaId, command.Nome, command.Descricao);
         await _salas.Salvar(sala);

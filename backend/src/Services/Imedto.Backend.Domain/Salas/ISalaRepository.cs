@@ -8,7 +8,7 @@ public interface ISalaRepository
     /// </summary>
     Task<Sala?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
-    Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, string nome, long ignorarId);
+    Task<bool> ExisteOutraComMesmoNomeNaUnidade(long estabelecimentoId, long unidadeId, string nome, long ignorarId);
     Task Salvar(Sala sala);
     Task Excluir(Sala sala);
 }

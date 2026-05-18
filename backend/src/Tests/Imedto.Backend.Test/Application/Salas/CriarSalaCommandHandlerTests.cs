@@ -60,7 +60,7 @@ public class CriarSalaCommandHandlerTests
     {
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
         _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
-        _salas.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Sala 1", 0)).ReturnsAsync(false);
+        _salas.Setup(r => r.ExisteOutraComMesmoNomeNaUnidade(EstabelecimentoId, UnidadeId, "Sala 1", 0)).ReturnsAsync(false);
 
         await _sut.Handle(Cmd());
 
@@ -89,14 +89,26 @@ public class CriarSalaCommandHandlerTests
     }
 
     [Test]
-    public void Handle_NomeDuplicadoNoEstab_LancaBusinessException()
+    public void Handle_NomeDuplicadoNaMesmaUnidade_LancaBusinessException()
     {
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
         _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
-        _salas.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Sala 1", 0)).ReturnsAsync(true);
+        _salas.Setup(r => r.ExisteOutraComMesmoNomeNaUnidade(EstabelecimentoId, UnidadeId, "Sala 1", 0)).ReturnsAsync(true);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
-        Assert.That(ex.Message, Does.Contain("nome"));
+        Assert.That(ex.Message, Does.Contain("nome").And.Contain("unidade"));
+    }
+
+    [Test]
+    public async Task Handle_MesmoNomeEmUnidadeDiferente_CriaSala()
+    {
+        _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
+        _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(UnidadeNoEstab(EstabelecimentoId));
+        _salas.Setup(r => r.ExisteOutraComMesmoNomeNaUnidade(EstabelecimentoId, UnidadeId, "Sala 1", 0)).ReturnsAsync(false);
+
+        await _sut.Handle(Cmd());
+
+        _salas.Verify(r => r.Salvar(It.IsAny<Sala>()), Times.Once);
     }
 
     [Test]

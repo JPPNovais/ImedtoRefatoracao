@@ -16,10 +16,11 @@ public class SalaRepository : ISalaRepository
         await _context.Salas
             .FirstOrDefaultAsync(s => s.Id == id && s.EstabelecimentoId == estabelecimentoId);
 
-    public async Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, string nome, long ignorarId) =>
+    public async Task<bool> ExisteOutraComMesmoNomeNaUnidade(long estabelecimentoId, long unidadeId, string nome, long ignorarId) =>
         await _context.Salas
             .AsNoTracking()
             .AnyAsync(s => s.EstabelecimentoId == estabelecimentoId
+                        && s.UnidadeId == unidadeId
                         && s.Nome.ToLower() == nome.ToLower()
                         && s.Id != ignorarId);
 

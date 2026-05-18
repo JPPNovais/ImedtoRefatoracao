@@ -37,8 +37,8 @@ public class AtualizarSalaCommandHandler : ICommandHandler<AtualizarSalaCommand>
         var unidade = await _unidades.ObterPorIdOuNulo(command.UnidadeId, command.EstabelecimentoId)
             ?? throw new BusinessException("Unidade não encontrada.");
 
-        if (await _salas.ExisteOutraComMesmoNome(estab.Id, command.Nome ?? string.Empty, sala.Id))
-            throw new BusinessException("Já existe uma repartição com esse nome neste estabelecimento.");
+        if (await _salas.ExisteOutraComMesmoNomeNaUnidade(estab.Id, command.UnidadeId, command.Nome ?? string.Empty, sala.Id))
+            throw new BusinessException("Já existe uma repartição com esse nome nesta unidade.");
 
         sala.AtualizarDados(command.UnidadeId, command.TipoSalaId, command.Nome, command.Descricao);
         await _salas.Salvar(sala);

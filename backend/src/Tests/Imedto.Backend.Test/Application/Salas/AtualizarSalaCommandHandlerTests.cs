@@ -70,7 +70,7 @@ public class AtualizarSalaCommandHandlerTests
         _salas.Setup(r => r.ObterPorIdOuNulo(SalaId, EstabelecimentoId)).ReturnsAsync(sala);
         _estabRepo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(Estab());
         _unidades.Setup(r => r.ObterPorIdOuNulo(UnidadeId, EstabelecimentoId)).ReturnsAsync(Unidade());
-        _salas.Setup(r => r.ExisteOutraComMesmoNome(EstabelecimentoId, "Atualizada", SalaId)).ReturnsAsync(false);
+        _salas.Setup(r => r.ExisteOutraComMesmoNomeNaUnidade(EstabelecimentoId, UnidadeId, "Atualizada", SalaId)).ReturnsAsync(false);
 
         await _sut.Handle(Cmd());
 
