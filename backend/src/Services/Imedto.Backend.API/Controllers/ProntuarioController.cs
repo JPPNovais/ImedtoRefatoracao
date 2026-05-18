@@ -93,21 +93,22 @@ public class ProntuarioController : ControllerBase
         return Created(string.Empty, null);
     }
 
-    /// <summary>Registra uma nova evolução (append-only).</summary>
+    /// <summary>Registra uma nova evolução (append-only). Retorna o id criado no body.</summary>
     [HttpPost("evolucoes")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> RegistrarEvolucao(long pacienteId, [FromBody] RegistrarEvolucaoRequest request)
     {
-        await _commandBus.Send(new RegistrarEvolucaoCommand
+        var cmd = new RegistrarEvolucaoCommand
         {
             PacienteId = pacienteId,
             EstabelecimentoId = _tenant.EstabelecimentoId,
             AutorUsuarioId = _tenant.UsuarioId,
             ConteudoJson = request.ConteudoJson,
             ModeloDeProntuarioId = request.ModeloDeProntuarioId
-        });
-        return Created(string.Empty, null);
+        };
+        await _commandBus.Send(cmd);
+        return Created(string.Empty, new { evolucaoId = cmd.EvolucaoIdCriada });
     }
 
     /// <summary>

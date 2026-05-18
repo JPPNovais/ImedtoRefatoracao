@@ -104,11 +104,15 @@ export const prontuarioService = {
         pacienteId: number,
         conteudo: Record<string, unknown>,
         modeloDeProntuarioId?: number,
-    ): Promise<void> {
-        await httpClient.post(`/paciente/${pacienteId}/prontuario/evolucoes`, {
-            conteudoJson: JSON.stringify(conteudo),
-            modeloDeProntuarioId: modeloDeProntuarioId ?? null,
-        })
+    ): Promise<{ evolucaoId: number }> {
+        const { data } = await httpClient.post<{ evolucaoId: number }>(
+            `/paciente/${pacienteId}/prontuario/evolucoes`,
+            {
+                conteudoJson: JSON.stringify(conteudo),
+                modeloDeProntuarioId: modeloDeProntuarioId ?? null,
+            },
+        )
+        return data
     },
 
     async listarAnexos(pacienteId: number, evolucaoId?: number): Promise<Anexo[]> {

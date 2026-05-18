@@ -64,6 +64,11 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         await _evolucaoRepo.Salvar(evolucao);
         evolucao.MarcarComoRegistrada();
 
+        // Expoe o id criado para o controller retornar no body. O frontend precisa
+        // dele para encadear, na mesma ação "Salvar consulta", o registro de
+        // regioes anatomicas do exame fisico (POST /api/evolucoes/{id}/exame-fisico).
+        command.EvolucaoIdCriada = evolucao.Id;
+
         await _acessoLog.RegistrarAsync(
             prontuario.Id, command.AutorUsuarioId, command.EstabelecimentoId, TipoAcessoProntuario.Escrita);
 

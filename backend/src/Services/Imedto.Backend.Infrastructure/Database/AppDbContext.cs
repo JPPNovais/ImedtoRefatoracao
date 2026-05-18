@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Assinaturas;
+using Imedto.Backend.Domain.Atestados;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Domain.Auditoria;
 using Imedto.Backend.Domain.Automacoes;
@@ -19,6 +20,7 @@ using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.Domain.Pacientes;
+using Imedto.Backend.Domain.PedidosExame;
 using Imedto.Backend.Domain.Profissionais;
 using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Domain.Receitas;
@@ -58,6 +60,9 @@ public class AppDbContext : DbContext
     public DbSet<RegiaoExameFisico> RegioesExameFisico => Set<RegiaoExameFisico>();
     public DbSet<Receita> Receitas => Set<Receita>();
     public DbSet<ItemReceita> ReceitaItens => Set<ItemReceita>();
+    public DbSet<Atestado> Atestados => Set<Atestado>();
+    public DbSet<ModeloAtestado> ModelosAtestado => Set<ModeloAtestado>();
+    public DbSet<PedidoExame> PedidosExame => Set<PedidoExame>();
     public DbSet<ConfiguracaoReceitaEstabelecimento> ConfiguracoesReceita => Set<ConfiguracaoReceitaEstabelecimento>();
     public DbSet<MedicamentoFavorito> MedicamentosFavoritos => Set<MedicamentoFavorito>();
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();

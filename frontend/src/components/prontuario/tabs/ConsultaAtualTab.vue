@@ -22,6 +22,8 @@ const props = defineProps<{
     novaEvolucao: Record<string, any>
     salvando: boolean
     focus?: boolean
+    /** Sexo do paciente — propagado ao SecaoExameFisico → BodyMap. */
+    pacienteSexo?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -157,6 +159,7 @@ const modelosAlternativos = computed(
                             :chave="secao.chave"
                             :titulo="secao.titulo"
                             :tipo="secao.tipo"
+                            :paciente-sexo="pacienteSexo"
                         />
                     </div>
                 </section>

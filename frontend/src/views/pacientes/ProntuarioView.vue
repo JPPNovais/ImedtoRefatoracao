@@ -5,8 +5,11 @@
  * Estrutura:
  *   - Sticky header (ProntuarioPacienteHeader): paciente + alertas + ações
  *     (modo foco, imprimir, receita, finalizar e assinar) e timer ao vivo.
- *   - 4 abas (mantidas): Consulta atual / Consultas anteriores / Exame físico
- *     / Receitas. A "Consulta atual" usa layout 3 colunas com módulos.
+ *   - 5 abas: Consulta atual / Consultas anteriores / Receitas / Atestado /
+ *     Pedidos de exame. A "Consulta atual" usa layout 3 colunas com módulos.
+ *     A antiga aba "Exame físico" foi absorvida pela seção de mesmo nome
+ *     dentro de Consulta atual — mapa corporal + regiões anatômicas convivem
+ *     com sinais vitais/antropometria/ectoscopia no mesmo lugar (PO 2026-05-18).
  *   - "Finalizar e assinar" chama POST /agendamentos/:id/concluir e limpa a
  *     marca local de atendimento ativo.
  */
@@ -29,8 +32,10 @@ import ProntuarioPacienteHeader    from "@/components/prontuario/ProntuarioPacie
 import ProntuarioTabs, { type AbaProntuario } from "@/components/prontuario/ProntuarioTabs.vue"
 import ConsultaAtualTab            from "@/components/prontuario/tabs/ConsultaAtualTab.vue"
 import ConsultasAnterioresTab      from "@/components/prontuario/tabs/ConsultasAnterioresTab.vue"
-import ExameFisicoTab              from "@/components/prontuario/tabs/ExameFisicoTab.vue"
 import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTab.vue"
+import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
+import PedidoExameTab              from "@/components/prontuario/tabs/PedidoExameTab.vue"
+import { exameFisicoService }      from "@/services/exameFisicoService"
 
 const { gerarPdf: gerarPdfProntuario, gerarPdfEvolucao } = useProntuarioPdf()
 
@@ -163,6 +168,11 @@ async function iniciarProntuario() {
     }
 }
 
+// Mapeia lateralidade do modelo local p/ backend (mesmo mapeamento que vivia em ExameFisicoTab).
+const LATERALIDADE_LOCAL_PARA_BACKEND: Record<string, string> = {
+    D: "Direita", E: "Esquerda", bilateral: "Bilateral",
+}
+
 async function salvarEvolucao() {
     salvandoEvolucao.value = true
     erro.value = null
@@ -177,7 +187,38 @@ async function salvarEvolucao() {
         const modeloOverride = modeloConsultaAtual.value !== pront.value?.prontuario.modeloDeProntuarioId
             ? (modeloConsultaAtual.value ?? undefined)
             : undefined
-        await prontuarioService.registrarEvolucao(pacienteId.value, conteudoNaoVazio, modeloOverride)
+
+        const { evolucaoId } = await prontuarioService.registrarEvolucao(
+            pacienteId.value, conteudoNaoVazio, modeloOverride,
+        )
+
+        // Se o usuário marcou regiões anatômicas no mapa corporal dentro da
+        // seção Exame físico, registra-as no domínio dedicado de exame físico.
+        // Falha aqui não invalida a evolução já salva — apenas avisa.
+        const ef = novaEvolucao["exame-fisico"] as
+            | { regioes?: Array<{ regiao_id: string; lateralidade: string | null; achados: string }>; observacoesExame?: string }
+            | undefined
+        const regioes = ef?.regioes ?? []
+        if (evolucaoId && regioes.length > 0) {
+            try {
+                await exameFisicoService.registrar(evolucaoId, {
+                    observacoesGerais: ef?.observacoesExame || undefined,
+                    regioes: regioes.map((r, idx) => ({
+                        codigo: r.regiao_id,
+                        lateralidade: r.lateralidade
+                            ? (LATERALIDADE_LOCAL_PARA_BACKEND[r.lateralidade] ?? null)
+                            : null,
+                        achados: r.achados || undefined,
+                        severidade: "Normal",
+                        ordem: idx,
+                    })),
+                })
+            } catch (e: any) {
+                // Evolução foi salva mas regiões falharam — não regredir o salvar.
+                notificar(e?.response?.data?.mensagem ?? "Evolução salva, mas regiões anatômicas falharam.", "info")
+            }
+        }
+
         inicializarFormEvolucao()
         await carregar()
         abaAtiva.value = "anteriores"
@@ -396,6 +437,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 :nova-evolucao="novaEvolucao"
                 :salvando="salvandoEvolucao"
                 :focus="focus"
+                :paciente-sexo="paciente?.genero ?? null"
                 @salvar="salvarEvolucao"
             />
 
@@ -412,16 +454,20 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 @gerar-pdf-evolucao="exportarPdfEvolucao($event.evolucao, $event.modo)"
             />
 
-            <ExameFisicoTab
-                v-else-if="abaAtiva === 'exame'"
-                :paciente-id="String(pacienteId)"
-                :paciente-sexo="paciente?.genero ?? null"
-                :salvando="salvandoEvolucao"
-                @salvar="salvarEvolucao"
-            />
-
             <ReceitasTab
                 v-else-if="abaAtiva === 'receitas' && paciente"
+                :paciente-id="pacienteId"
+                :paciente-nome="paciente.nomeCompleto"
+            />
+
+            <AtestadoTab
+                v-else-if="abaAtiva === 'atestado' && paciente"
+                :paciente-id="pacienteId"
+                :paciente-nome="paciente.nomeCompleto"
+            />
+
+            <PedidoExameTab
+                v-else-if="abaAtiva === 'pedidos-exame' && paciente"
                 :paciente-id="pacienteId"
                 :paciente-nome="paciente.nomeCompleto"
             />

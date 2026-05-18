@@ -19,6 +19,8 @@ const props = defineProps<{
     tipo: string            // "texto" | "texto_longo" | "estruturado" | ...
     modelValue: any         // string OU objeto estruturado
     readOnly?: boolean
+    /** Sexo do paciente — usado pelo SecaoExameFisico para escolher a silhueta do mapa corporal. */
+    pacienteSexo?: string | null
 }>()
 const emit = defineEmits<{
     "update:modelValue": [valor: any]
@@ -69,6 +71,7 @@ const valorTexto = computed({
         v-else-if="chave === 'exame-fisico'"
         v-model="valorEstrutura"
         :read-only="readOnly"
+        :paciente-sexo="pacienteSexo"
     />
 
     <SecaoExamesRealizados

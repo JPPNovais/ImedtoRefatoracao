@@ -50,6 +50,10 @@ using Imedto.Backend.Application.Prontuarios.Events;
 using Imedto.Backend.Application.Prontuarios.Queries;
 using Imedto.Backend.Application.Receitas.Commands;
 using Imedto.Backend.Application.Receitas.Queries;
+using Imedto.Backend.Application.Atestados.Commands;
+using Imedto.Backend.Application.Atestados.Queries;
+using Imedto.Backend.Application.PedidosExame.Commands;
+using Imedto.Backend.Application.PedidosExame.Queries;
 using Imedto.Backend.Application.Vinculos.Commands;
 using Imedto.Backend.Application.Vinculos.Events;
 using Imedto.Backend.Application.Notificacoes.Commands;
@@ -67,6 +71,12 @@ using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
 using Imedto.Backend.Contracts.Receitas.Commands;
 using Imedto.Backend.Contracts.Receitas.Queries;
 using Imedto.Backend.Contracts.Receitas.Queries.Results;
+using Imedto.Backend.Contracts.Atestados.Commands;
+using Imedto.Backend.Contracts.Atestados.Queries;
+using Imedto.Backend.Contracts.Atestados.Queries.Results;
+using Imedto.Backend.Contracts.PedidosExame.Commands;
+using Imedto.Backend.Contracts.PedidosExame.Queries;
+using Imedto.Backend.Contracts.PedidosExame.Queries.Results;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
 using Imedto.Backend.Contracts.Unidades.Commands;
@@ -153,6 +163,8 @@ using Imedto.Backend.Domain.Notificacoes;
 using Imedto.Backend.Domain.Notificacoes.Events;
 using Imedto.Backend.Domain.Receitas;
 using Imedto.Backend.Domain.Receitas.Events;
+using Imedto.Backend.Domain.Atestados;
+using Imedto.Backend.Domain.PedidosExame;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Jobs;
@@ -390,6 +402,25 @@ public static class Container
         services.AddScoped<ListarReceitasDoPacienteQueryHandlers>();
         services.AddScoped<ObterReceitaQueryHandlers>();
         services.AddScoped<ObterConfiguracaoReceitaQueryHandlers>();
+
+        // Atestados (2026-05-18)
+        services.AddScoped<IAtestadoRepository, AtestadoRepository>();
+        services.AddScoped<IModeloAtestadoRepository, ModeloAtestadoRepository>();
+        services.AddScoped<IAtestadoQueryRepository, AtestadoQueryRepository>();
+        services.AddScoped<EmitirAtestadoCommandHandler>();
+        services.AddScoped<CriarModeloAtestadoCommandHandler>();
+        services.AddScoped<AtualizarModeloAtestadoCommandHandler>();
+        services.AddScoped<ExcluirModeloAtestadoCommandHandler>();
+        services.AddScoped<ListarAtestadosDoPacienteQueryHandlers>();
+        services.AddScoped<ObterAtestadoQueryHandlers>();
+        services.AddScoped<ListarModelosAtestadoQueryHandlers>();
+
+        // Pedidos de exame (2026-05-18)
+        services.AddScoped<IPedidoExameRepository, PedidoExameRepository>();
+        services.AddScoped<IPedidoExameQueryRepository, PedidoExameQueryRepository>();
+        services.AddScoped<EmitirPedidoExameCommandHandler>();
+        services.AddScoped<ListarPedidosExameDoPacienteQueryHandlers>();
+        services.AddScoped<ObterPedidoExameQueryHandlers>();
 
         // Modelos de Permissão
         services.AddScoped<CriarModeloPermissaoCommandHandler>();
@@ -849,6 +880,13 @@ public static class Container
             // Item 3.2 — Exame físico.
             bus.Register<RegistrarExameFisicoCommand, RegistrarExameFisicoCommandHandler>();
             bus.Register<AtualizarExameFisicoCommand, AtualizarExameFisicoCommandHandler>();
+            // Atestados (2026-05-18).
+            bus.Register<EmitirAtestadoCommand, EmitirAtestadoCommandHandler>();
+            bus.Register<CriarModeloAtestadoCommand, CriarModeloAtestadoCommandHandler>();
+            bus.Register<AtualizarModeloAtestadoCommand, AtualizarModeloAtestadoCommandHandler>();
+            bus.Register<ExcluirModeloAtestadoCommand, ExcluirModeloAtestadoCommandHandler>();
+            // Pedidos de exame (2026-05-18).
+            bus.Register<EmitirPedidoExameCommand, EmitirPedidoExameCommandHandler>();
             // Item 4.3 — LGPD.
             bus.Register<RegistrarConsentimentoCommand, RegistrarConsentimentoCommandHandler>();
             bus.Register<AnonimizarMinhaContaCommand, AnonimizarMinhaContaCommandHandler>();
@@ -959,6 +997,13 @@ public static class Container
             bus.Register<ObterExameFisicoPorEvolucaoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();
             bus.Register<ListarExamesFisicosDoPacienteQuery, PaginaExamesFisicosDto, ObterExameFisicoQueryHandlers>();
             bus.Register<TimelineExamesFisicosQuery, IEnumerable<ExameFisicoResumoDto>, ObterExameFisicoQueryHandlers>();
+            // Atestados (2026-05-18).
+            bus.Register<ListarAtestadosDoPacienteQuery, IReadOnlyList<AtestadoDto>, ListarAtestadosDoPacienteQueryHandlers>();
+            bus.Register<ObterAtestadoQuery, AtestadoDto, ObterAtestadoQueryHandlers>();
+            bus.Register<ListarModelosAtestadoQuery, IReadOnlyList<ModeloAtestadoDto>, ListarModelosAtestadoQueryHandlers>();
+            // Pedidos de exame (2026-05-18).
+            bus.Register<ListarPedidosExameDoPacienteQuery, IReadOnlyList<PedidoExameDto>, ListarPedidosExameDoPacienteQueryHandlers>();
+            bus.Register<ObterPedidoExameQuery, PedidoExameDto, ObterPedidoExameQueryHandlers>();
             return bus;
         });
 

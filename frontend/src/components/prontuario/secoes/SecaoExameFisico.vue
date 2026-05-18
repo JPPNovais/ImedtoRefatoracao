@@ -1,13 +1,47 @@
 <!--
-  Exame físico estruturado dentro da evolução: sinais vitais, antropometria,
-  ectoscopia e descrição da ectoscopia. Alinhado ao legado
-  (medical-record/components/ExameFisicoSection.vue): NÃO contém mapa corporal —
-  o BodyMap interativo vive apenas na aba dedicada "Exame físico".
+  Exame físico estruturado dentro da evolução. Combina:
+
+  1. Sinais vitais + antropometria + ectoscopia (campos clássicos, salvos no JSON
+     da evolução em conteudo["exame-fisico"]).
+  2. Mapa corporal interativo + regiões anatômicas com lateralidade
+     (salvos no domínio dedicado `exame_fisicos` via
+     POST /api/evolucoes/{id}/exame-fisico, após a evolução ser registrada).
+
+  A migração unificou aqui o que antes vivia em duas telas: a seção textual
+  da consulta e a aba "Exame físico" dedicada. O PO pediu para que tudo conviva
+  na mesma área.
+
+  v-model retorna { ...dadosClassicos, regioes: RegiaoAnatomicaSelecionada[] }.
+  ProntuarioView usa `regioes` para encadear `exameFisicoService.registrar`.
 -->
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, defineAsyncComponent, onMounted, ref } from "vue"
+import {
+    exameFisicoService,
+    type ExameFisicoRegiao,
+} from "@/services/exameFisicoService"
+import RegionSelectorPopup from "@/components/exame-fisico/RegionSelectorPopup.vue"
+import RegionExamCard from "@/components/exame-fisico/RegionExamCard.vue"
+
+// Carregamento lazy: o mapa corporal só baixa quando a seção é montada.
+const BodyMap = defineAsyncComponent(() => import("@/components/exame-fisico/BodyMap.vue"))
+
+/**
+ * Estrutura local de uma região anatômica selecionada (mesma forma que o
+ * `RegionExamCard` espera). Persistida em conteudo["exame-fisico"].regioes.
+ */
+export interface RegiaoAnatomicaSelecionada {
+    regiao_id: string
+    caminho: string
+    lateralidade: "D" | "E" | "bilateral" | null
+    texto_exame: string
+    achados: string
+    observacoes: string
+    timestamp: string
+}
 
 interface EfData {
+    // ── Sinais vitais ────────────────────────────────────────────────────────
     paSistolica?: string
     paDiastolica?: string
     fc?: string
@@ -15,8 +49,10 @@ interface EfData {
     temperatura?: string
     spo2?: string
     glicemia?: string
+    // ── Antropometria ────────────────────────────────────────────────────────
     peso?: string
     altura?: string
+    // ── Ectoscopia ───────────────────────────────────────────────────────────
     estadoGeral?: string
     consciencia?: string
     estadoNutricional?: string
@@ -28,13 +64,29 @@ interface EfData {
     batimentos?: string
     respiracao?: string
     descricaoEctoscopia?: string
+    // ── Regiões anatômicas (mapa corporal) ───────────────────────────────────
+    regioes?: RegiaoAnatomicaSelecionada[]
+    // Observações gerais do exame físico (textarea livre abaixo do mapa).
+    observacoesExame?: string
 }
 
-const props = defineProps<{ modelValue: EfData; readOnly?: boolean }>()
+const props = defineProps<{
+    modelValue: EfData
+    readOnly?: boolean
+    /** Sexo do paciente (M/F) — controla qual silhueta o BodyMap renderiza. */
+    pacienteSexo?: string | null
+}>()
 const emit  = defineEmits<{ "update:modelValue": [v: EfData] }>()
 
 function atualizar(patch: Partial<EfData>) {
     emit("update:modelValue", { ...props.modelValue, ...patch })
+}
+
+// Helpers de array de regiões — mutam por substituição (v-model imutável).
+const regioes = computed<RegiaoAnatomicaSelecionada[]>(() => props.modelValue.regioes ?? [])
+
+function substituirRegioes(novas: RegiaoAnatomicaSelecionada[]) {
+    atualizar({ regioes: novas })
 }
 
 // IMC calculado
@@ -67,6 +119,133 @@ const ICTERICIA        = ["Anictérico", "Ictérico +/4", "Ictérico ++/4", "Ict
 const TEMP_CORPORAL    = ["Afebril", "Subfebril", "Febril"]
 const BATIMENTOS       = ["Bradicárdico", "Normocárdico", "Taquicárdico"]
 const RESPIRACAO       = ["Bradipneico", "Eupneico", "Taquipneico", "Dispneico"]
+
+// ─── Mapa corporal + regiões anatômicas ───────────────────────────────────────
+
+const catalogoRegioes = ref<ExameFisicoRegiao[]>([])
+const carregandoRegioes = ref(false)
+
+const regioesNivel1 = computed(() => catalogoRegioes.value.filter(r => r.nivel === 1))
+
+function getFilhos(regiaoId: string): ExameFisicoRegiao[] {
+    return catalogoRegioes.value
+        .filter(r => r.pai_id === regiaoId)
+        .sort((a, b) => a.ordem - b.ordem)
+}
+
+function getCaminho(regiaoId: string): string {
+    const partes: string[] = []
+    let atual: ExameFisicoRegiao | undefined = catalogoRegioes.value.find(r => r.id === regiaoId)
+    while (atual) {
+        partes.unshift(atual.nome)
+        atual = atual.pai_id ? catalogoRegioes.value.find(r => r.id === atual!.pai_id) : undefined
+    }
+    return partes.join(" > ")
+}
+
+function getTemplate(regiaoId: string): string {
+    const r = catalogoRegioes.value.find(x => x.id === regiaoId)
+    return r?.template_texto || "Inspeção: ___. Palpação: ___. Achados: ___."
+}
+
+function getAncestorNivel1Id(regiaoId: string): string | null {
+    let atual = catalogoRegioes.value.find(r => r.id === regiaoId)
+    while (atual) {
+        if (atual.nivel === 1) return atual.id
+        atual = atual.pai_id ? catalogoRegioes.value.find(r => r.id === atual!.pai_id) : undefined
+    }
+    return null
+}
+
+const regioesJaSelecionadas = computed(() => {
+    const ids = new Set<string>()
+    for (const r of regioes.value) {
+        ids.add(r.regiao_id)
+        const n1 = getAncestorNivel1Id(r.regiao_id)
+        if (n1) ids.add(n1)
+    }
+    return Array.from(ids)
+})
+
+// Estado do popup
+const selectorAberto = ref(false)
+const regiaoClicada = ref<ExameFisicoRegiao | null>(null)
+const membroRegioes = ref<{
+    tipo: "superior" | "inferior"
+    dirBase: ExameFisicoRegiao | null
+    esquBase: ExameFisicoRegiao | null
+} | null>(null)
+
+const MEMBRO_RE = /^Membro (superior|inferior) (?:direito|esquerdo) \((anterior|posterior)\)$/i
+
+/**
+ * O <c>BodyMap</c> declara seu próprio <c>ExameFisicoRegiao</c> (subset dos
+ * campos do service, sem <c>ordem</c>/<c>ativo</c>). Aceitamos o subset e
+ * achamos a região completa no catálogo carregado — assim o handler funciona
+ * sem precisar duplicar tipos.
+ */
+type RegiaoMapaSubset = Pick<ExameFisicoRegiao, "id" | "nome" | "nivel" | "lateralidade" | "pai_id" | "vista" | "template_texto">
+
+function onRegiaoClicada(regiao: RegiaoMapaSubset) {
+    // Resolve para a entidade completa do catálogo (com ordem/ativo). O BodyMap
+    // só conhece o subset declarado nele — aqui buscamos a versão rica que
+    // o RegionSelectorPopup espera.
+    const completa = catalogoRegioes.value.find(r => r.id === regiao.id) ?? null
+    const m = MEMBRO_RE.exec(regiao.nome)
+    if (m) {
+        const tipo = m[1] as "superior" | "inferior"
+        const vista = m[2]
+        const base = `Membro ${tipo}`
+        const dirBase = regioesNivel1.value.find(r => r.nome === `${base} direito (${vista})`) ?? null
+        const esquBase = regioesNivel1.value.find(r => r.nome === `${base} esquerdo (${vista})`) ?? null
+        membroRegioes.value = { tipo, dirBase, esquBase }
+        regiaoClicada.value = dirBase
+    } else {
+        membroRegioes.value = null
+        regiaoClicada.value = completa
+    }
+    selectorAberto.value = true
+}
+
+function onConfirmarRegioes(
+    selecoes: Array<{ regiaoId: string; lateralidade: "D" | "E" | "bilateral" | null }>,
+) {
+    const novas = [...regioes.value]
+    for (const sel of selecoes) {
+        const jaExiste = novas.some(r => r.regiao_id === sel.regiaoId && r.lateralidade === sel.lateralidade)
+        if (jaExiste) continue
+        novas.push({
+            regiao_id: sel.regiaoId,
+            caminho: getCaminho(sel.regiaoId),
+            lateralidade: sel.lateralidade,
+            texto_exame: getTemplate(sel.regiaoId),
+            achados: "",
+            observacoes: "",
+            timestamp: new Date().toISOString(),
+        })
+    }
+    substituirRegioes(novas)
+}
+
+function removerRegiao(index: number) {
+    const novas = [...regioes.value]
+    novas.splice(index, 1)
+    substituirRegioes(novas)
+}
+
+// Carrega catálogo de regiões 1× quando a seção monta. Falha silenciosa — sem
+// rede, o mapa fica sem regiões clicáveis mas os campos textuais continuam.
+onMounted(async () => {
+    if (props.readOnly) return
+    carregandoRegioes.value = true
+    try {
+        catalogoRegioes.value = await exameFisicoService.listarRegioes(undefined, true)
+    } catch {
+        // ignora — campos textuais continuam funcionando
+    } finally {
+        carregandoRegioes.value = false
+    }
+})
 </script>
 
 <template>
@@ -268,6 +447,59 @@ const RESPIRACAO       = ["Bradipneico", "Eupneico", "Taquipneico", "Dispneico"]
                 @input="(e) => atualizar({ descricaoEctoscopia: (e.target as HTMLTextAreaElement).value })"
             ></textarea>
         </div>
+
+        <!-- Mapa corporal -->
+        <div v-if="!readOnly" class="subsecao mapa-section">
+            <h4 class="subsec-titulo">
+                Mapa corporal
+                <span v-if="carregandoRegioes" class="hint">carregando regiões...</span>
+                <span v-else class="hint">clique em uma região para examinar</span>
+            </h4>
+            <div class="mapa-container">
+                <BodyMap
+                    :regioes="regioesNivel1"
+                    :regioes-examinadas="regioesJaSelecionadas"
+                    :sexo="pacienteSexo"
+                    @regiao-clicada="onRegiaoClicada"
+                />
+            </div>
+        </div>
+
+        <!-- Regiões anatômicas selecionadas -->
+        <div v-if="!readOnly && regioes.length > 0" class="subsecao">
+            <h4 class="subsec-titulo">Regiões examinadas ({{ regioes.length }})</h4>
+            <RegionExamCard
+                v-for="(regiao, idx) in regioes"
+                :key="idx"
+                :regiao="regiao"
+                :index="idx"
+                :open="true"
+                @remover="removerRegiao"
+            />
+        </div>
+
+        <!-- Observações gerais do exame físico -->
+        <div v-if="!readOnly" class="subsecao">
+            <h4 class="subsec-titulo">Observações gerais do exame físico</h4>
+            <textarea
+                :value="modelValue.observacoesExame ?? ''" rows="3" class="input-field"
+                placeholder="Observações adicionais sobre o exame físico..."
+                :disabled="readOnly"
+                @input="(e) => atualizar({ observacoesExame: (e.target as HTMLTextAreaElement).value })"
+            ></textarea>
+        </div>
+
+        <!-- Popup de seleção de sub-regiões -->
+        <RegionSelectorPopup
+            v-if="!readOnly"
+            v-model:aberto="selectorAberto"
+            :regiao-clicada="regiaoClicada"
+            :regioes="catalogoRegioes"
+            :regioes-ja-selecionadas="regioesJaSelecionadas"
+            :get-filhos="getFilhos"
+            :membro-regioes="membroRegioes"
+            @confirmar="onConfirmarRegioes"
+        />
     </div>
 </template>
 
@@ -279,7 +511,13 @@ const RESPIRACAO       = ["Bradipneico", "Eupneico", "Taquipneico", "Dispneico"]
     padding: 0.9rem 1.1rem; background: var(--bg-card);
     display: flex; flex-direction: column; gap: 0.6rem;
 }
-.subsec-titulo { font-weight: 700; font-size: 0.9em; color: var(--primary); margin: 0 0 0.2rem; }
+.subsec-titulo {
+    font-weight: 700; font-size: 0.9em; color: var(--primary); margin: 0 0 0.2rem;
+    display: flex; align-items: center; gap: 8px;
+}
+.subsec-titulo .hint {
+    font-weight: 500; font-size: 0.82em; color: var(--text-muted);
+}
 
 .grade-sv    { display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 0.6rem; }
 .grade-antro { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 0.6rem; }
@@ -300,6 +538,9 @@ const RESPIRACAO       = ["Bradipneico", "Eupneico", "Taquipneico", "Dispneico"]
 }
 .input-field:focus { outline: none; border-color: var(--primary); }
 .input-field.readonly { background: #f9fafb; color: var(--text-muted); }
+
+.mapa-section { padding: 1rem 1.1rem; }
+.mapa-container { display: flex; justify-content: center; padding: 0.5rem 0; }
 
 @media (max-width: 900px) {
     .grade-sv, .grade-antro { grid-template-columns: 1fr 1fr; }

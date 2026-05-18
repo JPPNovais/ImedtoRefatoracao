@@ -2,18 +2,25 @@
     Abas do prontuário — visual do design Imedto care:
     botões com ícone FontAwesome + label + badge de contagem,
     underline na ativa, header sticky abaixo do header do paciente.
+
+    Estrutura: Consulta atual / Consultas anteriores / Receitas / Atestado /
+    Pedidos de exame. A antiga aba "Exame físico" foi absorvida pela seção
+    de mesmo nome dentro de Consulta atual (PO 2026-05-18).
 -->
 <script setup lang="ts">
 export type AbaProntuario =
     | "consulta"
     | "anteriores"
-    | "exame"
     | "receitas"
+    | "atestado"
+    | "pedidos-exame"
 
 defineProps<{
     modelValue: AbaProntuario
     contagemAnteriores?: number
     contagemReceitas?: number
+    contagemAtestados?: number
+    contagemPedidosExame?: number
 }>()
 
 defineEmits<{
@@ -49,17 +56,6 @@ defineEmits<{
         <button
             type="button"
             role="tab"
-            :class="{ active: modelValue === 'exame' }"
-            :aria-selected="modelValue === 'exame'"
-            @click="$emit('update:modelValue', 'exame')"
-        >
-            <i class="fa-solid fa-person"></i>
-            <span>Exame físico</span>
-        </button>
-
-        <button
-            type="button"
-            role="tab"
             :class="{ active: modelValue === 'receitas' }"
             :aria-selected="modelValue === 'receitas'"
             @click="$emit('update:modelValue', 'receitas')"
@@ -67,6 +63,30 @@ defineEmits<{
             <i class="fa-solid fa-prescription"></i>
             <span>Receitas</span>
             <span v-if="contagemReceitas !== undefined" class="tab-badge">{{ contagemReceitas }}</span>
+        </button>
+
+        <button
+            type="button"
+            role="tab"
+            :class="{ active: modelValue === 'atestado' }"
+            :aria-selected="modelValue === 'atestado'"
+            @click="$emit('update:modelValue', 'atestado')"
+        >
+            <i class="fa-solid fa-file-signature"></i>
+            <span>Atestado</span>
+            <span v-if="contagemAtestados !== undefined" class="tab-badge">{{ contagemAtestados }}</span>
+        </button>
+
+        <button
+            type="button"
+            role="tab"
+            :class="{ active: modelValue === 'pedidos-exame' }"
+            :aria-selected="modelValue === 'pedidos-exame'"
+            @click="$emit('update:modelValue', 'pedidos-exame')"
+        >
+            <i class="fa-solid fa-vial"></i>
+            <span>Pedidos de exame</span>
+            <span v-if="contagemPedidosExame !== undefined" class="tab-badge">{{ contagemPedidosExame }}</span>
         </button>
     </nav>
 </template>

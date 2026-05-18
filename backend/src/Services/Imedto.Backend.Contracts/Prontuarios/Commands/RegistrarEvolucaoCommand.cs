@@ -17,4 +17,12 @@ public class RegistrarEvolucaoCommand : ICommand
     /// Deve ser nulo (usa modelo do prontuário) ou um modelo ativo acessível pelo estabelecimento.
     /// </summary>
     public long? ModeloDeProntuarioId { get; set; }
+
+    /// <summary>
+    /// Preenchido pelo handler — id da evolução recém criada. Permite ao controller
+    /// devolver o id no body 201 para que o frontend encadeie, na mesma ação
+    /// "Salvar consulta", o registro das regiões anatômicas do exame físico em
+    /// <c>POST /api/evolucoes/{id}/exame-fisico</c>.
+    /// </summary>
+    public long EvolucaoIdCriada { get; set; }
 }
