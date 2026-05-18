@@ -143,27 +143,13 @@ function onRemoverClick() {
             <span class="info-titulo">{{ titulo }}</span>
             <span v-if="descricao" class="info-desc">{{ descricao }}</span>
 
-            <input
-                ref="fileInput"
-                type="file"
-                :accept="accept"
-                hidden
-                @change="onArquivoSelecionado"
-            />
+            <p v-if="!disabled" class="info-hint">
+                <i class="fa-solid fa-hand-pointer" aria-hidden="true" />
+                {{ temFoto ? "Clique na imagem para trocar" : "Clique na imagem para enviar" }}
+            </p>
 
-            <div class="info-acoes">
+            <div v-if="temFoto" class="info-acoes">
                 <button
-                    type="button"
-                    class="btn-secundario"
-                    :disabled="disabled || loading"
-                    @click="abrirSeletor"
-                >
-                    <i class="fa-solid fa-arrows-rotate" aria-hidden="true" />
-                    {{ temFoto ? "Trocar foto" : "Enviar foto" }}
-                </button>
-
-                <button
-                    v-if="temFoto"
                     type="button"
                     class="btn-remover"
                     :disabled="disabled || loading"
@@ -173,6 +159,14 @@ function onRemoverClick() {
                     Remover
                 </button>
             </div>
+
+            <input
+                ref="fileInput"
+                type="file"
+                :accept="accept"
+                hidden
+                @change="onArquivoSelecionado"
+            />
 
             <p v-if="erro" class="info-erro">{{ erro }}</p>
         </div>
@@ -217,14 +211,25 @@ function onRemoverClick() {
 .avatar-overlay {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(0, 0, 0, 0.42);
-    color: #fff; font-size: 1.5rem;
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-.avatar:hover:not(:disabled) .avatar-overlay,
-.avatar--enviando .avatar-overlay {
+    background: linear-gradient(180deg, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+    color: #fff; font-size: 1.1rem;
     opacity: 1;
+    transition: background 0.15s, font-size 0.15s;
+    padding-bottom: 0.55rem;
+    align-items: flex-end;
+    justify-content: center;
+}
+.avatar:hover:not(:disabled) .avatar-overlay {
+    background: rgba(0, 0, 0, 0.42);
+    align-items: center;
+    padding-bottom: 0;
+    font-size: 1.5rem;
+}
+.avatar--enviando .avatar-overlay {
+    background: rgba(0, 0, 0, 0.55);
+    align-items: center;
+    padding-bottom: 0;
+    font-size: 1.5rem;
 }
 
 .avatar-spinner {
@@ -244,28 +249,28 @@ function onRemoverClick() {
 .info-titulo { font-size: 0.95em; font-weight: 700; color: var(--text); }
 .info-desc   { font-size: 0.82em; color: var(--text-muted); line-height: 1.4; }
 
+.info-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.35rem 0 0;
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.info-hint i { color: var(--primary); }
+
 .info-acoes {
     display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.35rem;
 }
 
-.btn-secundario, .btn-remover {
+.btn-remover {
     display: inline-flex; align-items: center; gap: 0.4rem;
     padding: 0.42rem 0.9rem;
     border-radius: var(--radius);
     font-family: inherit; font-size: 0.82em; font-weight: 600;
     cursor: pointer;
     transition: background 0.12s, color 0.12s, border-color 0.12s;
-}
-.btn-secundario {
-    background: var(--bg-card);
-    color: var(--primary);
-    border: 1px solid var(--border-strong);
-}
-.btn-secundario:hover:not(:disabled) {
-    background: var(--primary-light, #ede9fe);
-    border-color: var(--primary);
-}
-.btn-remover {
     background: transparent;
     color: var(--danger);
     border: 1px solid transparent;
@@ -274,7 +279,7 @@ function onRemoverClick() {
     background: rgba(220, 38, 38, 0.08);
     border-color: rgba(220, 38, 38, 0.25);
 }
-.btn-secundario:disabled, .btn-remover:disabled {
+.btn-remover:disabled {
     opacity: 0.5; cursor: not-allowed;
 }
 
