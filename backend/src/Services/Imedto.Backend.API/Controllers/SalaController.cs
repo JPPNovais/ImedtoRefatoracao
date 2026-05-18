@@ -30,13 +30,14 @@ public class SalaController : ControllerBase
     /// <summary>Lista as repartições do estabelecimento (com nome de unidade e tipo).</summary>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<SalaDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Listar(long estabelecimentoId)
+    public async Task<IActionResult> Listar(long estabelecimentoId, [FromQuery] bool apenasAtivas = false)
     {
         var resultado = await _requestBus.Query<ListarSalasQuery, IEnumerable<SalaDto>>(
             new ListarSalasQuery
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 UsuarioSolicitanteId = _tenant.UsuarioId,
+                ApenasAtivas = apenasAtivas,
             });
 
         return Ok(resultado);
@@ -96,6 +97,36 @@ public class SalaController : ControllerBase
             UsuarioSolicitanteId = _tenant.UsuarioId,
         });
 
+        return NoContent();
+    }
+
+    /// <summary>Desativa uma repartição. Apenas o dono pode.</summary>
+    [HttpPut("{salaId:long}/desativar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Desativar(long estabelecimentoId, long salaId)
+    {
+        await _commandBus.Send(new DesativarSalaCommand
+        {
+            SalaId = salaId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            UsuarioSolicitanteId = _tenant.UsuarioId,
+        });
+        return NoContent();
+    }
+
+    /// <summary>Reativa uma repartição. Apenas o dono pode.</summary>
+    [HttpPut("{salaId:long}/reativar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Reativar(long estabelecimentoId, long salaId)
+    {
+        await _commandBus.Send(new ReativarSalaCommand
+        {
+            SalaId = salaId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            UsuarioSolicitanteId = _tenant.UsuarioId,
+        });
         return NoContent();
     }
 }

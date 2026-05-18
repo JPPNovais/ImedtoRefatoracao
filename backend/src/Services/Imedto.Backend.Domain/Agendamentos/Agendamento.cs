@@ -19,6 +19,7 @@ public class Agendamento : Entity
     public virtual DateTime? AtualizadoEm { get; protected set; }
     public virtual bool LembretePorEmailEnviado { get; protected set; }
     public virtual DateTime? CheckInEm { get; protected set; }
+    public virtual long? SalaId { get; protected set; }
 
     protected Agendamento() { }
 
@@ -118,6 +119,17 @@ public class Agendamento : Entity
             throw new BusinessException("Agendamento já está concluído.");
 
         Status = AgendamentoStatus.Concluido;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void AlocarSala(long? salaId)
+    {
+        if (Status == AgendamentoStatus.Cancelado)
+            throw new BusinessException("Não é possível alocar sala em agendamento cancelado.");
+        if (Status == AgendamentoStatus.Concluido)
+            throw new BusinessException("Não é possível alocar sala em agendamento concluído.");
+
+        SalaId = salaId;
         AtualizadoEm = DateTime.UtcNow;
     }
 

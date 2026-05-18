@@ -18,15 +18,18 @@ import { useRouter } from "vue-router"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import type { PacienteListaItem } from "@/services/pacienteService"
 import { useAuthStore } from "@/stores/authStore"
+import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { AppButton, AppDatePicker, AppToast } from "@/components/ui"
 import EncaixeModal from "@/components/atendimentos/EncaixeModal.vue"
 import AtendimentoActiveCard from "@/components/atendimentos/AtendimentoActiveCard.vue"
 import AtendimentoNextCard from "@/components/atendimentos/AtendimentoNextCard.vue"
 import AtendimentoQueueRow from "@/components/atendimentos/AtendimentoQueueRow.vue"
+import AlocarSalaModal from "@/components/agenda/AlocarSalaModal.vue"
 
 const router = useRouter()
 const auth   = useAuthStore()
+const tenant = useTenantStore()
 const { atual: atendimentoAtivo, iniciar: iniciarAtendimento, finalizar: limparAtendimentoLocal } = useAtendimentoAtivo()
 
 // ─── Data e navegação ────────────────────────────────────────────────────────
@@ -221,6 +224,20 @@ function onKey(e: KeyboardEvent) {
 onMounted(() => window.addEventListener("keydown", onKey))
 onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
 
+// ─── Alocação de sala ────────────────────────────────────────────────────────
+const modalAlocarSalaAberto = ref(false)
+const agendamentoTrocarSala = ref<Agendamento | null>(null)
+
+function abrirAlocarSala(a: Agendamento) {
+    agendamentoTrocarSala.value = a
+    modalAlocarSalaAberto.value = true
+}
+
+async function onSalaAlocada() {
+    agendamentoTrocarSala.value = null
+    await carregar()
+}
+
 // ─── Novo encaixe ────────────────────────────────────────────────────────────
 const modalEncaixe = ref(false)
 const criandoEncaixe = ref(false)
@@ -321,6 +338,7 @@ async function criarEncaixe(p: PacienteListaItem) {
                 :alertas-paciente="[]"
                 @abrir-prontuario="abrirProntuario(ativoNoDia)"
                 @finalizar="finalizar(ativoNoDia)"
+                @trocar-sala="abrirAlocarSala(ativoNoDia)"
             />
             <div v-else class="active-empty">
                 <i class="fa-solid fa-stethoscope" aria-hidden="true"></i>
@@ -331,6 +349,7 @@ async function criarEncaixe(p: PacienteListaItem) {
                 v-if="proximoNaFila && proximoNaFila.id !== ativoNoDia?.id"
                 :agendamento="proximoNaFila"
                 @iniciar="iniciar(proximoNaFila)"
+                @trocar-sala="abrirAlocarSala(proximoNaFila)"
             />
         </section>
 
@@ -369,6 +388,7 @@ async function criarEncaixe(p: PacienteListaItem) {
                     @iniciar="iniciar(a)"
                     @finalizar="finalizar(a)"
                     @checkin="checkin(a)"
+                    @trocar-sala="abrirAlocarSala(a)"
                 />
             </div>
         </section>
@@ -378,6 +398,15 @@ async function criarEncaixe(p: PacienteListaItem) {
             :desabilitado="criandoEncaixe"
             @fechar="modalEncaixe = false"
             @selecionado="criarEncaixe"
+        />
+
+        <AlocarSalaModal
+            v-if="tenant.estabelecimentoAtivoId"
+            v-model:aberto="modalAlocarSalaAberto"
+            :agendamento="agendamentoTrocarSala"
+            :estab-id="tenant.estabelecimentoAtivoId"
+            :outros-agendamentos-do-dia="doDia"
+            @alocada="onSalaAlocada"
         />
 
         <AppToast

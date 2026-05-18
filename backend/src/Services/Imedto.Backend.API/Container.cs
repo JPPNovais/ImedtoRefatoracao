@@ -294,6 +294,8 @@ public static class Container
         services.AddScoped<CriarSalaCommandHandler>();
         services.AddScoped<AtualizarSalaCommandHandler>();
         services.AddScoped<DeletarSalaCommandHandler>();
+        services.AddScoped<DesativarSalaCommandHandler>();
+        services.AddScoped<ReativarSalaCommandHandler>();
         services.AddSingleton<ListarSalasQueryHandlers>();
         services.AddSingleton<ListarTiposSalaQueryHandlers>();
         services.AddSingleton<SalaQueryRepository>();
@@ -403,6 +405,7 @@ public static class Container
         services.AddScoped<ConfirmarAgendamentoCommandHandler>();
         services.AddScoped<ConcluirAgendamentoCommandHandler>();
         services.AddScoped<RegistrarCheckInAgendamentoCommandHandler>();
+        services.AddScoped<AlocarSalaAgendamentoCommandHandler>();
         services.AddScoped<IListaEsperaRepository, ListaEsperaRepository>();
         services.AddSingleton<ListaEsperaQueryRepository>();
         services.AddScoped<AdicionarListaEsperaCommandHandler>();
@@ -708,6 +711,8 @@ public static class Container
             bus.Register<CriarSalaCommand, CriarSalaCommandHandler>();
             bus.Register<AtualizarSalaCommand, AtualizarSalaCommandHandler>();
             bus.Register<DeletarSalaCommand, DeletarSalaCommandHandler>();
+            bus.Register<DesativarSalaCommand, DesativarSalaCommandHandler>();
+            bus.Register<ReativarSalaCommand, ReativarSalaCommandHandler>();
             bus.Register<CadastrarProfissionalCommand, CadastrarProfissionalCommandHandler>();
             bus.Register<AtualizarProfissionalCommand, AtualizarProfissionalCommandHandler>();
             bus.Register<AlterarFotoProfissionalCommand, AlterarFotoProfissionalCommandHandler>();
@@ -746,6 +751,7 @@ public static class Container
             bus.Register<ConfirmarAgendamentoCommand, ConfirmarAgendamentoCommandHandler>();
             bus.Register<ConcluirAgendamentoCommand, ConcluirAgendamentoCommandHandler>();
             bus.Register<RegistrarCheckInAgendamentoCommand, RegistrarCheckInAgendamentoCommandHandler>();
+            bus.Register<AlocarSalaAgendamentoCommand, AlocarSalaAgendamentoCommandHandler>();
             bus.Register<AdicionarListaEsperaCommand, AdicionarListaEsperaCommandHandler>();
             bus.Register<RemoverListaEsperaCommand, RemoverListaEsperaCommandHandler>();
             bus.Register<CriarItemInventarioCommand, CriarItemInventarioCommandHandler>();

@@ -1,6 +1,7 @@
 using Imedto.Backend.Application.Agendamentos.Commands;
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
 using NUnit.Framework;
@@ -11,6 +12,8 @@ namespace Imedto.Backend.Test.Application.Agendamentos;
 public class RegistrarCheckInAgendamentoCommandHandlerTests
 {
     private Mock<IAgendamentoRepository> _agendaRepo;
+    private Mock<ISalaRepository> _salaRepo;
+    private Mock<IAgendamentoSalaAuditRepository> _auditRepo;
     private RegistrarCheckInAgendamentoCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -20,7 +23,9 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
     public void SetUp()
     {
         _agendaRepo = new Mock<IAgendamentoRepository>();
-        _sut = new RegistrarCheckInAgendamentoCommandHandler(_agendaRepo.Object);
+        _salaRepo = new Mock<ISalaRepository>();
+        _auditRepo = new Mock<IAgendamentoSalaAuditRepository>();
+        _sut = new RegistrarCheckInAgendamentoCommandHandler(_agendaRepo.Object, _salaRepo.Object, _auditRepo.Object);
     }
 
     private static Agendamento CriarAgendamento(long estabId = EstabelecimentoId)
@@ -132,6 +137,60 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         }));
         Assert.That(ex.Message, Does.Contain("Check-in já foi realizado"));
         _agendaRepo.Verify(r => r.Salvar(It.IsAny<Agendamento>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_ComSalaValida_AlocaEPersiste()
+    {
+        var ag = CriarAgendamentoConfirmado();
+        var sala = Sala.Criar(EstabelecimentoId, 10L, null, "Consultório 01", "");
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
+        _salaRepo.Setup(r => r.ObterPorIdOuNulo(7L, EstabelecimentoId)).ReturnsAsync(sala);
+
+        await _sut.Handle(new RegistrarCheckInAgendamentoCommand
+        {
+            AgendamentoId = AgendamentoId,
+            EstabelecimentoId = EstabelecimentoId,
+            SalaId = 7L,
+            UsuarioSolicitanteId = Guid.NewGuid(),
+        });
+
+        Assert.That(ag.CheckInEm, Is.Not.Null);
+        Assert.That(ag.SalaId, Is.EqualTo(7L));
+        _auditRepo.Verify(r => r.Registrar(It.IsAny<AgendamentoSalaAudit>()), Times.Once);
+    }
+
+    [Test]
+    public void Handle_ComSalaDeOutroTenant_LancaBusinessException()
+    {
+        var ag = CriarAgendamentoConfirmado();
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
+        _salaRepo.Setup(r => r.ObterPorIdOuNulo(7L, EstabelecimentoId)).ReturnsAsync((Sala?)null);
+
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new RegistrarCheckInAgendamentoCommand
+        {
+            AgendamentoId = AgendamentoId,
+            EstabelecimentoId = EstabelecimentoId,
+            SalaId = 7L,
+        }));
+        Assert.That(ex.Message, Does.Contain("Sala não encontrada"));
+        _agendaRepo.Verify(r => r.Salvar(It.IsAny<Agendamento>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_SemSala_NaoAlteraSalaAtual()
+    {
+        var ag = CriarAgendamentoConfirmado();
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
+
+        await _sut.Handle(new RegistrarCheckInAgendamentoCommand
+        {
+            AgendamentoId = AgendamentoId,
+            EstabelecimentoId = EstabelecimentoId,
+        });
+
+        Assert.That(ag.SalaId, Is.Null);
+        _auditRepo.Verify(r => r.Registrar(It.IsAny<AgendamentoSalaAudit>()), Times.Never);
     }
 
     [Test]

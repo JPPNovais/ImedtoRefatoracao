@@ -2,6 +2,7 @@ using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Pacientes;
+using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -15,6 +16,7 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
     private readonly IPacienteRepository _pacienteRepo;
     private readonly IVinculoRepository _vinculoRepo;
     private readonly IEstabelecimentoRepository _estabelecimentoRepo;
+    private readonly ISalaRepository _salaRepo;
     private readonly IEventBus _eventBus;
 
     public CriarAgendamentoCommandHandler(
@@ -22,12 +24,14 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
         IPacienteRepository pacienteRepo,
         IVinculoRepository vinculoRepo,
         IEstabelecimentoRepository estabelecimentoRepo,
+        ISalaRepository salaRepo,
         IEventBus eventBus)
     {
         _agendamentoRepo = agendamentoRepo;
         _pacienteRepo = pacienteRepo;
         _vinculoRepo = vinculoRepo;
         _estabelecimentoRepo = estabelecimentoRepo;
+        _salaRepo = salaRepo;
         _eventBus = eventBus;
     }
 
@@ -46,6 +50,14 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
 
         await ValidarRegrasFuncionamento(cmd);
 
+        if (cmd.SalaId.HasValue)
+        {
+            var sala = await _salaRepo.ObterPorIdOuNulo(cmd.SalaId.Value, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Sala não encontrada ou inativa.");
+            if (!sala.Ativo)
+                throw new BusinessException("Sala não encontrada ou inativa.");
+        }
+
         var agendamento = Agendamento.Criar(
             cmd.EstabelecimentoId,
             cmd.PacienteId,
@@ -55,6 +67,9 @@ public class CriarAgendamentoCommandHandler : ICommandHandler<CriarAgendamentoCo
             cmd.FimPrevisto,
             cmd.TipoServico,
             cmd.Observacoes);
+
+        if (cmd.SalaId.HasValue)
+            agendamento.AlocarSala(cmd.SalaId);
 
         await _agendamentoRepo.Salvar(agendamento);
         cmd.AgendamentoIdCriado = agendamento.Id;

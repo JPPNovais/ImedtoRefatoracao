@@ -13,7 +13,7 @@ public class SalaQueryRepository
         _connectionString = connection.Value;
     }
 
-    public async Task<IEnumerable<SalaDto>> ListarPorEstabelecimento(long estabelecimentoId)
+    public async Task<IEnumerable<SalaDto>> ListarPorEstabelecimento(long estabelecimentoId, bool apenasAtivas = false)
     {
         const string sql = """
             SELECT  s.id                AS Id,
@@ -30,11 +30,16 @@ public class SalaQueryRepository
             JOIN    public.unidades_estabelecimento u ON u.id = s.unidade_id
             LEFT JOIN public.tipo_sala_atendimento t ON t.id = s.tipo_sala_id
             WHERE   s.estabelecimento_id = @EstabelecimentoId
+              AND   (@ApenasAtivas = false OR s.ativo = true)
             ORDER BY u.nome, s.nome
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        return await conn.QueryAsync<SalaDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+        return await conn.QueryAsync<SalaDto>(sql, new
+        {
+            EstabelecimentoId = estabelecimentoId,
+            ApenasAtivas = apenasAtivas,
+        });
     }
 
     public async Task<IEnumerable<TipoSalaDto>> ListarTipos()

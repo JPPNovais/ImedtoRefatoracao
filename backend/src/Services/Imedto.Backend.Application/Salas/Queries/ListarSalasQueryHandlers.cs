@@ -15,5 +15,5 @@ public class ListarSalasQueryHandlers : IRequestHandler<ListarSalasQuery, IEnume
     }
 
     public Task<IEnumerable<SalaDto>> Handle(ListarSalasQuery query) =>
-        _queryRepository.ListarPorEstabelecimento(query.EstabelecimentoId);
+        _queryRepository.ListarPorEstabelecimento(query.EstabelecimentoId, query.ApenasAtivas);
 }

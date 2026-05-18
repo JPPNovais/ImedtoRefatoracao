@@ -12,6 +12,8 @@ public class CriarAgendamentoCommand : ICommand
     public DateTime FimPrevisto { get; set; }
     public string TipoServico { get; set; } = string.Empty;
     public string? Observacoes { get; set; }
+    /// <summary>Pré-alocação de sala — opcional.</summary>
+    public long? SalaId { get; set; }
 
     // Saída preenchida pelo handler
     public long AgendamentoIdCriado { get; set; }

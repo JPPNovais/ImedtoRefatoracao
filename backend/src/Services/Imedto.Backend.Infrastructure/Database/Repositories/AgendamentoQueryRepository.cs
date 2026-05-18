@@ -59,11 +59,16 @@ public class AgendamentoQueryRepository
                 a.motivo_cancelamento   AS MotivoCancelamento,
                 a.criado_em             AS CriadoEm,
                 a.atualizado_em         AS AtualizadoEm,
-                a.check_in_em          AS CheckInEm
+                a.check_in_em           AS CheckInEm,
+                a.sala_id               AS SalaId,
+                sa.nome                 AS SalaNome,
+                ts.nome                 AS SalaTipoNome
             FROM agendamentos a
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
             JOIN usuarios     ucri ON ucri.id = a.criado_por_usuario_id
+            LEFT JOIN sala_atendimento     sa ON sa.id = a.sala_id
+            LEFT JOIN tipo_sala_atendimento ts ON ts.id = sa.tipo_sala_id
             WHERE a.estabelecimento_id = @EstabelecimentoId
               AND (@DataInicio::timestamp           IS NULL OR a.inicio_previsto::date >= @DataInicio::date)
               AND (@DataFim::timestamp              IS NULL OR a.inicio_previsto::date <= @DataFim::date)
@@ -185,11 +190,16 @@ public class AgendamentoQueryRepository
                 a.motivo_cancelamento   AS MotivoCancelamento,
                 a.criado_em             AS CriadoEm,
                 a.atualizado_em         AS AtualizadoEm,
-                a.check_in_em          AS CheckInEm
+                a.check_in_em           AS CheckInEm,
+                a.sala_id               AS SalaId,
+                sa.nome                 AS SalaNome,
+                ts.nome                 AS SalaTipoNome
             FROM agendamentos a
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
             JOIN usuarios     ucri ON ucri.id = a.criado_por_usuario_id
+            LEFT JOIN sala_atendimento     sa ON sa.id = a.sala_id
+            LEFT JOIN tipo_sala_atendimento ts ON ts.id = sa.tipo_sala_id
             WHERE a.id = @Id
               AND a.estabelecimento_id = @EstabelecimentoId
             """;

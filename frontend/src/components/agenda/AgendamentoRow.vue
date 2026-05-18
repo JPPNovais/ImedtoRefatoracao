@@ -163,6 +163,13 @@ const podeAlterar = computed(() => {
                     <i class="fa-solid fa-stethoscope" aria-hidden="true"></i>
                     {{ agendamento.tipoServico }}
                 </span>
+                <template v-if="agendamento.salaNome">
+                    <span class="sep"></span>
+                    <span class="sala-chip" :title="agendamento.salaTipoNome ?? ''">
+                        <i class="fa-solid fa-door-open" aria-hidden="true"></i>
+                        {{ agendamento.salaNome }}
+                    </span>
+                </template>
                 <template v-if="agendamento.observacoes">
                     <span class="sep"></span>
                     <span class="obs">
@@ -395,6 +402,12 @@ const podeAlterar = computed(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.sala-chip {
+    color: hsl(var(--foreground) / 0.7);
+    font-weight: 600;
+}
+.sala-chip i { color: hsl(var(--primary) / 0.7) !important; }
 
 .actions {
     display: flex;

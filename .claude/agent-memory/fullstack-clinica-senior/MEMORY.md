@@ -3,3 +3,4 @@
 - [Estoque — Cadastros MVP](project_estoque_cadastros_mvp.md) — tela `/inventario/cadastros` + evolução de `itens_inventario` com FKs (categoria obrigatória, demais opcionais).
 - [Visualizar PDF em nova aba (popup blocker)](feedback_visualizar_pdf_no_browser.md) — composable retorna `blobUrl`; view abre `about:blank` ANTES do await; fallback download se bloqueado.
 - [Foto do estabelecimento + integração nos PDFs](project_foto_estabelecimento_pdfs.md) — endpoints upload/delete, cache de logo em PDFs, AppPhotoUpload, gap permissão dono vs `config_estabelecimento`.
+- [Salas: alocação P0+P1](project_salas_alocacao_p1.md) — AlocarSalaModal + CheckInModal com pré-sugestão + chip nas linhas + filtro Agenda + Desativar/Reativar em Repartições.

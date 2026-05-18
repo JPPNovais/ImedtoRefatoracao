@@ -27,8 +27,12 @@ export interface SalaPayload {
 }
 
 export const salaService = {
-    async listar(estabelecimentoId: number): Promise<Sala[]> {
-        const { data } = await httpClient.get<Sala[]>(`/estabelecimento/${estabelecimentoId}/salas`)
+    async listar(estabelecimentoId: number, apenasAtivas?: boolean): Promise<Sala[]> {
+        const params = apenasAtivas ? { apenasAtivas: true } : undefined
+        const { data } = await httpClient.get<Sala[]>(
+            `/estabelecimento/${estabelecimentoId}/salas`,
+            { params },
+        )
         return data
     },
 
@@ -42,6 +46,14 @@ export const salaService = {
 
     async excluir(estabelecimentoId: number, salaId: number): Promise<void> {
         await httpClient.delete(`/estabelecimento/${estabelecimentoId}/salas/${salaId}`)
+    },
+
+    async desativar(estabelecimentoId: number, salaId: number): Promise<void> {
+        await httpClient.put(`/estabelecimento/${estabelecimentoId}/salas/${salaId}/desativar`)
+    },
+
+    async reativar(estabelecimentoId: number, salaId: number): Promise<void> {
+        await httpClient.put(`/estabelecimento/${estabelecimentoId}/salas/${salaId}/reativar`)
     },
 
     async listarTipos(): Promise<TipoSala[]> {

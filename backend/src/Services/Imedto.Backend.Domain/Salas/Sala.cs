@@ -46,6 +46,22 @@ public class Sala : Entity
         };
     }
 
+    public virtual void Desativar()
+    {
+        if (!Ativo)
+            throw new BusinessException("Repartição já está inativa.");
+        Ativo = false;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void Reativar()
+    {
+        if (Ativo)
+            throw new BusinessException("Repartição já está ativa.");
+        Ativo = true;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
     public virtual void AtualizarDados(long unidadeId, long? tipoSalaId, string nome, string descricao)
     {
         if (unidadeId <= 0)

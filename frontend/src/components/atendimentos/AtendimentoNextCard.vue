@@ -12,6 +12,7 @@ const props = defineProps<{
 
 defineEmits<{
     "iniciar": []
+    "trocar-sala": []
 }>()
 
 const iniciais = computed(() => {
@@ -54,6 +55,29 @@ const horaCheckIn = computed(() => {
             <div v-if="horaCheckIn" class="arrived-tag">
                 <i class="fa-solid fa-door-open" aria-hidden="true"></i>
                 Já chegou às {{ horaCheckIn }}
+            </div>
+
+            <div class="next-sala-row">
+                <button
+                    v-if="agendamento.salaNome"
+                    type="button"
+                    class="next-sala-chip"
+                    title="Trocar sala"
+                    @click="$emit('trocar-sala')"
+                >
+                    <i class="fa-solid fa-door-open" aria-hidden="true"></i>
+                    {{ agendamento.salaNome }}
+                    <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                </button>
+                <button
+                    v-else-if="agendamento.checkInEm"
+                    type="button"
+                    class="next-sala-alocar"
+                    @click="$emit('trocar-sala')"
+                >
+                    <i class="fa-solid fa-door-open" aria-hidden="true"></i>
+                    Alocar sala
+                </button>
             </div>
         </div>
 
@@ -109,6 +133,30 @@ const horaCheckIn = computed(() => {
     font-size: 12px; font-weight: 600;
     width: fit-content;
 }
+
+.next-sala-row { display: flex; }
+.next-sala-chip,
+.next-sala-alocar {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px;
+    font: inherit; font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    transition: all 150ms;
+    width: fit-content;
+}
+.next-sala-chip {
+    background: hsl(var(--primary) / 0.08);
+    color: hsl(var(--primary-dark));
+    border: 1px solid hsl(var(--primary) / 0.2);
+}
+.next-sala-chip:hover { background: hsl(var(--primary) / 0.14); }
+.next-sala-chip i:last-child { font-size: 9px; opacity: 0.7; }
+.next-sala-alocar {
+    background: transparent;
+    color: hsl(var(--primary));
+    border: 1px dashed hsl(var(--primary) / 0.35);
+}
+.next-sala-alocar:hover { background: hsl(var(--primary) / 0.06); }
 
 .next-btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;

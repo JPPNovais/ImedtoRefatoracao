@@ -4,6 +4,7 @@ using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Agendamentos.Events;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Pacientes;
+using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -19,6 +20,7 @@ public class CriarAgendamentoCommandHandlerTests
     private Mock<IPacienteRepository> _pacienteRepo;
     private Mock<IVinculoRepository> _vinculoRepo;
     private Mock<IEstabelecimentoRepository> _estabRepo;
+    private Mock<ISalaRepository> _salaRepo;
     private Mock<IEventBus> _eventBus;
     private CriarAgendamentoCommandHandler _sut;
 
@@ -35,10 +37,11 @@ public class CriarAgendamentoCommandHandlerTests
         _pacienteRepo = new Mock<IPacienteRepository>();
         _vinculoRepo = new Mock<IVinculoRepository>();
         _estabRepo = new Mock<IEstabelecimentoRepository>();
+        _salaRepo = new Mock<ISalaRepository>();
         _eventBus = new Mock<IEventBus>();
         _sut = new CriarAgendamentoCommandHandler(
             _agendaRepo.Object, _pacienteRepo.Object, _vinculoRepo.Object,
-            _estabRepo.Object, _eventBus.Object);
+            _estabRepo.Object, _salaRepo.Object, _eventBus.Object);
     }
 
     private static Paciente PacienteAtivo() =>

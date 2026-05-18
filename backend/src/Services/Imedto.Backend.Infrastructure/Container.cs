@@ -97,6 +97,7 @@ public static class InfrastructureExtensions
 
         // Agendamentos
         services.AddScoped<Domain.Agendamentos.IAgendamentoRepository, Database.Repositories.AgendamentoRepository>();
+        services.AddScoped<Domain.Agendamentos.IAgendamentoSalaAuditRepository, Database.Repositories.AgendamentoSalaAuditRepository>();
 
         // Inventário
         services.AddScoped<Domain.Inventario.IItemInventarioRepository, Database.Repositories.ItemInventarioRepository>();

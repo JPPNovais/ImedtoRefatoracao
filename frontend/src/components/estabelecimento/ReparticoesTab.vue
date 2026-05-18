@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue"
-import { AppButton, AppCard, AppField, AppInput, AppModal, AppSelect } from "@/components/ui"
+import { AppButton, AppCard, AppField, AppInput, AppModal, AppSelect, AppToast } from "@/components/ui"
 import { salaService, type Sala, type SalaPayload, type TipoSala } from "@/services/salaService"
 import { unidadeService, type Unidade } from "@/services/unidadeService"
 
@@ -13,15 +13,20 @@ const salas = ref<Sala[]>([])
 const unidades = ref<Unidade[]>([])
 const tipos = ref<TipoSala[]>([])
 const carregando = ref(false)
-const erro = ref<string | null>(null)
-const msgOk = ref<string | null>(null)
 
-// Filtro por unidade (só mostrado se houver mais de uma).
+const toast = ref<{ msg: string; variante: "info" | "success" | "error" } | null>(null)
+function notificar(msg: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { msg, variante }
+}
+
 const filtroUnidadeId = ref<number | null>(null)
+const incluirInativas = ref(false)
 
 const salasFiltradas = computed(() => {
-    if (filtroUnidadeId.value == null) return salas.value
-    return salas.value.filter(s => s.unidadeId === filtroUnidadeId.value)
+    let arr = salas.value
+    if (!incluirInativas.value) arr = arr.filter(s => s.ativo)
+    if (filtroUnidadeId.value != null) arr = arr.filter(s => s.unidadeId === filtroUnidadeId.value)
+    return arr
 })
 
 // ─── Form de criação ──────────────────────────────────────────────────────────
@@ -34,14 +39,12 @@ const formNovo = reactive<SalaPayload>({
 const salvandoNovo = ref(false)
 
 async function adicionar() {
-    erro.value = null
-    msgOk.value = null
     if (!formNovo.nome.trim()) {
-        erro.value = "Informe o nome da repartição."
+        notificar("Informe o nome da repartição.", "error")
         return
     }
     if (!formNovo.unidadeId) {
-        erro.value = "Selecione a unidade onde a repartição está localizada."
+        notificar("Selecione a unidade onde a repartição está localizada.", "error")
         return
     }
     salvandoNovo.value = true
@@ -55,10 +58,10 @@ async function adicionar() {
         formNovo.tipoSalaId = null
         formNovo.nome = ""
         formNovo.descricao = ""
-        msgOk.value = "Repartição adicionada."
+        notificar("Repartição adicionada.", "success")
         await carregarSalas()
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao adicionar repartição."
+        notificar(e?.response?.data?.mensagem ?? "Erro ao adicionar repartição.", "error")
     } finally {
         salvandoNovo.value = false
     }
@@ -90,14 +93,12 @@ function cancelarEdicao() {
 
 async function salvarEdicao() {
     if (editandoId.value == null) return
-    erro.value = null
-    msgOk.value = null
     if (!formEdit.nome.trim()) {
-        erro.value = "Informe o nome da repartição."
+        notificar("Informe o nome da repartição.", "error")
         return
     }
     if (!formEdit.unidadeId) {
-        erro.value = "Selecione a unidade onde a repartição está localizada."
+        notificar("Selecione a unidade onde a repartição está localizada.", "error")
         return
     }
     salvandoEdit.value = true
@@ -108,10 +109,10 @@ async function salvarEdicao() {
             descricao: formEdit.descricao?.trim() || null,
         })
         editandoId.value = null
-        msgOk.value = "Repartição atualizada."
+        notificar("Repartição atualizada.", "success")
         await carregarSalas()
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao atualizar repartição."
+        notificar(e?.response?.data?.mensagem ?? "Erro ao atualizar repartição.", "error")
     } finally {
         salvandoEdit.value = false
     }
@@ -125,24 +126,38 @@ const salaParaExcluir = computed(() => salas.value.find(s => s.id === idParaExcl
 async function confirmarExclusao() {
     if (idParaExcluir.value == null) return
     excluindo.value = true
-    erro.value = null
-    msgOk.value = null
     try {
         await salaService.excluir(props.estabelecimentoId, idParaExcluir.value)
         idParaExcluir.value = null
-        msgOk.value = "Repartição excluída."
+        notificar("Repartição excluída.", "success")
         await carregarSalas()
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao excluir repartição."
+        notificar(e?.response?.data?.mensagem ?? "Erro ao excluir repartição.", "error")
     } finally {
         excluindo.value = false
+    }
+}
+
+// ─── Desativar / Reativar ─────────────────────────────────────────────────────
+const alternandoId = ref<number | null>(null)
+
+async function alternarAtivo(s: Sala) {
+    alternandoId.value = s.id
+    try {
+        if (s.ativo) await salaService.desativar(props.estabelecimentoId, s.id)
+        else         await salaService.reativar(props.estabelecimentoId, s.id)
+        notificar(s.ativo ? "Repartição desativada." : "Repartição reativada.", "success")
+        await carregarSalas()
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao alterar status da repartição.", "error")
+    } finally {
+        alternandoId.value = null
     }
 }
 
 // ─── Loaders ─────────────────────────────────────────────────────────────────
 async function carregarTudo() {
     carregando.value = true
-    erro.value = null
     try {
         const [u, t, s] = await Promise.all([
             unidadeService.listar(props.estabelecimentoId),
@@ -152,11 +167,10 @@ async function carregarTudo() {
         unidades.value = u
         tipos.value = t
         salas.value = s
-        // Pré-seleciona a unidade principal (ou a primeira) no form de criação.
         const principal = u.find(x => x.isPrincipal) ?? u[0]
         if (principal) formNovo.unidadeId = principal.id
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar dados."
+        notificar(e?.response?.data?.mensagem ?? "Erro ao carregar dados.", "error")
     } finally {
         carregando.value = false
     }
@@ -166,7 +180,7 @@ async function carregarSalas() {
     try {
         salas.value = await salaService.listar(props.estabelecimentoId)
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao recarregar."
+        notificar(e?.response?.data?.mensagem ?? "Erro ao recarregar.", "error")
     }
 }
 
@@ -180,9 +194,6 @@ onMounted(carregarTudo)
         <p v-if="!podeEditar" class="aviso-leitura">
             Apenas o dono pode gerenciar repartições. Você está visualizando em modo leitura.
         </p>
-
-        <p v-if="erro" class="msg-erro">{{ erro }}</p>
-        <p v-if="msgOk" class="msg-ok">{{ msgOk }}</p>
 
         <p v-if="semUnidades && podeEditar" class="alerta-info">
             Cadastre pelo menos uma unidade na aba <strong>Unidades</strong> antes de criar repartições.
@@ -231,14 +242,18 @@ onMounted(carregarTudo)
             </div>
         </AppCard>
 
-        <!-- ── Filtro por unidade ── -->
-        <div v-if="unidades.length > 1 && salas.length > 0" class="filtro-row">
-            <AppField label="Filtrar por unidade">
+        <!-- ── Filtros (unidade + incluir inativas) ── -->
+        <div v-if="salas.length > 0" class="filtros-row">
+            <AppField v-if="unidades.length > 1" label="Filtrar por unidade" class="filt-unidade">
                 <AppSelect v-model.number="filtroUnidadeId">
                     <option :value="null">Todas as unidades</option>
                     <option v-for="u in unidades" :key="u.id" :value="u.id">{{ u.nome }}</option>
                 </AppSelect>
             </AppField>
+            <label class="check-inativas">
+                <input type="checkbox" v-model="incluirInativas" />
+                Incluir inativas
+            </label>
         </div>
 
         <!-- ── Lista de salas ── -->
@@ -249,7 +264,7 @@ onMounted(carregarTudo)
         </div>
 
         <div v-else-if="salasFiltradas.length === 0" class="estado-msg">
-            Nenhuma repartição na unidade selecionada.
+            Nenhuma repartição visível com os filtros atuais.
         </div>
 
         <div v-else class="lista">
@@ -290,14 +305,31 @@ onMounted(carregarTudo)
                         <h3 class="sala-nome">
                             {{ s.nome }}
                             <span v-if="s.tipoSalaNome" class="tag-tipo">{{ s.tipoSalaNome }}</span>
+                            <span v-if="!s.ativo" class="tag-inativa">Inativa</span>
                         </h3>
                         <div v-if="podeEditar" class="card-acoes">
-                            <button type="button" class="btn-icon" title="Editar" @click="iniciarEdicao(s)">
+                            <button
+                                v-if="s.ativo"
+                                type="button"
+                                class="btn-icon btn-icon-editar"
+                                title="Editar"
+                                @click="iniciarEdicao(s)"
+                            >
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             <button
                                 type="button"
-                                class="btn-icon btn-danger"
+                                class="btn-icon"
+                                :title="s.ativo ? 'Desativar' : 'Reativar'"
+                                :disabled="alternandoId === s.id"
+                                @click="alternarAtivo(s)"
+                            >
+                                <i :class="['fa-solid', s.ativo ? 'fa-toggle-on' : 'fa-toggle-off']"></i>
+                            </button>
+                            <button
+                                v-if="s.ativo"
+                                type="button"
+                                class="btn-icon btn-icon-excluir"
                                 title="Excluir"
                                 @click="idParaExcluir = s.id"
                             >
@@ -306,7 +338,8 @@ onMounted(carregarTudo)
                         </div>
                     </div>
                     <p class="sala-meta">
-                        🏢 {{ s.unidadeNome }}
+                        <i class="fa-solid fa-building" aria-hidden="true"></i>
+                        {{ s.unidadeNome }}
                         <span v-if="s.descricao" class="sala-desc">— {{ s.descricao }}</span>
                     </p>
                 </template>
@@ -331,6 +364,13 @@ onMounted(carregarTudo)
                 </AppButton>
             </template>
         </AppModal>
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.msg"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 
@@ -364,7 +404,15 @@ onMounted(carregarTudo)
 }
 .acoes-edicao { gap: 0.6rem; }
 
-.filtro-row { max-width: 320px; }
+.filtros-row {
+    display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;
+}
+.filt-unidade { max-width: 320px; flex: 1; }
+.check-inativas {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-size: 0.85em; color: var(--text-muted); cursor: pointer;
+    padding-bottom: 0.5rem;
+}
 
 .lista { display: flex; flex-direction: column; gap: 0.85rem; }
 
@@ -385,31 +433,24 @@ onMounted(carregarTudo)
     border-radius: 999px;
     font-size: 0.7em; font-weight: 600;
 }
-.sala-meta { font-size: 0.85em; color: var(--text-muted); margin: 0; }
+.tag-inativa {
+    display: inline-flex; align-items: center;
+    background: hsl(var(--secondary) / 0.12);
+    color: hsl(var(--secondary) / 0.75);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7em; font-weight: 700;
+}
+.sala-meta {
+    font-size: 0.85em; color: var(--text-muted); margin: 0;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.sala-meta > i { font-size: 0.9em; opacity: 0.7; }
 .sala-desc { font-style: italic; }
 
 .card-acoes { display: flex; gap: 0.4rem; }
-.btn-icon {
-    width: 32px; height: 32px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border-radius: var(--radius);
-    border: 1px solid var(--border-strong);
-    background: var(--bg-card);
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    font-size: 0.85em;
-}
-.btn-icon:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary)); }
-.btn-icon.btn-danger:hover {
-    color: var(--danger); border-color: var(--danger);
-    background: hsl(0 90% 60% / 0.06);
-}
 
 .estado-msg { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.9em; }
-
-.msg-erro { color: var(--danger); font-size: 0.85em; margin: 0; }
-.msg-ok   { color: #15803d;       font-size: 0.85em; margin: 0; }
 
 .modal-texto { margin: 0; font-size: 0.9em; }
 </style>

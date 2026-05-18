@@ -2,11 +2,15 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Contracts.Agendamentos.Commands;
 
-public class RegistrarCheckInAgendamentoCommand : ICommand
+/// <summary>
+/// Aloca uma sala num agendamento. <c>SalaId == null</c> desaloca.
+/// Permissão: Dono / Recepcionista / Profissional vinculado (filter
+/// <c>RequiresPapel</c> aplicado no controller).
+/// </summary>
+public class AlocarSalaAgendamentoCommand : ICommand
 {
     public long AgendamentoId { get; set; }
     public long EstabelecimentoId { get; set; }
-    /// <summary>Opcional — sala onde o paciente vai aguardar/ser atendido.</summary>
     public long? SalaId { get; set; }
     public Guid UsuarioSolicitanteId { get; set; }
 }

@@ -52,6 +52,9 @@ const AGENDAMENTO_PADRAO = {
     criadoEm:       "2026-05-13T10:00:00Z",
     atualizadoEm:   null,
     checkInEm:      null,
+    salaId:         null,
+    salaNome:       null,
+    salaTipoNome:   null,
 }
 
 function montar(aberto = true) {

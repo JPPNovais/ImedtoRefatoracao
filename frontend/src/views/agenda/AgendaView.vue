@@ -24,6 +24,7 @@ import EditarAgendamentoModal from "@/components/agenda/EditarAgendamentoModal.v
 import CheckInModal from "@/components/agenda/CheckInModal.vue"
 import CancelarAgendamentoModal from "@/components/agenda/CancelarAgendamentoModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
+import { salaService, type Sala } from "@/services/salaService"
 import { listaEsperaService, type ListaEsperaItem } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
 import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
@@ -66,7 +67,11 @@ const perfilProprio = ref<{ especialidade: string | null; conselho: string } | n
 const filtroProf = ref("")
 const filtroEspec = ref("")
 const filtroStatus = ref<Agendamento["status"] | null>(null)
+const filtroSalaId = ref<number | null>(null)
 const buscaTexto = ref("")
+
+// Salas ativas — carregadas no mount para o filtro.
+const salas = ref<Sala[]>([])
 
 // Especialidade efetiva de um profissional (Dono incluso).
 function especialidadeDoProfissional(usuarioId: string): string {
@@ -108,6 +113,7 @@ const baseFiltrada = computed<Agendamento[]>(() => {
     return agendamentos.value.filter(a => {
         if (filtroProf.value && a.profissionalUsuarioId !== filtroProf.value) return false
         if (filtroEspec.value && especialidadeDoProfissional(a.profissionalUsuarioId) !== filtroEspec.value) return false
+        if (filtroSalaId.value != null && a.salaId !== filtroSalaId.value) return false
         return true
     })
 })
@@ -233,6 +239,12 @@ onMounted(async () => {
     }
     // carregarPacientes() é lazy — só dispara ao abrir o modal de novo agendamento
     // ou ao encaixar paciente da lista de espera. Evita carga de PII na entrada da agenda.
+    // Salas ativas — não crítico (filtro só não aparece se falhar).
+    if (tenant.estabelecimentoAtivoId) {
+        try {
+            salas.value = await salaService.listar(tenant.estabelecimentoAtivoId, true)
+        } catch { /* não crítico */ }
+    }
     await Promise.all([carregarDia(), carregarContagens(), carregarListaEspera()])
 })
 
@@ -529,6 +541,12 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                                 <option v-for="e in especialidadesDisponiveis" :key="e" :value="e">{{ e }}</option>
                             </AppSelect>
                         </AppField>
+                        <AppField v-if="salas.length > 0" label="Sala" class="filt-grupo">
+                            <AppSelect v-model.number="filtroSalaId">
+                                <option :value="null">Todas</option>
+                                <option v-for="s in salas" :key="s.id" :value="s.id">{{ s.nome }}</option>
+                            </AppSelect>
+                        </AppField>
                         <AppField label="Buscar" class="filt-grupo">
                             <AppInput v-model="buscaTexto" placeholder="Paciente, profissional ou tipo..." />
                         </AppField>
@@ -602,6 +620,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
     <CheckInModal
         :aberto="modalCheckInAberto"
         :agendamento="agendamentoCheckIn"
+        :outros-agendamentos-do-dia="doDia"
         @fechar="modalCheckInAberto = false; agendamentoCheckIn = null"
         @checkin-realizado="onCheckInRealizado"
     />

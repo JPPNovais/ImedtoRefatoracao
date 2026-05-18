@@ -128,7 +128,8 @@ public class AgendamentoController : ControllerBase
             InicioPrevisto = dto.InicioPrevisto,
             FimPrevisto = dto.FimPrevisto,
             TipoServico = dto.TipoServico,
-            Observacoes = dto.Observacoes
+            Observacoes = dto.Observacoes,
+            SalaId = dto.SalaId,
         };
 
         await _cmd.Send(cmd);
@@ -176,12 +177,27 @@ public class AgendamentoController : ControllerBase
     }
 
     [HttpPost("{id:long}/checkin")]
-    public async Task<ActionResult> RegistrarCheckIn(long id)
+    public async Task<ActionResult> RegistrarCheckIn(long id, [FromBody] RegistrarCheckInDto? dto)
     {
         await _cmd.Send(new RegistrarCheckInAgendamentoCommand
         {
             AgendamentoId = id,
-            EstabelecimentoId = _tenant.EstabelecimentoId
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SalaId = dto?.SalaId,
+            UsuarioSolicitanteId = _tenant.UsuarioId,
+        });
+        return NoContent();
+    }
+
+    [HttpPut("{id:long}/sala")]
+    public async Task<ActionResult> AlocarSala(long id, [FromBody] AlocarSalaDto dto)
+    {
+        await _cmd.Send(new AlocarSalaAgendamentoCommand
+        {
+            AgendamentoId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SalaId = dto.SalaId,
+            UsuarioSolicitanteId = _tenant.UsuarioId,
         });
         return NoContent();
     }
@@ -257,7 +273,8 @@ public record CriarAgendamentoDto(
     DateTime InicioPrevisto,
     DateTime FimPrevisto,
     string TipoServico,
-    string? Observacoes);
+    string? Observacoes,
+    long? SalaId);
 
 public record AtualizarAgendamentoDto(
     Guid ProfissionalUsuarioId,
@@ -267,3 +284,7 @@ public record AtualizarAgendamentoDto(
     string? Observacoes);
 
 public record CancelarAgendamentoDto(string Motivo);
+
+public record RegistrarCheckInDto(long? SalaId);
+
+public record AlocarSalaDto(long? SalaId);

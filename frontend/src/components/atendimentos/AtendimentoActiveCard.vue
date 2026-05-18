@@ -18,6 +18,7 @@ const props = defineProps<{
 defineEmits<{
     "abrir-prontuario": []
     "finalizar": []
+    "trocar-sala": []
 }>()
 
 const { agora } = useClockTick()
@@ -67,6 +68,29 @@ const horaInicio = computed(() =>
                     <span><i class="fa-solid fa-clock" aria-hidden="true"></i> {{ horaInicio }}</span>
                     <span class="dot">·</span>
                     <span>{{ agendamento.tipoServico || "Consulta" }}</span>
+                </div>
+
+                <div class="active-sala-row">
+                    <button
+                        v-if="agendamento.salaNome"
+                        type="button"
+                        class="active-sala-chip"
+                        title="Trocar sala"
+                        @click="$emit('trocar-sala')"
+                    >
+                        <i class="fa-solid fa-door-open" aria-hidden="true"></i>
+                        {{ agendamento.salaNome }}
+                        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                    </button>
+                    <button
+                        v-else
+                        type="button"
+                        class="active-sala-alocar"
+                        @click="$emit('trocar-sala')"
+                    >
+                        <i class="fa-solid fa-door-open" aria-hidden="true"></i>
+                        Alocar sala
+                    </button>
                 </div>
 
                 <div v-if="agendamento.observacoes" class="active-reason">
@@ -158,6 +182,29 @@ const horaInicio = computed(() =>
 }
 .active-meta .dot { opacity: 0.5; }
 .active-meta i { font-size: 11px; margin-right: 3px; }
+.active-sala-row { margin-top: 10px; }
+.active-sala-chip,
+.active-sala-alocar {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font: inherit; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: background 150ms;
+}
+.active-sala-chip {
+    background: hsl(0 0% 100% / 0.16);
+    color: white;
+    border: 1px solid hsl(0 0% 100% / 0.3);
+}
+.active-sala-chip:hover { background: hsl(0 0% 100% / 0.24); }
+.active-sala-chip i:last-child { font-size: 10px; opacity: 0.8; }
+.active-sala-alocar {
+    background: transparent;
+    color: hsl(0 0% 100% / 0.85);
+    border: 1px dashed hsl(0 0% 100% / 0.4);
+}
+.active-sala-alocar:hover { background: hsl(0 0% 100% / 0.1); }
+
 .active-reason { margin-top: 10px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .active-reason strong { font-size: 15px; }
 .active-alerts { margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }

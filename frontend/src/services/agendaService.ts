@@ -38,6 +38,9 @@ export interface Agendamento {
     criadoEm: string
     atualizadoEm: string | null
     checkInEm: string | null
+    salaId: number | null
+    salaNome: string | null
+    salaTipoNome: string | null
 }
 
 export interface CriarAgendamentoPayload {
@@ -47,6 +50,7 @@ export interface CriarAgendamentoPayload {
     fimPrevisto: string
     tipoServico: string
     observacoes?: string | null
+    salaId?: number | null
 }
 
 export interface AtualizarAgendamentoPayload {
@@ -114,8 +118,13 @@ export const agendaService = {
         await httpClient.post(`/agendamentos/${id}/concluir`)
     },
 
-    async registrarCheckIn(id: number): Promise<void> {
-        await httpClient.post(`/agendamentos/${id}/checkin`)
+    async registrarCheckIn(id: number, salaId?: number | null): Promise<void> {
+        const body = salaId !== undefined ? { salaId } : undefined
+        await httpClient.post(`/agendamentos/${id}/checkin`, body)
+    },
+
+    async alocarSala(_estabId: number, agendamentoId: number, salaId: number | null): Promise<void> {
+        await httpClient.put(`/agendamentos/${agendamentoId}/sala`, { salaId })
     },
 
     async consultarDisponibilidade(

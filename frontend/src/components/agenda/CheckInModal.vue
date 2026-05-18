@@ -10,15 +10,20 @@
  * 5. Emite `checkin-realizado` em caso de sucesso; exibe erro 422 sem fechar.
  */
 import { computed, ref, watch } from "vue"
-import { AppButton, AppModal } from "@/components/ui"
+import { AppButton, AppField, AppModal, AppSelect } from "@/components/ui"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { formatDataHora, formatHora } from "@/utils/datetime"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
+import { salaService, type Sala } from "@/services/salaService"
+import { useTenantStore } from "@/stores/tenantStore"
+
+const tenant = useTenantStore()
 
 const props = defineProps<{
     aberto: boolean
     agendamento: Agendamento | null
+    outrosAgendamentosDoDia?: Agendamento[]
 }>()
 
 const emit = defineEmits<{
@@ -35,17 +40,67 @@ const executando = ref(false)
 // Controle do modal de edição do paciente
 const editarPacienteAberto = ref(false)
 
+// Salas ativas + seleção
+const salas = ref<Sala[]>([])
+const salasCarregadas = ref(false)
+const salaIdSel = ref<number | null>(null)
+
+async function garantirSalas() {
+    if (salasCarregadas.value) return
+    const estabId = tenant.estabelecimentoAtivoId
+    if (!estabId) return
+    try {
+        salas.value = await salaService.listar(estabId, true)
+        salasCarregadas.value = true
+    } catch {
+        // Não crítico — check-in funciona sem sala.
+    }
+}
+
+/** Pré-seleciona a última sala usada pelo profissional do agendamento no dia. */
+function sugerirSala(): number | null {
+    if (!props.agendamento) return null
+    if (props.agendamento.salaId != null) return props.agendamento.salaId
+    const profId = props.agendamento.profissionalUsuarioId
+    const candidatos = (props.outrosAgendamentosDoDia ?? [])
+        .filter(a =>
+            a.id !== props.agendamento!.id
+            && a.profissionalUsuarioId === profId
+            && a.salaId != null
+            && (a.status === "Concluido" || (a.status === "Confirmado" && a.checkInEm != null)),
+        )
+        .sort((a, b) => b.inicioPrevisto.localeCompare(a.inicioPrevisto))
+    return candidatos[0]?.salaId ?? null
+}
+
+/** Outro agendamento que já ocupa a sala selecionada no momento. */
+const ocupacao = computed(() => {
+    if (salaIdSel.value == null || !props.agendamento) return null
+    return (props.outrosAgendamentosDoDia ?? []).find(a =>
+        a.id !== props.agendamento!.id
+        && a.salaId === salaIdSel.value
+        && a.checkInEm != null
+        && a.status !== "Concluido"
+        && a.status !== "Cancelado",
+    ) ?? null
+})
+
 // Carrega o paciente ao abrir o modal
 watch(() => props.aberto, async (aberto) => {
     if (!aberto) {
         paciente.value = null
         erroCheckIn.value = null
         erroPaciente.value = null
+        salaIdSel.value = null
         return
     }
     if (!props.agendamento) return
     carregandoPaciente.value = true
     erroPaciente.value = null
+    // Carrega salas em paralelo com o paciente.
+    void garantirSalas().then(() => {
+        salaIdSel.value = sugerirSala()
+    })
     try {
         paciente.value = await pacienteService.obter(props.agendamento.pacienteId)
     } catch {
@@ -85,7 +140,7 @@ async function confirmarCheckIn() {
     executando.value = true
     erroCheckIn.value = null
     try {
-        await agendaService.registrarCheckIn(props.agendamento.id)
+        await agendaService.registrarCheckIn(props.agendamento.id, salaIdSel.value)
         emit("checkin-realizado")
     } catch (e: any) {
         erroCheckIn.value = e?.response?.data?.mensagem ?? "Erro ao registrar check-in."
@@ -185,6 +240,26 @@ function fechar() {
                 <div v-if="paciente.alertas && paciente.alertas.length" class="alertas-resumo">
                     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                     <span>{{ paciente.alertas.join(" · ") }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seleção de sala (opcional) -->
+        <div v-if="salasCarregadas && salas.length > 0" class="secao-sala">
+            <AppField label="Sala (opcional)">
+                <AppSelect v-model.number="salaIdSel">
+                    <option :value="null">— Sem sala —</option>
+                    <option v-for="s in salas" :key="s.id" :value="s.id">
+                        {{ s.nome }}<template v-if="s.tipoSalaNome"> · {{ s.tipoSalaNome }}</template>
+                    </option>
+                </AppSelect>
+            </AppField>
+            <div v-if="ocupacao" class="alerta-ocupacao">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                <div>
+                    <strong>Atenção:</strong>
+                    sala em uso por <strong>{{ ocupacao.pacienteNome }}</strong>
+                    (check-in às {{ formatHora(ocupacao.checkInEm!) }}). Você pode alocar mesmo assim.
                 </div>
             </div>
         </div>
@@ -384,6 +459,20 @@ function fechar() {
     font-size: 13px;
     margin: 0;
 }
+
+.secao-sala { display: flex; flex-direction: column; gap: 8px; }
+.alerta-ocupacao {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: hsl(45 96% 47% / 0.12);
+    border: 1px solid hsl(45 96% 47% / 0.35);
+    border-left: 3px solid hsl(45 96% 47%);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: hsl(35 90% 25%);
+}
+.alerta-ocupacao > i { font-size: 13px; margin-top: 2px; flex-shrink: 0; }
+.alerta-ocupacao strong { font-weight: 700; }
 
 @media (max-width: 540px) {
     .dados-paciente { grid-template-columns: 1fr; }

@@ -26,4 +26,7 @@ public class AgendamentoDto
     public DateTime CriadoEm { get; set; }
     public DateTime? AtualizadoEm { get; set; }
     public DateTime? CheckInEm { get; set; }
+    public long? SalaId { get; set; }
+    public string? SalaNome { get; set; }
+    public string? SalaTipoNome { get; set; }
 }

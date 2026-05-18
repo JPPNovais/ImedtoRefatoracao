@@ -35,6 +35,8 @@ import {
     type ListaEsperaPreferenciaPeriodo,
 } from "@/services/listaEsperaService"
 import { pacienteService, type PacienteListaItem, type PacienteBuscaRapida } from "@/services/pacienteService"
+import { salaService, type Sala } from "@/services/salaService"
+import { useTenantStore } from "@/stores/tenantStore"
 import type { ProfissionalPublico } from "@/services/vinculoService"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
 import { AppDatePicker } from "@/components/ui"
@@ -137,12 +139,25 @@ const detalhes = reactive({
     hora: "",
     motivo: "",
     observacoes: "",
+    salaId: null as number | null,
     lembreteWA: true,
     lembreteEmail: false,
     listaEspera: false,
     preferenciaPeriodo: "Qualquer" as ListaEsperaPreferenciaPeriodo,
     prioridade: "Rotina" as ListaEsperaPrioridade,
 })
+
+// ─── Salas ativas (P1.2 — pré-alocação) ───
+const tenant = useTenantStore()
+const salas = ref<Sala[]>([])
+
+async function garantirSalas() {
+    if (salas.value.length > 0) return
+    if (!tenant.estabelecimentoAtivoId) return
+    try {
+        salas.value = await salaService.listar(tenant.estabelecimentoAtivoId, true)
+    } catch { /* não crítico */ }
+}
 
 // ─── Helpers ───
 function reset() {
@@ -170,12 +185,14 @@ function reset() {
         hora: "",
         motivo: props.motivoPreSelecionado ?? "",
         observacoes: "",
+        salaId: null,
         lembreteWA: true,
         lembreteEmail: false,
         listaEspera: false,
         preferenciaPeriodo: "Qualquer",
         prioridade: "Rotina",
     })
+    void garantirSalas()
 }
 
 watch(() => props.aberto, (v) => { if (v) reset() })
@@ -375,6 +392,7 @@ async function confirmar() {
                 fimPrevisto: fim.toISOString(),
                 tipoServico: detalhes.tipo,
                 observacoes: detalhes.observacoes || null,
+                salaId: detalhes.salaId,
             }
             await agendaService.criar(payload)
             emit("criado", { listaEspera: false })
@@ -616,6 +634,16 @@ const profSelecionado = computed(() =>
                             <label>Tipo de atendimento <em>*</em></label>
                             <select v-model="detalhes.tipo">
                                 <option v-for="t in TIPOS_CONSULTA" :key="t.v" :value="t.v">{{ t.l }}</option>
+                            </select>
+                        </div>
+
+                        <div v-if="!detalhes.listaEspera && salas.length > 0" class="field-group">
+                            <label>Sala <span class="opt">opcional</span></label>
+                            <select v-model.number="detalhes.salaId">
+                                <option :value="null">— Sem sala —</option>
+                                <option v-for="s in salas" :key="s.id" :value="s.id">
+                                    {{ s.nome }}<template v-if="s.tipoSalaNome"> · {{ s.tipoSalaNome }}</template>
+                                </option>
                             </select>
                         </div>
 

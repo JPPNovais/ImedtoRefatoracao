@@ -6,13 +6,13 @@ using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Application.Agendamentos.Commands;
 
-public class RegistrarCheckInAgendamentoCommandHandler : ICommandHandler<RegistrarCheckInAgendamentoCommand>
+public class AlocarSalaAgendamentoCommandHandler : ICommandHandler<AlocarSalaAgendamentoCommand>
 {
     private readonly IAgendamentoRepository _agendamentoRepo;
     private readonly ISalaRepository _salaRepo;
     private readonly IAgendamentoSalaAuditRepository _auditRepo;
 
-    public RegistrarCheckInAgendamentoCommandHandler(
+    public AlocarSalaAgendamentoCommandHandler(
         IAgendamentoRepository agendamentoRepo,
         ISalaRepository salaRepo,
         IAgendamentoSalaAuditRepository auditRepo)
@@ -22,7 +22,7 @@ public class RegistrarCheckInAgendamentoCommandHandler : ICommandHandler<Registr
         _auditRepo = auditRepo;
     }
 
-    public async Task Handle(RegistrarCheckInAgendamentoCommand cmd)
+    public async Task Handle(AlocarSalaAgendamentoCommand cmd)
     {
         // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
         var agendamento = await _agendamentoRepo.ObterPorIdOuNulo(cmd.AgendamentoId, cmd.EstabelecimentoId)
@@ -37,13 +37,10 @@ public class RegistrarCheckInAgendamentoCommandHandler : ICommandHandler<Registr
         }
 
         var salaIdAnterior = agendamento.SalaId;
-        agendamento.RegistrarCheckIn();
-        if (cmd.SalaId.HasValue)
-            agendamento.AlocarSala(cmd.SalaId);
-
+        agendamento.AlocarSala(cmd.SalaId);
         await _agendamentoRepo.Salvar(agendamento);
 
-        if (cmd.SalaId.HasValue && salaIdAnterior != cmd.SalaId)
+        if (salaIdAnterior != cmd.SalaId)
         {
             await _auditRepo.Registrar(AgendamentoSalaAudit.Registrar(
                 agendamento.Id,

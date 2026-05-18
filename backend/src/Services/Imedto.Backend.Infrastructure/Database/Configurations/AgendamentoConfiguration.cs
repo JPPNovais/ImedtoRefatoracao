@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Salas;
 
 namespace Imedto.Backend.Infrastructure.Database.Configurations;
 
@@ -31,6 +32,7 @@ public class AgendamentoConfiguration : IEntityTypeConfiguration<Agendamento>
         builder.Property(a => a.CheckInEm).HasColumnName("check_in_em");
         builder.Property(a => a.LembretePorEmailEnviado).HasColumnName("lembrete_por_email_enviado")
             .IsRequired().HasDefaultValue(false);
+        builder.Property(a => a.SalaId).HasColumnName("sala_id");
 
         builder.HasIndex(a => new { a.EstabelecimentoId, a.InicioPrevisto })
             .HasDatabaseName("ix_agendamentos_estab_inicio");
@@ -38,6 +40,7 @@ public class AgendamentoConfiguration : IEntityTypeConfiguration<Agendamento>
             .HasDatabaseName("ix_agendamentos_prof_inicio");
         builder.HasIndex(a => new { a.PacienteId, a.InicioPrevisto })
             .HasDatabaseName("ix_agendamentos_paciente_inicio");
+        builder.HasIndex(a => a.SalaId).HasDatabaseName("ix_agendamentos_sala");
 
         builder.HasOne<Domain.Estabelecimentos.Estabelecimento>()
             .WithMany()
@@ -50,5 +53,11 @@ public class AgendamentoConfiguration : IEntityTypeConfiguration<Agendamento>
             .HasForeignKey(a => a.PacienteId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_agendamento_paciente");
+
+        builder.HasOne<Sala>()
+            .WithMany()
+            .HasForeignKey(a => a.SalaId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_agendamento_sala");
     }
 }
