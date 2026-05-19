@@ -6,7 +6,7 @@
  * não é reescrito.
  */
 import { reactive, ref, onMounted, watch } from "vue"
-import { AppTabs, AppEmptyState, AppButton, AppField, AppInput, AppSelect, AppStatusPill } from "@/components/ui"
+import { AppTabs, AppEmptyState, AppButton, AppField, AppInput, AppSelect, AppStatusPill, AppToast } from "@/components/ui"
 import { formatarMoedaBrl } from "@/utils/format"
 import {
     orcamentoCatalogoService,
@@ -42,6 +42,12 @@ const salvandoLocal = reactive<Record<TipoLocalCirurgiaCatalogo, boolean>>({
     IntLocal: false, IntPeridural: false, IntGeral: false, SemInternacao: false, Ambulatorio: false,
 })
 
+// Toast (substitui window.alert).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+
 function hidratarFormularioLocal() {
     for (const l of locais.value) {
         formularioLocal[l.tipoLocal] = {
@@ -65,8 +71,9 @@ async function salvarLocal(tipo: TipoLocalCirurgiaCatalogo) {
         })
         const novos = await orcamentoCatalogoService.listarLocais()
         locais.value = novos
+        notificar("Configuração de local cirúrgico salva.", "success")
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao salvar configuração de local.")
+        notificar(e?.response?.data?.mensagem ?? "Erro ao salvar configuração de local.", "error")
     } finally {
         salvandoLocal[tipo] = false
     }
@@ -210,6 +217,13 @@ onMounted(carregarTudo)
             <AppEmptyState v-else icone="fa-solid fa-credit-card" titulo="Nenhuma configuração de pagamento"
                 descricao="Configure descontos e parcelamento por forma de pagamento no formulário antigo até a migração." />
         </div>
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

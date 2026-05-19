@@ -5,3 +5,5 @@
 - [Foto do estabelecimento + integração nos PDFs](project_foto_estabelecimento_pdfs.md) — endpoints upload/delete, cache de logo em PDFs, AppPhotoUpload, gap permissão dono vs `config_estabelecimento`.
 - [Salas: alocação P0+P1](project_salas_alocacao_p1.md) — AlocarSalaModal + CheckInModal com pré-sugestão + chip nas linhas + filtro Agenda + Desativar/Reativar em Repartições.
 - [Prontuário 5 abas (2026-05-18)](project_prontuario_5_abas_2026_05_18.md) — aba "exame" sumiu; mapa corporal vive em SecaoExameFisico; novas abas Atestado e Pedidos-exame.
+- [Orçamento — paridade com legado (2026-05-18)](project_orcamento_paridade_legado_2026_05_18.md) — internação substituída por LocalCirurgia (5 tipos), consolidação de produtos no back, OrcamentoFormView reescrita, novas permissões aprovar/configurar.
+- [Foto profissional — propagação 7 superfícies (2026-05-18)](project_foto_profissional_propagacao.md) — AppAvatar + AppAvatarSelect novos no design system, DELETE /me/foto, PDFs ficaram de fora (decisão registrada).

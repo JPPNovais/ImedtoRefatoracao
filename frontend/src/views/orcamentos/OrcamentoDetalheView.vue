@@ -5,6 +5,8 @@ import { orcamentoService, type Orcamento } from "@/services/orcamentoService"
 import { useOrcamentoPdf } from "@/composables/useOrcamentoPdf"
 import { AppButton, AppCard } from "@/components/ui"
 import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
+import { formatData, formatDataHora } from "@/utils/datetime"
+import { labelTipoLocalCirurgia } from "@/utils/orcamentoLabels"
 
 const { gerarPdf } = useOrcamentoPdf()
 
@@ -73,7 +75,8 @@ async function baixarPdf() {
 }
 
 function fmtBRL(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
-function fmtData(s: string) { return new Date(s + "T00:00:00").toLocaleDateString("pt-BR") }
+/** Validade vem do backend como DateOnly ("YYYY-MM-DD") — concatena T00:00:00 pra evitar drift de fuso. */
+function fmtDataOnly(s: string) { return formatData(s + "T00:00:00") }
 
 function editar() {
     router.push({ name: "OrcamentoForm", params: { id: String(orcamentoId) } })
@@ -170,8 +173,8 @@ onMounted(carregar)
                         <dl class="meta-grid">
                             <div><dt>Paciente</dt><dd>{{ orcamento.pacienteNome }}</dd></div>
                             <div><dt>Número</dt><dd>{{ orcamento.numero || "—" }}</dd></div>
-                            <div><dt>Validade</dt><dd>{{ fmtData(orcamento.validade) }}</dd></div>
-                            <div><dt>Criado em</dt><dd>{{ fmtData(orcamento.criadoEm) }}</dd></div>
+                            <div><dt>Validade</dt><dd>{{ fmtDataOnly(orcamento.validade) }}</dd></div>
+                            <div><dt>Criado em</dt><dd>{{ formatDataHora(orcamento.criadoEm) }}</dd></div>
                             <div><dt>Criado por</dt><dd>{{ orcamento.criadoPorNome }}</dd></div>
                             <div v-if="orcamento.procedimentoCirurgicoId">
                                 <dt>Cirurgia vinculada</dt>
@@ -247,7 +250,7 @@ onMounted(carregar)
                             <div v-if="orcamento.localCirurgia">
                                 <dt>Local cirúrgico</dt>
                                 <dd>
-                                    {{ orcamento.localCirurgia.tipo }}
+                                    {{ labelTipoLocalCirurgia(orcamento.localCirurgia.tipo) }}
                                     ({{ orcamento.localCirurgia.tempoMinutos }} min
                                     = {{ fmtBRL(orcamento.localCirurgia.valor) }})
                                 </dd>

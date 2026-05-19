@@ -21,8 +21,14 @@ function diasEntre(a: string, b: string) {
 
 function fmtBRL(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
 
+/**
+ * Aceita tanto DateOnly ("YYYY-MM-DD" — ex: validade) quanto DateTime ISO completo
+ * (ex: criadoEm). Para DateOnly concatenamos T00:00:00 pra evitar drift de fuso.
+ */
 function fmtDataCurta(s: string) {
-    const dt = new Date(s + "T00:00:00")
+    if (!s) return "—"
+    const dt = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + "T00:00:00") : new Date(s)
+    if (Number.isNaN(dt.getTime())) return "—"
     return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
 }
 

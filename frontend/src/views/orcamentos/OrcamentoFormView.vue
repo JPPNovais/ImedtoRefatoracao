@@ -532,7 +532,7 @@ function validar(): string | null {
         return "Selecione a cirurgia em todas as linhas adicionadas."
     if (!validade.value) return "Informe a validade."
     if (!integridadeOk.value && formas.value.length > 0)
-        return `Soma das formas de pagamento difere do total em R$ ${diferenca.value.toFixed(2)}.`
+        return `Soma das formas de pagamento difere do total em ${fmt(diferenca.value)}.`
     return null
 }
 
