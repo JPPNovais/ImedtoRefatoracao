@@ -1,7 +1,18 @@
 <script setup lang="ts">
 /**
- * OrcamentoFormView — edição de orçamento.
- * Layout: coluna principal (abas) + sidebar sticky de resumo com desconto inline.
+ * OrcamentoFormView — formulário paritário com o legado (Budgets.vue do Imedto/Vue+Supabase).
+ *
+ * Modos:
+ * - `OrcamentoNovo` (rota `/orcamentos/novo`): form em branco. POST só no salvar (CA-1).
+ * - `OrcamentoForm` (rota `/orcamentos/:id/editar`): carrega o orçamento existente.
+ *
+ * Estrutura (paridade): paciente + título + validade → cirurgias (com tempo) →
+ * produtos consolidados (chamada ao backend) → profissionais (catálogo) →
+ * equipes especializadas → implantes → local cirúrgico (5 opções) → anestesia →
+ * formas de pagamento (com indicador de diferença).
+ *
+ * Regras de negócio (cálculos, consolidação, validações) vivem no backend —
+ * este arquivo só monta payload e renderiza preview.
  */
 import { ref, computed, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
@@ -12,9 +23,10 @@ import {
     type OrcamentoImplante,
     type OrcamentoFormaPagamento,
     type OrcamentoCirurgia,
-    type OrcamentoInternacao,
     type OrcamentoAnestesia,
     type PreviewOrcamentoPayload,
+    type ProdutoConsolidado,
+    type TipoLocalCirurgia,
 } from "@/services/orcamentoService"
 import { usePreviewOrcamento } from "@/composables/usePreviewOrcamento"
 import {
@@ -23,11 +35,14 @@ import {
     type ValorProfissionalOrcamentoCatalogo,
     type CatalogoEquipe,
     type CatalogoImplante,
-    type ConfiguracaoPagamentoCatalogo,
+    type ConfiguracaoLocalCirurgia,
 } from "@/services/orcamentoCatalogoService"
 import { formaPagamentoService, type FormaPagamento } from "@/services/categoriaFinanceiraService"
+import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
+import { pacienteService, type PacienteBuscaRapida } from "@/services/pacienteService"
+import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
-    AppButton, AppTabs, AppCard,
+    AppButton, AppCard,
     AppField, AppInput, AppDatePicker, AppTextarea, AppSelect,
 } from "@/components/ui"
 import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
@@ -35,250 +50,531 @@ import OrcamentoResumoSidebar from "@/components/orcamento/OrcamentoResumoSideba
 
 const route = useRoute()
 const router = useRouter()
-const orcamentoId = Number(route.params.id)
 
-const orcamento = ref<Orcamento | null>(null)
+// Modo de operação: "criar" → POST no submit; "editar" → PUT no submit.
+const modo = computed<"criar" | "editar">(() => route.name === "OrcamentoNovo" ? "criar" : "editar")
+const orcamentoIdEditar = computed<number | null>(() =>
+    modo.value === "editar" ? Number(route.params.id) : null)
+
+// Quando vier de uma ficha de agendamento, ?agendamentoId=X&pacienteId=Y são pré-preenchidos.
+const agendamentoIdInicial = computed<number | null>(() => {
+    const v = route.query.agendamentoId
+    return v ? Number(v) : null
+})
+const pacienteIdInicial = computed<number | null>(() => {
+    const v = route.query.pacienteId
+    return v ? Number(v) : null
+})
+
+// ── Estado do form (criar ou editar — mesmo formato) ────────────────────────
+const orcamentoCarregado = ref<Orcamento | null>(null) // só em modo "editar"
 const carregando = ref(false)
 const salvando = ref(false)
 const erro = ref<string | null>(null)
 
-// Catálogos
-const catCirurgias   = ref<CatalogoCirurgia[]>([])
-const catValores     = ref<ValorProfissionalOrcamentoCatalogo[]>([])
-const catEquipes     = ref<CatalogoEquipe[]>([])
-const catImplantes   = ref<CatalogoImplante[]>([])
-const catConfigsPgto = ref<ConfiguracaoPagamentoCatalogo[]>([])
-const formasPagamento = ref<FormaPagamento[]>([])
-
-// Estado editável
-const validade      = ref("")
-const observacoes   = ref("")
+// Cabeçalho
+const pacienteId  = ref<number | null>(null)
+const pacienteNome = ref<string>("")
+const titulo      = ref<string>("")
+const validade    = ref<string>(formatarHoje(30))
+const observacoes = ref<string>("")
 const procedimentoCirurgicoId = ref<number | null>(null)
+const agendamentoId = ref<number | null>(null)
 
-const cirurgias  = ref<OrcamentoCirurgia[]>([])
-const equipe     = ref<OrcamentoEquipe[]>([])
-const implantes  = ref<OrcamentoImplante[]>([])
-const formas     = ref<OrcamentoFormaPagamento[]>([])
-const internacao = ref<OrcamentoInternacao | null>(null)
-const anestesia  = ref<OrcamentoAnestesia | null>(null)
+// Cirurgias (com tempo)
+interface CirurgiaForm {
+    catalogoId: number          // 0 = não selecionada
+    descricao: string
+    quantidade: number
+    duracaoMinutos: number
+    valor: number
+}
+const cirurgias = ref<CirurgiaForm[]>([])
+const tempoEditadoManualmente = ref(false)
+const tempoCirurgiaMinutosManual = ref(0)
 
-// Desconto (só frontend — o preview do back não inclui desconto livre, mas o atualizar aceita itens)
-// Nota: desconto é calculado client-side para display; totalGeral vem do preview do servidor.
-const desconto     = ref(0)
-const tipoDesconto = ref<"valor" | "percentual">("valor")
+// Produtos consolidados (vem do backend após selecionar cirurgias)
+const produtosConsolidados = ref<ProdutoConsolidado[]>([])
+const carregandoProdutos = ref(false)
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-type AbaKey = "paciente" | "cirurgias" | "equipeImplantes" | "pagamento"
-const aba = ref<AbaKey>("paciente")
-const abas = [
-    { valor: "paciente",        label: "Paciente",           icone: "fa-solid fa-user" },
-    { valor: "cirurgias",       label: "Cirurgias",          icone: "fa-solid fa-scalpel" },
-    { valor: "equipeImplantes", label: "Equipe & implantes", icone: "fa-solid fa-users" },
-    { valor: "pagamento",       label: "Local & pagamento",  icone: "fa-solid fa-credit-card" },
+// Profissionais (catálogo de valor profissional)
+interface ProfissionalForm {
+    valorProfissionalId: number   // 0 = não selecionado
+    funcao: string
+    profissionalNome: string
+    profissionalUsuarioId: string | null
+    tempoBaseMinutos: number
+    valorTempoBase: number
+    tempoAdicionalMinutos: number
+    valorAdicional: number
+    valorPlus: number
+    tempoCustomMinutos: number   // pode divergir do tempo da cirurgia
+    quantidade: number
+    valorCalculado: number       // vem do preview
+}
+const profissionais = ref<ProfissionalForm[]>([])
+
+// Equipes especializadas (catálogo legado)
+interface EquipeForm { catalogoId: number; descricao: string; quantidade: number; valorUnitario: number }
+const equipes = ref<EquipeForm[]>([])
+
+// Implantes
+interface ImplanteForm { catalogoId: number; descricao: string; quantidade: number; valorUnitario: number }
+const implantes = ref<ImplanteForm[]>([])
+
+// Local cirúrgico
+const localTipo = ref<TipoLocalCirurgia | null>(null)
+const valorLocalSnapshot = ref(0)  // vem do preview
+
+// Anestesia (1:1 — opcional)
+const anestesia = ref<OrcamentoAnestesia | null>(null)
+const TIPOS_ANESTESIA = ["Local", "Sedacao", "Geral", "Raquianestesia", "Peridural", "Bloqueio"]
+
+// Formas de pagamento
+const formas = ref<OrcamentoFormaPagamento[]>([])
+
+// ── Catálogos do estabelecimento ────────────────────────────────────────────
+const catCirurgias  = ref<CatalogoCirurgia[]>([])
+const catValores    = ref<ValorProfissionalOrcamentoCatalogo[]>([])
+const catEquipes    = ref<CatalogoEquipe[]>([])
+const catImplantes  = ref<CatalogoImplante[]>([])
+const catLocais     = ref<ConfiguracaoLocalCirurgia[]>([])
+const formasPagamento = ref<FormaPagamento[]>([])
+const profissionaisPublicos = ref<ProfissionalPublico[]>([])
+
+// Paciente (modo criar — busca rápida)
+const buscaPacienteInput = ref("")
+const buscaPaciente = useDebouncedRef(buscaPacienteInput)
+const pacientesEncontrados = ref<PacienteBuscaRapida[]>([])
+const buscandoPaciente = ref(false)
+let pacBuscaReqId = 0
+
+watch(buscaPaciente, (termo) => {
+    if (modo.value !== "criar") return
+    void buscarPacientes(termo)
+})
+
+async function buscarPacientes(termo: string | undefined) {
+    const reqId = ++pacBuscaReqId
+    buscandoPaciente.value = true
+    try {
+        const r = await pacienteService.buscaRapida(termo || undefined, 30)
+        if (reqId === pacBuscaReqId) pacientesEncontrados.value = r
+    } catch {
+        if (reqId === pacBuscaReqId) pacientesEncontrados.value = []
+    } finally {
+        if (reqId === pacBuscaReqId) buscandoPaciente.value = false
+    }
+}
+
+function onSelecionarPaciente(id: number) {
+    pacienteId.value = id
+    const p = pacientesEncontrados.value.find(x => x.id === id)
+    pacienteNome.value = p?.nomeCompleto ?? ""
+}
+
+// ── Tempo total da cirurgia (sum automático com override manual) ───────────
+const tempoAutoMinutos = computed(() =>
+    cirurgias.value.reduce((acc, c) => acc + (c.duracaoMinutos * c.quantidade), 0)
+)
+const tempoFinalMinutos = computed(() =>
+    tempoEditadoManualmente.value ? tempoCirurgiaMinutosManual.value : tempoAutoMinutos.value
+)
+
+watch(tempoAutoMinutos, (n) => {
+    if (!tempoEditadoManualmente.value) tempoCirurgiaMinutosManual.value = n
+})
+
+function onEditarTempoManual(minutos: number) {
+    tempoCirurgiaMinutosManual.value = Math.max(0, Math.round(minutos))
+    tempoEditadoManualmente.value = tempoCirurgiaMinutosManual.value !== tempoAutoMinutos.value
+}
+function resetarTempo() {
+    tempoEditadoManualmente.value = false
+    tempoCirurgiaMinutosManual.value = tempoAutoMinutos.value
+}
+
+// ── Cirurgias (handlers) ────────────────────────────────────────────────────
+function adicionarCirurgia() {
+    cirurgias.value.push({ catalogoId: 0, descricao: "", quantidade: 1, duracaoMinutos: 0, valor: 0 })
+}
+function removerCirurgia(idx: number) { cirurgias.value.splice(idx, 1) }
+function onSelecionarCatCirurgia(idx: number, id: number) {
+    const c = catCirurgias.value.find(x => x.id === id)
+    if (!c) return
+    const item = cirurgias.value[idx]
+    item.catalogoId = id
+    item.descricao = c.descricao
+    item.duracaoMinutos = c.duracaoPadraoMinutos ?? 0
+    item.valor = c.valorBase
+}
+
+const cirurgiasSelecionadasIds = computed(() => cirurgias.value.map(c => c.catalogoId).filter(Boolean))
+function catalogoDisponivel(idCatalogo: number, idxAtual: number): boolean {
+    const atual = cirurgias.value[idxAtual]?.catalogoId
+    if (idCatalogo === atual) return true
+    return !cirurgiasSelecionadasIds.value.includes(idCatalogo)
+}
+
+// ── Consolidação de produtos (chamada ao backend, debounce ~300ms) ─────────
+let consolidaTimer: ReturnType<typeof setTimeout> | null = null
+let consolidaReqId = 0
+async function consolidarProdutos() {
+    const cirs = cirurgias.value
+        .filter(c => c.catalogoId > 0 && c.quantidade > 0)
+        .map(c => ({ catalogoCirurgiaId: c.catalogoId, quantidade: c.quantidade }))
+    if (cirs.length === 0) {
+        produtosConsolidados.value = []
+        return
+    }
+    const reqId = ++consolidaReqId
+    carregandoProdutos.value = true
+    try {
+        const r = await orcamentoService.consolidarProdutos(cirs)
+        if (reqId === consolidaReqId) produtosConsolidados.value = r
+    } catch {
+        if (reqId === consolidaReqId) produtosConsolidados.value = []
+    } finally {
+        if (reqId === consolidaReqId) carregandoProdutos.value = false
+    }
+}
+watch(() => cirurgias.value.map(c => `${c.catalogoId}:${c.quantidade}`).join(","), () => {
+    if (consolidaTimer) clearTimeout(consolidaTimer)
+    consolidaTimer = setTimeout(consolidarProdutos, 300)
+})
+
+// ── Profissionais ───────────────────────────────────────────────────────────
+function adicionarProfissional() {
+    profissionais.value.push({
+        valorProfissionalId: 0, funcao: "", profissionalNome: "", profissionalUsuarioId: null,
+        tempoBaseMinutos: 0, valorTempoBase: 0,
+        tempoAdicionalMinutos: 0, valorAdicional: 0, valorPlus: 0,
+        tempoCustomMinutos: tempoFinalMinutos.value, quantidade: 1, valorCalculado: 0,
+    })
+}
+function removerProfissional(idx: number) { profissionais.value.splice(idx, 1) }
+function onSelecionarValorProfissional(idx: number, id: number) {
+    const v = catValores.value.find(x => x.id === id)
+    if (!v) return
+    const prof = profissionais.value[idx]
+    prof.valorProfissionalId = id
+    prof.funcao = v.funcao
+    prof.profissionalUsuarioId = v.profissionalUsuarioId
+    prof.profissionalNome = v.profissionalNome ?? v.funcao
+    prof.tempoBaseMinutos = v.tempoBaseMinutos
+    prof.valorTempoBase = Number(v.valorTempoBase)
+    prof.tempoAdicionalMinutos = v.tempoAdicionalMinutos
+    prof.valorAdicional = Number(v.valorAdicional)
+    prof.valorPlus = Number(v.valorPlus)
+    prof.tempoCustomMinutos = tempoFinalMinutos.value
+}
+
+// ── Equipes especializadas (catálogo legado) ───────────────────────────────
+function adicionarEquipe() {
+    equipes.value.push({ catalogoId: 0, descricao: "", quantidade: 1, valorUnitario: 0 })
+}
+function removerEquipe(idx: number) { equipes.value.splice(idx, 1) }
+function onSelecionarEquipe(idx: number, id: number) {
+    const e = catEquipes.value.find(x => x.id === id)
+    if (!e) return
+    equipes.value[idx].catalogoId = id
+    equipes.value[idx].descricao = e.descricao
+    equipes.value[idx].valorUnitario = Number(e.valorPadrao)
+}
+
+// ── Implantes ───────────────────────────────────────────────────────────────
+function adicionarImplante() {
+    implantes.value.push({ catalogoId: 0, descricao: "", quantidade: 1, valorUnitario: 0 })
+}
+function removerImplante(idx: number) { implantes.value.splice(idx, 1) }
+function onSelecionarImplante(idx: number, id: number) {
+    const i = catImplantes.value.find(x => x.id === id)
+    if (!i) return
+    implantes.value[idx].catalogoId = id
+    implantes.value[idx].descricao = i.descricao
+    implantes.value[idx].valorUnitario = Number(i.custoUnitario)
+}
+
+// ── Local cirúrgico (5 opções) ──────────────────────────────────────────────
+interface OpcaoLocal { tipo: TipoLocalCirurgia; label: string; descricao: string; comInternacao: boolean }
+const OPCOES_LOCAL: OpcaoLocal[] = [
+    { tipo: "IntLocal",      label: "Anestesia Local + Sedação",   descricao: "Com Internação", comInternacao: true },
+    { tipo: "IntPeridural",  label: "Peridural/Raqui + Sedação",   descricao: "Com Internação", comInternacao: true },
+    { tipo: "IntGeral",      label: "Anestesia Geral + TOT",        descricao: "Com Internação", comInternacao: true },
+    { tipo: "SemInternacao", label: "Anestesia Local",              descricao: "Sem Internação", comInternacao: false },
+    { tipo: "Ambulatorio",   label: "Anestesia Local",              descricao: "Ambulatório",    comInternacao: false },
 ]
 
-// ── Forms de adição ───────────────────────────────────────────────────────────
-const novaCirurgia = ref({ catalogoId: 0, descricao: "", quantidade: 1, duracaoMinutos: null as number | null, valorUnitario: 0 })
-const novoMembro   = ref({ catalogoValorId: 0, profissionalUsuarioId: "", papel: "Cirurgião", valor: 0 })
-const novoImplante = ref({ catalogoId: 0, descricao: "", quantidade: 1, custoUnitario: 0 })
-const novaEquipeEsp = ref({ catalogoId: 0, descricao: "", valor: 0 })
-const novaForma    = ref({ formaPagamentoId: 0, valor: 0, parcelas: 1, acrescimoPercentual: 0, entradaPercentual: 0 })
+function configLocalPorTipo(tipo: TipoLocalCirurgia): ConfiguracaoLocalCirurgia | undefined {
+    return catLocais.value.find(c => c.tipoLocal === tipo)
+}
 
-const TIPOS_INTERNACAO = ["Apartamento", "Enfermaria", "UTI", "Ambulatorial"]
-const TIPOS_ANESTESIA  = ["Local", "Sedacao", "Geral", "Raquianestesia", "Peridural", "Bloqueio"]
+function selecionarLocal(tipo: TipoLocalCirurgia) {
+    localTipo.value = localTipo.value === tipo ? null : tipo
+}
 
-// ── Preview (totais do servidor) ──────────────────────────────────────────────
+// ── Anestesia (1:1 opcional) ────────────────────────────────────────────────
+function alternarAnestesia() {
+    anestesia.value = anestesia.value
+        ? null
+        : { tipoAnestesia: "Local", valor: 0, observacao: null }
+}
+
+// ── Formas de pagamento ────────────────────────────────────────────────────
+function adicionarForma() {
+    formas.value.push({ formaPagamentoId: 0, valor: 0, parcelas: 1, acrescimoPercentual: 0, entradaPercentual: 0, observacao: null })
+}
+function removerForma(idx: number) { formas.value.splice(idx, 1) }
+function onSelecionarFormaCatalogo(idx: number, id: number) {
+    const fp = formasPagamento.value.find(x => x.id === id)
+    if (!fp) return
+    formas.value[idx].formaPagamentoId = id
+    formas.value[idx].formaPagamentoNome = fp.nome
+}
+
+// Distribui o "resto" para zerar a diferença na última forma adicionada.
+function distribuirRestoNaUltimaForma() {
+    if (formas.value.length === 0) return
+    const ultima = formas.value[formas.value.length - 1]
+    const novoValor = Number(ultima.valor) + Number(diferenca.value)
+    ultima.valor = Math.max(0, Math.round(novoValor * 100) / 100)
+}
+
+// ── Preview payload (sempre reativo) ───────────────────────────────────────
 const previewPayload = computed<PreviewOrcamentoPayload>(() => ({
-    itens: orcamento.value?.itens ?? [],
-    equipe: equipe.value.map(e => ({ profissionalUsuarioId: e.profissionalUsuarioId, papel: e.papel, valor: Number(e.valor) })),
-    implantes: implantes.value.map(i => ({ itemInventarioId: i.itemInventarioId, descricao: i.descricao, quantidade: Number(i.quantidade), custoUnitario: Number(i.custoUnitario) })),
-    formasPagamento: formas.value.map(f => ({
-        formaPagamentoId: f.formaPagamentoId, valor: Number(f.valor), parcelas: Number(f.parcelas),
-        acrescimoPercentual: Number(f.acrescimoPercentual), entradaPercentual: Number(f.entradaPercentual), observacao: f.observacao,
-    })),
-    cirurgias: cirurgias.value.map(c => ({ procedimentoCirurgicoId: c.procedimentoCirurgicoId, descricao: c.descricao, quantidade: Number(c.quantidade), duracaoMinutos: c.duracaoMinutos, valorTotal: Number(c.valorTotal) })),
-    internacao: internacao.value ? { tipo: internacao.value.tipoInternacao, dias: Number(internacao.value.dias), valorDiaria: Number(internacao.value.valorDiaria) } : null,
-    anestesia:  anestesia.value  ? { tipo: anestesia.value.tipoAnestesia, valor: Number(anestesia.value.valor), observacao: anestesia.value.observacao } : null,
+    itens: orcamentoCarregado.value?.itens ?? [],
+    equipe: equipes.value
+        .filter(e => e.catalogoId > 0)
+        .map(e => ({
+            profissionalUsuarioId: "00000000-0000-0000-0000-000000000000",
+            papel: e.descricao,
+            valor: e.quantidade * e.valorUnitario,
+        })),
+    implantes: implantes.value
+        .filter(i => i.catalogoId > 0 || i.descricao)
+        .map(i => ({
+            itemInventarioId: null,
+            descricao: i.descricao,
+            quantidade: i.quantidade,
+            custoUnitario: i.valorUnitario,
+        })),
+    formasPagamento: formas.value
+        .filter(f => f.formaPagamentoId > 0)
+        .map(f => ({
+            formaPagamentoId: f.formaPagamentoId, valor: Number(f.valor), parcelas: Number(f.parcelas),
+            acrescimoPercentual: Number(f.acrescimoPercentual), entradaPercentual: Number(f.entradaPercentual),
+            observacao: f.observacao ?? null,
+        })),
+    cirurgias: cirurgias.value
+        .filter(c => c.catalogoId > 0)
+        .map(c => ({
+            procedimentoCirurgicoId: null,
+            descricao: c.descricao,
+            quantidade: c.quantidade,
+            duracaoMinutos: c.duracaoMinutos,
+            valorTotal: c.valor * c.quantidade,
+        })),
+    localCirurgia: localTipo.value
+        ? { tipo: localTipo.value, tempoMinutos: tempoFinalMinutos.value }
+        : null,
+    anestesia: anestesia.value
+        ? { tipo: anestesia.value.tipoAnestesia, valor: Number(anestesia.value.valor), observacao: anestesia.value.observacao }
+        : null,
+    equipeComCatalogo: profissionais.value
+        .filter(p => p.valorProfissionalId > 0)
+        .map(p => ({
+            valorProfissionalId: p.valorProfissionalId,
+            quantidade: p.quantidade,
+            tempoMinutos: p.tempoCustomMinutos,
+        })),
 }))
 
 const { preview, carregando: calculando } = usePreviewOrcamento(previewPayload)
 
-const totalCirurgias = computed(() => preview.value?.totalCirurgias ?? 0)
-const totalEquipe    = computed(() => preview.value?.totalEquipe    ?? 0)
-const totalImplantes = computed(() => preview.value?.totalImplantes ?? 0)
-const totalInternacao= computed(() => preview.value?.totalInternacao?? 0)
-const totalAnestesia = computed(() => preview.value?.totalAnestesia ?? 0)
-const subtotalPreview= computed(() => preview.value?.totalGeral     ?? 0)
-const somaFormas     = computed(() => preview.value?.somaFormas     ?? 0)
-const diferenca      = computed(() => preview.value?.diferenca      ?? 0)
-const integridadeOk  = computed(() => preview.value?.integridadeOk  ?? true)
+// Aplica valores calculados de equipe vindos do preview (read-only no input).
+watch(() => preview.value?.equipes, (eqs) => {
+    if (!eqs) return
+    for (const calc of eqs) {
+        const p = profissionais.value.find(p => p.valorProfissionalId === calc.valorProfissionalId)
+        if (p) p.valorCalculado = calc.valorUnitario
+    }
+}, { deep: true })
 
-// Desconto aplicado
-const descontoValor  = computed(() => tipoDesconto.value === "percentual"
-    ? subtotalPreview.value * (desconto.value / 100)
-    : desconto.value
+// Aplica snapshot do local cirúrgico.
+watch(() => preview.value?.totalLocal, (v) => { valorLocalSnapshot.value = v ?? 0 })
+
+// ── Totais derivados ───────────────────────────────────────────────────────
+const totalCirurgias  = computed(() => preview.value?.totalCirurgias ?? 0)
+const totalEquipes    = computed(() => preview.value?.totalEquipe ?? 0)
+const totalImplantes  = computed(() => preview.value?.totalImplantes ?? 0)
+const totalLocal      = computed(() => preview.value?.totalLocal ?? 0)
+const totalAnestesia  = computed(() => preview.value?.totalAnestesia ?? 0)
+const totalProdutos = computed(() =>
+    produtosConsolidados.value.reduce((acc, p) => acc + p.subtotal, 0)
 )
+// Subtotal exibido na sidebar = soma dos componentes do orçamento. Produtos
+// consolidados não fazem parte do payload (são insumos das cirurgias).
+const subtotalPreview = computed(() => preview.value?.totalGeral ?? 0)
+const somaFormas      = computed(() => preview.value?.somaFormas ?? 0)
+const diferenca       = computed(() => preview.value?.diferenca ?? 0)
+const integridadeOk   = computed(() => preview.value?.integridadeOk ?? true)
+
+// Desconto inline (apenas display — o backend não aceita desconto livre no aggregate).
+const desconto     = ref(0)
+const tipoDesconto = ref<"valor" | "percentual">("valor")
+const descontoValor = computed(() => tipoDesconto.value === "percentual"
+    ? subtotalPreview.value * (desconto.value / 100)
+    : desconto.value)
 const totalComDesconto = computed(() => Math.max(0, subtotalPreview.value - descontoValor.value))
 
-// ── Watchers auto-cálculo internação ─────────────────────────────────────────
-watch(() => internacao.value?.dias, (d) => {
-    if (internacao.value && d) internacao.value.valorTotal = Number(d) * Number(internacao.value.valorDiaria)
-})
-watch(() => internacao.value?.valorDiaria, (vd) => {
-    if (internacao.value && vd != null) internacao.value.valorTotal = Number(internacao.value.dias) * Number(vd)
-})
-
-function fmt(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
-
-// ── Catálogo handlers ─────────────────────────────────────────────────────────
-function onSelecionarCatCirurgia(id: number) {
-    const c = catCirurgias.value.find(x => x.id === id)
-    if (!c) return
-    novaCirurgia.value.descricao     = c.descricao
-    novaCirurgia.value.duracaoMinutos= c.duracaoPadraoMinutos
-    novaCirurgia.value.valorUnitario = c.valorBase
-}
-function onSelecionarCatValor(id: number) {
-    const v = catValores.value.find(x => x.id === id)
-    if (!v) return
-    novoMembro.value.papel                = v.funcao
-    novoMembro.value.profissionalUsuarioId= v.profissionalUsuarioId ?? ""
-    novoMembro.value.valor               = Number(v.valorTempoBase)
-}
-function onSelecionarCatImplante(id: number) {
-    const i = catImplantes.value.find(x => x.id === id)
-    if (!i) return
-    novoImplante.value.descricao   = i.descricao
-    novoImplante.value.custoUnitario = Number(i.custoUnitario)
-}
-function onSelecionarCatEquipe(id: number) {
-    const e = catEquipes.value.find(x => x.id === id)
-    if (!e) return
-    novaEquipeEsp.value.descricao = e.descricao
-    novaEquipeEsp.value.valor     = Number(e.valorPadrao)
-}
-function onSelecionarConfigPagto(id: number) {
-    const c = catConfigsPgto.value.find(x => x.formaPagamentoId === id)
-    if (!c) return
-    novaForma.value.acrescimoPercentual = Number(c.acrescimoPercentual)
-    novaForma.value.entradaPercentual   = Number(c.entradaPercentualPadrao)
+// ── Carregamento de catálogos / orçamento ─────────────────────────────────
+async function carregarCatalogos() {
+    const [cirs, vals, eqs, imps, locs, fps, profs] = await Promise.all([
+        orcamentoCatalogoService.listarCirurgias(true),
+        orcamentoCatalogoService.listarValoresProfissional(true),
+        orcamentoCatalogoService.listarEquipes(true),
+        orcamentoCatalogoService.listarImplantes(true),
+        orcamentoCatalogoService.listarLocais(),
+        formaPagamentoService.listar(),
+        vinculoService.listarProfissionaisPublico(),
+    ])
+    catCirurgias.value = cirs
+    catValores.value = vals
+    catEquipes.value = eqs
+    catImplantes.value = imps
+    catLocais.value = locs
+    formasPagamento.value = fps
+    profissionaisPublicos.value = profs
 }
 
-// ── Adicionar / remover ───────────────────────────────────────────────────────
-function adicionarCirurgia() {
-    const f = novaCirurgia.value
-    if (!f.descricao || f.quantidade <= 0) return
-    cirurgias.value.push({
-        procedimentoCirurgicoId: null,
-        descricao: f.descricao,
-        quantidade: f.quantidade,
-        duracaoMinutos: f.duracaoMinutos,
-        valorTotal: f.valorUnitario * f.quantidade,
-    })
-    novaCirurgia.value = { catalogoId: 0, descricao: "", quantidade: 1, duracaoMinutos: null, valorUnitario: 0 }
-}
-function removerCirurgia(idx: number) { cirurgias.value.splice(idx, 1) }
-
-function adicionarMembro() {
-    const f = novoMembro.value
-    if (!f.profissionalUsuarioId || f.valor < 0) return
-    equipe.value.push({ profissionalUsuarioId: f.profissionalUsuarioId, papel: f.papel, valor: f.valor })
-    novoMembro.value = { catalogoValorId: 0, profissionalUsuarioId: "", papel: "Cirurgião", valor: 0 }
-}
-function removerMembro(idx: number) { equipe.value.splice(idx, 1) }
-
-function adicionarImplante() {
-    const f = novoImplante.value
-    if (!f.descricao || f.quantidade <= 0) return
-    implantes.value.push({ itemInventarioId: null, descricao: f.descricao, quantidade: f.quantidade, custoUnitario: f.custoUnitario, custoTotal: f.quantidade * f.custoUnitario })
-    novoImplante.value = { catalogoId: 0, descricao: "", quantidade: 1, custoUnitario: 0 }
-}
-function removerImplante(idx: number) { implantes.value.splice(idx, 1) }
-
-function adicionarEquipeEsp() {
-    const f = novaEquipeEsp.value
-    if (!f.descricao) return
-    equipe.value.push({ profissionalUsuarioId: "00000000-0000-0000-0000-000000000000", papel: f.descricao, valor: f.valor })
-    novaEquipeEsp.value = { catalogoId: 0, descricao: "", valor: 0 }
-}
-
-function adicionarForma() {
-    const f = novaForma.value
-    if (!f.formaPagamentoId || f.valor <= 0) return
-    const fp = formasPagamento.value.find(x => x.id === f.formaPagamentoId)
-    formas.value.push({ formaPagamentoId: f.formaPagamentoId, formaPagamentoNome: fp?.nome, valor: f.valor, parcelas: f.parcelas, acrescimoPercentual: f.acrescimoPercentual, entradaPercentual: f.entradaPercentual, observacao: null })
-    novaForma.value = { formaPagamentoId: 0, valor: 0, parcelas: 1, acrescimoPercentual: 0, entradaPercentual: 0 }
-}
-function removerForma(idx: number) { formas.value.splice(idx, 1) }
-
-function inicializarInternacao() {
-    if (internacao.value) { internacao.value = null; return }
-    internacao.value = { tipoInternacao: "Apartamento", dias: 1, valorDiaria: 0, valorTotal: 0 }
-}
-function inicializarAnestesia() {
-    if (anestesia.value) { anestesia.value = null; return }
-    anestesia.value = { tipoAnestesia: "Local", valor: 0, observacao: null }
-}
-
-// ── Carregar / salvar ─────────────────────────────────────────────────────────
 async function carregar() {
     carregando.value = true
     erro.value = null
     try {
-        const [orc, fps, cirs, vals, eqs, imps, cfgPg] = await Promise.all([
-            orcamentoService.obter(orcamentoId),
-            formaPagamentoService.listar(),
-            orcamentoCatalogoService.listarCirurgias(true),
-            orcamentoCatalogoService.listarValoresProfissional(true),
-            orcamentoCatalogoService.listarEquipes(true),
-            orcamentoCatalogoService.listarImplantes(true),
-            orcamentoCatalogoService.listarConfigPagamento(true),
-        ])
-        orcamento.value = orc
-        validade.value  = orc.validade
-        observacoes.value = orc.observacoes ?? ""
-        procedimentoCirurgicoId.value = orc.procedimentoCirurgicoId
-        cirurgias.value = [...orc.cirurgias]
-        equipe.value    = [...orc.equipe]
-        implantes.value = [...orc.implantes]
-        formas.value    = [...orc.formasPagamento]
-        internacao.value= orc.internacao ? { ...orc.internacao } : null
-        anestesia.value = orc.anestesia  ? { ...orc.anestesia  } : null
-        formasPagamento.value = fps
-        catCirurgias.value    = cirs
-        catValores.value      = vals
-        catEquipes.value      = eqs
-        catImplantes.value    = imps
-        catConfigsPgto.value  = cfgPg
+        await carregarCatalogos()
+
+        if (modo.value === "editar" && orcamentoIdEditar.value) {
+            const orc = await orcamentoService.obter(orcamentoIdEditar.value)
+            orcamentoCarregado.value = orc
+            hidratarFormulario(orc)
+        } else {
+            // Modo "criar" — pré-popular se vier de agendamento.
+            if (agendamentoIdInicial.value) agendamentoId.value = agendamentoIdInicial.value
+            if (pacienteIdInicial.value) {
+                pacienteId.value = pacienteIdInicial.value
+                // Carrega o nome via busca-rapida com lista mínima para o seletor.
+                await buscarPacientes(undefined)
+            } else {
+                await buscarPacientes(undefined)
+            }
+        }
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar orçamento."
+        erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar."
     } finally {
         carregando.value = false
     }
 }
 
-async function salvar() {
-    if (!orcamento.value) return
-    if (!integridadeOk.value) {
-        erro.value = "A soma das formas de pagamento deve ser igual ao total do orçamento."
-        return
+function hidratarFormulario(orc: Orcamento) {
+    pacienteId.value = orc.pacienteId
+    pacienteNome.value = orc.pacienteNome
+    titulo.value = orc.titulo ?? ""
+    validade.value = orc.validade
+    observacoes.value = orc.observacoes ?? ""
+    procedimentoCirurgicoId.value = orc.procedimentoCirurgicoId
+    agendamentoId.value = orc.agendamentoId
+
+    cirurgias.value = orc.cirurgias.map(c => ({
+        catalogoId: 0, // legado não rastreava catálogo na cirurgia salva; usuário pode re-selecionar
+        descricao: c.descricao ?? "",
+        quantidade: c.quantidade,
+        duracaoMinutos: c.duracaoMinutos ?? 0,
+        valor: c.quantidade > 0 ? c.valorTotal / c.quantidade : c.valorTotal,
+    }))
+
+    // Equipe especializada → equipes (legado misturava). Mantemos formato simples.
+    equipes.value = []
+    profissionais.value = []
+    orc.equipe.forEach(e => {
+        // Heurística: se o UUID é o "zero" (equipe especializada do legado), vira equipe.
+        if (e.profissionalUsuarioId === "00000000-0000-0000-0000-000000000000") {
+            equipes.value.push({ catalogoId: 0, descricao: e.papel, quantidade: 1, valorUnitario: e.valor })
+        }
+        // Senão, é um profissional — mas precisamos do catálogo de valor pra pré-popular.
+        // Como o aggregate só guarda papel+valor, o usuário precisa re-selecionar a tabela.
+    })
+
+    implantes.value = orc.implantes.map(i => ({
+        catalogoId: 0,
+        descricao: i.descricao,
+        quantidade: Number(i.quantidade),
+        valorUnitario: Number(i.custoUnitario),
+    }))
+
+    formas.value = [...orc.formasPagamento]
+
+    if (orc.localCirurgia) {
+        localTipo.value = orc.localCirurgia.tipo
+        tempoEditadoManualmente.value = true
+        tempoCirurgiaMinutosManual.value = orc.localCirurgia.tempoMinutos
+        valorLocalSnapshot.value = orc.localCirurgia.valor
     }
-    salvando.value = true
+
+    anestesia.value = orc.anestesia ? { ...orc.anestesia } : null
+}
+
+// ── Validação client-side (espelhada pelo backend) ─────────────────────────
+function validar(): string | null {
+    if (!pacienteId.value) return "Selecione um paciente."
+    if (cirurgias.value.length === 0)
+        return "Adicione ao menos uma cirurgia (ou item/implante/equipe)."
+    if (cirurgias.value.some(c => c.catalogoId === 0))
+        return "Selecione a cirurgia em todas as linhas adicionadas."
+    if (!validade.value) return "Informe a validade."
+    if (!integridadeOk.value && formas.value.length > 0)
+        return `Soma das formas de pagamento difere do total em R$ ${diferenca.value.toFixed(2)}.`
+    return null
+}
+
+async function salvar(enviarApos = false) {
     erro.value = null
+    const v = validar()
+    if (v) { erro.value = v; return }
+    salvando.value = true
     try {
-        await orcamentoService.atualizar(orcamentoId, {
+        const payload = {
+            titulo: titulo.value || null,
             validade: validade.value,
             observacoes: observacoes.value || null,
             procedimentoCirurgicoId: procedimentoCirurgicoId.value,
-            itens: orcamento.value.itens,
-            equipe: equipe.value,
-            implantes: implantes.value,
-            formasPagamento: formas.value,
-            cirurgias: cirurgias.value,
-            internacao: internacao.value ? { tipo: internacao.value.tipoInternacao, dias: internacao.value.dias, valorDiaria: internacao.value.valorDiaria } : null,
-            anestesia:  anestesia.value  ? { tipo: anestesia.value.tipoAnestesia, valor: anestesia.value.valor, observacao: anestesia.value.observacao } : null,
-        })
-        router.push({ name: "OrcamentoDetalhe", params: { id: String(orcamentoId) } })
+            agendamentoId: agendamentoId.value,
+            itens: orcamentoCarregado.value?.itens ?? [],
+            equipe: previewPayload.value.equipe,
+            implantes: previewPayload.value.implantes,
+            formasPagamento: previewPayload.value.formasPagamento,
+            cirurgias: previewPayload.value.cirurgias,
+            localCirurgia: previewPayload.value.localCirurgia,
+            anestesia: previewPayload.value.anestesia,
+        }
+
+        let id: number
+        if (modo.value === "criar") {
+            const r = await orcamentoService.criar({
+                pacienteId: pacienteId.value!,
+                ...payload,
+            })
+            id = r.orcamentoId
+        } else {
+            await orcamentoService.atualizar(orcamentoIdEditar.value!, payload)
+            id = orcamentoIdEditar.value!
+        }
+
+        if (enviarApos) {
+            try { await orcamentoService.enviar(id) }
+            catch (e: any) { erro.value = e?.response?.data?.mensagem ?? "Salvo, mas falhou ao enviar."; salvando.value = false; return }
+        }
+
+        router.push({ name: "OrcamentoDetalhe", params: { id: String(id) } })
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao salvar."
     } finally {
@@ -286,379 +582,445 @@ async function salvar() {
     }
 }
 
-function voltar() { router.push({ name: "OrcamentoDetalhe", params: { id: String(orcamentoId) } }) }
+function voltar() { router.push({ name: "Orcamentos" }) }
+
+function formatarHoje(diasAFrente = 0) {
+    const d = new Date()
+    d.setDate(d.getDate() + diasAFrente)
+    return d.toISOString().slice(0, 10)
+}
+
+function fmt(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
+function fmtMinAsHoras(m: number) {
+    if (!m) return "0h"
+    const h = Math.floor(m / 60), min = m % 60
+    return min > 0 ? `${h}h${min}min` : `${h}h`
+}
 
 onMounted(carregar)
 </script>
 
 <template>
     <div class="app-page app-page--wide">
-        <!-- Loading inicial -->
-        <div v-if="carregando && !orcamento" class="estado-loading">
-            <i class="fa-solid fa-spinner fa-spin"></i> Carregando orçamento...
+        <div v-if="carregando" class="estado-loading">
+            <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
         </div>
 
-        <!-- Erro fatal -->
-        <div v-else-if="erro && !orcamento" class="erro-banner">
-            {{ erro }}
-            <AppButton size="sm" variant="ghost" @click="carregar">Tentar novamente</AppButton>
-        </div>
-
-        <template v-else-if="orcamento">
+        <template v-else>
             <!-- Header -->
             <div class="form-header">
                 <div class="form-header-l">
-                    <button type="button" class="btn-back" @click="voltar" aria-label="Cancelar edição">
+                    <button type="button" class="btn-back" @click="voltar" aria-label="Voltar">
                         <i class="fa-solid fa-arrow-left"></i>
                     </button>
                     <div>
-                        <div class="form-crumb">Orçamentos / {{ orcamento.numero || `#${orcamento.id}` }}</div>
-                        <h1 class="form-titulo">{{ orcamento.numero ? `Editar ${orcamento.numero}` : "Editar orçamento" }}</h1>
+                        <div class="form-crumb">
+                            Orçamentos / {{ modo === "criar" ? "Novo" : (orcamentoCarregado?.numero || `#${orcamentoIdEditar}`) }}
+                        </div>
+                        <h1 class="form-titulo">
+                            {{ modo === "criar" ? "Novo orçamento" : `Editar ${orcamentoCarregado?.numero || ""}` }}
+                        </h1>
                     </div>
-                    <OrcamentoStatusPill :status="orcamento.status" />
+                    <OrcamentoStatusPill v-if="orcamentoCarregado" :status="orcamentoCarregado.status" />
                 </div>
                 <div class="form-header-r">
                     <AppButton variant="ghost" icon="fa-solid fa-arrow-left" @click="voltar">Cancelar</AppButton>
                     <AppButton
+                        variant="secondary"
                         icon="fa-solid fa-save"
                         :loading="salvando"
-                        :disabled="!integridadeOk"
-                        :title="integridadeOk ? '' : 'Corrija a integridade das formas de pagamento'"
-                        @click="salvar"
-                    >Salvar</AppButton>
+                        @click="salvar(false)"
+                    >Salvar rascunho</AppButton>
+                    <AppButton
+                        icon="fa-solid fa-paper-plane"
+                        :loading="salvando"
+                        @click="salvar(true)"
+                    >Salvar e enviar</AppButton>
                 </div>
             </div>
 
-            <!-- Erro de ação -->
             <div v-if="erro" class="erro-banner" role="alert">{{ erro }}</div>
 
-            <!-- Abas de seção -->
-            <AppTabs v-model="aba" :abas="abas" variante="underline" aria-label="Seções do orçamento" />
-
-            <!-- Grid: conteúdo + sidebar -->
             <div class="form-grid">
                 <div class="col-principal">
-
-                    <!-- ──── Paciente ────────────────────────────────────── -->
-                    <section v-if="aba === 'paciente'">
-                        <AppCard title="Cabeçalho do orçamento">
-                            <div class="fg">
-                                <AppField label="Paciente">
-                                    <AppInput :model-value="orcamento.pacienteNome" readonly />
-                                </AppField>
-                                <AppField label="Número">
-                                    <AppInput :model-value="orcamento.numero || `#${orcamento.id}`" readonly />
-                                </AppField>
-                                <AppField label="Validade">
-                                    <AppDatePicker v-model="validade" placeholder="DD/MM/AAAA" />
-                                </AppField>
-                                <AppField label="Procedimento cirúrgico (ID, opcional)" for="form-proc">
-                                    <AppInput id="form-proc" type="number" v-model="procedimentoCirurgicoId" />
-                                </AppField>
-                            </div>
-                            <AppField label="Observações" for="form-obs" class="mt-2">
-                                <AppTextarea
-                                    id="form-obs"
-                                    v-model="observacoes"
-                                    :rows="3"
-                                    placeholder="Anotações livres sobre este orçamento"
-                                />
+                    <!-- 1. Paciente + cabeçalho -->
+                    <AppCard title="Paciente e validade">
+                        <div class="fg">
+                            <AppField label="Paciente *">
+                                <template v-if="modo === 'editar'">
+                                    <AppInput :model-value="pacienteNome" readonly />
+                                </template>
+                                <template v-else>
+                                    <input
+                                        type="search"
+                                        class="input-busca"
+                                        v-model="buscaPacienteInput"
+                                        placeholder="Buscar paciente por nome..."
+                                    />
+                                    <AppSelect
+                                        :model-value="pacienteId ?? 0"
+                                        @update:model-value="(v: unknown) => onSelecionarPaciente(Number(v))"
+                                    >
+                                        <option :value="0">
+                                            {{ buscandoPaciente ? "Buscando..." : (pacientesEncontrados.length === 0 ? "Nenhum paciente encontrado" : "Selecione o paciente...") }}
+                                        </option>
+                                        <option v-for="p in pacientesEncontrados" :key="p.id" :value="p.id">{{ p.nomeCompleto }}</option>
+                                    </AppSelect>
+                                </template>
                             </AppField>
-                        </AppCard>
-                    </section>
 
-                    <!-- ──── Cirurgias ───────────────────────────────────── -->
-                    <section v-else-if="aba === 'cirurgias'">
-                        <AppCard title="Cirurgias incluídas">
-                            <table v-if="cirurgias.length" class="tabela">
-                                <thead>
-                                    <tr><th>Descrição</th><th>Qtd</th><th>Duração</th><th class="r">Total</th><th></th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(c, idx) in cirurgias" :key="idx">
-                                        <td>{{ c.descricao }}</td>
-                                        <td>{{ c.quantidade }}</td>
-                                        <td>{{ c.duracaoMinutos ? `${c.duracaoMinutos} min` : "—" }}</td>
-                                        <td class="r">{{ fmt(c.valorTotal) }}</td>
-                                        <td>
-                                            <button class="btn-icon btn-icon-excluir" @click="removerCirurgia(idx)" title="Remover">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <p v-else class="texto-aux">Nenhuma cirurgia adicionada ainda.</p>
+                            <AppField label="Título (opcional)">
+                                <AppInput v-model="titulo" placeholder="Ex.: Cirurgia bariátrica - dr. Silva" />
+                            </AppField>
+                            <AppField label="Validade *">
+                                <AppDatePicker v-model="validade" placeholder="DD/MM/AAAA" />
+                            </AppField>
+                            <AppField v-if="agendamentoId" label="Agendamento vinculado">
+                                <AppInput :model-value="`#${agendamentoId}`" readonly />
+                            </AppField>
+                        </div>
+                        <AppField label="Observações" class="mt-2">
+                            <AppTextarea v-model="observacoes" :rows="2" placeholder="Anotações livres" />
+                        </AppField>
+                    </AppCard>
 
-                            <div class="add-section">
-                                <h4 class="add-titulo">Adicionar cirurgia</h4>
-                                <div class="fg">
-                                    <AppField label="Do catálogo (auto-preenche)">
-                                        <AppSelect
-                                            :model-value="novaCirurgia.catalogoId"
-                                            @update:model-value="(v: unknown) => onSelecionarCatCirurgia(Number(v))"
-                                        >
-                                            <option :value="0">Selecione...</option>
-                                            <option v-for="c in catCirurgias" :key="c.id" :value="c.id">{{ c.descricao }}</option>
-                                        </AppSelect>
-                                    </AppField>
-                                    <AppField label="Descrição">
-                                        <AppInput v-model="novaCirurgia.descricao" />
-                                    </AppField>
-                                    <AppField label="Quantidade">
-                                        <AppInput type="number" :min="1" v-model="novaCirurgia.quantidade" />
-                                    </AppField>
-                                    <AppField label="Duração (min)">
-                                        <AppInput type="number" v-model="novaCirurgia.duracaoMinutos" />
-                                    </AppField>
-                                    <AppField label="Valor unitário (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="novaCirurgia.valorUnitario" />
-                                    </AppField>
-                                </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" icon="fa-solid fa-plus" @click="adicionarCirurgia">Adicionar</AppButton>
+                    <!-- 2. Cirurgias -->
+                    <AppCard title="Cirurgias">
+                        <div class="bloco-vazio" v-if="cirurgias.length === 0">
+                            <i class="fa-solid fa-scalpel"></i>
+                            <p>Adicione pelo menos uma cirurgia.</p>
+                        </div>
+                        <div class="lista-cirurgias" v-else>
+                            <div v-for="(c, idx) in cirurgias" :key="idx" class="linha-cirurgia">
+                                <AppField label="Cirurgia" class="campo-flex">
+                                    <AppSelect
+                                        :model-value="c.catalogoId"
+                                        @update:model-value="(v: unknown) => onSelecionarCatCirurgia(idx, Number(v))"
+                                    >
+                                        <option :value="0">Selecione...</option>
+                                        <option
+                                            v-for="cir in catCirurgias.filter(x => catalogoDisponivel(x.id, idx))"
+                                            :key="cir.id"
+                                            :value="cir.id"
+                                        >{{ cir.descricao }}</option>
+                                    </AppSelect>
+                                </AppField>
+                                <AppField label="Qtd" class="campo-min">
+                                    <AppInput type="number" :min="1" v-model="c.quantidade" />
+                                </AppField>
+                                <AppField label="Duração" class="campo-min">
+                                    <span class="texto-info">
+                                        {{ c.duracaoMinutos }} min ({{ fmtMinAsHoras(c.duracaoMinutos) }})
+                                    </span>
+                                </AppField>
+                                <AppField label="Subtotal" class="campo-min">
+                                    <span class="texto-info forte">{{ fmt(c.valor * c.quantidade) }}</span>
+                                </AppField>
+                                <button class="btn-icon btn-icon-excluir" @click="removerCirurgia(idx)" title="Remover">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="acoes-cirurgias">
+                            <AppButton size="sm" icon="fa-solid fa-plus" variant="secondary" @click="adicionarCirurgia">
+                                Adicionar cirurgia
+                            </AppButton>
+                        </div>
+
+                        <div v-if="cirurgias.length > 0" class="tempo-card">
+                            <div class="tempo-bloco">
+                                <span class="tempo-label">Tempo somado</span>
+                                <strong>{{ fmtMinAsHoras(tempoAutoMinutos) }} <small>({{ tempoAutoMinutos }} min)</small></strong>
+                            </div>
+                            <div class="tempo-bloco">
+                                <span class="tempo-label">Tempo para cálculo
+                                    <em v-if="tempoEditadoManualmente"> (editado)</em>
+                                </span>
+                                <div class="tempo-input">
+                                    <AppInput
+                                        type="number"
+                                        :min="0"
+                                        :model-value="tempoCirurgiaMinutosManual"
+                                        @update:model-value="(v: unknown) => onEditarTempoManual(Number(v))"
+                                    />
+                                    <span class="texto-info">min</span>
+                                    <AppButton v-if="tempoEditadoManualmente" size="sm" variant="ghost" @click="resetarTempo">Reset</AppButton>
                                 </div>
                             </div>
-                        </AppCard>
-                    </section>
+                            <div class="tempo-bloco">
+                                <span class="tempo-label">Tempo final</span>
+                                <strong class="forte-destaque">{{ fmtMinAsHoras(tempoFinalMinutos) }}</strong>
+                            </div>
+                        </div>
 
-                    <!-- ──── Equipe & Implantes ──────────────────────────── -->
-                    <section v-else-if="aba === 'equipeImplantes'" class="secao-multi">
-                        <AppCard title="Equipe profissional">
-                            <table v-if="equipe.length" class="tabela">
+                        <!-- Produtos consolidados (read-only, vêm do backend) -->
+                        <div v-if="produtosConsolidados.length > 0" class="bloco-produtos">
+                            <h4>
+                                Produtos das cirurgias
+                                <small>({{ produtosConsolidados.length }})</small>
+                                <i v-if="carregandoProdutos" class="fa-solid fa-spinner fa-spin"></i>
+                            </h4>
+                            <table class="tabela">
                                 <thead>
-                                    <tr><th>Profissional</th><th>Função</th><th class="r">Honorário</th><th></th></tr>
+                                    <tr><th>Produto</th><th class="r">Qtd</th><th class="r">Unit</th><th class="r">Subtotal</th><th>Origem</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(m, idx) in equipe" :key="idx">
-                                        <td>{{ m.profissionalNome ?? m.profissionalUsuarioId.slice(0, 8) }}</td>
-                                        <td>{{ m.papel }}</td>
-                                        <td class="r">{{ fmt(m.valor) }}</td>
+                                    <tr v-for="p in produtosConsolidados" :key="p.produtoId">
                                         <td>
-                                            <button class="btn-icon btn-icon-excluir" @click="removerMembro(idx)" title="Remover">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
+                                            {{ p.produtoNome }}
+                                            <span v-if="p.usoUnico" class="badge-uso-unico" title="Uso único: maior quantidade entre cirurgias">uso único</span>
                                         </td>
+                                        <td class="r">{{ p.quantidade }}</td>
+                                        <td class="r">{{ fmt(p.valorUnitario) }}</td>
+                                        <td class="r forte">{{ fmt(p.subtotal) }}</td>
+                                        <td>{{ p.origemCirurgiaNomes.join(", ") }}</td>
                                     </tr>
                                 </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" class="r forte">Total produtos:</td>
+                                        <td class="r forte-destaque">{{ fmt(totalProdutos) }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
                             </table>
-                            <p v-else class="texto-aux">Nenhum membro adicionado.</p>
+                        </div>
+                    </AppCard>
 
-                            <div class="add-section">
-                                <h4 class="add-titulo">Adicionar membro</h4>
+                    <!-- 3. Profissionais -->
+                    <AppCard title="Profissionais">
+                        <div v-if="profissionais.length === 0" class="bloco-vazio">
+                            <i class="fa-solid fa-user-doctor"></i>
+                            <p>Nenhum profissional adicionado.</p>
+                        </div>
+                        <div v-else class="lista-vertical">
+                            <div v-for="(p, idx) in profissionais" :key="idx" class="card-profissional">
                                 <div class="fg">
-                                    <AppField label="Tabela de valor (catálogo)">
+                                    <AppField label="Tabela de valor *">
                                         <AppSelect
-                                            :model-value="novoMembro.catalogoValorId"
-                                            @update:model-value="(v: unknown) => onSelecionarCatValor(Number(v))"
+                                            :model-value="p.valorProfissionalId"
+                                            @update:model-value="(v: unknown) => onSelecionarValorProfissional(idx, Number(v))"
                                         >
                                             <option :value="0">Selecione...</option>
                                             <option v-for="v in catValores" :key="v.id" :value="v.id">
-                                                {{ v.funcao }} {{ v.profissionalNome ? `— ${v.profissionalNome}` : "(padrão)" }}
+                                                {{ v.funcao }}{{ v.profissionalNome ? ` — ${v.profissionalNome}` : " (padrão)" }} ({{ fmt(Number(v.valorTempoBase)) }})
                                             </option>
                                         </AppSelect>
                                     </AppField>
-                                    <AppField label="Profissional UUID">
-                                        <AppInput v-model="novoMembro.profissionalUsuarioId" placeholder="UUID" />
-                                    </AppField>
-                                    <AppField label="Função">
-                                        <AppInput v-model="novoMembro.papel" />
-                                    </AppField>
-                                    <AppField label="Honorário (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="novoMembro.valor" />
-                                    </AppField>
-                                </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" icon="fa-solid fa-plus" @click="adicionarMembro">Adicionar</AppButton>
-                                </div>
-                            </div>
-
-                            <div class="add-section mt-3">
-                                <h4 class="add-titulo">Equipe especializada (do catálogo)</h4>
-                                <div class="fg">
-                                    <AppField label="Catálogo de equipes">
-                                        <AppSelect
-                                            :model-value="novaEquipeEsp.catalogoId"
-                                            @update:model-value="(v: unknown) => onSelecionarCatEquipe(Number(v))"
-                                        >
-                                            <option :value="0">Selecione...</option>
-                                            <option v-for="e in catEquipes" :key="e.id" :value="e.id">{{ e.descricao }}</option>
-                                        </AppSelect>
-                                    </AppField>
-                                    <AppField label="Descrição">
-                                        <AppInput v-model="novaEquipeEsp.descricao" />
-                                    </AppField>
-                                    <AppField label="Valor (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="novaEquipeEsp.valor" />
-                                    </AppField>
-                                </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" variant="ghost" icon="fa-solid fa-plus" @click="adicionarEquipeEsp">Incluir equipe</AppButton>
-                                </div>
-                            </div>
-                        </AppCard>
-
-                        <AppCard title="Implantes">
-                            <table v-if="implantes.length" class="tabela">
-                                <thead>
-                                    <tr><th>Descrição</th><th>Qtd</th><th class="r">Custo unit.</th><th class="r">Total</th><th></th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(imp, idx) in implantes" :key="idx">
-                                        <td>{{ imp.descricao }}</td>
-                                        <td>{{ imp.quantidade }}</td>
-                                        <td class="r">{{ fmt(imp.custoUnitario) }}</td>
-                                        <td class="r">{{ fmt(imp.custoTotal) }}</td>
-                                        <td>
-                                            <button class="btn-icon btn-icon-excluir" @click="removerImplante(idx)" title="Remover">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <p v-else class="texto-aux">Nenhum implante adicionado.</p>
-
-                            <div class="add-section">
-                                <h4 class="add-titulo">Adicionar implante</h4>
-                                <div class="fg">
-                                    <AppField label="Catálogo de implantes">
-                                        <AppSelect
-                                            :model-value="novoImplante.catalogoId"
-                                            @update:model-value="(v: unknown) => onSelecionarCatImplante(Number(v))"
-                                        >
-                                            <option :value="0">Selecione...</option>
-                                            <option v-for="i in catImplantes" :key="i.id" :value="i.id">{{ i.descricao }}</option>
-                                        </AppSelect>
-                                    </AppField>
-                                    <AppField label="Descrição">
-                                        <AppInput v-model="novoImplante.descricao" />
+                                    <AppField label="Tempo (min)">
+                                        <AppInput type="number" :min="0" v-model="p.tempoCustomMinutos" />
                                     </AppField>
                                     <AppField label="Quantidade">
-                                        <AppInput type="number" :min="1" :step="0.001" v-model="novoImplante.quantidade" />
+                                        <AppInput type="number" :min="1" v-model="p.quantidade" />
                                     </AppField>
-                                    <AppField label="Custo unitário (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="novoImplante.custoUnitario" />
-                                    </AppField>
-                                </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" icon="fa-solid fa-plus" @click="adicionarImplante">Adicionar</AppButton>
-                                </div>
-                            </div>
-                        </AppCard>
-                    </section>
-
-                    <!-- ──── Local & Pagamento ───────────────────────────── -->
-                    <section v-else-if="aba === 'pagamento'" class="secao-multi">
-                        <AppCard title="Internação">
-                            <p v-if="!internacao" class="texto-aux">
-                                Sem internação configurada.
-                                <AppButton size="sm" variant="ghost" @click="inicializarInternacao">Adicionar</AppButton>
-                            </p>
-                            <template v-else>
-                                <div class="fg">
-                                    <AppField label="Tipo">
-                                        <AppSelect v-model="internacao.tipoInternacao">
-                                            <option v-for="t in TIPOS_INTERNACAO" :key="t" :value="t">{{ t }}</option>
-                                        </AppSelect>
-                                    </AppField>
-                                    <AppField label="Dias">
-                                        <AppInput type="number" :min="1" v-model="internacao.dias" />
-                                    </AppField>
-                                    <AppField label="Diária (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="internacao.valorDiaria" />
-                                    </AppField>
-                                    <AppField label="Total">
-                                        <AppInput :model-value="fmt(internacao.valorTotal)" readonly />
+                                    <AppField label="Honorário calculado">
+                                        <AppInput :model-value="fmt(p.valorCalculado * p.quantidade)" readonly />
                                     </AppField>
                                 </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" variant="ghost" @click="inicializarInternacao">Remover</AppButton>
-                                </div>
-                            </template>
-                        </AppCard>
-
-                        <AppCard title="Anestesia">
-                            <p v-if="!anestesia" class="texto-aux">
-                                Sem anestesia configurada.
-                                <AppButton size="sm" variant="ghost" @click="inicializarAnestesia">Adicionar</AppButton>
-                            </p>
-                            <template v-else>
-                                <div class="fg">
-                                    <AppField label="Tipo">
-                                        <AppSelect v-model="anestesia.tipoAnestesia">
-                                            <option v-for="t in TIPOS_ANESTESIA" :key="t" :value="t">{{ t }}</option>
-                                        </AppSelect>
-                                    </AppField>
-                                    <AppField label="Valor (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="anestesia.valor" />
-                                    </AppField>
-                                    <AppField label="Observação">
-                                        <AppInput v-model="anestesia.observacao" />
-                                    </AppField>
-                                </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" variant="ghost" @click="inicializarAnestesia">Remover</AppButton>
-                                </div>
-                            </template>
-                        </AppCard>
-
-                        <AppCard title="Formas de pagamento">
-                            <table v-if="formas.length" class="tabela">
-                                <thead>
-                                    <tr><th>Forma</th><th class="r">Valor</th><th class="r">Parcelas</th><th class="r">Acréscimo</th><th class="r">Entrada</th><th></th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(f, idx) in formas" :key="idx">
-                                        <td>{{ f.formaPagamentoNome }}</td>
-                                        <td class="r">{{ fmt(f.valor) }}</td>
-                                        <td class="r">{{ f.parcelas }}x</td>
-                                        <td class="r">{{ f.acrescimoPercentual }}%</td>
-                                        <td class="r">{{ f.entradaPercentual }}%</td>
-                                        <td>
-                                            <button class="btn-icon btn-icon-excluir" @click="removerForma(idx)" title="Remover">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <p v-else class="texto-aux">Nenhuma forma de pagamento adicionada.</p>
-
-                            <div class="add-section">
-                                <h4 class="add-titulo">Adicionar forma</h4>
-                                <div class="fg">
-                                    <AppField label="Forma de pagamento">
-                                        <AppSelect
-                                            :model-value="novaForma.formaPagamentoId"
-                                            @update:model-value="(v: unknown) => { novaForma.formaPagamentoId = Number(v); onSelecionarConfigPagto(Number(v)) }"
-                                        >
-                                            <option :value="0">Selecione...</option>
-                                            <option v-for="fp in formasPagamento" :key="fp.id" :value="fp.id">{{ fp.nome }}</option>
-                                        </AppSelect>
-                                    </AppField>
-                                    <AppField label="Valor (R$)">
-                                        <AppInput type="number" :step="0.01" v-model="novaForma.valor" />
-                                    </AppField>
-                                    <AppField label="Parcelas">
-                                        <AppInput type="number" :min="1" v-model="novaForma.parcelas" />
-                                    </AppField>
-                                    <AppField label="Acréscimo (%)">
-                                        <AppInput type="number" :step="0.01" v-model="novaForma.acrescimoPercentual" />
-                                    </AppField>
-                                    <AppField label="Entrada (%)">
-                                        <AppInput type="number" :step="0.01" v-model="novaForma.entradaPercentual" />
-                                    </AppField>
-                                </div>
-                                <div class="add-acoes">
-                                    <AppButton size="sm" icon="fa-solid fa-plus" @click="adicionarForma">Adicionar</AppButton>
+                                <div class="acoes-linha">
+                                    <button class="btn-icon btn-icon-excluir" @click="removerProfissional(idx)" title="Remover">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
                                 </div>
                             </div>
-                        </AppCard>
-                    </section>
+                        </div>
+                        <div class="acoes-cirurgias">
+                            <AppButton size="sm" icon="fa-solid fa-plus" variant="secondary" @click="adicionarProfissional">
+                                Adicionar profissional
+                            </AppButton>
+                        </div>
+                    </AppCard>
+
+                    <!-- 4. Equipes especializadas (catálogo legado) -->
+                    <AppCard title="Equipes especializadas">
+                        <div v-if="equipes.length === 0" class="bloco-vazio">
+                            <i class="fa-solid fa-users"></i><p>Nenhuma equipe especializada.</p>
+                        </div>
+                        <div v-else class="lista-vertical">
+                            <div v-for="(e, idx) in equipes" :key="idx" class="linha-cirurgia">
+                                <AppField label="Equipe">
+                                    <AppSelect
+                                        :model-value="e.catalogoId"
+                                        @update:model-value="(v: unknown) => onSelecionarEquipe(idx, Number(v))"
+                                    >
+                                        <option :value="0">Selecione...</option>
+                                        <option v-for="ec in catEquipes" :key="ec.id" :value="ec.id">{{ ec.descricao }}</option>
+                                    </AppSelect>
+                                </AppField>
+                                <AppField label="Qtd" class="campo-min">
+                                    <AppInput type="number" :min="1" v-model="e.quantidade" />
+                                </AppField>
+                                <AppField label="Unitário" class="campo-min">
+                                    <AppInput type="number" :step="0.01" v-model="e.valorUnitario" />
+                                </AppField>
+                                <button class="btn-icon btn-icon-excluir" @click="removerEquipe(idx)" title="Remover">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="acoes-cirurgias">
+                            <AppButton size="sm" icon="fa-solid fa-plus" variant="secondary" @click="adicionarEquipe">
+                                Adicionar equipe
+                            </AppButton>
+                        </div>
+                    </AppCard>
+
+                    <!-- 5. Implantes -->
+                    <AppCard title="Implantes">
+                        <div v-if="implantes.length === 0" class="bloco-vazio">
+                            <i class="fa-solid fa-microchip"></i><p>Nenhum implante.</p>
+                        </div>
+                        <div v-else class="lista-vertical">
+                            <div v-for="(i, idx) in implantes" :key="idx" class="linha-cirurgia">
+                                <AppField label="Implante (catálogo)">
+                                    <AppSelect
+                                        :model-value="i.catalogoId"
+                                        @update:model-value="(v: unknown) => onSelecionarImplante(idx, Number(v))"
+                                    >
+                                        <option :value="0">Selecione...</option>
+                                        <option v-for="ic in catImplantes" :key="ic.id" :value="ic.id">{{ ic.descricao }}</option>
+                                    </AppSelect>
+                                </AppField>
+                                <AppField label="Qtd" class="campo-min">
+                                    <AppInput type="number" :min="1" :step="0.001" v-model="i.quantidade" />
+                                </AppField>
+                                <AppField label="Unitário" class="campo-min">
+                                    <AppInput type="number" :step="0.01" v-model="i.valorUnitario" />
+                                </AppField>
+                                <button class="btn-icon btn-icon-excluir" @click="removerImplante(idx)" title="Remover">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="acoes-cirurgias">
+                            <AppButton size="sm" icon="fa-solid fa-plus" variant="secondary" @click="adicionarImplante">
+                                Adicionar implante
+                            </AppButton>
+                        </div>
+                    </AppCard>
+
+                    <!-- 6. Local cirúrgico (5 opções, paridade legado) -->
+                    <AppCard title="Local cirúrgico (anestesia + internação)">
+                        <div v-if="catLocais.length === 0" class="bloco-aviso">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <p>
+                                Local cirúrgico não configurado para este estabelecimento.
+                                <RouterLink :to="{ name: 'OrcamentoSettings', query: { aba: 'outras' } }">
+                                    Configurar agora
+                                </RouterLink>
+                            </p>
+                        </div>
+                        <div v-else class="lista-locais">
+                            <div
+                                v-for="opcao in OPCOES_LOCAL"
+                                :key="opcao.tipo"
+                                class="opcao-local"
+                                :class="{ ativa: localTipo === opcao.tipo, indisponivel: !configLocalPorTipo(opcao.tipo) }"
+                                @click="configLocalPorTipo(opcao.tipo) && selecionarLocal(opcao.tipo)"
+                            >
+                                <div class="opcao-radio">
+                                    <span class="dot" :class="{ on: localTipo === opcao.tipo }"></span>
+                                </div>
+                                <div class="opcao-texto">
+                                    <strong>{{ opcao.descricao }}: <span>{{ opcao.label }}</span></strong>
+                                    <small>
+                                        {{ opcao.comInternacao ? "Valor por tempo" : "Valor fixo" }}
+                                        — Base:
+                                        {{ configLocalPorTipo(opcao.tipo) ? fmt(Number(configLocalPorTipo(opcao.tipo)!.valorBase)) : "—" }}
+                                    </small>
+                                </div>
+                                <div class="opcao-valor">
+                                    <strong v-if="localTipo === opcao.tipo">{{ fmt(valorLocalSnapshot) }}</strong>
+                                    <span v-else-if="configLocalPorTipo(opcao.tipo)">{{ fmt(Number(configLocalPorTipo(opcao.tipo)!.valorBase)) }}</span>
+                                    <span v-else class="muted">não configurado</span>
+                                </div>
+                            </div>
+                        </div>
+                    </AppCard>
+
+                    <!-- 7. Anestesia (separada, opcional) -->
+                    <AppCard title="Anestesia (extra opcional)">
+                        <p v-if="!anestesia" class="texto-aux">
+                            Sem anestesia configurada como item separado.
+                            <AppButton size="sm" variant="ghost" @click="alternarAnestesia">Adicionar</AppButton>
+                        </p>
+                        <template v-else>
+                            <div class="fg">
+                                <AppField label="Tipo">
+                                    <AppSelect v-model="anestesia.tipoAnestesia">
+                                        <option v-for="t in TIPOS_ANESTESIA" :key="t" :value="t">{{ t }}</option>
+                                    </AppSelect>
+                                </AppField>
+                                <AppField label="Valor (R$)">
+                                    <AppInput type="number" :step="0.01" v-model="anestesia.valor" />
+                                </AppField>
+                                <AppField label="Observação">
+                                    <AppInput v-model="anestesia.observacao" />
+                                </AppField>
+                            </div>
+                            <div class="acoes-cirurgias">
+                                <AppButton size="sm" variant="ghost" @click="alternarAnestesia">Remover</AppButton>
+                            </div>
+                        </template>
+                    </AppCard>
+
+                    <!-- 8. Formas de pagamento -->
+                    <AppCard title="Formas de pagamento">
+                        <div v-if="formas.length === 0" class="bloco-vazio">
+                            <i class="fa-solid fa-credit-card"></i><p>Nenhuma forma de pagamento.</p>
+                        </div>
+                        <div v-else class="lista-vertical">
+                            <div v-for="(f, idx) in formas" :key="idx" class="linha-cirurgia">
+                                <AppField label="Forma">
+                                    <AppSelect
+                                        :model-value="f.formaPagamentoId"
+                                        @update:model-value="(v: unknown) => onSelecionarFormaCatalogo(idx, Number(v))"
+                                    >
+                                        <option :value="0">Selecione...</option>
+                                        <option v-for="fp in formasPagamento" :key="fp.id" :value="fp.id">{{ fp.nome }}</option>
+                                    </AppSelect>
+                                </AppField>
+                                <AppField label="Valor" class="campo-min">
+                                    <AppInput type="number" :step="0.01" v-model="f.valor" />
+                                </AppField>
+                                <AppField label="Parcelas" class="campo-min">
+                                    <AppInput type="number" :min="1" v-model="f.parcelas" />
+                                </AppField>
+                                <AppField label="Acréscimo %" class="campo-min">
+                                    <AppInput type="number" :step="0.01" v-model="f.acrescimoPercentual" />
+                                </AppField>
+                                <AppField label="Entrada %" class="campo-min">
+                                    <AppInput type="number" :step="0.01" v-model="f.entradaPercentual" />
+                                </AppField>
+                                <button class="btn-icon btn-icon-excluir" @click="removerForma(idx)" title="Remover">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="acoes-cirurgias">
+                            <AppButton size="sm" icon="fa-solid fa-plus" variant="secondary" @click="adicionarForma">
+                                Adicionar forma
+                            </AppButton>
+                        </div>
+
+                        <div v-if="formas.length > 0" class="diferenca-bar" :class="{ ok: integridadeOk }">
+                            <span v-if="integridadeOk">
+                                <i class="fa-solid fa-circle-check"></i>
+                                Soma das formas confere com o total ({{ fmt(somaFormas) }})
+                            </span>
+                            <span v-else>
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                Faltam {{ fmt(Math.abs(diferenca)) }} para fechar com o total
+                                ({{ fmt(somaFormas) }} de {{ fmt(subtotalPreview) }})
+                                <AppButton size="sm" variant="ghost" @click="distribuirRestoNaUltimaForma">
+                                    Distribuir resto na última forma
+                                </AppButton>
+                            </span>
+                        </div>
+                    </AppCard>
                 </div>
 
-                <!-- Sidebar de resumo -->
+                <!-- Sidebar -->
                 <aside class="col-resumo">
                     <OrcamentoResumoSidebar
                         :subtotal="subtotalPreview"
@@ -672,32 +1034,18 @@ onMounted(carregar)
                         :calculando="calculando"
                         @update:desconto="desconto = $event"
                         @update:tipo-desconto="tipoDesconto = $event"
-                        @salvar="salvar"
+                        @salvar="salvar(false)"
                     />
-                </aside>
-            </div>
 
-            <!-- Sticky bar inferior -->
-            <div class="sticky-bar">
-                <div class="sticky-l">
-                    <div class="sticky-total">
-                        <span class="sticky-label">Total do orçamento</span>
-                        <strong>{{ fmt(totalComDesconto) }}</strong>
+                    <!-- Breakdown rápido -->
+                    <div class="breakdown">
+                        <div><span>Cirurgias</span><strong>{{ fmt(totalCirurgias) }}</strong></div>
+                        <div><span>Profissionais</span><strong>{{ fmt(totalEquipes) }}</strong></div>
+                        <div><span>Implantes</span><strong>{{ fmt(totalImplantes) }}</strong></div>
+                        <div><span>Local cirúrgico</span><strong>{{ fmt(totalLocal) }}</strong></div>
+                        <div><span>Anestesia</span><strong>{{ fmt(totalAnestesia) }}</strong></div>
                     </div>
-                    <div class="sticky-sub" v-if="cirurgias.length">
-                        {{ cirurgias.length }} {{ cirurgias.length === 1 ? "cirurgia" : "cirurgias" }}
-                        · validade {{ new Date(validade + "T00:00:00").toLocaleDateString("pt-BR") }}
-                    </div>
-                </div>
-                <div class="sticky-r">
-                    <AppButton variant="ghost" icon="fa-solid fa-arrow-left" @click="voltar">Cancelar</AppButton>
-                    <AppButton
-                        icon="fa-solid fa-save"
-                        :loading="salvando"
-                        :disabled="!integridadeOk"
-                        @click="salvar"
-                    >Salvar orçamento</AppButton>
-                </div>
+                </aside>
             </div>
         </template>
     </div>
@@ -705,18 +1053,11 @@ onMounted(carregar)
 
 <style scoped>
 .estado-loading {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-muted);
-    padding: 3rem 0;
-    font-size: 0.9em;
+    display: flex; align-items: center; gap: 0.5rem;
+    color: var(--text-muted); padding: 3rem 0; font-size: 0.9em;
 }
-
 .erro-banner {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    display: flex; align-items: center; gap: 0.75rem;
     padding: 0.85rem 1rem;
     background: hsl(var(--destructive) / 0.08);
     border: 1px solid hsl(var(--destructive) / 0.2);
@@ -725,140 +1066,161 @@ onMounted(carregar)
     font-size: 0.875rem;
 }
 
-/* Header */
 .form-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 16px; flex-wrap: wrap; margin-bottom: 1rem;
 }
-.form-header-l {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-.form-header-r { display: flex; gap: 8px; }
+.form-header-l { display: flex; align-items: center; gap: 14px; }
+.form-header-r { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .btn-back {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--secondary) / 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: hsl(var(--secondary));
-    cursor: pointer;
-    flex-shrink: 0;
-    font-size: 14px;
-    transition: background 0.12s;
+    width: 40px; height: 40px; border-radius: 10px;
+    background: hsl(var(--card)); border: 1px solid hsl(var(--secondary) / 0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: hsl(var(--secondary)); cursor: pointer; font-size: 14px;
 }
 .btn-back:hover { background: hsl(var(--secondary) / 0.04); }
+.form-crumb { font-size: 11.5px; color: hsl(var(--secondary) / 0.55); }
+.form-titulo { font-size: 20px; font-weight: 700; margin: 0; }
 
-.form-crumb  { font-size: 11.5px; color: hsl(var(--secondary) / 0.55); margin-bottom: 2px; }
-.form-titulo { font-size: 20px; font-weight: 700; color: hsl(var(--secondary)); margin: 0; }
-
-/* Grid */
 .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 300px;
-    gap: 22px;
-    align-items: start;
+    display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start;
 }
 @media (max-width: 1100px) {
     .form-grid { grid-template-columns: 1fr; }
     .col-resumo { position: static; }
 }
-
 .col-principal { display: flex; flex-direction: column; gap: 16px; }
-.col-resumo { position: sticky; top: 80px; }
+.col-resumo { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 12px; }
 
-.secao-multi { display: flex; flex-direction: column; gap: 16px; }
-
-/* Form grid de campos */
 .fg {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.75rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;
 }
+.mt-2 { margin-top: 0.5rem; }
 
-/* Adicionar section */
-.add-section {
-    margin-top: 0.85rem;
-    padding-top: 0.85rem;
-    border-top: 1px dashed hsl(var(--secondary) / 0.12);
+.bloco-vazio {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 24px; color: hsl(var(--secondary) / 0.6);
+    background: hsl(var(--secondary) / 0.04); border-radius: 8px;
 }
-.add-titulo {
-    font-size: 0.82em;
-    font-weight: 700;
-    color: var(--text-muted);
-    margin: 0 0 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.add-acoes {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 0.5rem;
-}
+.bloco-vazio i { font-size: 28px; }
+.bloco-vazio p { margin: 0; font-size: 13px; }
 
-/* Tabela */
+.bloco-aviso {
+    background: hsl(45 96% 47% / 0.08); border: 1px solid hsl(45 96% 47% / 0.2);
+    color: hsl(35 90% 30%); padding: 12px 16px; border-radius: 8px;
+    display: flex; align-items: center; gap: 10px;
+}
+.bloco-aviso a { color: hsl(var(--primary)); text-decoration: underline; }
+
+.lista-cirurgias, .lista-vertical { display: flex; flex-direction: column; gap: 10px; }
+.linha-cirurgia {
+    display: grid; grid-template-columns: 1fr auto auto auto auto;
+    align-items: end; gap: 10px;
+    padding: 10px; background: hsl(var(--secondary) / 0.03); border-radius: 6px;
+}
+.campo-flex { grid-column: 1 / 2; }
+.campo-min  { min-width: 90px; }
+.texto-info { color: hsl(var(--secondary) / 0.7); font-size: 13px; padding: 8px 0; display: block; }
+.texto-info.forte { color: hsl(var(--primary)); font-weight: 600; }
+.acoes-cirurgias { display: flex; justify-content: flex-end; margin-top: 10px; }
+.acoes-linha { display: flex; justify-content: flex-end; margin-top: 4px; }
+
+.tempo-card {
+    margin-top: 12px; padding: 12px; background: hsl(var(--primary) / 0.05);
+    border: 1px solid hsl(var(--primary) / 0.15); border-radius: 8px;
+    display: flex; gap: 24px; flex-wrap: wrap;
+}
+.tempo-bloco { display: flex; flex-direction: column; gap: 4px; }
+.tempo-label { font-size: 11px; color: hsl(var(--secondary) / 0.6); }
+.tempo-label em { color: hsl(45 96% 47%); font-style: normal; }
+.tempo-input { display: flex; align-items: center; gap: 6px; }
+.forte-destaque { color: hsl(var(--primary)); font-size: 16px; font-weight: 700; }
+
+.bloco-produtos { margin-top: 16px; }
+.bloco-produtos h4 {
+    margin: 0 0 8px; font-size: 13px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px; color: hsl(var(--secondary));
+}
+.bloco-produtos h4 small { color: hsl(var(--secondary) / 0.6); font-weight: normal; }
+
 .tabela {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875em;
-    margin-bottom: 0.25rem;
+    width: 100%; border-collapse: collapse; font-size: 0.85em;
+    background: hsl(var(--card)); border-radius: 6px; overflow: hidden;
 }
 .tabela th, .tabela td {
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid hsl(var(--secondary) / 0.06);
+    padding: 8px 10px; text-align: left; border-bottom: 1px solid hsl(var(--secondary) / 0.06);
 }
 .tabela th {
-    font-size: 0.75em;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-muted);
-    background: hsl(var(--secondary) / 0.03);
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: hsl(var(--secondary) / 0.6);
+    background: hsl(var(--secondary) / 0.04);
 }
-.tabela tr:last-child td { border-bottom: none; }
 .tabela .r { text-align: right; }
-
-.texto-aux { color: var(--text-muted); font-size: 0.87em; margin: 0.5rem 0; }
-
-.mt-2 { margin-top: 0.5rem; }
-.mt-3 { margin-top: 0.75rem; }
-
-/* Sticky bar */
-.sticky-bar {
-    position: fixed;
-    bottom: 0;
-    left: var(--sidebar-w, 240px);
-    right: 0;
-    background: hsl(var(--card));
-    border-top: 1px solid hsl(var(--secondary) / 0.1);
-    box-shadow: 0 -4px 14px hsl(var(--secondary) / 0.06);
-    padding: 12px 26px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 14px;
-    z-index: 50;
+.tabela .forte { font-weight: 600; }
+.tabela tfoot td { border-top: 1px solid hsl(var(--secondary) / 0.15); border-bottom: none; }
+.badge-uso-unico {
+    background: hsl(199 89% 48% / 0.1); color: hsl(199 89% 35%);
+    padding: 2px 6px; border-radius: 4px; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.02em; margin-left: 6px;
 }
-.sticky-l { display: flex; flex-direction: column; gap: 2px; }
-.sticky-total {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-}
-.sticky-label { font-size: 12px; color: hsl(var(--secondary) / 0.6); }
-.sticky-total strong { font-size: 20px; font-weight: 700; color: hsl(var(--primary)); }
-.sticky-sub { font-size: 11.5px; color: hsl(var(--secondary) / 0.55); }
-.sticky-r { display: flex; gap: 8px; }
 
-/* Padding-bottom para a sticky bar não cobrir conteúdo */
-.app-page { padding-bottom: 100px; }
+.card-profissional {
+    padding: 12px; background: hsl(var(--secondary) / 0.03); border-radius: 8px;
+}
+
+/* Local cirúrgico (cards radio) */
+.lista-locais { display: flex; flex-direction: column; gap: 8px; }
+.opcao-local {
+    display: flex; align-items: center; gap: 12px; padding: 12px;
+    border: 1.5px solid hsl(var(--secondary) / 0.1); border-radius: 8px;
+    cursor: pointer; transition: all 0.12s;
+}
+.opcao-local:hover:not(.indisponivel) { border-color: hsl(var(--primary) / 0.5); }
+.opcao-local.ativa {
+    border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.05);
+}
+.opcao-local.indisponivel { opacity: 0.5; cursor: not-allowed; }
+.opcao-radio { flex-shrink: 0; }
+.opcao-radio .dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid hsl(var(--secondary) / 0.3); display: block;
+    transition: all 0.12s;
+}
+.opcao-radio .dot.on {
+    border-color: hsl(var(--primary));
+    background: radial-gradient(circle, hsl(var(--primary)) 40%, transparent 40%);
+}
+.opcao-texto { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.opcao-texto strong span { color: hsl(var(--primary)); }
+.opcao-texto small { color: hsl(var(--secondary) / 0.6); font-size: 11px; }
+.opcao-valor { text-align: right; font-weight: 600; color: hsl(var(--primary)); }
+.opcao-valor .muted { color: hsl(var(--secondary) / 0.4); font-size: 11px; font-weight: 400; }
+
+.diferenca-bar {
+    margin-top: 12px; padding: 10px 14px; border-radius: 6px;
+    background: hsl(var(--destructive) / 0.08); color: hsl(var(--destructive));
+    font-size: 13px; display: flex; align-items: center; gap: 10px;
+}
+.diferenca-bar.ok {
+    background: hsl(160 79% 39% / 0.08); color: hsl(160 79% 28%);
+}
+
+.input-busca {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid hsl(var(--secondary) / 0.15); border-radius: 6px;
+    font-family: inherit; font-size: 14px; margin-bottom: 6px;
+}
+.input-busca:focus { outline: 2px solid hsl(var(--primary) / 0.4); }
+
+.texto-aux { color: var(--text-muted); font-size: 0.85em; margin: 0.5rem 0; }
+
+.breakdown {
+    background: hsl(var(--card)); border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 8px; padding: 12px; font-size: 13px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.breakdown div { display: flex; justify-content: space-between; }
+.breakdown span { color: hsl(var(--secondary) / 0.7); }
+.breakdown strong { font-weight: 600; }
 </style>

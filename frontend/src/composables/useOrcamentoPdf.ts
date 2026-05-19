@@ -147,14 +147,14 @@ export function useOrcamentoPdf() {
             y = (doc as any).lastAutoTable.finalY + 4
         }
 
-        // ─── Internação + Anestesia ───────────────────────────────────────
-        if (orc.internacao || orc.anestesia) {
+        // ─── Local cirúrgico + Anestesia ───────────────────────────────────
+        if (orc.localCirurgia || orc.anestesia) {
             const linhas: string[][] = []
-            if (orc.internacao) {
+            if (orc.localCirurgia) {
                 linhas.push([
-                    `Internação ${orc.internacao.tipoInternacao}`,
-                    `${orc.internacao.dias}d × ${moeda(orc.internacao.valorDiaria)}`,
-                    moeda(orc.internacao.valorTotal),
+                    `Local cirúrgico ${orc.localCirurgia.tipo}`,
+                    `${orc.localCirurgia.tempoMinutos} min`,
+                    moeda(orc.localCirurgia.valor),
                 ])
             }
             if (orc.anestesia) {

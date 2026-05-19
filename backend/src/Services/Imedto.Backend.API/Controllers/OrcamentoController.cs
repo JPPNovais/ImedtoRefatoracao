@@ -19,7 +19,6 @@ namespace Imedto.Backend.API.Controllers;
 [Route("api/orcamentos")]
 [Authorize]
 [RequiresEstabelecimento]
-[RequiresAcao("orcamento")]
 public class OrcamentoController : ControllerBase
 {
     private readonly ICommandBus _cmd;
@@ -34,6 +33,7 @@ public class OrcamentoController : ControllerBase
     }
 
     [HttpGet]
+    [RequiresAcao("orcamento", "ver")]
     public async Task<ActionResult<IEnumerable<OrcamentoResumoDto>>> Listar(
         [FromQuery] long? pacienteId,
         [FromQuery] string? status)
@@ -49,6 +49,7 @@ public class OrcamentoController : ControllerBase
     }
 
     [HttpGet("{id:long}")]
+    [RequiresAcao("orcamento", "ver")]
     public async Task<ActionResult<OrcamentoDto>> Obter(long id)
     {
         var dto = await _query.Query<ObterOrcamentoQuery, OrcamentoDto>(
@@ -60,9 +61,29 @@ public class OrcamentoController : ControllerBase
         return Ok(dto);
     }
 
+    /// <summary>
+    /// Retorna o orçamento ativo (rascunho/enviado/aprovado/expirado) vinculado a um
+    /// agendamento, ou 204 quando não existe. Usado na ficha do agendamento para
+    /// decidir entre "Criar orçamento" e "Ver orçamento existente".
+    /// </summary>
+    [HttpGet("por-agendamento/{agendamentoId:long}")]
+    [RequiresAcao("orcamento", "ver")]
+    public async Task<ActionResult<OrcamentoResumoDto>> ObterPorAgendamento(long agendamentoId)
+    {
+        var dto = await _query.Query<ObterOrcamentoPorAgendamentoQuery, OrcamentoResumoDto?>(
+            new ObterOrcamentoPorAgendamentoQuery
+            {
+                AgendamentoId = agendamentoId,
+                EstabelecimentoId = _tenant.EstabelecimentoId
+            });
+        if (dto is null) return NoContent();
+        return Ok(dto);
+    }
+
     [HttpPost]
     [Idempotent]
     [FeatureGate(Features.OrcamentoCompleto)]
+    [RequiresAcao("orcamento", "criar")]
     public async Task<ActionResult> Criar([FromBody] CriarOrcamentoDto dto)
     {
         var cmd = new CriarOrcamentoCommand
@@ -71,8 +92,10 @@ public class OrcamentoController : ControllerBase
             PacienteId = dto.PacienteId,
             Validade = dto.Validade,
             Observacoes = dto.Observacoes,
+            Titulo = dto.Titulo,
             CriadoPorUsuarioId = _tenant.UsuarioId,
             ProcedimentoCirurgicoId = dto.ProcedimentoCirurgicoId,
+            AgendamentoId = dto.AgendamentoId,
             Itens = dto.Itens?.Select(i =>
                 new ItemOrcamentoPayload(i.Descricao, i.Quantidade, i.ValorUnitario, i.DescontoPercent)).ToList() ?? new(),
             Equipe = dto.Equipe?.Select(e =>
@@ -86,9 +109,9 @@ public class OrcamentoController : ControllerBase
             Cirurgias = dto.Cirurgias?.Select(c =>
                 new OrcamentoCirurgiaPayload(
                     c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade, c.DuracaoMinutos, c.ValorTotal)).ToList() ?? new(),
-            Internacao = dto.Internacao is null
+            LocalCirurgia = dto.LocalCirurgia is null
                 ? null
-                : new OrcamentoInternacaoPayload(dto.Internacao.Tipo, dto.Internacao.Dias, dto.Internacao.ValorDiaria),
+                : new OrcamentoLocalCirurgiaPayload(dto.LocalCirurgia.Tipo, dto.LocalCirurgia.TempoMinutos),
             Anestesia = dto.Anestesia is null
                 ? null
                 : new OrcamentoAnestesiaPayload(dto.Anestesia.Tipo, dto.Anestesia.Valor, dto.Anestesia.Observacao)
@@ -101,6 +124,7 @@ public class OrcamentoController : ControllerBase
 
     [HttpPut("{id:long}")]
     [FeatureGate(Features.OrcamentoCompleto)]
+    [RequiresAcao("orcamento", "editar")]
     public async Task<ActionResult> Atualizar(long id, [FromBody] AtualizarOrcamentoDto dto)
     {
         await _cmd.Send(new AtualizarOrcamentoCommand
@@ -109,7 +133,9 @@ public class OrcamentoController : ControllerBase
             EstabelecimentoId = _tenant.EstabelecimentoId,
             Validade = dto.Validade,
             Observacoes = dto.Observacoes,
+            Titulo = dto.Titulo,
             ProcedimentoCirurgicoId = dto.ProcedimentoCirurgicoId,
+            AgendamentoId = dto.AgendamentoId,
             Itens = dto.Itens?.Select(i =>
                 new ItemOrcamentoPayload(i.Descricao, i.Quantidade, i.ValorUnitario, i.DescontoPercent)).ToList() ?? new(),
             Equipe = dto.Equipe?.Select(e =>
@@ -123,9 +149,9 @@ public class OrcamentoController : ControllerBase
             Cirurgias = dto.Cirurgias?.Select(c =>
                 new OrcamentoCirurgiaPayload(
                     c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade, c.DuracaoMinutos, c.ValorTotal)).ToList() ?? new(),
-            Internacao = dto.Internacao is null
+            LocalCirurgia = dto.LocalCirurgia is null
                 ? null
-                : new OrcamentoInternacaoPayload(dto.Internacao.Tipo, dto.Internacao.Dias, dto.Internacao.ValorDiaria),
+                : new OrcamentoLocalCirurgiaPayload(dto.LocalCirurgia.Tipo, dto.LocalCirurgia.TempoMinutos),
             Anestesia = dto.Anestesia is null
                 ? null
                 : new OrcamentoAnestesiaPayload(dto.Anestesia.Tipo, dto.Anestesia.Valor, dto.Anestesia.Observacao)
@@ -134,6 +160,7 @@ public class OrcamentoController : ControllerBase
     }
 
     [HttpPost("{id:long}/enviar")]
+    [RequiresAcao("orcamento", "editar")]
     public async Task<ActionResult> Enviar(long id)
     {
         await _cmd.Send(new EnviarOrcamentoCommand
@@ -145,6 +172,7 @@ public class OrcamentoController : ControllerBase
     }
 
     [HttpPost("{id:long}/aprovar")]
+    [RequiresAcao("orcamento", "aprovar")]
     public async Task<ActionResult> Aprovar(long id)
     {
         await _cmd.Send(new AprovarOrcamentoCommand
@@ -156,6 +184,7 @@ public class OrcamentoController : ControllerBase
     }
 
     [HttpPost("{id:long}/recusar")]
+    [RequiresAcao("orcamento", "aprovar")]
     public async Task<ActionResult> Recusar(long id)
     {
         await _cmd.Send(new RecusarOrcamentoCommand
@@ -167,6 +196,7 @@ public class OrcamentoController : ControllerBase
     }
 
     [HttpPost("{id:long}/cancelar")]
+    [RequiresAcao("orcamento", "editar")]
     public async Task<ActionResult> Cancelar(long id)
     {
         await _cmd.Send(new CancelarOrcamentoCommand
@@ -182,6 +212,7 @@ public class OrcamentoController : ControllerBase
     /// vincula-o ao orçamento. Idempotente — segunda chamada falha com 422.
     /// </summary>
     [HttpPost("{id:long}/converter-em-cirurgia")]
+    [RequiresAcao("orcamento", "aprovar")]
     public async Task<ActionResult> ConverterEmCirurgia(long id, [FromBody] ConverterOrcamentoEmCirurgiaDto? dto)
     {
         var cmd = new ConverterOrcamentoEmCirurgiaCommand
@@ -195,10 +226,31 @@ public class OrcamentoController : ControllerBase
     }
 
     /// <summary>
+    /// Consolida produtos das cirurgias selecionadas (regras MAX para uso único e SOMA
+    /// para não único). Usado pelo form de orçamento para popular a tabela de produtos.
+    /// </summary>
+    [HttpPost("consolidar-produtos")]
+    [RequiresAcao("orcamento", "criar")]
+    public async Task<ActionResult<List<ProdutoConsolidadoDto>>> ConsolidarProdutos(
+        [FromBody] ConsolidarProdutosInputDto dto)
+    {
+        var data = await _query.Query<ConsolidarProdutosOrcamentoQuery, List<ProdutoConsolidadoDto>>(
+            new ConsolidarProdutosOrcamentoQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Cirurgias = dto.Cirurgias?
+                    .Select(c => new CirurgiaSelecionadaPayload(c.CatalogoCirurgiaId, c.Quantidade))
+                    .ToList() ?? new(),
+            });
+        return Ok(data);
+    }
+
+    /// <summary>
     /// Recebe o estado em construção do orçamento e devolve totais calculados sem
     /// persistir. Frontend chama com debounce de 250ms ao editar o form.
     /// </summary>
     [HttpPost("preview")]
+    [RequiresAcao("orcamento", "ver")]
     public async Task<ActionResult<PreviewOrcamentoDto>> Preview([FromBody] PreviewOrcamentoInputDto dto)
     {
         var data = await _query.Query<PreviewOrcamentoQuery, PreviewOrcamentoDto>(
@@ -209,6 +261,8 @@ public class OrcamentoController : ControllerBase
                     i.Descricao, i.Quantidade, i.ValorUnitario, i.DescontoPercent)).ToList() ?? new(),
                 Equipe = dto.Equipe?.Select(e => new OrcamentoEquipePayload(
                     e.ProfissionalUsuarioId, e.Papel, e.Valor)).ToList() ?? new(),
+                EquipeComCatalogo = dto.EquipeComCatalogo?.Select(e =>
+                    new EquipeComCatalogoPayload(e.ValorProfissionalId, e.Quantidade, e.TempoMinutos)).ToList() ?? new(),
                 Implantes = dto.Implantes?.Select(i => new OrcamentoImplantePayload(
                     i.ItemInventarioId, i.Descricao, i.Quantidade, i.CustoUnitario)).ToList() ?? new(),
                 FormasPagamento = dto.FormasPagamento?.Select(f => new OrcamentoFormaPagamentoPayload(
@@ -216,9 +270,9 @@ public class OrcamentoController : ControllerBase
                     f.AcrescimoPercentual, f.EntradaPercentual, f.Observacao)).ToList() ?? new(),
                 Cirurgias = dto.Cirurgias?.Select(c => new OrcamentoCirurgiaPayload(
                     c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade, c.DuracaoMinutos, c.ValorTotal)).ToList() ?? new(),
-                Internacao = dto.Internacao is null
+                LocalCirurgia = dto.LocalCirurgia is null
                     ? null
-                    : new OrcamentoInternacaoPayload(dto.Internacao.Tipo, dto.Internacao.Dias, dto.Internacao.ValorDiaria),
+                    : new OrcamentoLocalCirurgiaPayload(dto.LocalCirurgia.Tipo, dto.LocalCirurgia.TempoMinutos),
                 Anestesia = dto.Anestesia is null
                     ? null
                     : new OrcamentoAnestesiaPayload(dto.Anestesia.Tipo, dto.Anestesia.Valor, dto.Anestesia.Observacao),
@@ -236,8 +290,9 @@ public record PreviewOrcamentoInputDto(
     List<OrcamentoImplanteInputDto>? Implantes,
     List<OrcamentoFormaPagamentoInputDto>? FormasPagamento,
     List<OrcamentoCirurgiaInputDto>? Cirurgias,
-    OrcamentoInternacaoInputDto? Internacao,
-    OrcamentoAnestesiaInputDto? Anestesia);
+    OrcamentoLocalCirurgiaInputDto? LocalCirurgia,
+    OrcamentoAnestesiaInputDto? Anestesia,
+    List<EquipeComCatalogoInputDto>? EquipeComCatalogo);
 
 // DTOs de entrada
 public record ItemOrcamentoInputDto(
@@ -247,6 +302,12 @@ public record ItemOrcamentoInputDto(
     decimal DescontoPercent);
 
 public record OrcamentoEquipeInputDto(Guid ProfissionalUsuarioId, string Papel, decimal Valor);
+
+/// <summary>
+/// Variante "rica" de equipe: cita o id do catálogo de valor profissional + tempo.
+/// O backend calcula o honorário por tempo via <c>OrcamentoCalculadora.CalcularValorProfissional</c>.
+/// </summary>
+public record EquipeComCatalogoInputDto(long ValorProfissionalId, int Quantidade, int TempoMinutos);
 
 public record OrcamentoImplanteInputDto(
     long? ItemInventarioId,
@@ -269,31 +330,38 @@ public record OrcamentoCirurgiaInputDto(
     int? DuracaoMinutos,
     decimal ValorTotal);
 
-public record OrcamentoInternacaoInputDto(string Tipo, int Dias, decimal ValorDiaria);
+public record OrcamentoLocalCirurgiaInputDto(string Tipo, int TempoMinutos);
 
 public record OrcamentoAnestesiaInputDto(string Tipo, decimal Valor, string? Observacao);
+
+public record ConsolidarProdutosInputDto(List<CirurgiaConsolidarInputDto>? Cirurgias);
+public record CirurgiaConsolidarInputDto(long CatalogoCirurgiaId, int Quantidade);
 
 public record CriarOrcamentoDto(
     long PacienteId,
     DateOnly Validade,
     string? Observacoes,
+    string? Titulo,
     long? ProcedimentoCirurgicoId,
+    long? AgendamentoId,
     List<ItemOrcamentoInputDto>? Itens,
     List<OrcamentoEquipeInputDto>? Equipe,
     List<OrcamentoImplanteInputDto>? Implantes,
     List<OrcamentoFormaPagamentoInputDto>? FormasPagamento,
     List<OrcamentoCirurgiaInputDto>? Cirurgias,
-    OrcamentoInternacaoInputDto? Internacao,
+    OrcamentoLocalCirurgiaInputDto? LocalCirurgia,
     OrcamentoAnestesiaInputDto? Anestesia);
 
 public record AtualizarOrcamentoDto(
     DateOnly Validade,
     string? Observacoes,
+    string? Titulo,
     long? ProcedimentoCirurgicoId,
+    long? AgendamentoId,
     List<ItemOrcamentoInputDto>? Itens,
     List<OrcamentoEquipeInputDto>? Equipe,
     List<OrcamentoImplanteInputDto>? Implantes,
     List<OrcamentoFormaPagamentoInputDto>? FormasPagamento,
     List<OrcamentoCirurgiaInputDto>? Cirurgias,
-    OrcamentoInternacaoInputDto? Internacao,
+    OrcamentoLocalCirurgiaInputDto? LocalCirurgia,
     OrcamentoAnestesiaInputDto? Anestesia);

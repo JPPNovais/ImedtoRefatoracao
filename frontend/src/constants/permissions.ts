@@ -85,11 +85,13 @@ export const PERMISSION_AREAS: AreaPermissao[] = [
         chave: "orcamento",
         label: "Orçamento",
         icone: "fa-file-invoice-dollar",
-        descricao: "Criação e edição de orçamentos",
+        descricao: "Criação, edição, aprovação e configuração de orçamentos",
         acoes: [
-            { chave: "ver",    label: "Ver orçamentos" },
-            { chave: "criar",  label: "Criar orçamento" },
-            { chave: "editar", label: "Editar orçamento" },
+            { chave: "ver",        label: "Ver orçamentos" },
+            { chave: "criar",      label: "Criar orçamento" },
+            { chave: "editar",     label: "Editar orçamento" },
+            { chave: "aprovar",    label: "Aprovar / recusar / converter em cirurgia" },
+            { chave: "configurar", label: "Configurar catálogos (procedimentos, produtos, equipe, local, pagamento)" },
         ],
     },
     {

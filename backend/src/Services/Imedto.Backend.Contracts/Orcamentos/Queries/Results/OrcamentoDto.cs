@@ -7,18 +7,20 @@ public class OrcamentoResumoDto
     public long PacienteId { get; set; }
     public string PacienteNome { get; set; } = string.Empty;
     public string Numero { get; set; } = string.Empty;
+    public string? Titulo { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateOnly Validade { get; set; }
     public decimal Total { get; set; }
     public string CriadoPorNome { get; set; } = string.Empty;
     public DateTime CriadoEm { get; set; }
     public DateTime? AtualizadoEm { get; set; }
+    public long? AgendamentoId { get; set; }
 }
 
 /// <summary>
 /// Detalhe completo do orçamento (aggregate único). Carrega todas as collections —
-/// itens, equipe, implantes, formas de pagamento, cirurgias — e os opcionais 1:1
-/// (internação, anestesia). Não há mais distinção "resumo simples vs completo".
+/// itens, equipe, implantes, formas de pagamento, cirurgias — e os opcionais
+/// (local cirúrgico embutido, anestesia 1:1). Não há mais distinção "resumo simples vs completo".
 /// </summary>
 public class OrcamentoDto : OrcamentoResumoDto
 {
@@ -31,7 +33,7 @@ public class OrcamentoDto : OrcamentoResumoDto
     public List<OrcamentoImplanteDto> Implantes { get; set; } = new();
     public List<OrcamentoFormaPagamentoDto> FormasPagamento { get; set; } = new();
     public List<OrcamentoCirurgiaDto> Cirurgias { get; set; } = new();
-    public OrcamentoInternacaoDto? Internacao { get; set; }
+    public OrcamentoLocalCirurgiaDto? LocalCirurgia { get; set; }
     public OrcamentoAnestesiaDto? Anestesia { get; set; }
 }
 
@@ -91,12 +93,14 @@ public class OrcamentoCirurgiaDto
     public int Ordem { get; set; }
 }
 
-public class OrcamentoInternacaoDto
+public class OrcamentoLocalCirurgiaDto
 {
-    public string TipoInternacao { get; set; } = string.Empty;
-    public int Dias { get; set; }
-    public decimal ValorDiaria { get; set; }
-    public decimal ValorTotal { get; set; }
+    /// <summary>Tipo do local cirúrgico (IntLocal/IntPeridural/IntGeral/SemInternacao/Ambulatorio).</summary>
+    public string Tipo { get; set; } = string.Empty;
+    /// <summary>Tempo total da cirurgia em minutos (usado no cálculo do valor).</summary>
+    public int TempoMinutos { get; set; }
+    /// <summary>Valor calculado/snapshot do local cirúrgico.</summary>
+    public decimal Valor { get; set; }
 }
 
 public class OrcamentoAnestesiaDto

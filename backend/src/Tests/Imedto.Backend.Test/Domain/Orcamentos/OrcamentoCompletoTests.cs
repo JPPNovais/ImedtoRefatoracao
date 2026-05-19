@@ -17,7 +17,7 @@ public class OrcamentoCompletoTests
         IEnumerable<ImplantePayload>? implantes = null,
         IEnumerable<FormaPagamentoPayload>? formas = null,
         IEnumerable<CirurgiaPayload>? cirurgias = null,
-        InternacaoPayload? internacao = null,
+        LocalCirurgiaPayload? local = null,
         AnestesiaPayload? anestesia = null)
     {
         itens ??= [new ItemPayload("Consulta cirúrgica", 1, 1000m, 0)];
@@ -34,7 +34,7 @@ public class OrcamentoCompletoTests
             implantes: implantes,
             formasPagamento: formas,
             cirurgias: cirurgias,
-            internacao: internacao,
+            local: local,
             anestesia: anestesia);
     }
 
@@ -180,7 +180,7 @@ public class OrcamentoCompletoTests
     }
 
     [Test]
-    public void Total_SomaItensImplantesEquipeCirurgiasInternacaoAnestesia()
+    public void Total_SomaItensImplantesEquipeCirurgiasLocalAnestesia()
     {
         var orc = CriarOrcamento(
             itens: [new ItemPayload("Item", 1, 1000m, 0)],
@@ -189,5 +189,55 @@ public class OrcamentoCompletoTests
 
         // 1000 + 500 + 200 = 1700
         Assert.That(orc.Total, Is.EqualTo(1700m));
+    }
+
+    // CA-6: forma de pagamento com soma divergente do total → 422 com mensagem específica.
+    [Test]
+    public void CA6_ValidarIntegridade_TresFormasSomam4999EmTotal5000_MensagemEspecifica()
+    {
+        var itens = new[] { new ItemPayload("Honorários", 1, 5000m, 0) };
+        var formas = new[]
+        {
+            new FormaPagamentoPayload(1, 2000m, 1, 0m, 0m, null),
+            new FormaPagamentoPayload(2, 1999m, 1, 0m, 0m, null),
+            new FormaPagamentoPayload(3, 1000m, 1, 0m, 0m, null),
+        };
+
+        var ex = Assert.Throws<BusinessException>(() => CriarOrcamento(itens: itens, formas: formas));
+
+        Assert.That(ex!.Message, Does.Contain("4.999,00").Or.Contain("4999,00"));
+        Assert.That(ex.Message, Does.Contain("5.000,00").Or.Contain("5000,00"));
+        Assert.That(ex.Message, Does.Contain("não confere"));
+    }
+
+    // CA-8: tentativa de editar orçamento Aprovado → mensagem específica.
+    [Test]
+    public void CA8_Atualizar_StatusAprovado_LancaBusinessExceptionComMensagemPadrao()
+    {
+        var orc = CriarOrcamento();
+        orc.Enviar();
+        orc.Aprovar();
+
+        var ex = Assert.Throws<BusinessException>(() =>
+            orc.Atualizar(
+                validade: Amanha(),
+                observacoes: null,
+                procedimentoCirurgicoId: null,
+                itens: [new ItemPayload("Honorários", 1, 1500m, 0)]));
+
+        Assert.That(ex!.Message, Is.EqualTo("Apenas orçamentos em rascunho ou enviados podem ser editados."));
+    }
+
+    // CA-10: nova conversão em cirurgia bloqueada com mensagem específica.
+    [Test]
+    public void CA10_RegistrarConversaoEmProcedimento_DuasVezes_BloqueiaComMensagem()
+    {
+        var orc = CriarOrcamento();
+        orc.Enviar();
+        orc.Aprovar();
+        orc.RegistrarConversaoEmProcedimento(42L);
+
+        var ex = Assert.Throws<BusinessException>(() => orc.RegistrarConversaoEmProcedimento(99L));
+        Assert.That(ex!.Message, Is.EqualTo("Este orçamento já foi convertido em cirurgia."));
     }
 }

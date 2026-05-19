@@ -1,8 +1,11 @@
 using Imedto.Backend.Contracts.Orcamentos.Commands;
+using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Cirurgias;
 using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Orcamentos;
+using Imedto.Backend.Domain.Orcamentos.Calculos;
+using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -16,6 +19,8 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
     private readonly IProcedimentoCirurgicoRepository _procedimentoRepo;
     private readonly IItemInventarioRepository _inventarioRepo;
     private readonly IFormaPagamentoRepository _formaRepo;
+    private readonly IAgendamentoRepository _agendamentoRepo;
+    private readonly IConfiguracaoLocalCirurgiaRepository _configLocalRepo;
     private readonly IEventBus _events;
 
     public CriarOrcamentoCommandHandler(
@@ -24,6 +29,8 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         IProcedimentoCirurgicoRepository procedimentoRepo,
         IItemInventarioRepository inventarioRepo,
         IFormaPagamentoRepository formaRepo,
+        IAgendamentoRepository agendamentoRepo,
+        IConfiguracaoLocalCirurgiaRepository configLocalRepo,
         IEventBus events)
     {
         _repo = repo;
@@ -31,6 +38,8 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         _procedimentoRepo = procedimentoRepo;
         _inventarioRepo = inventarioRepo;
         _formaRepo = formaRepo;
+        _agendamentoRepo = agendamentoRepo;
+        _configLocalRepo = configLocalRepo;
         _events = events;
     }
 
@@ -43,16 +52,26 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         // Procedimento cirúrgico (raiz, opcional) precisa pertencer ao mesmo estab + paciente.
         if (cmd.ProcedimentoCirurgicoId is { } procId)
         {
-            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
             var proc = await _procedimentoRepo.ObterPorIdOuNulo(procId, cmd.EstabelecimentoId)
                 ?? throw new BusinessException("Procedimento cirúrgico não encontrado.");
             if (proc.PacienteId != cmd.PacienteId)
                 throw new BusinessException("Procedimento cirúrgico não pertence ao paciente neste estabelecimento.");
         }
 
+        // Agendamento opcional — valida pertencimento ao mesmo estab + paciente.
+        if (cmd.AgendamentoId is { } agId)
+        {
+            var ag = await _agendamentoRepo.ObterPorIdOuNulo(agId, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Agendamento não encontrado.");
+            if (ag.PacienteId != cmd.PacienteId)
+                throw new BusinessException("Agendamento não pertence ao paciente neste estabelecimento.");
+        }
+
         await ValidarImplantesCatalogo(cmd.Implantes, cmd.EstabelecimentoId);
         await ValidarCirurgiasCatalogo(cmd.Cirurgias, cmd.EstabelecimentoId, cmd.PacienteId);
         await ValidarFormasPagamentoCatalogo(cmd.FormasPagamento, cmd.EstabelecimentoId);
+
+        var local = await MapearLocalAsync(cmd.LocalCirurgia, cmd.EstabelecimentoId);
 
         var orcamento = Orcamento.Criar(
             cmd.EstabelecimentoId,
@@ -68,8 +87,10 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
                 f.FormaPagamentoId, f.Valor, f.Parcelas, f.AcrescimoPercentual, f.EntradaPercentual, f.Observacao)),
             cmd.Cirurgias.Select(c => new Orcamento.CirurgiaPayload(
                 c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade, c.DuracaoMinutos, c.ValorTotal)),
-            OrcamentoMapping.MapInternacao(cmd.Internacao),
-            OrcamentoMapping.MapAnestesia(cmd.Anestesia));
+            local,
+            OrcamentoMapping.MapAnestesia(cmd.Anestesia),
+            titulo: cmd.Titulo,
+            agendamentoId: cmd.AgendamentoId);
 
         await _repo.Salvar(orcamento);
         orcamento.DefinirNumero();
@@ -82,6 +103,24 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         orcamento.ClearDomainEvents();
     }
 
+    /// <summary>
+    /// Calcula <c>ValorCalculado</c> do local cirúrgico server-side a partir da
+    /// configuração do estabelecimento — não confiamos no valor que o cliente envia.
+    /// Se a configuração não existir para o tipo escolhido, lança BusinessException
+    /// (assim o dono é forçado a configurar antes de cobrar).
+    /// </summary>
+    private async Task<Orcamento.LocalCirurgiaPayload?> MapearLocalAsync(
+        OrcamentoLocalCirurgiaPayload? p, long estabelecimentoId)
+    {
+        if (p is null) return null;
+        var tipo = OrcamentoMapping.ParseTipoLocal(p.Tipo);
+        var config = await _configLocalRepo.ObterPorEstabelecimentoETipo(estabelecimentoId, tipo);
+        if (config is null)
+            throw new BusinessException("Local cirúrgico não configurado para este estabelecimento. Configure em Orçamento → Configurações.");
+        var valor = OrcamentoCalculadora.CalcularValorLocal(tipo, p.TempoMinutos, config);
+        return new Orcamento.LocalCirurgiaPayload(tipo, p.TempoMinutos, valor);
+    }
+
     private async Task ValidarImplantesCatalogo(
         IEnumerable<OrcamentoImplantePayload> implantes,
         long estabelecimentoId)
@@ -92,7 +131,6 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
                            .ToList();
         foreach (var id in ids)
         {
-            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
             _ = await _inventarioRepo.ObterPorIdOuNulo(id, estabelecimentoId)
                 ?? throw new BusinessException($"Item de inventário {id} não encontrado.");
         }
@@ -109,7 +147,6 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
                            .ToList();
         foreach (var id in ids)
         {
-            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
             var proc = await _procedimentoRepo.ObterPorIdOuNulo(id, estabelecimentoId)
                 ?? throw new BusinessException($"Procedimento cirúrgico {id} não encontrado.");
             if (proc.PacienteId != pacienteId)
@@ -121,8 +158,6 @@ public class CriarOrcamentoCommandHandler : ICommandHandler<CriarOrcamentoComman
         IEnumerable<OrcamentoFormaPagamentoPayload> formas,
         long estabelecimentoId)
     {
-        // Sem isso, FK inexistente vira FK violation no DB e cai como 500 ErroInterno
-        // (descoberto no QA — N15 do qa/REPORT-V2.md).
         var ids = formas.Select(f => f.FormaPagamentoId).Distinct().ToList();
         foreach (var id in ids)
         {

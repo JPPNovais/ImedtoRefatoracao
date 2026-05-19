@@ -72,7 +72,7 @@ public class ConfiguracaoLocalCirurgiaConfiguration : IEntityTypeConfiguration<C
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).HasColumnName("id").UseIdentityByDefaultColumn();
         b.Property(x => x.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
-        b.Property(x => x.TipoInternacao).HasColumnName("tipo_internacao").HasMaxLength(20).IsRequired().HasConversion<string>();
+        b.Property(x => x.TipoLocal).HasColumnName("tipo_local").HasMaxLength(20).IsRequired().HasConversion<string>();
         b.Property(x => x.TempoBaseMinutos).HasColumnName("tempo_base_minutos").IsRequired();
         b.Property(x => x.ValorBase).HasColumnName("valor_base").HasPrecision(12, 2).IsRequired();
         b.Property(x => x.TempoAdicionalMinutos).HasColumnName("tempo_adicional_minutos").IsRequired();
@@ -81,7 +81,7 @@ public class ConfiguracaoLocalCirurgiaConfiguration : IEntityTypeConfiguration<C
         b.Property(x => x.AtualizadaEm).HasColumnName("atualizada_em");
         b.Ignore(x => x.DomainEvents);
 
-        b.HasIndex(x => new { x.EstabelecimentoId, x.TipoInternacao }).IsUnique().HasDatabaseName("uq_config_local_estab_tipo");
+        b.HasIndex(x => new { x.EstabelecimentoId, x.TipoLocal }).IsUnique().HasDatabaseName("uq_config_local_estab_tipo");
 
         b.HasOne<Domain.Estabelecimentos.Estabelecimento>()
             .WithMany().HasForeignKey(x => x.EstabelecimentoId)

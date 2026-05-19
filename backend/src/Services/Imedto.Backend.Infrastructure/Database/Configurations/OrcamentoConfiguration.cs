@@ -15,6 +15,7 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
         builder.Property(o => o.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
         builder.Property(o => o.PacienteId).HasColumnName("paciente_id").IsRequired();
         builder.Property(o => o.Numero).HasColumnName("numero").HasMaxLength(20).IsRequired();
+        builder.Property(o => o.Titulo).HasColumnName("titulo").HasMaxLength(120);
         builder.Property(o => o.Status).HasColumnName("status").HasMaxLength(20).IsRequired()
             .HasConversion<string>();
         builder.Property(o => o.Validade).HasColumnName("validade").IsRequired();
@@ -24,7 +25,15 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
         builder.Property(o => o.AtualizadoEm).HasColumnName("atualizado_em");
 
         builder.Property(o => o.ProcedimentoCirurgicoId).HasColumnName("procedimento_cirurgico_id");
+        builder.Property(o => o.AgendamentoId).HasColumnName("agendamento_id");
         builder.Property(o => o.CustoImplantesTotal).HasColumnName("custo_implantes_total")
+            .HasPrecision(12, 2).IsRequired().HasDefaultValue(0m);
+
+        // Local cirúrgico embutido (substitui o antigo orcamento_internacao).
+        builder.Property(o => o.TipoLocal).HasColumnName("tipo_local")
+            .HasMaxLength(20).HasConversion<string>();
+        builder.Property(o => o.TempoLocalMinutos).HasColumnName("tempo_local_minutos");
+        builder.Property(o => o.ValorLocal).HasColumnName("valor_local")
             .HasPrecision(12, 2).IsRequired().HasDefaultValue(0m);
 
         builder.Ignore(o => o.Total);
@@ -60,12 +69,6 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("fk_orcamento_cirurgia_orcamento");
 
-        builder.HasOne(o => o.Internacao)
-            .WithOne()
-            .HasForeignKey<OrcamentoInternacao>(i => i.OrcamentoId)
-            .OnDelete(DeleteBehavior.Cascade)
-            .HasConstraintName("fk_orcamento_internacao_orcamento");
-
         builder.HasOne(o => o.Anestesia)
             .WithOne()
             .HasForeignKey<OrcamentoAnestesia>(a => a.OrcamentoId)
@@ -78,6 +81,9 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
             .HasDatabaseName("ix_orcamento_estab_paciente");
         builder.HasIndex(o => o.ProcedimentoCirurgicoId)
             .HasDatabaseName("ix_orcamento_procedimento_cirurgico");
+        builder.HasIndex(o => o.AgendamentoId)
+            .HasDatabaseName("ix_orcamento_agendamento")
+            .HasFilter("agendamento_id IS NOT NULL");
 
         builder.HasOne<Domain.Estabelecimentos.Estabelecimento>()
             .WithMany()
@@ -98,5 +104,11 @@ public class OrcamentoConfiguration : IEntityTypeConfiguration<Orcamento>
             .HasForeignKey(o => o.ProcedimentoCirurgicoId)
             .OnDelete(DeleteBehavior.SetNull)
             .HasConstraintName("fk_orcamento_procedimento_cirurgico");
+
+        builder.HasOne<Domain.Agendamentos.Agendamento>()
+            .WithMany()
+            .HasForeignKey(o => o.AgendamentoId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_orcamento_agendamento");
     }
 }

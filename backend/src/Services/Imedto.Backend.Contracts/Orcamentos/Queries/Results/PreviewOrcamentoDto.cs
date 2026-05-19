@@ -5,7 +5,8 @@ public class PreviewOrcamentoDto
     public decimal TotalCirurgias { get; set; }
     public decimal TotalEquipe { get; set; }
     public decimal TotalImplantes { get; set; }
-    public decimal TotalInternacao { get; set; }
+    /// <summary>Valor calculado do local cirúrgico (substitui o antigo TotalInternacao).</summary>
+    public decimal TotalLocal { get; set; }
     public decimal TotalAnestesia { get; set; }
     public decimal TotalItens { get; set; }
 
@@ -22,6 +23,22 @@ public class PreviewOrcamentoDto
     public bool IntegridadeOk { get; set; }
 
     public List<FormaPagamentoCalculadaDto> Formas { get; set; } = new();
+
+    /// <summary>
+    /// Honorários calculados por membro de equipe quando informado <c>valorProfissionalId</c>
+    /// em <c>EquipeComCatalogo</c>. Vazio se não foi solicitado.
+    /// </summary>
+    public List<EquipeCalculadaDto> Equipes { get; set; } = new();
+}
+
+/// <summary>Resultado por membro: id do catálogo + valor calculado para o tempo informado.</summary>
+public class EquipeCalculadaDto
+{
+    public long ValorProfissionalId { get; set; }
+    public int TempoMinutos { get; set; }
+    public int Quantidade { get; set; }
+    public decimal ValorUnitario { get; set; }
+    public decimal ValorTotal { get; set; }
 }
 
 public class FormaPagamentoCalculadaDto

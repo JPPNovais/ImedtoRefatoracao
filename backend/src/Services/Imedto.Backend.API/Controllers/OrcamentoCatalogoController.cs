@@ -16,6 +16,7 @@ namespace Imedto.Backend.API.Controllers;
 [Authorize]
 [RequiresEstabelecimento]
 [FeatureGate(Features.OrcamentoCompleto)]
+[RequiresAcao("orcamento", "configurar")]
 public class OrcamentoCatalogoController : ControllerBase
 {
     private readonly ICommandBus _cmd;
@@ -136,7 +137,7 @@ public class OrcamentoCatalogoController : ControllerBase
     {
         var cmd = new SalvarConfiguracaoLocalCommand
         {
-            EstabelecimentoId = _tenant.EstabelecimentoId, TipoInternacao = tipo,
+            EstabelecimentoId = _tenant.EstabelecimentoId, TipoLocal = tipo,
             TempoBaseMinutos = dto.TempoBaseMinutos, ValorBase = dto.ValorBase,
             TempoAdicionalMinutos = dto.TempoAdicionalMinutos, ValorAdicional = dto.ValorAdicional
         };

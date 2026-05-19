@@ -53,13 +53,13 @@ public class OrcamentoCatalogoQueryRepository
         await using var conn = new NpgsqlConnection(_connStr);
         const string sql = """
             SELECT id AS Id, estabelecimento_id AS EstabelecimentoId,
-                   tipo_internacao AS TipoInternacao,
+                   tipo_local AS TipoLocal,
                    tempo_base_minutos AS TempoBaseMinutos, valor_base AS ValorBase,
                    tempo_adicional_minutos AS TempoAdicionalMinutos, valor_adicional AS ValorAdicional,
                    criada_em AS CriadaEm, atualizada_em AS AtualizadaEm
             FROM orcamento_configuracao_local_cirurgia
             WHERE estabelecimento_id = @EstabelecimentoId
-            ORDER BY tipo_internacao
+            ORDER BY tipo_local
             """;
         return await conn.QueryAsync<ConfiguracaoLocalCirurgiaDto>(sql, new { EstabelecimentoId = estabelecimentoId });
     }

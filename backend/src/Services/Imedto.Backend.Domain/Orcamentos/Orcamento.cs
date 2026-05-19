@@ -5,15 +5,22 @@ namespace Imedto.Backend.Domain.Orcamentos;
 
 /// <summary>
 /// Aggregate root do orçamento (paridade com legado). Estrutura única — não há
-/// distinção "simples vs cirúrgico"; cirurgias, equipe, implantes, internação e
-/// anestesia são collections opcionais. Descontos/acréscimos vão sempre por
+/// distinção "simples vs cirúrgico"; cirurgias, equipe, implantes, local cirúrgico
+/// e anestesia são collections opcionais. Descontos/acréscimos vão sempre por
 /// <see cref="OrcamentoFormaPagamento"/> (não há mais jsonb opaco de configuração).
+///
+/// Nota 2026-05-18: o conceito de "Internação" (4 tipos: Apartamento/Enfermaria/UTI/Ambulatorial)
+/// foi substituído pelo "Local Cirúrgico" (5 tipos: IntLocal/IntPeridural/IntGeral/SemInternacao/Ambulatorio)
+/// vindo do legado. O valor é calculado a partir da <c>ConfiguracaoLocalCirurgia</c>
+/// do estabelecimento × tempo total da cirurgia (snapshot persistido em <see cref="ValorLocal"/>).
 /// </summary>
 public class Orcamento : Entity
 {
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual long PacienteId { get; protected set; }
     public virtual string Numero { get; protected set; } = string.Empty;
+    /// <summary>Título livre do orçamento (paridade com legado, opcional).</summary>
+    public virtual string? Titulo { get; protected set; }
     public virtual OrcamentoStatus Status { get; protected set; }
     public virtual DateOnly Validade { get; protected set; }
     public virtual string? Observacoes { get; protected set; }
@@ -21,34 +28,46 @@ public class Orcamento : Entity
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
     public virtual long? ProcedimentoCirurgicoId { get; protected set; }
+    /// <summary>
+    /// Agendamento que originou este orçamento (opcional). Permite "Criar orçamento"
+    /// a partir da ficha do agendamento e listar orçamentos vinculados ao agendamento.
+    /// </summary>
+    public virtual long? AgendamentoId { get; protected set; }
     public virtual decimal CustoImplantesTotal { get; protected set; }
+
+    // ── Local cirúrgico (snapshot) ───────────────────────────────────────────
+    /// <summary>Tipo do local cirúrgico escolhido. Null = "sem local definido".</summary>
+    public virtual TipoLocalCirurgia? TipoLocal { get; protected set; }
+    /// <summary>Tempo total da cirurgia em minutos, usado no cálculo do local.</summary>
+    public virtual int? TempoLocalMinutos { get; protected set; }
+    /// <summary>Valor calculado do local cirúrgico (snapshot — fonte da verdade da cotação).</summary>
+    public virtual decimal ValorLocal { get; protected set; }
 
     public virtual List<ItemOrcamento> Itens { get; protected set; } = new();
     public virtual List<OrcamentoEquipe> Equipe { get; protected set; } = new();
     public virtual List<OrcamentoImplante> Implantes { get; protected set; } = new();
     public virtual List<OrcamentoFormaPagamento> FormasPagamento { get; protected set; } = new();
     public virtual List<OrcamentoCirurgia> Cirurgias { get; protected set; } = new();
-    public virtual OrcamentoInternacao? Internacao { get; protected set; }
     public virtual OrcamentoAnestesia? Anestesia { get; protected set; }
 
     /// <summary>
     /// Total bruto = soma de itens + total de implantes + comissões da equipe + cirurgias +
-    /// internação + anestesia. Não aplica desconto/juros — descontos/acréscimos vivem em
-    /// cada <see cref="OrcamentoFormaPagamento"/>.
+    /// valor do local cirúrgico + anestesia. Não aplica desconto/juros — descontos/acréscimos
+    /// vivem em cada <see cref="OrcamentoFormaPagamento"/>.
     /// </summary>
     public decimal Total =>
         Itens.Sum(i => i.Subtotal)
         + Implantes.Sum(i => i.CustoTotal)
         + Equipe.Sum(e => e.Valor)
         + Cirurgias.Sum(c => c.ValorTotal)
-        + (Internacao?.ValorTotal ?? 0m)
+        + ValorLocal
         + (Anestesia?.Valor ?? 0m);
 
     protected Orcamento() { }
 
     /// <summary>
     /// Fábrica única do orçamento. Todas as collections (cirurgias, equipe, implantes,
-    /// formas de pagamento, internação, anestesia) são opcionais. O orçamento nasce em
+    /// formas de pagamento, local cirúrgico, anestesia) são opcionais. O orçamento nasce em
     /// <see cref="OrcamentoStatus.Rascunho"/> — só vira <c>Enviado</c> via
     /// <see cref="Enviar"/>, e só pode ser aprovado/recusado a partir de <c>Enviado</c>.
     /// </summary>
@@ -64,8 +83,10 @@ public class Orcamento : Entity
         IEnumerable<ImplantePayload>? implantes = null,
         IEnumerable<FormaPagamentoPayload>? formasPagamento = null,
         IEnumerable<CirurgiaPayload>? cirurgias = null,
-        InternacaoPayload? internacao = null,
-        AnestesiaPayload? anestesia = null)
+        LocalCirurgiaPayload? local = null,
+        AnestesiaPayload? anestesia = null,
+        string? titulo = null,
+        long? agendamentoId = null)
     {
         ValidarBasico(estabelecimentoId, pacienteId, validade);
 
@@ -83,12 +104,14 @@ public class Orcamento : Entity
             EstabelecimentoId = estabelecimentoId,
             PacienteId = pacienteId,
             Numero = string.Empty,
+            Titulo = TratarTitulo(titulo),
             Status = OrcamentoStatus.Rascunho,
             Validade = validade,
             Observacoes = observacoes?.Trim(),
             CriadoPorUsuarioId = criadoPorUsuarioId,
             CriadoEm = DateTime.UtcNow,
-            ProcedimentoCirurgicoId = procedimentoCirurgicoId
+            ProcedimentoCirurgicoId = procedimentoCirurgicoId,
+            AgendamentoId = agendamentoId,
         };
 
         foreach (var item in itensList)
@@ -114,8 +137,8 @@ public class Orcamento : Entity
                 0, c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade,
                 c.DuracaoMinutos, c.ValorTotal, ordemCir++));
 
-        if (internacao is not null)
-            orc.Internacao = OrcamentoInternacao.Criar(0, internacao.Tipo, internacao.Dias, internacao.ValorDiaria);
+        if (local is not null)
+            orc.DefinirLocalInterno(local.Tipo, local.TempoMinutos, local.ValorCalculado);
 
         if (anestesia is not null)
             orc.Anestesia = OrcamentoAnestesia.Criar(0, anestesia.Tipo, anestesia.Valor, anestesia.Observacao);
@@ -132,6 +155,14 @@ public class Orcamento : Entity
             throw new BusinessException("Paciente é obrigatório.");
         if (validade < DateOnly.FromDateTime(DateTime.UtcNow))
             throw new BusinessException("Validade não pode ser uma data passada.");
+    }
+
+    private static string? TratarTitulo(string? titulo)
+    {
+        var t = titulo?.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+        if (t.Length > 120) throw new BusinessException("Título do orçamento não pode passar de 120 caracteres.");
+        return t;
     }
 
     public void DefinirNumero()
@@ -195,7 +226,7 @@ public class Orcamento : Entity
 
     /// <summary>
     /// Substitui o aggregate inteiro (itens + equipe + implantes + formas + cirurgias +
-    /// internação + anestesia). Permitido apenas em <c>Rascunho</c> e <c>Enviado</c>.
+    /// local cirúrgico + anestesia). Permitido apenas em <c>Rascunho</c> e <c>Enviado</c>.
     /// </summary>
     public void Atualizar(
         DateOnly validade,
@@ -206,8 +237,10 @@ public class Orcamento : Entity
         IEnumerable<ImplantePayload>? implantes = null,
         IEnumerable<FormaPagamentoPayload>? formasPagamento = null,
         IEnumerable<CirurgiaPayload>? cirurgias = null,
-        InternacaoPayload? internacao = null,
-        AnestesiaPayload? anestesia = null)
+        LocalCirurgiaPayload? local = null,
+        AnestesiaPayload? anestesia = null,
+        string? titulo = null,
+        long? agendamentoId = null)
     {
         if (Status is not OrcamentoStatus.Rascunho and not OrcamentoStatus.Enviado)
             throw new BusinessException("Apenas orçamentos em rascunho ou enviados podem ser editados.");
@@ -225,7 +258,9 @@ public class Orcamento : Entity
 
         Validade = validade;
         Observacoes = observacoes?.Trim();
+        Titulo = TratarTitulo(titulo);
         ProcedimentoCirurgicoId = procedimentoCirurgicoId;
+        AgendamentoId = agendamentoId;
 
         Itens.Clear();
         foreach (var item in itensList)
@@ -255,9 +290,16 @@ public class Orcamento : Entity
                 Id, c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade,
                 c.DuracaoMinutos, c.ValorTotal, ordemCir++));
 
-        Internacao = internacao is null
-            ? null
-            : OrcamentoInternacao.Criar(Id, internacao.Tipo, internacao.Dias, internacao.ValorDiaria);
+        if (local is null)
+        {
+            TipoLocal = null;
+            TempoLocalMinutos = null;
+            ValorLocal = 0m;
+        }
+        else
+        {
+            DefinirLocalInterno(local.Tipo, local.TempoMinutos, local.ValorCalculado);
+        }
 
         Anestesia = anestesia is null
             ? null
@@ -349,18 +391,30 @@ public class Orcamento : Entity
         AtualizadoEm = DateTime.UtcNow;
     }
 
-    public void DefinirInternacao(TipoInternacao tipo, int dias, decimal valorDiaria)
+    /// <summary>Define/atualiza o local cirúrgico (snapshot calculado vem de fora).</summary>
+    public void DefinirLocal(TipoLocalCirurgia tipo, int tempoMinutos, decimal valorCalculado)
     {
         GarantirEditavel();
-        Internacao = OrcamentoInternacao.Criar(Id, tipo, dias, valorDiaria);
+        DefinirLocalInterno(tipo, tempoMinutos, valorCalculado);
         AtualizadoEm = DateTime.UtcNow;
     }
 
-    public void RemoverInternacao()
+    public void RemoverLocal()
     {
         GarantirEditavel();
-        Internacao = null;
+        TipoLocal = null;
+        TempoLocalMinutos = null;
+        ValorLocal = 0m;
         AtualizadoEm = DateTime.UtcNow;
+    }
+
+    private void DefinirLocalInterno(TipoLocalCirurgia tipo, int tempoMinutos, decimal valorCalculado)
+    {
+        if (tempoMinutos < 0) throw new BusinessException("Tempo da cirurgia não pode ser negativo.");
+        if (valorCalculado < 0) throw new BusinessException("Valor do local não pode ser negativo.");
+        TipoLocal = tipo;
+        TempoLocalMinutos = tempoMinutos;
+        ValorLocal = Math.Round(valorCalculado, 2);
     }
 
     public void DefinirAnestesia(TipoAnestesia tipo, decimal valor, string? observacao)
@@ -454,6 +508,11 @@ public class Orcamento : Entity
         int Quantidade,
         int? DuracaoMinutos,
         decimal ValorTotal);
-    public record InternacaoPayload(TipoInternacao Tipo, int Dias, decimal ValorDiaria);
+    /// <summary>
+    /// Local cirúrgico do orçamento (substitui o antigo <c>InternacaoPayload</c>).
+    /// O <c>ValorCalculado</c> é snapshot — quem calcula é o handler com a
+    /// <c>ConfiguracaoLocalCirurgia</c> do estabelecimento.
+    /// </summary>
+    public record LocalCirurgiaPayload(TipoLocalCirurgia Tipo, int TempoMinutos, decimal ValorCalculado);
     public record AnestesiaPayload(TipoAnestesia Tipo, decimal Valor, string? Observacao);
 }

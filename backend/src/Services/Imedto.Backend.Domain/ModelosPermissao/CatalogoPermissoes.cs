@@ -25,7 +25,7 @@ public static class CatalogoPermissoes
         new Area("prescricao",    new[] { "criar", "assinar" }),
         new Area("pacientes",     new[] { "ver", "criar", "editar", "excluir" }),
         new Area("financeiro",    new[] { "ver", "lancar", "fechar" }),
-        new Area("orcamento",     new[] { "ver", "criar", "editar" }),
+        new Area("orcamento",     new[] { "ver", "criar", "editar", "aprovar", "configurar" }),
         new Area("convenios",     new[] { "ver", "gerenciar" }),
         new Area("estoque",       new[] { "ver", "gerenciar" }),
         new Area("relatorios",    new[] { "ver", "exportar" }),
@@ -47,7 +47,7 @@ public static class CatalogoPermissoes
         "prontuario.ver", "prontuario.editar", "prontuario.assinar",
         "prescricao.criar", "prescricao.assinar",
         "pacientes.ver", "pacientes.criar", "pacientes.editar",
-        "orcamento.ver", "orcamento.criar",
+        "orcamento.ver", "orcamento.criar", "orcamento.editar",
         "relatorios.ver",
     };
 

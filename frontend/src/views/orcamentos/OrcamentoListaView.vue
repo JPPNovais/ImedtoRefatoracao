@@ -2,13 +2,11 @@
 import { ref, computed, watch, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import {
-    AppPageHeader, AppButton, AppSelect, AppSearchInput,
-    AppPagination, AppModal, AppField, AppInput, AppDatePicker,
+    AppPageHeader, AppButton, AppSelect, AppSearchInput, AppPagination,
 } from "@/components/ui"
 import OrcamentoKpis   from "@/components/orcamento/OrcamentoKpis.vue"
 import OrcamentoTabela from "@/components/orcamento/OrcamentoTabela.vue"
 import { orcamentoService, type OrcamentoResumo, type OrcamentoStatus } from "@/services/orcamentoService"
-import { pacienteService, type PacienteBuscaRapida } from "@/services/pacienteService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 
 const router = useRouter()
@@ -17,19 +15,9 @@ const router = useRouter()
 const orcamentos = ref<OrcamentoResumo[]>([])
 const carregando = ref(false)
 const erro = ref<string | null>(null)
-// Apenas {id, nomeCompleto} — o seletor só exibe o nome do paciente.
-// Usar `listar()` (DTO completo com CPF/telefone/data nascimento/tags) aqui
-// vazaria PII de centenas de pacientes só para popular um seletor (LGPD).
-// O endpoint `busca-rapida` enforça LIMIT 30 server-side (anti-exfiltração);
-// usuário com mais pacientes refina por nome no input de busca.
-const pacientes = ref<PacienteBuscaRapida[]>([])
-const buscaPacienteInput = ref("")
-const buscaPaciente = useDebouncedRef(buscaPacienteInput)
-const buscandoPacientes = ref(false)
-let buscaPacienteReqId = 0
 
-// ── Filtros
-type TabKey = "todos" | "pendentes" | "aprovados" | "quitados" | "perdidos"
+// ── Filtros (4 abas, sem a tab "Quitados" que tinha statuses: [])
+type TabKey = "todos" | "pendentes" | "aprovados" | "perdidos"
 const tab = ref<TabKey>("todos")
 
 const buscaInput = ref("")
@@ -38,25 +26,16 @@ const busca = useDebouncedRef(buscaInput)
 const statusFiltro = ref<OrcamentoStatus | "">("")
 
 type Ordenacao = "recente" | "valor_desc" | "valor_asc" | "vencendo"
-// AppSelect emite string — mantemos ref<string> e fazemos cast na leitura.
 const ordenacaoStr = ref<string>("recente")
 const ordenacao = computed(() => ordenacaoStr.value as Ordenacao)
 
 const pagina = ref(1)
 const tamanho = ref(20)
 
-// ── Modal novo
-const modalNovoAberto = ref(false)
-const novoPacienteId = ref<number | "">("")
-const novoValidade = ref<string>(formatarData(new Date(Date.now() + 30 * 86400_000)))
-const criandoNovo = ref(false)
-const erroModal = ref<string | null>(null)
-
 const TABS: { valor: TabKey; label: string; statuses: OrcamentoStatus[] }[] = [
     { valor: "todos",     label: "Todos",     statuses: [] },
     { valor: "pendentes", label: "Pendentes", statuses: ["Rascunho", "Enviado"] },
     { valor: "aprovados", label: "Aprovados", statuses: ["Aprovado"] },
-    { valor: "quitados",  label: "Quitados",  statuses: [] }, // sem status "Quitado" no backend — usar como aprovados pagos
     { valor: "perdidos",  label: "Perdidos",  statuses: ["Recusado", "Expirado", "Cancelado"] },
 ]
 
@@ -66,8 +45,6 @@ const ORDENACAO_OPTIONS: { value: Ordenacao; label: string }[] = [
     { value: "valor_asc",  label: "Menor valor" },
     { value: "vencendo",   label: "Vencendo antes" },
 ]
-
-function formatarData(d: Date) { return d.toISOString().slice(0, 10) }
 
 async function carregar() {
     carregando.value = true
@@ -81,53 +58,25 @@ async function carregar() {
     }
 }
 
-async function carregarPacientes(termo?: string) {
-    const reqId = ++buscaPacienteReqId
-    buscandoPacientes.value = true
-    try {
-        // `busca-rapida` aplica LIMIT 30 server-side. Quando o termo está vazio,
-        // mostra os 30 mais recentes; com termo, filtra por nome (índice trigram).
-        const resultado = await pacienteService.buscaRapida(termo || undefined, 30)
-        if (reqId === buscaPacienteReqId) pacientes.value = resultado
-    } catch {
-        if (reqId === buscaPacienteReqId) pacientes.value = []
-    } finally {
-        if (reqId === buscaPacienteReqId) buscandoPacientes.value = false
-    }
-}
-
-watch(buscaPaciente, (termo) => {
-    if (modalNovoAberto.value) void carregarPacientes(termo)
-})
-
-// ── Contadores por tab (antes do filtro de busca)
 const contagemTab = computed(() => {
     const list = orcamentos.value
     return {
         todos:     list.length,
         pendentes: list.filter(o => ["Rascunho", "Enviado"].includes(o.status)).length,
         aprovados: list.filter(o => o.status === "Aprovado").length,
-        quitados:  0,
         perdidos:  list.filter(o => ["Recusado", "Expirado", "Cancelado"].includes(o.status)).length,
     }
 })
 
-// ── Filtragem + ordenação client-side
 const filtrados = computed(() => {
     let arr = [...orcamentos.value]
-
-    // Tab filter
     const t = TABS.find(x => x.valor === tab.value)
     if (t && t.statuses.length > 0) {
         arr = arr.filter(o => t.statuses.includes(o.status))
     }
-
-    // Status adicional se selecionado
     if (statusFiltro.value) {
         arr = arr.filter(o => o.status === statusFiltro.value)
     }
-
-    // Busca texto
     if (busca.value.trim()) {
         const q = busca.value.toLowerCase()
         arr = arr.filter(o =>
@@ -136,15 +85,12 @@ const filtrados = computed(() => {
             o.criadoPorNome.toLowerCase().includes(q)
         )
     }
-
-    // Ordenação
     switch (ordenacao.value) {
         case "recente":    arr.sort((a, b) => b.criadoEm.localeCompare(a.criadoEm)); break
         case "valor_desc": arr.sort((a, b) => b.total - a.total); break
         case "valor_asc":  arr.sort((a, b) => a.total - b.total); break
         case "vencendo":   arr.sort((a, b) => a.validade.localeCompare(b.validade)); break
     }
-
     return arr
 })
 
@@ -167,45 +113,15 @@ function abrirOrcamento(o: OrcamentoResumo) {
     router.push({ name: "OrcamentoDetalhe", params: { id: String(o.id) } })
 }
 
-function abrirModalNovo() {
-    novoPacienteId.value = ""
-    novoValidade.value = formatarData(new Date(Date.now() + 30 * 86400_000))
-    erroModal.value = null
-    buscaPacienteInput.value = ""
-    modalNovoAberto.value = true
-    void carregarPacientes()
+/**
+ * Navega para o form vazio em `/orcamentos/novo`. NÃO cria registro no banco —
+ * persistência só acontece no submit do formulário (CA-1).
+ */
+function abrirNovoOrcamento() {
+    router.push({ name: "OrcamentoNovo" })
 }
 
-async function criarNovo() {
-    if (!novoPacienteId.value || !novoValidade.value) return
-    criandoNovo.value = true
-    erroModal.value = null
-    try {
-        const r = await orcamentoService.criar({
-            pacienteId: Number(novoPacienteId.value),
-            validade: novoValidade.value,
-            cirurgias: [{
-                procedimentoCirurgicoId: null,
-                descricao: "Cirurgia a definir",
-                quantidade: 1,
-                duracaoMinutos: null,
-                valorTotal: 0,
-            }],
-        })
-        modalNovoAberto.value = false
-        router.push({ name: "OrcamentoForm", params: { id: String(r.orcamentoId) } })
-    } catch (e: any) {
-        erroModal.value = e?.response?.data?.mensagem ?? "Erro ao criar orçamento."
-    } finally {
-        criandoNovo.value = false
-    }
-}
-
-onMounted(() => {
-    void carregar()
-    // Lista de pacientes é carregada sob demanda quando o modal "Novo orçamento"
-    // abre (ver `abrirModalNovo`) — evita request desnecessário no mount.
-})
+onMounted(carregar)
 </script>
 
 <template>
@@ -223,20 +139,17 @@ onMounted(() => {
                     Configurações
                 </AppButton>
                 <AppButton variant="secondary" icon="fa-solid fa-file-export">Exportar</AppButton>
-                <AppButton icon="fa-solid fa-plus" @click="abrirModalNovo">Novo orçamento</AppButton>
+                <AppButton icon="fa-solid fa-plus" @click="abrirNovoOrcamento">Novo orçamento</AppButton>
             </template>
         </AppPageHeader>
 
-        <!-- KPIs -->
         <OrcamentoKpis :orcamentos="orcamentos" />
 
-        <!-- Erro de carregamento -->
         <div v-if="erro" class="erro-banner" role="alert">
             {{ erro }}
             <AppButton size="sm" variant="ghost" @click="carregar">Tentar novamente</AppButton>
         </div>
 
-        <!-- Toolbar: tabs + busca + filtros -->
         <div class="toolbar">
             <div class="tabs-wrap">
                 <button
@@ -263,61 +176,18 @@ onMounted(() => {
             </div>
         </div>
 
-        <!-- Tabela -->
         <OrcamentoTabela
             :orcamentos="paginados"
             :carregando="carregando"
             @abrir="abrirOrcamento"
         />
 
-        <!-- Paginação -->
         <AppPagination
             v-if="totalFiltrado > tamanho"
             v-model:pagina="pagina"
             v-model:tamanho="tamanho"
             :total="totalFiltrado"
         />
-
-        <!-- Modal: Novo orçamento -->
-        <AppModal :aberto="modalNovoAberto" titulo="Novo orçamento" @fechar="modalNovoAberto = false">
-            <div class="form-novo">
-                <div v-if="erroModal" class="erro-banner" role="alert">{{ erroModal }}</div>
-
-                <AppField label="Paciente" for="novo-paciente">
-                    <AppSearchInput
-                        v-model="buscaPacienteInput"
-                        placeholder="Buscar paciente por nome..."
-                        class="paciente-busca"
-                    />
-                    <AppSelect id="novo-paciente" v-model="novoPacienteId" class="paciente-select">
-                        <option value="">
-                            {{ buscandoPacientes ? "Buscando..." : pacientes.length === 0 ? "Nenhum paciente encontrado" : "Selecione o paciente..." }}
-                        </option>
-                        <option v-for="p in pacientes" :key="p.id" :value="p.id">{{ p.nomeCompleto }}</option>
-                    </AppSelect>
-                    <p class="texto-aux">
-                        Exibindo até 30 pacientes — refine pelo nome se não encontrar.
-                    </p>
-                </AppField>
-                <AppField label="Validade">
-                    <AppDatePicker v-model="novoValidade" placeholder="DD/MM/AAAA" />
-                </AppField>
-                <p class="texto-aux">
-                    Será criado um orçamento <strong>em rascunho</strong>.
-                    Preencha os detalhes no formulário em seguida.
-                </p>
-            </div>
-            <template #footer>
-                <AppButton variant="ghost" @click="modalNovoAberto = false">Cancelar</AppButton>
-                <AppButton
-                    :loading="criandoNovo"
-                    :disabled="!novoPacienteId || !novoValidade"
-                    @click="criarNovo"
-                >
-                    Criar e editar
-                </AppButton>
-            </template>
-        </AppModal>
     </div>
 </template>
 
@@ -334,7 +204,6 @@ onMounted(() => {
     font-size: 0.875rem;
 }
 
-/* Toolbar */
 .toolbar {
     display: flex;
     gap: 14px;
@@ -395,13 +264,6 @@ onMounted(() => {
 }
 
 .select-sm { min-width: 160px; }
-
-/* Modal */
-.form-novo { display: flex; flex-direction: column; gap: 0.85rem; }
-.texto-aux { color: var(--text-muted); font-size: 0.82em; margin: 0; }
-
-.paciente-busca { margin-bottom: 8px; }
-.paciente-select { width: 100%; }
 
 @media (max-width: 900px) {
     .toolbar { flex-direction: column; align-items: stretch; }

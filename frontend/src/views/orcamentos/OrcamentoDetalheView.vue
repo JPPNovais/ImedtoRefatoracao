@@ -241,15 +241,15 @@ onMounted(carregar)
                         </table>
                     </AppCard>
 
-                    <!-- Local & anestesia -->
-                    <AppCard v-if="orcamento.internacao || orcamento.anestesia" title="Local e anestesia">
+                    <!-- Local cirúrgico & anestesia -->
+                    <AppCard v-if="orcamento.localCirurgia || orcamento.anestesia" title="Local cirúrgico e anestesia">
                         <dl class="meta-grid">
-                            <div v-if="orcamento.internacao">
-                                <dt>Internação</dt>
+                            <div v-if="orcamento.localCirurgia">
+                                <dt>Local cirúrgico</dt>
                                 <dd>
-                                    {{ orcamento.internacao.tipoInternacao }}
-                                    ({{ orcamento.internacao.dias }}d × {{ fmtBRL(orcamento.internacao.valorDiaria) }}
-                                    = {{ fmtBRL(orcamento.internacao.valorTotal) }})
+                                    {{ orcamento.localCirurgia.tipo }}
+                                    ({{ orcamento.localCirurgia.tempoMinutos }} min
+                                    = {{ fmtBRL(orcamento.localCirurgia.valor) }})
                                 </dd>
                             </div>
                             <div v-if="orcamento.anestesia">
@@ -298,9 +298,9 @@ onMounted(carregar)
                                 <span>Implantes</span>
                                 <strong>{{ fmtBRL(orcamento.custoImplantesTotal) }}</strong>
                             </div>
-                            <div v-if="orcamento.internacao" class="rl">
-                                <span>Internação</span>
-                                <strong>{{ fmtBRL(orcamento.internacao.valorTotal) }}</strong>
+                            <div v-if="orcamento.localCirurgia" class="rl">
+                                <span>Local cirúrgico</span>
+                                <strong>{{ fmtBRL(orcamento.localCirurgia.valor) }}</strong>
                             </div>
                             <div v-if="orcamento.anestesia" class="rl">
                                 <span>Anestesia</span>

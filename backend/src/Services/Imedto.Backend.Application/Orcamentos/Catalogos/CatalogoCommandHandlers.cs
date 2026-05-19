@@ -109,8 +109,8 @@ public class SalvarConfiguracaoLocalCommandHandler : ICommandHandler<SalvarConfi
 
     public async Task Handle(SalvarConfiguracaoLocalCommand cmd)
     {
-        if (!Enum.TryParse<TipoInternacao>(cmd.TipoInternacao, ignoreCase: true, out var tipo))
-            throw new BusinessException($"Tipo de internação '{cmd.TipoInternacao}' inválido.");
+        if (!Enum.TryParse<TipoLocalCirurgia>(cmd.TipoLocal, ignoreCase: true, out var tipo))
+            throw new BusinessException($"Tipo de local cirúrgico '{cmd.TipoLocal}' inválido.");
 
         var entity = await _repo.ObterPorEstabelecimentoETipo(cmd.EstabelecimentoId, tipo);
         if (entity is null)

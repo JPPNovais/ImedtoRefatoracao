@@ -4,7 +4,7 @@ namespace Imedto.Backend.Contracts.Orcamentos.Commands;
 
 /// <summary>
 /// Cria um orçamento (aggregate único). Cirurgias, equipe, implantes, formas de
-/// pagamento, internação e anestesia são opcionais — o orçamento aceita qualquer
+/// pagamento, local cirúrgico e anestesia são opcionais — o orçamento aceita qualquer
 /// combinação desde que tenha pelo menos um item, implante, cirurgia ou comissão.
 /// Nasce em <c>Rascunho</c> e só vai para <c>Enviado</c> via <see cref="EnviarOrcamentoCommand"/>.
 /// </summary>
@@ -14,15 +14,17 @@ public class CriarOrcamentoCommand : ICommand
     public long PacienteId { get; set; }
     public DateOnly Validade { get; set; }
     public string? Observacoes { get; set; }
+    public string? Titulo { get; set; }
     public Guid CriadoPorUsuarioId { get; set; }
     public long? ProcedimentoCirurgicoId { get; set; }
+    public long? AgendamentoId { get; set; }
 
     public List<ItemOrcamentoPayload> Itens { get; set; } = new();
     public List<OrcamentoEquipePayload> Equipe { get; set; } = new();
     public List<OrcamentoImplantePayload> Implantes { get; set; } = new();
     public List<OrcamentoFormaPagamentoPayload> FormasPagamento { get; set; } = new();
     public List<OrcamentoCirurgiaPayload> Cirurgias { get; set; } = new();
-    public OrcamentoInternacaoPayload? Internacao { get; set; }
+    public OrcamentoLocalCirurgiaPayload? LocalCirurgia { get; set; }
     public OrcamentoAnestesiaPayload? Anestesia { get; set; }
 
     public long OrcamentoIdCriado { get; set; }
@@ -66,10 +68,13 @@ public record OrcamentoCirurgiaPayload(
     decimal ValorTotal);
 
 /// <summary>
-/// Internação 1:1. <c>Tipo</c> é string convertido pelo handler para o enum
-/// <c>TipoInternacao</c>.
+/// Local cirúrgico do orçamento (paridade com legado — substitui o antigo
+/// <c>OrcamentoInternacaoPayload</c>). <c>Tipo</c> é string convertido pelo handler
+/// para <c>TipoLocalCirurgia</c> (5 valores: <c>IntLocal/IntPeridural/IntGeral/SemInternacao/Ambulatorio</c>).
+/// <c>TempoMinutos</c> = tempo total da cirurgia. O valor é calculado server-side a partir
+/// da <c>ConfiguracaoLocalCirurgia</c> do estabelecimento — não confiamos no que o cliente envia.
 /// </summary>
-public record OrcamentoInternacaoPayload(string Tipo, int Dias, decimal ValorDiaria);
+public record OrcamentoLocalCirurgiaPayload(string Tipo, int TempoMinutos);
 
 /// <summary>
 /// Anestesia 1:1. <c>Tipo</c> é string convertido pelo handler para o enum

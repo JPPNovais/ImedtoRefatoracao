@@ -68,10 +68,18 @@ export interface AtualizarValorProfissionalPayload {
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuração local (legado)
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Tipos de local cirúrgico (paridade com legado).
+ * - `IntLocal`/`IntPeridural`/`IntGeral`: valor calculado por tempo (base + blocos adicionais).
+ * - `SemInternacao`/`Ambulatorio`: valor fixo (independe do tempo).
+ */
+export type TipoLocalCirurgiaCatalogo =
+    | "IntLocal" | "IntPeridural" | "IntGeral" | "SemInternacao" | "Ambulatorio"
+
 export interface ConfiguracaoLocalCirurgia {
     id: number
     estabelecimentoId: number
-    tipoInternacao: string
+    tipoLocal: TipoLocalCirurgiaCatalogo
     tempoBaseMinutos: number
     valorBase: number
     tempoAdicionalMinutos: number

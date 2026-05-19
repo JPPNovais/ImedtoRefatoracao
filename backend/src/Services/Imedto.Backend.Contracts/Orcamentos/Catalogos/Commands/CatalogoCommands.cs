@@ -66,7 +66,8 @@ public class RemoverValorProfissionalCommand : ICommand
 public class SalvarConfiguracaoLocalCommand : ICommand
 {
     public long EstabelecimentoId { get; set; }
-    public string TipoInternacao { get; set; } = string.Empty;
+    /// <summary>Tipo do local cirúrgico (5 valores do enum <c>TipoLocalCirurgia</c>).</summary>
+    public string TipoLocal { get; set; } = string.Empty;
     public int TempoBaseMinutos { get; set; }
     public decimal ValorBase { get; set; }
     public int TempoAdicionalMinutos { get; set; }

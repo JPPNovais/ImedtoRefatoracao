@@ -98,9 +98,8 @@ public class AppDbContext : DbContext
     public DbSet<OrcamentoEquipe> OrcamentoEquipe => Set<OrcamentoEquipe>();
     public DbSet<OrcamentoImplante> OrcamentoImplantes => Set<OrcamentoImplante>();
     public DbSet<OrcamentoFormaPagamento> OrcamentoFormasPagamento => Set<OrcamentoFormaPagamento>();
-    // Item 6 — cirurgias múltiplas + internação + anestesia.
+    // Item 6 — cirurgias múltiplas + local cirúrgico (snapshot embutido no Orcamento) + anestesia.
     public DbSet<OrcamentoCirurgia> OrcamentoCirurgias => Set<OrcamentoCirurgia>();
-    public DbSet<OrcamentoInternacao> OrcamentoInternacoes => Set<OrcamentoInternacao>();
     public DbSet<OrcamentoAnestesia> OrcamentoAnestesias => Set<OrcamentoAnestesia>();
 
     // Fase 6.1 — Catálogos de orçamento (settings).

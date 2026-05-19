@@ -7,16 +7,15 @@ namespace Imedto.Backend.Application.Orcamentos.Commands;
 /// <summary>
 /// Conversões entre os payloads do <c>Contracts</c> (sem dependência de Domain) e os
 /// tipos do Domain (enums + payload records). Único ponto de validação dos strings
-/// vindos da API (ex: <c>"Apartamento"</c> → <see cref="TipoInternacao"/>).
+/// vindos da API (ex: <c>"IntGeral"</c> → <see cref="TipoLocalCirurgia"/>).
 /// </summary>
 internal static class OrcamentoMapping
 {
-    public static Orcamento.InternacaoPayload? MapInternacao(OrcamentoInternacaoPayload? p)
+    public static TipoLocalCirurgia ParseTipoLocal(string raw)
     {
-        if (p is null) return null;
-        if (!Enum.TryParse<TipoInternacao>(p.Tipo, ignoreCase: true, out var tipo))
-            throw new BusinessException($"Tipo de internação '{p.Tipo}' inválido.");
-        return new Orcamento.InternacaoPayload(tipo, p.Dias, p.ValorDiaria);
+        if (!Enum.TryParse<TipoLocalCirurgia>(raw, ignoreCase: true, out var tipo))
+            throw new BusinessException($"Tipo de local cirúrgico '{raw}' inválido.");
+        return tipo;
     }
 
     public static Orcamento.AnestesiaPayload? MapAnestesia(OrcamentoAnestesiaPayload? p)

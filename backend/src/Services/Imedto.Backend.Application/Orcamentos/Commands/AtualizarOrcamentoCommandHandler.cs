@@ -1,7 +1,10 @@
 using Imedto.Backend.Contracts.Orcamentos.Commands;
+using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Cirurgias;
 using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Orcamentos;
+using Imedto.Backend.Domain.Orcamentos.Calculos;
+using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -12,20 +15,25 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
     private readonly IOrcamentoRepository _repo;
     private readonly IProcedimentoCirurgicoRepository _procedimentoRepo;
     private readonly IItemInventarioRepository _inventarioRepo;
+    private readonly IAgendamentoRepository _agendamentoRepo;
+    private readonly IConfiguracaoLocalCirurgiaRepository _configLocalRepo;
 
     public AtualizarOrcamentoCommandHandler(
         IOrcamentoRepository repo,
         IProcedimentoCirurgicoRepository procedimentoRepo,
-        IItemInventarioRepository inventarioRepo)
+        IItemInventarioRepository inventarioRepo,
+        IAgendamentoRepository agendamentoRepo,
+        IConfiguracaoLocalCirurgiaRepository configLocalRepo)
     {
         _repo = repo;
         _procedimentoRepo = procedimentoRepo;
         _inventarioRepo = inventarioRepo;
+        _agendamentoRepo = agendamentoRepo;
+        _configLocalRepo = configLocalRepo;
     }
 
     public async Task Handle(AtualizarOrcamentoCommand cmd)
     {
-        // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
         var orcamento = await _repo.ObterPorIdCompletoOuNulo(cmd.OrcamentoId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Orçamento não encontrado.");
 
@@ -37,8 +45,18 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
                 throw new BusinessException("Procedimento cirúrgico não pertence ao paciente neste estabelecimento.");
         }
 
+        if (cmd.AgendamentoId is { } agId)
+        {
+            var ag = await _agendamentoRepo.ObterPorIdOuNulo(agId, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Agendamento não encontrado.");
+            if (ag.PacienteId != orcamento.PacienteId)
+                throw new BusinessException("Agendamento não pertence ao paciente neste estabelecimento.");
+        }
+
         await ValidarImplantesCatalogo(cmd.Implantes, cmd.EstabelecimentoId);
         await ValidarCirurgiasCatalogo(cmd.Cirurgias, cmd.EstabelecimentoId, orcamento.PacienteId);
+
+        var local = await MapearLocalAsync(cmd.LocalCirurgia, cmd.EstabelecimentoId);
 
         orcamento.Atualizar(
             cmd.Validade,
@@ -51,10 +69,24 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
                 f.FormaPagamentoId, f.Valor, f.Parcelas, f.AcrescimoPercentual, f.EntradaPercentual, f.Observacao)),
             cmd.Cirurgias.Select(c => new Orcamento.CirurgiaPayload(
                 c.ProcedimentoCirurgicoId, c.Descricao, c.Quantidade, c.DuracaoMinutos, c.ValorTotal)),
-            OrcamentoMapping.MapInternacao(cmd.Internacao),
-            OrcamentoMapping.MapAnestesia(cmd.Anestesia));
+            local,
+            OrcamentoMapping.MapAnestesia(cmd.Anestesia),
+            titulo: cmd.Titulo,
+            agendamentoId: cmd.AgendamentoId);
 
         await _repo.Salvar(orcamento);
+    }
+
+    private async Task<Orcamento.LocalCirurgiaPayload?> MapearLocalAsync(
+        OrcamentoLocalCirurgiaPayload? p, long estabelecimentoId)
+    {
+        if (p is null) return null;
+        var tipo = OrcamentoMapping.ParseTipoLocal(p.Tipo);
+        var config = await _configLocalRepo.ObterPorEstabelecimentoETipo(estabelecimentoId, tipo);
+        if (config is null)
+            throw new BusinessException("Local cirúrgico não configurado para este estabelecimento. Configure em Orçamento → Configurações.");
+        var valor = OrcamentoCalculadora.CalcularValorLocal(tipo, p.TempoMinutos, config);
+        return new Orcamento.LocalCirurgiaPayload(tipo, p.TempoMinutos, valor);
     }
 
     private async Task ValidarImplantesCatalogo(
@@ -67,7 +99,6 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
                            .ToList();
         foreach (var id in ids)
         {
-            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
             _ = await _inventarioRepo.ObterPorIdOuNulo(id, estabelecimentoId)
                 ?? throw new BusinessException($"Item de inventário {id} não encontrado.");
         }
@@ -84,7 +115,6 @@ public class AtualizarOrcamentoCommandHandler : ICommandHandler<AtualizarOrcamen
                            .ToList();
         foreach (var id in ids)
         {
-            // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
             var proc = await _procedimentoRepo.ObterPorIdOuNulo(id, estabelecimentoId)
                 ?? throw new BusinessException($"Procedimento cirúrgico {id} não encontrado.");
             if (proc.PacienteId != pacienteId)

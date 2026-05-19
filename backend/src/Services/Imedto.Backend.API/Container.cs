@@ -316,6 +316,7 @@ public static class Container
         services.AddScoped<CadastrarProfissionalCommandHandler>();
         services.AddScoped<AtualizarProfissionalCommandHandler>();
         services.AddScoped<AlterarFotoProfissionalCommandHandler>();
+        services.AddScoped<RemoverFotoProfissionalCommandHandler>();
         services.AddSingleton<ObterProfissionalMeQueryHandlers>();
         services.AddScoped<ProfissionalCadastradoEventHandler>();
         services.AddSingleton<ProfissionalQueryRepository>();
@@ -510,6 +511,8 @@ public static class Container
         services.AddSingleton<ListarOrcamentosQueryHandlers>();
         services.AddSingleton<ObterOrcamentoQueryHandlers>();
         services.AddSingleton<PreviewOrcamentoQueryHandler>();
+        services.AddSingleton<ObterOrcamentoPorAgendamentoQueryHandler>();
+        services.AddSingleton<ConsolidarProdutosOrcamentoQueryHandler>();
         services.AddSingleton<OrcamentoQueryRepository>();
         services.AddScoped<OrcamentoCriadoEventHandler>();
         services.AddScoped<OrcamentoAprovadoEventHandler>();
@@ -747,6 +750,7 @@ public static class Container
             bus.Register<CadastrarProfissionalCommand, CadastrarProfissionalCommandHandler>();
             bus.Register<AtualizarProfissionalCommand, AtualizarProfissionalCommandHandler>();
             bus.Register<AlterarFotoProfissionalCommand, AlterarFotoProfissionalCommandHandler>();
+            bus.Register<RemoverFotoProfissionalCommand, RemoverFotoProfissionalCommandHandler>();
             bus.Register<ConvidarProfissionalCommand, ConvidarProfissionalCommandHandler>();
             bus.Register<AceitarConviteCommand, AceitarConviteCommandHandler>();
             bus.Register<AceitarConvitesPendentesDoUsuarioCommand, AceitarConvitesPendentesDoUsuarioCommandHandler>();
@@ -941,6 +945,8 @@ public static class Container
             bus.Register<ListarOrcamentosQuery, IEnumerable<OrcamentoResumoDto>, ListarOrcamentosQueryHandlers>();
             bus.Register<ObterOrcamentoQuery, OrcamentoDto, ObterOrcamentoQueryHandlers>();
             bus.Register<PreviewOrcamentoQuery, PreviewOrcamentoDto, PreviewOrcamentoQueryHandler>();
+            bus.Register<ObterOrcamentoPorAgendamentoQuery, OrcamentoResumoDto?, ObterOrcamentoPorAgendamentoQueryHandler>();
+            bus.Register<ConsolidarProdutosOrcamentoQuery, List<ProdutoConsolidadoDto>, ConsolidarProdutosOrcamentoQueryHandler>();
             // Fase 6.1 — Queries de catálogos.
             bus.Register<ListarCatalogoCirurgiasQuery, IEnumerable<CatalogoCirurgiaDto>, ListarCatalogoCirurgiasQueryHandlers>();
             bus.Register<ListarValoresProfissionalQuery, IEnumerable<ValorProfissionalOrcamentoDto>, ListarValoresProfissionalQueryHandlers>();

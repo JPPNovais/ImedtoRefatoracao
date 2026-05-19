@@ -1,4 +1,5 @@
 using Imedto.Backend.Domain.Orcamentos.Calculos;
+using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using NUnit.Framework;
 
 namespace Imedto.Backend.Test.Domain.Orcamentos;
@@ -92,6 +93,59 @@ public class OrcamentoCalculadoraTests
             tempoBaseMinutos: 60, valorBase: 500m,
             tempoAdicionalMinutos: 30, valorAdicional: 100m);
         Assert.That(v, Is.EqualTo(700m));
+    }
+
+    // CA-3: ValorProfissional(tempoBase=120, valorBase=1000, tempoAd=30, valorAd=200, plus=0)
+    // com tempo=180min → 1400 (1 bloco adicional cheio).
+    [Test]
+    public void CA3_ValorProfissional_180minComBase120e30Adicional_Retorna1400()
+    {
+        var v = OrcamentoCalculadora.CalcularValorProfissional(
+            tempoCirurgiaMinutos: 180,
+            tempoBaseMinutos: 120, valorTempoBase: 1000m,
+            tempoAdicionalMinutos: 30, valorAdicional: 200m, valorPlus: 0m);
+        Assert.That(v, Is.EqualTo(1400m));
+    }
+
+    // CA-4: CalcularValorLocal(int_geral, base=2000, tempoBase=120, tempoAd=30, valorAd=300)
+    // com tempo=180min → 2600.
+    [Test]
+    public void CA4_ValorLocal_IntGeral_180minComBase120e300Adicional_Retorna2600()
+    {
+        var config = ConfiguracaoLocalCirurgia.Criar(
+            estabelecimentoId: 1, tipo: Imedto.Backend.Domain.Orcamentos.TipoLocalCirurgia.IntGeral,
+            tempoBaseMinutos: 120, valorBase: 2000m,
+            tempoAdicionalMinutos: 30, valorAdicional: 300m);
+
+        var v = OrcamentoCalculadora.CalcularValorLocal(
+            Imedto.Backend.Domain.Orcamentos.TipoLocalCirurgia.IntGeral,
+            tempoCirurgiaMinutos: 180,
+            config);
+        Assert.That(v, Is.EqualTo(2600m));
+    }
+
+    [Test]
+    public void ValorLocal_TipoFixo_RetornaValorBaseIgnorandoTempo()
+    {
+        var config = ConfiguracaoLocalCirurgia.Criar(
+            estabelecimentoId: 1,
+            tipo: Imedto.Backend.Domain.Orcamentos.TipoLocalCirurgia.SemInternacao,
+            tempoBaseMinutos: 1, valorBase: 350m,
+            tempoAdicionalMinutos: 1, valorAdicional: 999m);
+
+        var v = OrcamentoCalculadora.CalcularValorLocal(
+            Imedto.Backend.Domain.Orcamentos.TipoLocalCirurgia.SemInternacao,
+            tempoCirurgiaMinutos: 600, config);
+        Assert.That(v, Is.EqualTo(350m), "tipo fixo (SemInternacao/Ambulatorio) ignora tempo");
+    }
+
+    [Test]
+    public void ValorLocal_ConfigNull_RetornaZero()
+    {
+        var v = OrcamentoCalculadora.CalcularValorLocal(
+            Imedto.Backend.Domain.Orcamentos.TipoLocalCirurgia.IntLocal,
+            tempoCirurgiaMinutos: 60, config: null);
+        Assert.That(v, Is.EqualTo(0m));
     }
 
     // ──────── CalcularFormaPagamento ────────

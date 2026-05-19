@@ -17,7 +17,8 @@ public interface IValorProfissionalOrcamentoRepository
 public interface IConfiguracaoLocalCirurgiaRepository
 {
     Task<ConfiguracaoLocalCirurgia?> ObterPorIdOuNulo(long id, long estabelecimentoId);
-    Task<ConfiguracaoLocalCirurgia?> ObterPorEstabelecimentoETipo(long estabelecimentoId, TipoInternacao tipo);
+    Task<ConfiguracaoLocalCirurgia?> ObterPorEstabelecimentoETipo(long estabelecimentoId, TipoLocalCirurgia tipo);
+    Task<IReadOnlyList<ConfiguracaoLocalCirurgia>> ListarDoEstabelecimento(long estabelecimentoId);
     Task Salvar(ConfiguracaoLocalCirurgia entity);
 }
 

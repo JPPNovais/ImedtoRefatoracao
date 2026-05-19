@@ -16,14 +16,14 @@ public class OrcamentoRepository : IOrcamentoRepository
     public async Task<Orcamento?> ObterPorIdCompletoOuNulo(long id, long estabelecimentoId)
     {
         // AsSplitQuery evita explosão cartesiana — Postgres faz uma SELECT por collection
-        // (1 root + 5 collections + 2 relações 1:1) em vez de uma só com produto cartesiano.
+        // (1 root + 5 collections + 1 relação 1:1) em vez de uma só com produto cartesiano.
+        // O Local Cirúrgico ficou embutido no próprio Orcamento (não tem mais Include separado).
         return await _db.Orcamentos
             .Include(o => o.Itens)
             .Include(o => o.Equipe)
             .Include(o => o.Implantes)
             .Include(o => o.FormasPagamento)
             .Include(o => o.Cirurgias)
-            .Include(o => o.Internacao)
             .Include(o => o.Anestesia)
             .AsSplitQuery()
             .FirstOrDefaultAsync(o => o.Id == id && o.EstabelecimentoId == estabelecimentoId);

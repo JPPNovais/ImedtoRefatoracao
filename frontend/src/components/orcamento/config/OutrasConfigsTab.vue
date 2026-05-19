@@ -5,15 +5,72 @@
  * tela transitória, mantendo as funcionalidades enquanto o OrcamentoFormView
  * não é reescrito.
  */
-import { ref, onMounted } from "vue"
+import { reactive, ref, onMounted, watch } from "vue"
 import { AppTabs, AppEmptyState, AppButton, AppField, AppInput, AppSelect, AppStatusPill } from "@/components/ui"
 import { formatarMoedaBrl } from "@/utils/format"
 import {
     orcamentoCatalogoService,
     type ConfiguracaoLocalCirurgia, type CatalogoImplante, type ConfiguracaoPagamentoCatalogo,
-    type CatalogoEquipe,
+    type CatalogoEquipe, type TipoLocalCirurgiaCatalogo,
 } from "@/services/orcamentoCatalogoService"
 import { formaPagamentoService, type FormaPagamento } from "@/services/categoriaFinanceiraService"
+
+interface OpcaoLocal {
+    tipo: TipoLocalCirurgiaCatalogo
+    label: string
+    descricao: string
+    cobraPorTempo: boolean
+}
+const OPCOES_LOCAL: OpcaoLocal[] = [
+    { tipo: "IntLocal",      label: "Anestesia Local + Sedação", descricao: "Com Internação", cobraPorTempo: true },
+    { tipo: "IntPeridural",  label: "Peridural/Raqui + Sedação", descricao: "Com Internação", cobraPorTempo: true },
+    { tipo: "IntGeral",      label: "Anestesia Geral + TOT",     descricao: "Com Internação", cobraPorTempo: true },
+    { tipo: "SemInternacao", label: "Anestesia Local",           descricao: "Sem Internação", cobraPorTempo: false },
+    { tipo: "Ambulatorio",   label: "Anestesia Local",           descricao: "Ambulatório",    cobraPorTempo: false },
+]
+
+interface CampoLocal { tempoBaseMinutos: number; valorBase: number; tempoAdicionalMinutos: number; valorAdicional: number }
+const camposVazios = (): CampoLocal => ({ tempoBaseMinutos: 60, valorBase: 0, tempoAdicionalMinutos: 30, valorAdicional: 0 })
+const formularioLocal = reactive<Record<TipoLocalCirurgiaCatalogo, CampoLocal>>({
+    IntLocal: camposVazios(),
+    IntPeridural: camposVazios(),
+    IntGeral: camposVazios(),
+    SemInternacao: { tempoBaseMinutos: 1, valorBase: 0, tempoAdicionalMinutos: 1, valorAdicional: 0 },
+    Ambulatorio: { tempoBaseMinutos: 1, valorBase: 0, tempoAdicionalMinutos: 1, valorAdicional: 0 },
+})
+const salvandoLocal = reactive<Record<TipoLocalCirurgiaCatalogo, boolean>>({
+    IntLocal: false, IntPeridural: false, IntGeral: false, SemInternacao: false, Ambulatorio: false,
+})
+
+function hidratarFormularioLocal() {
+    for (const l of locais.value) {
+        formularioLocal[l.tipoLocal] = {
+            tempoBaseMinutos: l.tempoBaseMinutos,
+            valorBase: Number(l.valorBase),
+            tempoAdicionalMinutos: l.tempoAdicionalMinutos,
+            valorAdicional: Number(l.valorAdicional),
+        }
+    }
+}
+
+async function salvarLocal(tipo: TipoLocalCirurgiaCatalogo) {
+    salvandoLocal[tipo] = true
+    try {
+        const f = formularioLocal[tipo]
+        await orcamentoCatalogoService.salvarLocal(tipo, {
+            tempoBaseMinutos: f.tempoBaseMinutos,
+            valorBase: f.valorBase,
+            tempoAdicionalMinutos: f.tempoAdicionalMinutos,
+            valorAdicional: f.valorAdicional,
+        })
+        const novos = await orcamentoCatalogoService.listarLocais()
+        locais.value = novos
+    } catch (e: any) {
+        alert(e?.response?.data?.mensagem ?? "Erro ao salvar configuração de local.")
+    } finally {
+        salvandoLocal[tipo] = false
+    }
+}
 
 type SubAba = "local" | "implantes" | "equipes" | "pagamento"
 const subAba = ref<SubAba>("local")
@@ -41,6 +98,7 @@ async function carregarTudo() {
     ])
     locais.value = l; implantes.value = i; equipes.value = e; pagamentos.value = p
     formasPagamento.value = fp
+    hidratarFormularioLocal()
 }
 
 onMounted(carregarTudo)
@@ -56,18 +114,54 @@ onMounted(carregarTudo)
 
         <AppTabs v-model="subAba" :abas="subAbas" variante="sub" />
 
-        <!-- LOCAL CIRURGIA -->
+        <!-- LOCAL CIRURGIA — editor inline dos 5 tipos -->
         <div v-if="subAba === 'local'">
-            <h3>Locais de cirurgia configurados</h3>
-            <div v-if="locais.length" class="simple-table">
-                <div v-for="l in locais" :key="l.id" class="row">
-                    <strong>{{ l.tipoInternacao }}</strong>
-                    <span>{{ l.tempoBaseMinutos }} min base + {{ l.tempoAdicionalMinutos }} min adicional</span>
-                    <span>{{ formatarMoedaBrl(l.valorBase) }} + {{ formatarMoedaBrl(l.valorAdicional) }}</span>
+            <h3>Local cirúrgico — valores por tipo</h3>
+            <p class="hint">
+                Para os tipos <strong>Sem Internação</strong> e <strong>Ambulatório</strong> o valor é fixo
+                (independe do tempo). Os demais 3 tipos cobram por tempo: <em>valor base</em> até <em>tempo base</em>;
+                cada bloco adicional de <em>tempo adicional</em> minutos soma <em>valor adicional</em>.
+            </p>
+            <div class="locais-grid">
+                <div v-for="opc in OPCOES_LOCAL" :key="opc.tipo" class="local-card">
+                    <div class="local-card-head">
+                        <strong>{{ opc.label }}</strong>
+                        <small>{{ opc.descricao }}</small>
+                    </div>
+                    <div class="local-card-fields">
+                        <label>
+                            Valor base (R$)
+                            <input type="number" step="0.01" v-model.number="formularioLocal[opc.tipo].valorBase" />
+                        </label>
+                        <template v-if="opc.cobraPorTempo">
+                            <label>
+                                Tempo base (min)
+                                <input type="number" min="1" v-model.number="formularioLocal[opc.tipo].tempoBaseMinutos" />
+                            </label>
+                            <label>
+                                Tempo adicional (min)
+                                <input type="number" min="1" v-model.number="formularioLocal[opc.tipo].tempoAdicionalMinutos" />
+                            </label>
+                            <label>
+                                Valor adicional (R$)
+                                <input type="number" step="0.01" v-model.number="formularioLocal[opc.tipo].valorAdicional" />
+                            </label>
+                        </template>
+                    </div>
+                    <div class="local-card-acoes">
+                        <AppButton size="sm" :loading="salvandoLocal[opc.tipo]"
+                                   @click="salvarLocal(opc.tipo)">
+                            Salvar
+                        </AppButton>
+                        <small v-if="locais.find(l => l.tipoLocal === opc.tipo)" class="status">
+                            Configurado em
+                            {{ new Date(locais.find(l => l.tipoLocal === opc.tipo)!.atualizadaEm
+                                       ?? locais.find(l => l.tipoLocal === opc.tipo)!.criadaEm)
+                                .toLocaleDateString("pt-BR") }}
+                        </small>
+                    </div>
                 </div>
             </div>
-            <AppEmptyState v-else icone="fa-solid fa-hospital" titulo="Nenhum local configurado"
-                descricao="A configuração de tempo/valor por tipo de internação é editada no formulário antigo de orçamento." />
         </div>
 
         <!-- IMPLANTES -->
@@ -147,4 +241,30 @@ h3 { margin: 0 0 12px 0; font-size: 15px; font-weight: 600; }
 .row strong { flex: 1; min-width: 200px; }
 .row .muted { color: hsl(var(--secondary) / 0.6); font-size: 13px; }
 .hint { font-size: 13px; color: hsl(var(--secondary) / 0.6); margin-bottom: 12px; }
+
+/* Locais cirúrgicos — cards editáveis */
+.locais-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+.local-card {
+    background: hsl(var(--card)); border: 1px solid hsl(var(--secondary) / 0.1);
+    border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.local-card-head strong { display: block; font-size: 14px; color: hsl(var(--primary)); }
+.local-card-head small { color: hsl(var(--secondary) / 0.6); font-size: 11px; }
+.local-card-fields { display: flex; flex-direction: column; gap: 8px; }
+.local-card-fields label {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 11px; color: hsl(var(--secondary) / 0.7);
+}
+.local-card-fields input {
+    padding: 6px 8px; border: 1px solid hsl(var(--secondary) / 0.15); border-radius: 5px;
+    font-size: 14px; font-family: inherit;
+}
+.local-card-acoes {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border-top: 1px solid hsl(var(--secondary) / 0.08); padding-top: 8px;
+}
+.local-card-acoes .status { color: hsl(var(--secondary) / 0.55); font-size: 11px; }
 </style>

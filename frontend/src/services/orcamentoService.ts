@@ -62,11 +62,23 @@ export interface OrcamentoCirurgia {
     ordem?: number
 }
 
-export interface OrcamentoInternacao {
-    tipoInternacao: string
-    dias: number
-    valorDiaria: number
-    valorTotal: number
+/**
+ * Local cirúrgico do orçamento (substitui a antiga "Internação"). Os 5 tipos vêm do legado:
+ * - `IntLocal`, `IntPeridural`, `IntGeral` calculam o valor por tempo × tabela do estabelecimento;
+ * - `SemInternacao`, `Ambulatorio` têm valor fixo.
+ */
+export type TipoLocalCirurgia =
+    | "IntLocal"
+    | "IntPeridural"
+    | "IntGeral"
+    | "SemInternacao"
+    | "Ambulatorio"
+
+export interface OrcamentoLocalCirurgia {
+    tipo: TipoLocalCirurgia
+    tempoMinutos: number
+    /** Valor calculado server-side (snapshot). Frontend não tenta calcular sozinho. */
+    valor: number
 }
 
 export interface OrcamentoAnestesia {
@@ -81,12 +93,14 @@ export interface OrcamentoResumo {
     pacienteId: number
     pacienteNome: string
     numero: string
+    titulo: string | null
     status: OrcamentoStatus
     validade: string
     total: number
     criadoPorNome: string
     criadoEm: string
     atualizadoEm: string | null
+    agendamentoId: number | null
 }
 
 /**
@@ -102,7 +116,7 @@ export interface Orcamento extends OrcamentoResumo {
     implantes: OrcamentoImplante[]
     formasPagamento: OrcamentoFormaPagamento[]
     cirurgias: OrcamentoCirurgia[]
-    internacao: OrcamentoInternacao | null
+    localCirurgia: OrcamentoLocalCirurgia | null
     anestesia: OrcamentoAnestesia | null
 }
 
@@ -110,7 +124,9 @@ export interface CriarOrcamentoPayload {
     pacienteId: number
     validade: string
     observacoes?: string | null
+    titulo?: string | null
     procedimentoCirurgicoId?: number | null
+    agendamentoId?: number | null
     itens?: Array<{
         descricao: string
         quantidade: number
@@ -123,7 +139,8 @@ export interface CriarOrcamentoPayload {
         "formaPagamentoId" | "valor" | "parcelas" | "acrescimoPercentual" | "entradaPercentual" | "observacao">>
     cirurgias?: Array<Pick<OrcamentoCirurgia,
         "procedimentoCirurgicoId" | "descricao" | "quantidade" | "duracaoMinutos" | "valorTotal">>
-    internacao?: { tipo: string; dias: number; valorDiaria: number } | null
+    /** Local cirúrgico — backend calcula o valor a partir da config do estabelecimento. */
+    localCirurgia?: { tipo: TipoLocalCirurgia; tempoMinutos: number } | null
     anestesia?: { tipo: string; valor: number; observacao?: string | null } | null
 }
 
@@ -146,7 +163,8 @@ export interface PreviewOrcamento {
     totalCirurgias: number
     totalEquipe: number
     totalImplantes: number
-    totalInternacao: number
+    /** Valor calculado do local cirúrgico (substitui o antigo totalInternacao). */
+    totalLocal: number
     totalAnestesia: number
     totalItens: number
     totalGeral: number
@@ -154,14 +172,27 @@ export interface PreviewOrcamento {
     diferenca: number
     integridadeOk: boolean
     formas: FormaPagamentoCalculada[]
+    equipes: EquipeCalculada[]
+}
+
+export interface EquipeCalculada {
+    valorProfissionalId: number
+    tempoMinutos: number
+    quantidade: number
+    valorUnitario: number
+    valorTotal: number
 }
 
 /**
  * Payload do preview — mesma estrutura da criação/atualização, mas só campos
- * que influem no cálculo (sem paciente/validade/observações).
+ * que influem no cálculo (sem paciente/validade/observações). Inclui também
+ * a variante `equipeComCatalogo` que pede ao backend para calcular honorário
+ * por tempo a partir da tabela do catálogo.
  */
 export type PreviewOrcamentoPayload = Pick<CriarOrcamentoPayload,
-    "itens" | "equipe" | "implantes" | "formasPagamento" | "cirurgias" | "internacao" | "anestesia">
+    "itens" | "equipe" | "implantes" | "formasPagamento" | "cirurgias" | "localCirurgia" | "anestesia"> & {
+    equipeComCatalogo?: Array<{ valorProfissionalId: number; quantidade: number; tempoMinutos: number }>
+}
 
 export const orcamentoService = {
     async listar(params?: {
@@ -218,6 +249,43 @@ export const orcamentoService = {
         const { data } = await httpClient.post<PreviewOrcamento>("/orcamentos/preview", payload)
         return data
     },
+
+    /**
+     * Consolida produtos das cirurgias selecionadas — devolve a lista pronta para
+     * exibição na tabela "Produtos das cirurgias" do form. Backend aplica MAX (uso único)
+     * ou SOMA (não único) entre cirurgias.
+     */
+    async consolidarProdutos(cirurgias: Array<{ catalogoCirurgiaId: number; quantidade: number }>):
+        Promise<ProdutoConsolidado[]>
+    {
+        const { data } = await httpClient.post<ProdutoConsolidado[]>(
+            "/orcamentos/consolidar-produtos",
+            { cirurgias })
+        return data
+    },
+
+    /**
+     * Retorna o orçamento ativo vinculado a um agendamento, ou null quando não há.
+     * Usado pela ficha do agendamento para alternar entre "Criar orçamento" e "Ver existente".
+     */
+    async obterPorAgendamento(agendamentoId: number): Promise<OrcamentoResumo | null> {
+        const r = await httpClient.get<OrcamentoResumo>(
+            `/orcamentos/por-agendamento/${agendamentoId}`,
+            // 204 vira data === "" — convertemos para null abaixo.
+            { validateStatus: (s) => s === 200 || s === 204 })
+        return r.status === 204 ? null : r.data
+    },
+}
+
+export interface ProdutoConsolidado {
+    produtoId: number
+    produtoNome: string
+    quantidade: number
+    valorUnitario: number
+    subtotal: number
+    usoUnico: boolean
+    origemCirurgiaIds: number[]
+    origemCirurgiaNomes: string[]
 }
 
 export default orcamentoService

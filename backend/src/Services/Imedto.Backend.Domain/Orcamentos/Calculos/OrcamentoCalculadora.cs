@@ -1,3 +1,5 @@
+using Imedto.Backend.Domain.Orcamentos.Catalogos;
+
 namespace Imedto.Backend.Domain.Orcamentos.Calculos;
 
 /// <summary>
@@ -41,6 +43,7 @@ public static class OrcamentoCalculadora
     /// <summary>
     /// Calcula valor de local cirúrgico (sala) por tempo. Mesma estrutura de
     /// "tempo base + blocos adicionais" do honorário profissional.
+    /// Sobrecarga primitiva — mantida para uso direto e nos testes unitários.
     /// </summary>
     public static decimal CalcularValorLocal(
         int tempoCirurgiaMinutos,
@@ -58,6 +61,32 @@ public static class OrcamentoCalculadora
         var divisor = tempoAdicionalMinutos > 0 ? tempoAdicionalMinutos : 1;
         var blocos = (int)Math.Ceiling((double)excedente / divisor);
         return Math.Round(valorBase + (blocos * valorAdicional), 2);
+    }
+
+    /// <summary>
+    /// Calcula valor de local cirúrgico dado um <see cref="TipoLocalCirurgia"/>, o
+    /// tempo total da cirurgia em minutos e a <see cref="ConfiguracaoLocalCirurgia"/>
+    /// daquele tipo no estabelecimento. Para <c>SemInternacao</c> e <c>Ambulatorio</c>
+    /// devolve o valor fixo da config (independe do tempo). Quando a config é null,
+    /// retorna 0 (estabelecimento ainda não configurou).
+    /// </summary>
+    public static decimal CalcularValorLocal(
+        TipoLocalCirurgia tipo,
+        int tempoCirurgiaMinutos,
+        ConfiguracaoLocalCirurgia? config)
+    {
+        if (config is null) return 0m;
+
+        // Tipos fixos — valor independe do tempo.
+        if (tipo is TipoLocalCirurgia.SemInternacao or TipoLocalCirurgia.Ambulatorio)
+            return Math.Round(config.ValorBase, 2);
+
+        return CalcularValorLocal(
+            tempoCirurgiaMinutos,
+            config.TempoBaseMinutos,
+            config.ValorBase,
+            config.TempoAdicionalMinutos,
+            config.ValorAdicional);
     }
 
     /// <summary>

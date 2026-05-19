@@ -56,8 +56,14 @@ public class ConfiguracaoLocalCirurgiaRepository : IConfiguracaoLocalCirurgiaRep
     public Task<ConfiguracaoLocalCirurgia?> ObterPorIdOuNulo(long id, long estabelecimentoId)
         => _db.ConfiguracoesLocalCirurgia.FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
-    public Task<ConfiguracaoLocalCirurgia?> ObterPorEstabelecimentoETipo(long estabelecimentoId, TipoInternacao tipo)
-        => _db.ConfiguracoesLocalCirurgia.FirstOrDefaultAsync(x => x.EstabelecimentoId == estabelecimentoId && x.TipoInternacao == tipo);
+    public Task<ConfiguracaoLocalCirurgia?> ObterPorEstabelecimentoETipo(long estabelecimentoId, TipoLocalCirurgia tipo)
+        => _db.ConfiguracoesLocalCirurgia.FirstOrDefaultAsync(x => x.EstabelecimentoId == estabelecimentoId && x.TipoLocal == tipo);
+
+    public async Task<IReadOnlyList<ConfiguracaoLocalCirurgia>> ListarDoEstabelecimento(long estabelecimentoId)
+        => await _db.ConfiguracoesLocalCirurgia
+            .Where(x => x.EstabelecimentoId == estabelecimentoId)
+            .OrderBy(x => x.TipoLocal)
+            .ToListAsync();
 
     public async Task Salvar(ConfiguracaoLocalCirurgia entity)
     {

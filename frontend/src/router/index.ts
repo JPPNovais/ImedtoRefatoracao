@@ -234,6 +234,12 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
         {
+            path: "/orcamentos/novo",
+            name: "OrcamentoNovo",
+            component: () => import("@/views/orcamentos/OrcamentoFormView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
             path: "/orcamentos/:id(\\d+)",
             name: "OrcamentoDetalhe",
             component: () => import("@/views/orcamentos/OrcamentoDetalheView.vue"),
