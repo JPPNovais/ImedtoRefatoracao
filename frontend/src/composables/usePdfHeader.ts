@@ -286,13 +286,27 @@ export function desenharCabecalho(
         desenharPlaceholderLogo(doc, est, left, yTopo, logoSize, titleColor)
     }
 
-    // Nome do estabelecimento
+    // Nome do estabelecimento + CNPJ (se houver), empilhados e centralizados
+    // verticalmente em relação à altura da logo.
     const xNome = left + logoSize + 4
+    const yMeio = yTopo + logoSize / 2
+    const nome = est?.nomeFantasia ?? "Estabelecimento"
+    const cnpj = formatarCnpj(est?.cnpj)
+
     doc.setFont(NUNITO_FAMILY, "bold")
     doc.setFontSize(15)
     doc.setTextColor(titleColor[0], titleColor[1], titleColor[2])
-    const nome = est?.nomeFantasia ?? "Estabelecimento"
-    doc.text(nome, xNome, yTopo + 6)
+    if (cnpj) {
+        // Nome um pouco acima do centro, CNPJ logo abaixo.
+        doc.text(nome, xNome, yMeio - 1, { baseline: "middle" })
+        doc.setFont(NUNITO_FAMILY, "normal")
+        doc.setFontSize(8)
+        doc.setTextColor(PDF_THEME.secondary[0], PDF_THEME.secondary[1], PDF_THEME.secondary[2])
+        doc.text(`CNPJ ${cnpj}`, xNome, yMeio + 3.5, { baseline: "middle" })
+    } else {
+        // Só o nome → centralizado direto na linha média da logo.
+        doc.text(nome, xNome, yMeio, { baseline: "middle" })
+    }
 
     // ── Bloco de contato à direita ─────────────────────────────────────────
     doc.setFont(NUNITO_FAMILY, "normal")
@@ -302,8 +316,6 @@ export function desenharCabecalho(
     if (est?.endereco) linhasContato.push(est.endereco)
     const tel = formatarTelefone(est?.telefone)
     if (tel) linhasContato.push(tel)
-    const cnpj = formatarCnpj(est?.cnpj)
-    if (cnpj) linhasContato.push(`CNPJ ${cnpj}`)
     let yContato = yTopo + 3
     for (const linha of linhasContato) {
         // Quebra automática para textos longos
