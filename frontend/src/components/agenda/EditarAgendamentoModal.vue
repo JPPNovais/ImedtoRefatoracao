@@ -23,6 +23,7 @@ import {
 import type { ProfissionalPublico } from "@/services/vinculoService"
 import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
+import { AppAvatarSelect } from "@/components/ui"
 
 const props = defineProps<{
     aberto: boolean
@@ -476,11 +477,10 @@ async function salvar() {
                     <div class="form-grid">
                         <div class="field-group">
                             <label>Profissional</label>
-                            <select v-model="form.profissionalUsuarioId">
-                                <option v-for="p in profissionais" :key="p.usuarioId" :value="p.usuarioId">
-                                    {{ p.nomeCompleto }}{{ p.especialidade ? ` — ${p.especialidade}` : "" }}
-                                </option>
-                            </select>
+                            <AppAvatarSelect
+                                v-model="form.profissionalUsuarioId"
+                                :opcoes="profissionais"
+                            />
                         </div>
 
                         <div class="field-group">

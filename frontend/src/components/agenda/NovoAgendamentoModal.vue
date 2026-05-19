@@ -39,7 +39,7 @@ import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
 import type { ProfissionalPublico } from "@/services/vinculoService"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
-import { AppDatePicker } from "@/components/ui"
+import { AppAvatarSelect, AppDatePicker } from "@/components/ui"
 import { cpfValido, somenteDigitos } from "@/utils/cpf"
 
 const props = defineProps<{
@@ -622,12 +622,11 @@ const profSelecionado = computed(() =>
                     <div class="form-grid">
                         <div class="field-group">
                             <label>Profissional <em>*</em></label>
-                            <select v-model="detalhes.profissionalUsuarioId">
-                                <option value="" disabled>Selecione...</option>
-                                <option v-for="p in profissionais" :key="p.usuarioId" :value="p.usuarioId">
-                                    {{ p.nomeCompleto }}{{ p.especialidade ? ` — ${p.especialidade}` : "" }}
-                                </option>
-                            </select>
+                            <AppAvatarSelect
+                                v-model="detalhes.profissionalUsuarioId"
+                                :opcoes="profissionais"
+                                placeholder="Selecione..."
+                            />
                         </div>
 
                         <div class="field-group">

@@ -15,7 +15,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
     AppButton, AppCard, AppPageHeader, AppEmptyState, AppSelect,
-    AppDateStrip, AppStatCard, AppField, AppInput,
+    AppDateStrip, AppStatCard, AppField, AppInput, AppAvatarSelect,
 } from "@/components/ui"
 import AgendamentoRow from "@/components/agenda/AgendamentoRow.vue"
 import AgendaRail from "@/components/agenda/AgendaRail.vue"
@@ -528,12 +528,13 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                     </div>
                     <div class="filtros">
                         <AppField label="Profissional" class="filt-grupo">
-                            <AppSelect v-model="filtroProf">
-                                <option value="">Todos</option>
-                                <option v-for="p in profissionaisDisponiveis" :key="p.usuarioId" :value="p.usuarioId">
-                                    {{ p.nomeCompleto }}
-                                </option>
-                            </AppSelect>
+                            <AppAvatarSelect
+                                v-model="filtroProf"
+                                :opcoes="profissionaisDisponiveis"
+                                placeholder="Todos"
+                                permite-limpar
+                                rotulo-limpar="Todos"
+                            />
                         </AppField>
                         <AppField label="Especialidade" class="filt-grupo">
                             <AppSelect v-model="filtroEspec">
