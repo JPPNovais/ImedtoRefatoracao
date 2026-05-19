@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.Contracts.Profissionais.Commands;
 using Imedto.Backend.Contracts.Profissionais.Queries;
 using Imedto.Backend.Contracts.Profissionais.Queries.Results;
+using Imedto.Backend.Domain.Common;
 using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.API.Controllers;
@@ -17,11 +18,13 @@ public class ProfissionalController : ControllerBase
 {
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
+    private readonly IFotoStorageService _fotoStorage;
 
-    public ProfissionalController(ICommandBus commandBus, IRequestBus requestBus)
+    public ProfissionalController(ICommandBus commandBus, IRequestBus requestBus, IFotoStorageService fotoStorage)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
+        _fotoStorage = fotoStorage;
     }
 
     /// <summary>
@@ -116,10 +119,16 @@ public class ProfissionalController : ControllerBase
             Conteudo = stream
         });
 
-        var dto = await _requestBus.Query<ObterProfissionalMeQuery, ProfissionalDto>(
-            new ObterProfissionalMeQuery { UsuarioId = userId });
+        // Não consultamos via Dapper aqui: o command grava via EF Core mas a
+        // transação do [UnitOfWork] ainda não comitou neste ponto — uma query
+        // em conexão separada leria o valor antigo (race documentada: usuário
+        // só via a nova foto na 2ª troca). Como o path é determinístico, geramos
+        // a presigned URL fresh direto do storage.
+        var extNorm = string.IsNullOrWhiteSpace(ext) ? "jpg" : ext.Trim().TrimStart('.').ToLowerInvariant();
+        var path = $"profissionais/{userId}.{extNorm}";
+        var fotoUrl = _fotoStorage.GerarUrlLeitura(path);
 
-        return Ok(new { fotoUrl = dto?.FotoUrl });
+        return Ok(new { fotoUrl });
     }
 
     /// <summary>Remove a foto do profissional autenticado (idempotente).</summary>

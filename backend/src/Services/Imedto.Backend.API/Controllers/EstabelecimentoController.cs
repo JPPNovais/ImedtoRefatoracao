@@ -4,6 +4,7 @@ using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Estabelecimentos.Commands;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
+using Imedto.Backend.Domain.Common;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 
@@ -19,11 +20,13 @@ public class EstabelecimentoController : ControllerBase
 {
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
+    private readonly IFotoStorageService _fotoStorage;
 
-    public EstabelecimentoController(ICommandBus commandBus, IRequestBus requestBus)
+    public EstabelecimentoController(ICommandBus commandBus, IRequestBus requestBus, IFotoStorageService fotoStorage)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
+        _fotoStorage = fotoStorage;
     }
 
     /// <summary>Lista todos os estabelecimentos que o usuário autenticado tem acesso.</summary>
@@ -167,12 +170,16 @@ public class EstabelecimentoController : ControllerBase
             Conteudo = stream
         });
 
-        // Lista para encontrar a URL atualizada (não há query unitária por id no momento).
-        var lista = await _requestBus.Query<ListarMeusEstabelecimentosQuery, IEnumerable<EstabelecimentoDto>>(
-            new ListarMeusEstabelecimentosQuery { UsuarioId = userId });
-        var atualizado = lista.FirstOrDefault(e => e.Id == id);
+        // Não consultamos via Dapper aqui: o command grava via EF Core mas a
+        // transação do [UnitOfWork] ainda não comitou neste ponto — uma query
+        // em conexão separada leria o valor antigo (race documentada: usuário
+        // só via a nova foto na 2ª troca). Como o path é determinístico, geramos
+        // a presigned URL fresh direto do storage.
+        var extNorm = string.IsNullOrWhiteSpace(ext) ? "jpg" : ext.Trim().TrimStart('.').ToLowerInvariant();
+        var path = $"estabelecimentos/{id}.{extNorm}";
+        var fotoUrl = _fotoStorage.GerarUrlLeitura(path);
 
-        return Ok(new { fotoUrl = atualizado?.FotoUrl });
+        return Ok(new { fotoUrl });
     }
 
     /// <summary>Remove a foto/logo do estabelecimento (idempotente). Dono ou usuário com permissão de configuração.</summary>
