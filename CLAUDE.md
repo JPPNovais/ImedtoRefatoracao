@@ -134,6 +134,8 @@ Limites configuráveis em `Storage:*` (appsettings):
 - `TamanhoMaxMb` = 50
 - `MimeTypesPermitidos` = pdf, png, jpeg, webp, dicom
 
+**CORS (obrigatório):** ambos os buckets têm `AllowedOrigins` = `https://app.imedto.com`, `https://www.imedto.com`, `https://imedto.com`, `http://localhost:3000`, `http://localhost:5173`; `AllowedMethods` = `GET, HEAD`. Sem isso, o frontend não consegue baixar a presigned URL via `fetch()` (necessário para os PDFs gerados pelo `usePdfHeader.ts` — Prontuário, Orçamento, Relatório). A falha é silenciosa: o helper cai no placeholder com iniciais. Config em `infra/aws-resources.md` (seção S3).
+
 ### Segredos (AWS SSM Parameter Store, prefixo `/imedto/dev/`)
 
 | Parameter | Tipo | Conteúdo |

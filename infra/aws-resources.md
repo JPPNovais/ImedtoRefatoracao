@@ -97,6 +97,47 @@ AWS_PROFILE=imedto aws logs tail /aws/rds/instance/imedto-dev/postgresql --since
 
 Ambos com **Block Public Access** ativado em todas as 4 dimensões. Acesso só via **presigned URL** gerada pelo backend.
 
+### CORS (obrigatório nos dois buckets)
+
+Sem CORS, o frontend não consegue chamar `fetch()` nas presigned URLs (cross-origin entre `app.imedto.com` e `*.s3.sa-east-1.amazonaws.com`). Falha é silenciosa: o helper `frontend/src/composables/usePdfHeader.ts` cai num placeholder com iniciais em vez da logo do estabelecimento nos PDFs gerados (Prontuário, Orçamento, Relatório). Receita usa QuestPdf no backend e não depende deste CORS.
+
+Aplicar a configuração:
+
+```bash
+cat > /tmp/s3-cors.json <<'JSON'
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedOrigins": [
+        "https://app.imedto.com",
+        "https://www.imedto.com",
+        "https://imedto.com",
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ],
+      "ExposeHeaders": ["ETag", "Content-Length", "Content-Type"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
+JSON
+
+AWS_PROFILE=imedto aws s3api put-bucket-cors \
+  --bucket imedto-fotos-155684258219 \
+  --cors-configuration file:///tmp/s3-cors.json
+
+AWS_PROFILE=imedto aws s3api put-bucket-cors \
+  --bucket imedto-anexos-155684258219 \
+  --cors-configuration file:///tmp/s3-cors.json
+
+# Verificar:
+AWS_PROFILE=imedto aws s3api get-bucket-cors --bucket imedto-fotos-155684258219
+```
+
+Adicionar novas origins (ex: ambiente de staging) → editar o JSON e reaplicar — o `put-bucket-cors` sobrescreve a configuração inteira.
+
 ---
 
 ## Segredos (SSM Parameter Store, prefixo `/imedto/dev/`)
