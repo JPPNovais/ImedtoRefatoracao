@@ -4,3 +4,4 @@
 - [Visualizar PDF em nova aba (popup blocker)](feedback_visualizar_pdf_no_browser.md) — composable retorna `blobUrl`; view abre `about:blank` ANTES do await; fallback download se bloqueado.
 - [Foto do estabelecimento + integração nos PDFs](project_foto_estabelecimento_pdfs.md) — endpoints upload/delete, cache de logo em PDFs, AppPhotoUpload, gap permissão dono vs `config_estabelecimento`.
 - [Salas: alocação P0+P1](project_salas_alocacao_p1.md) — AlocarSalaModal + CheckInModal com pré-sugestão + chip nas linhas + filtro Agenda + Desativar/Reativar em Repartições.
+- [Prontuário 5 abas (2026-05-18)](project_prontuario_5_abas_2026_05_18.md) — aba "exame" sumiu; mapa corporal vive em SecaoExameFisico; novas abas Atestado e Pedidos-exame.

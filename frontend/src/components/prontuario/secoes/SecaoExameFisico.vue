@@ -22,6 +22,7 @@ import {
 } from "@/services/exameFisicoService"
 import RegionSelectorPopup from "@/components/exame-fisico/RegionSelectorPopup.vue"
 import RegionExamCard from "@/components/exame-fisico/RegionExamCard.vue"
+import { AppField, AppInput, AppSelect, AppTextarea } from "@/components/ui"
 
 // Carregamento lazy: o mapa corporal só baixa quando a seção é montada.
 const BodyMap = defineAsyncComponent(() => import("@/components/exame-fisico/BodyMap.vue"))
@@ -254,62 +255,56 @@ onMounted(async () => {
         <div class="subsecao">
             <h4 class="subsec-titulo">Sinais vitais</h4>
             <div class="grade-sv">
-                <div class="campo-pa">
-                    <label>Pressão arterial (mmHg)</label>
+                <AppField label="Pressão arterial (mmHg)" label-variant="compact">
                     <div class="pa-row">
-                        <input
-                            :value="modelValue.paSistolica ?? ''" type="number" class="input-field"
-                            placeholder="120" :disabled="readOnly"
-                            @input="(e) => atualizar({ paSistolica: (e.target as HTMLInputElement).value })"
+                        <AppInput
+                            :model-value="modelValue.paSistolica ?? ''" type="number"
+                            placeholder="120" :disabled="readOnly" class="text-center"
+                            @update:model-value="v => atualizar({ paSistolica: String(v) })"
                         />
                         <span class="pa-sep">/</span>
-                        <input
-                            :value="modelValue.paDiastolica ?? ''" type="number" class="input-field"
-                            placeholder="80" :disabled="readOnly"
-                            @input="(e) => atualizar({ paDiastolica: (e.target as HTMLInputElement).value })"
+                        <AppInput
+                            :model-value="modelValue.paDiastolica ?? ''" type="number"
+                            placeholder="80" :disabled="readOnly" class="text-center"
+                            @update:model-value="v => atualizar({ paDiastolica: String(v) })"
                         />
                     </div>
-                </div>
-                <div class="campo">
-                    <label>FC (bpm)</label>
-                    <input
-                        :value="modelValue.fc ?? ''" type="number" class="input-field"
+                </AppField>
+                <AppField label="FC (bpm)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.fc ?? ''" type="number"
                         placeholder="72" :disabled="readOnly"
-                        @input="(e) => atualizar({ fc: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ fc: String(v) })"
                     />
-                </div>
-                <div class="campo">
-                    <label>FR (irpm)</label>
-                    <input
-                        :value="modelValue.fr ?? ''" type="number" class="input-field"
+                </AppField>
+                <AppField label="FR (irpm)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.fr ?? ''" type="number"
                         placeholder="16" :disabled="readOnly"
-                        @input="(e) => atualizar({ fr: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ fr: String(v) })"
                     />
-                </div>
-                <div class="campo">
-                    <label>Temp. (°C)</label>
-                    <input
-                        :value="modelValue.temperatura ?? ''" type="number" step="0.1" class="input-field"
+                </AppField>
+                <AppField label="Temp. (°C)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.temperatura ?? ''" type="number" step="0.1"
                         placeholder="36.5" :disabled="readOnly"
-                        @input="(e) => atualizar({ temperatura: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ temperatura: String(v) })"
                     />
-                </div>
-                <div class="campo">
-                    <label>SpO₂ (%)</label>
-                    <input
-                        :value="modelValue.spo2 ?? ''" type="number" min="0" max="100" class="input-field"
+                </AppField>
+                <AppField label="SpO₂ (%)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.spo2 ?? ''" type="number" min="0" max="100"
                         placeholder="98" :disabled="readOnly"
-                        @input="(e) => atualizar({ spo2: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ spo2: String(v) })"
                     />
-                </div>
-                <div class="campo">
-                    <label>Glicemia (mg/dL)</label>
-                    <input
-                        :value="modelValue.glicemia ?? ''" type="number" class="input-field"
+                </AppField>
+                <AppField label="Glicemia (mg/dL)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.glicemia ?? ''" type="number"
                         placeholder="95" :disabled="readOnly"
-                        @input="(e) => atualizar({ glicemia: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ glicemia: String(v) })"
                     />
-                </div>
+                </AppField>
             </div>
         </div>
 
@@ -317,30 +312,26 @@ onMounted(async () => {
         <div class="subsecao">
             <h4 class="subsec-titulo">Antropometria</h4>
             <div class="grade-antro">
-                <div class="campo">
-                    <label>Peso (kg)</label>
-                    <input
-                        :value="modelValue.peso ?? ''" type="number" step="0.1" class="input-field"
+                <AppField label="Peso (kg)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.peso ?? ''" type="number" step="0.1"
                         placeholder="70.5" :disabled="readOnly"
-                        @input="(e) => atualizar({ peso: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ peso: String(v) })"
                     />
-                </div>
-                <div class="campo">
-                    <label>Altura (cm ou m)</label>
-                    <input
-                        :value="modelValue.altura ?? ''" type="number" step="0.01" class="input-field"
+                </AppField>
+                <AppField label="Altura (cm ou m)" label-variant="compact">
+                    <AppInput
+                        :model-value="modelValue.altura ?? ''" type="number" step="0.01"
                         placeholder="170 ou 1.70" :disabled="readOnly"
-                        @input="(e) => atualizar({ altura: (e.target as HTMLInputElement).value })"
+                        @update:model-value="v => atualizar({ altura: String(v) })"
                     />
-                </div>
-                <div class="campo">
-                    <label>IMC (calculado)</label>
-                    <input :value="imc ?? ''" class="input-field readonly" readonly />
-                </div>
-                <div class="campo">
-                    <label>Classificação</label>
-                    <input :value="classIMC ?? ''" class="input-field readonly" readonly />
-                </div>
+                </AppField>
+                <AppField label="IMC (calculado)" label-variant="compact">
+                    <AppInput :model-value="imc ?? ''" readonly />
+                </AppField>
+                <AppField label="Classificação" label-variant="compact">
+                    <AppInput :model-value="classIMC ?? ''" readonly />
+                </AppField>
             </div>
         </div>
 
@@ -348,104 +339,105 @@ onMounted(async () => {
         <div class="subsecao">
             <h4 class="subsec-titulo">Ectoscopia (inspeção geral)</h4>
             <div class="grade-ecto">
-                <div class="campo">
-                    <label>Estado geral</label>
-                    <select :value="modelValue.estadoGeral ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ estadoGeral: (e.target as HTMLSelectElement).value })">
+                <AppField label="Estado geral" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.estadoGeral ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ estadoGeral: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in ESTADO_GERAL" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Consciência</label>
-                    <select :value="modelValue.consciencia ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ consciencia: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Consciência" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.consciencia ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ consciencia: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in CONSCIENCIA" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Estado nutricional</label>
-                    <select :value="modelValue.estadoNutricional ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ estadoNutricional: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Estado nutricional" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.estadoNutricional ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ estadoNutricional: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in ESTADO_NUTR" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Coloração</label>
-                    <select :value="modelValue.coloracao ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ coloracao: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Coloração" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.coloracao ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ coloracao: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in COLORACAO" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Hidratação</label>
-                    <select :value="modelValue.hidratacao ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ hidratacao: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Hidratação" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.hidratacao ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ hidratacao: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in HIDRATACAO" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Cianose</label>
-                    <select :value="modelValue.cianose ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ cianose: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Cianose" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.cianose ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ cianose: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in CIANOSE" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Icterícia</label>
-                    <select :value="modelValue.ictericia ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ ictericia: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Icterícia" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.ictericia ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ ictericia: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in ICTERICIA" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Temp. corporal</label>
-                    <select :value="modelValue.tempCorporal ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ tempCorporal: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Temp. corporal" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.tempCorporal ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ tempCorporal: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in TEMP_CORPORAL" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Batimentos</label>
-                    <select :value="modelValue.batimentos ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ batimentos: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Batimentos" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.batimentos ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ batimentos: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in BATIMENTOS" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
-                <div class="campo">
-                    <label>Respiração</label>
-                    <select :value="modelValue.respiracao ?? ''" class="input-field"
-                        :disabled="readOnly"
-                        @change="(e) => atualizar({ respiracao: (e.target as HTMLSelectElement).value })">
+                    </AppSelect>
+                </AppField>
+                <AppField label="Respiração" label-variant="compact">
+                    <AppSelect
+                        :model-value="modelValue.respiracao ?? ''" :disabled="readOnly"
+                        @update:model-value="v => atualizar({ respiracao: String(v) })"
+                    >
                         <option value="">—</option>
                         <option v-for="o in RESPIRACAO" :key="o" :value="o">{{ o }}</option>
-                    </select>
-                </div>
+                    </AppSelect>
+                </AppField>
             </div>
-            <label class="campo-label">Descrição da ectoscopia</label>
-            <textarea
-                :value="modelValue.descricaoEctoscopia ?? ''" rows="3" class="input-field"
-                placeholder="Observações adicionais sobre a inspeção geral..."
-                :disabled="readOnly"
-                @input="(e) => atualizar({ descricaoEctoscopia: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+            <AppField label="Descrição da ectoscopia" label-variant="compact" class="ecto-descricao">
+                <AppTextarea
+                    :model-value="modelValue.descricaoEctoscopia ?? ''" :rows="3"
+                    placeholder="Observações adicionais sobre a inspeção geral..."
+                    :disabled="readOnly"
+                    @update:model-value="v => atualizar({ descricaoEctoscopia: String(v) })"
+                />
+            </AppField>
         </div>
 
         <!-- Mapa corporal -->
@@ -481,12 +473,12 @@ onMounted(async () => {
         <!-- Observações gerais do exame físico -->
         <div v-if="!readOnly" class="subsecao">
             <h4 class="subsec-titulo">Observações gerais do exame físico</h4>
-            <textarea
-                :value="modelValue.observacoesExame ?? ''" rows="3" class="input-field"
+            <AppTextarea
+                :model-value="modelValue.observacoesExame ?? ''" :rows="3"
                 placeholder="Observações adicionais sobre o exame físico..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ observacoesExame: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+                @update:model-value="v => atualizar({ observacoesExame: String(v) })"
+            />
         </div>
 
         <!-- Popup de seleção de sub-regiões -->
@@ -519,25 +511,14 @@ onMounted(async () => {
     font-weight: 500; font-size: 0.82em; color: var(--text-muted);
 }
 
-.grade-sv    { display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 0.6rem; }
-.grade-antro { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 0.6rem; }
-.grade-ecto  { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+.grade-sv    { display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 0.6rem; align-items: end; }
+.grade-antro { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 0.6rem; align-items: end; }
+.grade-ecto  { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; align-items: end; }
 
 .pa-row { display: flex; align-items: center; gap: 0.35rem; }
-.pa-row .input-field { text-align: center; }
 .pa-sep { font-weight: 700; color: var(--text-muted); }
 
-.campo, .campo-pa { display: flex; flex-direction: column; gap: 0.15rem; }
-.campo label, .campo-pa label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
-.campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); margin-top: 0.25rem; }
-
-.input-field {
-    padding: 0.4rem 0.6rem; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-family: inherit; font-size: 0.85em;
-    background: var(--bg-card); color: var(--text); width: 100%; box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: var(--primary); }
-.input-field.readonly { background: #f9fafb; color: var(--text-muted); }
+.ecto-descricao { margin-top: 0.25rem; }
 
 .mapa-section { padding: 1rem 1.1rem; }
 .mapa-container { display: flex; justify-content: center; padding: 0.5rem 0; }

@@ -17,3 +17,6 @@
 - [QA pós-deploy 7637447 2026-05-17 (fix noopener)](project_qa_posdeploy_7637447_2026_05_17.md) — 5/7 ✅ + 2 ⚠️ não-bloqueantes; bug P1 do ciclo 1 corrigido; PDFs abrem em blob: real.
 - [QA pós-deploy 6414fe2 2026-05-17 (foto + PDFs)](project_qa_posdeploy_6414fe2_2026_05_17.md) — P0: foto_url varchar(500) não comporta presigned URL S3 (~700-1200 chars). Mesma falha latente em profissionais. Devolvido.
 - [QA pós-deploy f2dfa9b 2026-05-17 (hotfix foto_url 2000)](project_qa_posdeploy_f2dfa9b_2026_05_17.md) — pipeline ok inc. migrate; upload/persist/remove/re-upload OK; URL 1826 chars cabe em varchar(2000). PDFs com logo não revalidados (conta sem assinatura).
+- [QA smoke Repartições 2026-05-18 (248736e)](project_qa_smoke_reparticoes_2026_05_18.md) — Repartições + Alocar sala OK; campo Sala ausente no Novo Agendamento Step 2 e drawer Editar. 0 erros console.
+- [QA revalidação 73c7fe3 2026-05-18 (fix campo Sala em Editar)](project_qa_revalidacao_73c7fe3_2026_05_18.md) — pipeline ok; persistência E2E confirmada (criar/editar/desfazer); Step 2 oculta Sala quando 0 salas (v-if intencional).
+- [QA pós-deploy 708d5c0 2026-05-18 (Atestado + Pedido Exame + Exame Físico)](project_qa_posdeploy_708d5c0_2026_05_18.md) — 10/10 verde; multi-tenant + tampering + LGPD audit validados; débito P2 SecaoExameFisico ainda usa input cru.

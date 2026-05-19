@@ -55,8 +55,10 @@ describe("SecaoExameFisico", () => {
         })
 
         // IMC = 70 / (1.75)^2 = 22.86 → "22.9"
-        const inputs = wrapper.findAll("input.readonly")
-        const imcInput = inputs[0] as any
+        // O IMC e Classificação ficam em AppInput com readonly — pegamos pelo atributo.
+        const readonlyInputs = wrapper.findAll("input[readonly]")
+        expect(readonlyInputs.length).toBeGreaterThan(0)
+        const imcInput = readonlyInputs[0] as any
         expect(imcInput.element.value).toBe("22.9")
     })
 
