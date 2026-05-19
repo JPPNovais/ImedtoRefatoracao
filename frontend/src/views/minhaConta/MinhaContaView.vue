@@ -204,6 +204,28 @@ const erro     = ref<string | null>(null)
 async function salvarTudo() {
     msg.value   = null
     erro.value  = null
+
+    // Se qualquer campo de profissional foi tocado (incluindo a profissão, que é
+    // o gatilho do conselho), exigimos os obrigatórios antes de POSTar. Antes
+    // disso, um preenchimento parcial silenciava o save e mostrava "Dados
+    // salvos com sucesso" — porque só o `atualizarPerfil` do usuário rodava.
+    const algumCampoProfPreenchido = !!(
+        profissao.value || conselho.value || uf.value
+        || numeroRegistro.value || especialidade.value || bio.value
+    )
+
+    if (algumCampoProfPreenchido) {
+        const faltam: string[] = []
+        if (!profissao.value)       faltam.push("Profissão")
+        if (!conselho.value)        faltam.push("Tipo de conselho")
+        if (!numeroRegistro.value)  faltam.push("Número do conselho")
+        if (!uf.value)              faltam.push("UF")
+        if (faltam.length > 0) {
+            erro.value = `Para salvar o cadastro profissional, preencha: ${faltam.join(", ")}.`
+            return
+        }
+    }
+
     salvando.value = true
     try {
         await usuarioService.atualizarPerfil({
@@ -211,7 +233,7 @@ async function salvarTudo() {
             telefone: telefone.value || undefined,
         })
 
-        if (conselho.value && uf.value && numeroRegistro.value) {
+        if (algumCampoProfPreenchido) {
             await profissionalService.salvar({
                 conselho:       conselho.value,
                 uf:             uf.value,
