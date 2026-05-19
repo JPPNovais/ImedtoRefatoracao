@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
+using Imedto.Backend.Domain.Common;
 using Imedto.Backend.SharedKernel.Domain;
 using Npgsql;
 
@@ -10,8 +11,13 @@ public record AgendamentoParaDisponibilidade(DateTime InicioPrevisto, DateTime F
 public class AgendamentoQueryRepository
 {
     private readonly string _connStr;
+    private readonly IFotoStorageService _fotoStorage;
 
-    public AgendamentoQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
+    public AgendamentoQueryRepository(AppReadConnectionString conn, IFotoStorageService fotoStorage)
+    {
+        _connStr = conn.Value;
+        _fotoStorage = fotoStorage;
+    }
 
     public async Task<PaginaAgendamentosDto> Listar(
         long estabelecimentoId,
@@ -96,11 +102,14 @@ public class AgendamentoQueryRepository
 
         await using var multi = await conn.QueryMultipleAsync(sql, parametros);
         var total = await multi.ReadSingleAsync<int>();
-        var itens = await multi.ReadAsync<AgendamentoDto>();
+        var itens = (await multi.ReadAsync<AgendamentoDto>()).ToList();
+
+        foreach (var a in itens)
+            a.ProfissionalFotoUrl = _fotoStorage.GerarUrlLeitura(a.ProfissionalFotoUrl);
 
         return new PaginaAgendamentosDto
         {
-            Itens = itens.ToList(),
+            Itens = itens,
             Total = total,
             Pagina = pagina,
             TamanhoPagina = tamanhoPagina
@@ -208,10 +217,13 @@ public class AgendamentoQueryRepository
               AND a.estabelecimento_id = @EstabelecimentoId
             """;
 
-        return await conn.QuerySingleOrDefaultAsync<AgendamentoDto>(sql, new
+        var dto = await conn.QuerySingleOrDefaultAsync<AgendamentoDto>(sql, new
         {
             Id = id,
             EstabelecimentoId = estabelecimentoId
         });
+        if (dto is not null)
+            dto.ProfissionalFotoUrl = _fotoStorage.GerarUrlLeitura(dto.ProfissionalFotoUrl);
+        return dto;
     }
 }

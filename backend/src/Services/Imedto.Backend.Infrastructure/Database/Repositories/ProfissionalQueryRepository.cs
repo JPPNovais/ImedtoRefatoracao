@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Profissionais.Queries.Results;
+using Imedto.Backend.Domain.Common;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -7,10 +8,12 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 public class ProfissionalQueryRepository
 {
     private readonly string _connectionString;
+    private readonly IFotoStorageService _fotoStorage;
 
-    public ProfissionalQueryRepository(AppReadConnectionString connection)
+    public ProfissionalQueryRepository(AppReadConnectionString connection, IFotoStorageService fotoStorage)
     {
         _connectionString = connection.Value;
+        _fotoStorage = fotoStorage;
     }
 
     public async Task<ProfissionalDto> ObterPorUsuario(Guid usuarioId)
@@ -31,6 +34,9 @@ public class ProfissionalQueryRepository
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        return await conn.QuerySingleOrDefaultAsync<ProfissionalDto>(sql, new { UsuarioId = usuarioId });
+        var dto = await conn.QuerySingleOrDefaultAsync<ProfissionalDto>(sql, new { UsuarioId = usuarioId });
+        if (dto is not null)
+            dto.FotoUrl = _fotoStorage.GerarUrlLeitura(dto.FotoUrl);
+        return dto;
     }
 }

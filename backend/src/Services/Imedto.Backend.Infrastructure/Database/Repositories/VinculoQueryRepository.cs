@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Vinculos.Queries.Results;
+using Imedto.Backend.Domain.Common;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -10,10 +11,12 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 public class VinculoQueryRepository
 {
     private readonly string _connectionString;
+    private readonly IFotoStorageService _fotoStorage;
 
-    public VinculoQueryRepository(AppReadConnectionString connection)
+    public VinculoQueryRepository(AppReadConnectionString connection, IFotoStorageService fotoStorage)
     {
         _connectionString = connection.Value;
+        _fotoStorage = fotoStorage;
     }
 
     /// <summary>
@@ -74,7 +77,10 @@ public class VinculoQueryRepository
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        return await conn.QueryAsync<ProfissionalVinculadoDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+        var rows = await conn.QueryAsync<ProfissionalVinculadoDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+        foreach (var r in rows)
+            r.FotoUrl = _fotoStorage.GerarUrlLeitura(r.FotoUrl);
+        return rows;
     }
 
     /// <summary>
@@ -121,7 +127,10 @@ public class VinculoQueryRepository
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        return await conn.QueryAsync<ProfissionalPublicoDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+        var rows = await conn.QueryAsync<ProfissionalPublicoDto>(sql, new { EstabelecimentoId = estabelecimentoId });
+        foreach (var r in rows)
+            r.FotoUrl = _fotoStorage.GerarUrlLeitura(r.FotoUrl);
+        return rows;
     }
 
     /// <summary>Verifica se o usuário tem vínculo ativo com o estabelecimento (não inclui donos).</summary>

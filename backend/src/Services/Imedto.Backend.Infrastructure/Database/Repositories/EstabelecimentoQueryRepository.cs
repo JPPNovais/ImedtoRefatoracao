@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Dapper;
 using Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
+using Imedto.Backend.Domain.Common;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -11,15 +12,17 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 public class EstabelecimentoQueryRepository
 {
     private readonly string _connectionString;
+    private readonly IFotoStorageService _fotoStorage;
 
     private static readonly JsonSerializerOptions _jsonOpts = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public EstabelecimentoQueryRepository(AppReadConnectionString connection)
+    public EstabelecimentoQueryRepository(AppReadConnectionString connection, IFotoStorageService fotoStorage)
     {
         _connectionString = connection.Value;
+        _fotoStorage = fotoStorage;
     }
 
     /// <summary>
@@ -90,7 +93,7 @@ public class EstabelecimentoQueryRepository
             Cnpj = r.Cnpj,
             Telefone = r.Telefone,
             Endereco = r.Endereco,
-            FotoUrl = r.FotoUrl,
+            FotoUrl = _fotoStorage.GerarUrlLeitura(r.FotoUrl),
             Status = r.Status,
             CriadoEm = r.CriadoEm,
             PapelDoUsuario = r.PapelDoUsuario,

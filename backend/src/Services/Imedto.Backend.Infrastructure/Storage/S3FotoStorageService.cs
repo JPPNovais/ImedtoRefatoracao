@@ -35,13 +35,29 @@ public class S3FotoStorageService : IFotoStorageService
             // SSE-S3 (AES256) já é default do bucket — não precisa redeclarar aqui.
         }, ct);
 
-        // Retorna presigned URL com TTL de 24h (cache amigável).
+        // Persistimos só o caminho (S3 key). A presigned URL é gerada em
+        // GerarUrlLeitura a cada leitura — assim não expira no banco.
+        return key;
+    }
+
+    public string? GerarUrlLeitura(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        // Compatibilidade: tolera dados legacy (URL completa persistida antes
+        // da migração de schema). Se já é absoluta, devolve sem reassinar —
+        // pode estar expirada, mas evita que registros antigos quebrem o app
+        // antes da migração SQL rodar.
+        if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            return path;
+
         var req = new GetPreSignedUrlRequest
         {
             BucketName = _options.BucketFotos,
-            Key = key,
+            Key = NormalizarKey(path),
             Expires = DateTime.UtcNow.AddSeconds(TtlPresignedUrlSegundos),
-            Verb = HttpVerb.GET
+            Verb = HttpVerb.GET,
         };
         return _s3.GetPreSignedURL(req);
     }
