@@ -231,6 +231,7 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
                             :nome="p.nomeCompleto || p.email"
                             :foto-url="p.fotoUrl"
                             tamanho="md"
+                            decorativo
                         />
                         <span v-if="p.status === 'Dono'" class="owner-crown" title="Dono da clínica">
                             <i class="fa-solid fa-crown"></i>

@@ -132,6 +132,7 @@ function fechar() {
                         :nome="profissional.nomeCompleto || profissional.email"
                         :foto-url="profissional.fotoUrl"
                         tamanho="lg"
+                        decorativo
                     />
                     <span v-if="ehDono" class="owner-crown" title="Dono"><i class="fa-solid fa-crown"></i></span>
                 </div>

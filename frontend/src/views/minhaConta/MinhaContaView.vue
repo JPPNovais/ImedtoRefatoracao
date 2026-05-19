@@ -8,7 +8,7 @@ import { profissionalService } from "@/services/profissionalService"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
-import { AppButton, AppPhotoUpload } from "@/components/ui"
+import { AppButton, AppPhotoUpload, AppConfirmDialog } from "@/components/ui"
 import { redimensionarImagem } from "@/services/imageUtils"
 import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
 
@@ -134,6 +134,7 @@ const carregandoProf     = ref(true)
 
 const enviandoFoto = ref(false)
 const erroFoto = ref<string | null>(null)
+const confirmRemoverFotoAberto = ref(false)
 
 async function aoUploadFoto(arquivo: File) {
     erroFoto.value = null
@@ -158,17 +159,21 @@ async function aoUploadFoto(arquivo: File) {
     }
 }
 
-async function aoRemoverFoto() {
+function aoRemoverFoto() {
     erroFoto.value = null
     if (!profissional.fotoUrl) return
-    if (!confirm("Remover sua foto de perfil?")) return
+    confirmRemoverFotoAberto.value = true
+}
 
+async function confirmarRemoverFoto() {
     enviandoFoto.value = true
     try {
         await profissionalService.removerFoto()
         profissional.setFotoUrl(null)
+        confirmRemoverFotoAberto.value = false
     } catch (e: any) {
         erroFoto.value = e?.response?.data?.mensagem ?? e?.message ?? "Não foi possível remover a foto."
+        confirmRemoverFotoAberto.value = false
     } finally {
         enviandoFoto.value = false
     }
@@ -479,6 +484,16 @@ onMounted(async () => {
             :aberto="trocarSenhaAberto"
             @fechar="trocarSenhaAberto = false"
             @alterada="onSenhaAlterada"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmRemoverFotoAberto"
+            titulo="Remover foto?"
+            mensagem="Deseja remover sua foto de perfil? Você poderá enviar outra a qualquer momento."
+            confirmar-rotulo="Remover"
+            variante="danger"
+            :executando="enviandoFoto"
+            @confirmar="confirmarRemoverFoto"
         />
     </div>
 </template>

@@ -61,7 +61,7 @@ const profissionais = ref<ProfissionalPublico[]>([])
 const pacientes = ref<PacienteListaItem[]>([])
 const carregando = ref(false)
 const erro = ref<string | null>(null)
-const perfilProprio = ref<{ especialidade: string | null; conselho: string } | null>(null)
+const perfilProprio = ref<{ especialidade: string | null; conselho: string; fotoUrl: string | null } | null>(null)
 
 // Filtros
 const filtroProf = ref("")
@@ -95,6 +95,7 @@ const profissionaisDisponiveis = computed<ProfissionalPublico[]>(() => {
             status: "Dono",
             especialidade: perfilProprio.value?.especialidade ?? null,
             conselho: perfilProprio.value?.conselho ?? null,
+            fotoUrl: perfilProprio.value?.fotoUrl ?? null,
         })
     }
     return lista
@@ -233,7 +234,7 @@ onMounted(async () => {
         try {
             const perfil = await profissionalService.obterMeu()
             if (perfil) {
-                perfilProprio.value = { especialidade: perfil.especialidade, conselho: perfil.conselho }
+                perfilProprio.value = { especialidade: perfil.especialidade, conselho: perfil.conselho, fotoUrl: perfil.fotoUrl ?? null }
             }
         } catch { /* sem perfil ainda */ }
     }
@@ -352,7 +353,7 @@ async function abrirModalNovo() {
         try {
             const perfil = await profissionalService.obterMeu()
             if (perfil) {
-                perfilProprio.value = { especialidade: perfil.especialidade, conselho: perfil.conselho }
+                perfilProprio.value = { especialidade: perfil.especialidade, conselho: perfil.conselho, fotoUrl: perfil.fotoUrl ?? null }
             }
         } catch { /* sem perfil ainda */ }
     }

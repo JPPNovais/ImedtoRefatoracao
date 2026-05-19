@@ -111,6 +111,7 @@ onBeforeUnmount(() => {
                     :nome="selecionado.nomeCompleto"
                     :foto-url="selecionado.fotoUrl"
                     tamanho="sm"
+                    decorativo
                 />
                 <span class="av-label">
                     <b>{{ selecionado.nomeCompleto }}</b>
@@ -149,7 +150,7 @@ onBeforeUnmount(() => {
                 @keydown.enter="escolher(opt)"
                 @keydown.space.prevent="escolher(opt)"
             >
-                <AppAvatar :nome="opt.nomeCompleto" :foto-url="opt.fotoUrl" tamanho="sm" />
+                <AppAvatar :nome="opt.nomeCompleto" :foto-url="opt.fotoUrl" tamanho="sm" decorativo />
                 <span class="av-label">
                     <b>{{ opt.nomeCompleto }}</b>
                     <span v-if="opt.especialidade" class="av-spec">{{ opt.especialidade }}</span>

@@ -25,12 +25,19 @@ const props = withDefaults(defineProps<{
     corFundo?: string | null
     /** Mostra borda branca (útil ao sobrepor em fundos coloridos). */
     comBorda?: boolean
+    /**
+     * Quando true, o avatar é puramente decorativo: o nome já está exposto
+     * como texto ao lado (ex: dentro de option/trigger), então omitimos
+     * `title` e marcamos `aria-hidden` para o screen reader não narrar 2×.
+     */
+    decorativo?: boolean
 }>(), {
     nome: null,
     fotoUrl: null,
     tamanho: "md",
     corFundo: null,
     comBorda: false,
+    decorativo: false,
 })
 
 const iniciais = computed(() => {
@@ -67,9 +74,10 @@ const temFoto = computed(() => !!props.fotoUrl)
         class="avatar"
         :class="[`avatar--${tamanho}`, { 'avatar--borda': comBorda }]"
         :style="!temFoto ? { background: corDeterministica } : undefined"
-        :title="nome ?? undefined"
+        :title="decorativo ? undefined : (nome ?? undefined)"
+        :aria-hidden="decorativo ? 'true' : undefined"
     >
-        <img v-if="temFoto" :src="fotoUrl!" :alt="nome ?? ''" loading="lazy" />
+        <img v-if="temFoto" :src="fotoUrl!" :alt="decorativo ? '' : (nome ?? '')" loading="lazy" />
         <span v-else class="iniciais">{{ iniciais }}</span>
     </div>
 </template>

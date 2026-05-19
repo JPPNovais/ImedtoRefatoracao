@@ -160,6 +160,7 @@ const podeAlterar = computed(() => {
                         :nome="agendamento.profissionalNome"
                         :foto-url="agendamento.profissionalFotoUrl"
                         tamanho="sm"
+                        decorativo
                     />
                     {{ agendamento.profissionalNome }}
                 </span>
