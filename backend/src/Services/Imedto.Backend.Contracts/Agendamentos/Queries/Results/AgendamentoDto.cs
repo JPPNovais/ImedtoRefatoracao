@@ -16,6 +16,8 @@ public class AgendamentoDto
     public string PacienteNome { get; set; } = string.Empty;
     public Guid ProfissionalUsuarioId { get; set; }
     public string ProfissionalNome { get; set; } = string.Empty;
+    /// <summary>URL presigned (S3) da foto do profissional, quando houver.</summary>
+    public string? ProfissionalFotoUrl { get; set; }
     public string CriadoPorNome { get; set; } = string.Empty;
     public DateTime InicioPrevisto { get; set; }
     public DateTime FimPrevisto { get; set; }

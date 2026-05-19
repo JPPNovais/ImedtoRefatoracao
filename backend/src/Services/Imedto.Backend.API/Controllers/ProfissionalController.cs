@@ -122,6 +122,24 @@ public class ProfissionalController : ControllerBase
         return Ok(new { fotoUrl = dto?.FotoUrl });
     }
 
+    /// <summary>Remove a foto do profissional autenticado (idempotente).</summary>
+    /// <response code="204">Foto removida (ou já estava ausente).</response>
+    /// <response code="422">Perfil profissional não encontrado.</response>
+    [HttpDelete("me/foto")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RemoverFoto()
+    {
+        var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+
+        await _commandBus.Send(new RemoverFotoProfissionalCommand
+        {
+            UsuarioId = userId,
+        });
+
+        return NoContent();
+    }
+
     private static string ValidarFoto(IFormFile arquivo)
     {
         if (arquivo is null || arquivo.Length == 0)

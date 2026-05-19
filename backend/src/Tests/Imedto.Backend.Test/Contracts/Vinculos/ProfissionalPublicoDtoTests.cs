@@ -42,12 +42,16 @@ public class ProfissionalPublicoDtoTests
     [Test]
     public void ProfissionalPublicoDto_ContemApenasCamposMinimos()
     {
-        // Lista permitida: id estavel (UsuarioId), display (NomeCompleto),
-        // contexto profissional (Especialidade, Conselho), Status para o front
-        // distinguir Dono. Qualquer adicao aqui exige justificativa explicita.
+        // Lista permitida: id estavel (UsuarioId), display (NomeCompleto + FotoUrl
+        // para avatar nos seletores), contexto profissional (Especialidade,
+        // Conselho), Status para o front distinguir Dono. Qualquer adicao aqui
+        // exige justificativa explicita.
+        //
+        // FotoUrl e PII de baixo risco (mesma visibilidade que nome/especialidade
+        // ja tinham) — exibida nos avatares de seletor/agenda/equipe.
         var esperados = new[]
         {
-            "UsuarioId", "NomeCompleto", "Especialidade", "Conselho", "Status"
+            "UsuarioId", "NomeCompleto", "Especialidade", "Conselho", "Status", "FotoUrl"
         };
 
         var props = typeof(ProfissionalPublicoDto).GetProperties().Select(p => p.Name).ToArray();

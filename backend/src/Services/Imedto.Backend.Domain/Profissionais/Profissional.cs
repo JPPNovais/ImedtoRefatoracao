@@ -65,6 +65,19 @@ public class Profissional : Entity<Guid>, ISoftDeletable
         AtualizadoEm = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Limpa a foto do profissional. Idempotente — se já não havia foto, não
+    /// atualiza <see cref="AtualizadoEm"/> (evita ruído em audit). O caller
+    /// (handler) é quem apaga o blob no storage.
+    /// </summary>
+    public virtual void RemoverFoto()
+    {
+        if (string.IsNullOrWhiteSpace(FotoUrl)) return;
+
+        FotoUrl = null;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
     public virtual void Atualizar(
         string conselho,
         string uf,

@@ -13,6 +13,7 @@ export interface ProfissionalVinculado {
     especialidade?: string | null
     conselho?: string | null
     profissao?: string | null
+    fotoUrl?: string | null
 }
 
 /**
@@ -28,6 +29,8 @@ export interface ProfissionalPublico {
     conselho?: string | null
     /** "Ativo" ou "Dono". Inativos não aparecem aqui. */
     status: string
+    /** URL presigned (S3) da foto do profissional, quando houver. */
+    fotoUrl?: string | null
 }
 
 export interface ConvitePendente {

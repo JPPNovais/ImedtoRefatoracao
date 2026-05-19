@@ -50,6 +50,7 @@ public class AgendamentoQueryRepository
                 pac.nome_completo       AS PacienteNome,
                 a.profissional_usuario_id AS ProfissionalUsuarioId,
                 COALESCE(uprf.nome_completo, uprf.email) AS ProfissionalNome,
+                pprf.foto_url           AS ProfissionalFotoUrl,
                 COALESCE(ucri.nome_completo, ucri.email) AS CriadoPorNome,
                 a.inicio_previsto       AS InicioPrevisto,
                 a.fim_previsto          AS FimPrevisto,
@@ -67,6 +68,7 @@ public class AgendamentoQueryRepository
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
             JOIN usuarios     ucri ON ucri.id = a.criado_por_usuario_id
+            LEFT JOIN profissionais pprf ON pprf.usuario_id = a.profissional_usuario_id AND pprf.deletado_em IS NULL
             LEFT JOIN sala_atendimento     sa ON sa.id = a.sala_id
             LEFT JOIN tipo_sala_atendimento ts ON ts.id = sa.tipo_sala_id
             WHERE a.estabelecimento_id = @EstabelecimentoId
@@ -181,6 +183,7 @@ public class AgendamentoQueryRepository
                 pac.nome_completo       AS PacienteNome,
                 a.profissional_usuario_id AS ProfissionalUsuarioId,
                 COALESCE(uprf.nome_completo, uprf.email) AS ProfissionalNome,
+                pprf.foto_url           AS ProfissionalFotoUrl,
                 COALESCE(ucri.nome_completo, ucri.email) AS CriadoPorNome,
                 a.inicio_previsto       AS InicioPrevisto,
                 a.fim_previsto          AS FimPrevisto,
@@ -198,6 +201,7 @@ public class AgendamentoQueryRepository
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
             JOIN usuarios     ucri ON ucri.id = a.criado_por_usuario_id
+            LEFT JOIN profissionais pprf ON pprf.usuario_id = a.profissional_usuario_id AND pprf.deletado_em IS NULL
             LEFT JOIN sala_atendimento     sa ON sa.id = a.sala_id
             LEFT JOIN tipo_sala_atendimento ts ON ts.id = sa.tipo_sala_id
             WHERE a.id = @Id

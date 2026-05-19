@@ -38,11 +38,12 @@ public class VinculoQueryRepository
                     v.aceito_em                AS AceitoEm,
                     COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
                     p.conselho                 AS Conselho,
-                    pr.nome                    AS Profissao
+                    pr.nome                    AS Profissao,
+                    p.foto_url                 AS FotoUrl
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.usuarios u ON u.id = v.profissional_usuario_id
             LEFT JOIN public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
-            LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id
+            LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id AND p.deletado_em IS NULL
             LEFT JOIN public.profissoes pr ON pr.id = v.profissao_convidada_id
             WHERE   v.estabelecimento_id = @EstabelecimentoId
               {{filtroStatus}}
@@ -62,10 +63,11 @@ public class VinculoQueryRepository
                     e.criado_em                AS AceitoEm,
                     p.especialidade            AS Especialidade,
                     p.conselho                 AS Conselho,
-                    NULL::text                 AS Profissao
+                    NULL::text                 AS Profissao,
+                    p.foto_url                 AS FotoUrl
             FROM    public.estabelecimentos e
             JOIN    public.usuarios u ON u.id = e.dono_usuario_id
-            LEFT JOIN public.profissionais p ON p.usuario_id = e.dono_usuario_id
+            LEFT JOIN public.profissionais p ON p.usuario_id = e.dono_usuario_id AND p.deletado_em IS NULL
             WHERE   e.id = @EstabelecimentoId
 
             ORDER BY NomeCompleto NULLS LAST, Email
@@ -92,10 +94,11 @@ public class VinculoQueryRepository
                     COALESCE(u.nome_completo, v.nome_convidado) AS NomeCompleto,
                     COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
                     p.conselho                         AS Conselho,
-                    'Ativo'                            AS Status
+                    'Ativo'                            AS Status,
+                    p.foto_url                         AS FotoUrl
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.usuarios u ON u.id = v.profissional_usuario_id
-            LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id
+            LEFT JOIN public.profissionais p ON p.usuario_id = v.profissional_usuario_id AND p.deletado_em IS NULL
             WHERE   v.estabelecimento_id = @EstabelecimentoId
               AND   v.status = 'Ativo'
               AND   v.profissional_usuario_id
@@ -107,10 +110,11 @@ public class VinculoQueryRepository
                     u.nome_completo                    AS NomeCompleto,
                     p.especialidade                    AS Especialidade,
                     p.conselho                         AS Conselho,
-                    'Dono'                             AS Status
+                    'Dono'                             AS Status,
+                    p.foto_url                         AS FotoUrl
             FROM    public.estabelecimentos e
             JOIN    public.usuarios u ON u.id = e.dono_usuario_id
-            LEFT JOIN public.profissionais p ON p.usuario_id = e.dono_usuario_id
+            LEFT JOIN public.profissionais p ON p.usuario_id = e.dono_usuario_id AND p.deletado_em IS NULL
             WHERE   e.id = @EstabelecimentoId
 
             ORDER BY NomeCompleto NULLS LAST

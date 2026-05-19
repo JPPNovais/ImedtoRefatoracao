@@ -8,7 +8,7 @@ import { profissionalService } from "@/services/profissionalService"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppPhotoUpload } from "@/components/ui"
 import { redimensionarImagem } from "@/services/imageUtils"
 import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
 
@@ -132,27 +132,18 @@ const carregandoProf     = ref(true)
 
 // ─── Upload de foto (profissional) ────────────────────────────────────────────
 
-const fotoInput = ref<HTMLInputElement | null>(null)
 const enviandoFoto = ref(false)
 const erroFoto = ref<string | null>(null)
 
-function abrirSeletorFoto() {
+async function aoUploadFoto(arquivo: File) {
     erroFoto.value = null
-    fotoInput.value?.click()
-}
+    if (!profissionalExiste.value) {
+        erroFoto.value = "Salve o cadastro profissional antes de adicionar a foto."
+        return
+    }
 
-async function aoSelecionarFoto(ev: Event) {
-    const arquivo = (ev.target as HTMLInputElement).files?.[0]
-    if (!arquivo) return
-
-    erroFoto.value = null
     enviandoFoto.value = true
     try {
-        if (!profissionalExiste.value) {
-            erroFoto.value = "Salve o cadastro profissional antes de adicionar a foto."
-            return
-        }
-
         // Reduz para 512×512 com qualidade 0.85 — fica em torno de 50–100 KB
         // sem perder nitidez visível em avatares.
         const reduzida = await redimensionarImagem(arquivo, 512, 0.85)
@@ -164,8 +155,22 @@ async function aoSelecionarFoto(ev: Event) {
         erroFoto.value = e?.response?.data?.mensagem ?? e?.message ?? "Não foi possível enviar a foto."
     } finally {
         enviandoFoto.value = false
-        // Permite reescolher o mesmo arquivo (caso queira refazer).
-        if (fotoInput.value) fotoInput.value.value = ""
+    }
+}
+
+async function aoRemoverFoto() {
+    erroFoto.value = null
+    if (!profissional.fotoUrl) return
+    if (!confirm("Remover sua foto de perfil?")) return
+
+    enviandoFoto.value = true
+    try {
+        await profissionalService.removerFoto()
+        profissional.setFotoUrl(null)
+    } catch (e: any) {
+        erroFoto.value = e?.response?.data?.mensagem ?? e?.message ?? "Não foi possível remover a foto."
+    } finally {
+        enviandoFoto.value = false
     }
 }
 
@@ -307,44 +312,19 @@ onMounted(async () => {
         <div class="card">
 
             <!-- Foto -->
-            <div class="foto-section">
-                <button
-                    type="button"
-                    class="foto-avatar"
-                    :class="{ 'foto-avatar--bloqueado': !profissionalExiste, 'foto-avatar--enviando': enviandoFoto }"
-                    :disabled="!profissionalExiste || enviandoFoto"
-                    :aria-label="profissional.fotoUrl ? 'Trocar foto do profissional' : 'Adicionar foto do profissional'"
-                    :title="!profissionalExiste ? 'Salve o cadastro profissional para habilitar a foto' : (profissional.fotoUrl ? 'Clique para trocar a foto' : 'Clique para enviar uma foto')"
-                    @click="abrirSeletorFoto"
-                >
-                    <img v-if="profissional.fotoUrl" :src="profissional.fotoUrl" :alt="nomeCompleto" />
-                    <span v-else class="foto-iniciais">
-                        {{ (auth.usuario?.nomeCompleto ?? "?").charAt(0).toUpperCase() }}
-                    </span>
-                    <span class="foto-overlay">
-                        <span v-if="enviandoFoto" class="foto-spinner" aria-hidden="true"></span>
-                        <i v-else class="fa-solid fa-camera" aria-hidden="true"></i>
-                    </span>
-                </button>
-                <div class="foto-info">
-                    <span class="foto-titulo">Foto do profissional</span>
-                    <span class="foto-desc">
-                        Clique na foto para trocar. Recomendamos uma foto quadrada de pelo menos 200×200px — a imagem é otimizada automaticamente antes do envio.
-                    </span>
-                    <input
-                        ref="fotoInput"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
-                        hidden
-                        @change="aoSelecionarFoto"
-                    />
-                    <span class="foto-max">Máx. 2MB · JPG, PNG, WebP ou GIF</span>
-                    <p v-if="erroFoto" class="foto-erro">{{ erroFoto }}</p>
-                    <p v-else-if="!profissionalExiste" class="foto-hint">
-                        Salve o cadastro profissional abaixo para liberar o upload de foto.
-                    </p>
-                </div>
-            </div>
+            <AppPhotoUpload
+                :foto-url="profissional.fotoUrl"
+                :iniciais-fallback="auth.usuario?.nomeCompleto ?? nomeCompleto"
+                titulo="Foto do profissional"
+                descricao="Aparece nas listas de equipe, agenda, prontuário e PDFs. Recomendado: imagem quadrada ≥ 200×200px — é otimizada automaticamente antes do envio. Máx. 2 MB · JPG, PNG, WebP ou GIF."
+                :loading="enviandoFoto"
+                :disabled="!profissionalExiste"
+                :motivo-disabled="!profissionalExiste ? 'Salve o cadastro profissional para habilitar a foto' : null"
+                :erro="erroFoto ?? (!profissionalExiste ? 'Salve o cadastro profissional abaixo para liberar o upload de foto.' : null)"
+                @upload="aoUploadFoto"
+                @remover="aoRemoverFoto"
+                @erro-validacao="(msg) => (erroFoto = msg)"
+            />
 
             <div class="separador" />
 
@@ -525,114 +505,6 @@ onMounted(async () => {
 .card-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
 .card-footer { display: flex; justify-content: flex-end; margin-top: 0.25rem; }
 .card-rodape-info { font-size: 0.78em; color: var(--text-muted); margin: 0; }
-
-/* ── Foto ────────────────────────────────────────────── */
-.foto-section {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.foto-avatar {
-    width: 96px;
-    height: 96px;
-    border-radius: 50%;
-    border: 2px dashed var(--border-strong);
-    background: var(--bg-hover);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    overflow: hidden;
-    position: relative;
-    padding: 0;
-    cursor: pointer;
-    font-family: inherit;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-.foto-avatar:hover:not(:disabled) {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.12);
-}
-.foto-avatar:focus-visible {
-    outline: none;
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.25);
-}
-.foto-avatar:disabled,
-.foto-avatar--bloqueado {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.foto-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.foto-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.15s;
-    font-size: 1.2rem;
-}
-.foto-avatar:hover:not(:disabled) .foto-overlay,
-.foto-avatar:focus-visible .foto-overlay,
-.foto-avatar--enviando .foto-overlay {
-    opacity: 1;
-}
-
-.foto-spinner {
-    width: 22px;
-    height: 22px;
-    border: 2.5px solid rgba(255, 255, 255, 0.4);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: foto-spin 0.7s linear infinite;
-}
-@keyframes foto-spin { to { transform: rotate(360deg); } }
-
-.foto-iniciais {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--primary);
-}
-
-.foto-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.foto-titulo { font-weight: 700; font-size: 0.95em; }
-.foto-desc   { font-size: 0.8em; color: var(--text-muted); max-width: 420px; }
-
-.foto-acoes {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.2rem;
-}
-
-.foto-max { font-size: 0.75em; color: var(--text-muted); }
-.foto-erro {
-    font-size: 0.78em;
-    color: hsl(var(--error));
-    margin: 0.35rem 0 0;
-}
-.foto-hint {
-    font-size: 0.75em;
-    color: var(--text-muted);
-    margin: 0.35rem 0 0;
-    font-style: italic;
-}
 
 /* ── Separador ───────────────────────────────────────── */
 .separador {

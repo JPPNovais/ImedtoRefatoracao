@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import {
-    AppButton, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
+    AppAvatar, AppButton, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
 } from "@/components/ui"
 import { permissaoService, type ModeloPermissao } from "@/services/permissaoService"
 import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
@@ -121,20 +121,18 @@ function fechar() {
     if (salvando.value || removendo.value || reativando.value) return
     emit("fechar")
 }
-
-function iniciais(p: ProfissionalVinculado): string {
-    const base = (p.nomeCompleto && p.nomeCompleto.trim()) || p.email || "?"
-    return base.split(" ").filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join("")
-        || base.charAt(0).toUpperCase()
-}
 </script>
 
 <template>
     <AppModal :aberto="aberto && !!profissional" largura="lg" sem-padding-corpo @fechar="fechar">
         <template #titulo>
             <div v-if="profissional" class="ph-info">
-                <div class="ph-avatar">
-                    {{ iniciais(profissional) }}
+                <div class="ph-avatar-wrap">
+                    <AppAvatar
+                        :nome="profissional.nomeCompleto || profissional.email"
+                        :foto-url="profissional.fotoUrl"
+                        tamanho="lg"
+                    />
                     <span v-if="ehDono" class="owner-crown" title="Dono"><i class="fa-solid fa-crown"></i></span>
                 </div>
                 <div>
@@ -270,12 +268,7 @@ function iniciais(p: ProfissionalVinculado): string {
 <style scoped>
 /* Header customizado */
 .ph-info { display: flex; gap: 14px; align-items: center; }
-.ph-avatar {
-    width: 48px; height: 48px; border-radius: 50%;
-    background: hsl(var(--primary)); color: white;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px; flex-shrink: 0; position: relative;
-}
+.ph-avatar-wrap { position: relative; flex-shrink: 0; }
 .owner-crown {
     position: absolute; bottom: -3px; right: -3px;
     width: 16px; height: 16px; border-radius: 50%;

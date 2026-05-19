@@ -10,6 +10,7 @@
 import { computed } from "vue"
 import type { Agendamento } from "@/services/agendaService"
 import { formatData, formatDataHora, formatHora } from "@/utils/datetime"
+import { AppAvatar } from "@/components/ui"
 
 const props = defineProps<{
     agendamento: Agendamento
@@ -154,8 +155,12 @@ const podeAlterar = computed(() => {
                 </span>
             </div>
             <div class="meta-row">
-                <span>
-                    <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
+                <span class="prof-cell">
+                    <AppAvatar
+                        :nome="agendamento.profissionalNome"
+                        :foto-url="agendamento.profissionalFotoUrl"
+                        tamanho="sm"
+                    />
                     {{ agendamento.profissionalNome }}
                 </span>
                 <span class="sep"></span>

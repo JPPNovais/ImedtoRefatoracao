@@ -28,6 +28,7 @@ export interface Agendamento {
     pacienteNome: string
     profissionalUsuarioId: string
     profissionalNome: string
+    profissionalFotoUrl?: string | null
     criadoPorNome: string
     inicioPrevisto: string
     fimPrevisto: string

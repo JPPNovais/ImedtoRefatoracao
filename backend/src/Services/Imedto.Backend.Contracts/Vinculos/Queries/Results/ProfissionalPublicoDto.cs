@@ -18,4 +18,10 @@ public class ProfissionalPublicoDto
     public string? Conselho { get; set; }
     /// <summary>"Ativo" ou "Dono" — Inativo nunca aparece aqui (já filtrado no SQL).</summary>
     public string Status { get; set; } = string.Empty;
+    /// <summary>
+    /// URL presigned (S3) da foto do profissional, quando houver. PII baixo
+    /// risco — visível para qualquer membro do tenant (mesma regra de
+    /// <see cref="NomeCompleto"/> e <see cref="Especialidade"/>).
+    /// </summary>
+    public string? FotoUrl { get; set; }
 }

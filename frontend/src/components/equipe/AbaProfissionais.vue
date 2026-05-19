@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import {
-    AppButton, AppEmptyState, AppFilterPills, AppRolePill, AppSearchInput, AppSelect, AppStatusPill,
+    AppAvatar, AppButton, AppEmptyState, AppFilterPills, AppRolePill, AppSearchInput, AppSelect, AppStatusPill,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { useAuthStore } from "@/stores/authStore"
@@ -105,30 +105,6 @@ const podeAtivar    = computed(() => statusDosSelecionados.value.includes("Inati
 const podeDesativar = computed(() => statusDosSelecionados.value.includes("Ativo"))
 
 // ─── Helpers visuais ───────────────────────────────────────────────────────
-function iniciais(p: ProfissionalVinculado): string {
-    const base = (p.nomeCompleto && p.nomeCompleto.trim()) || p.email || "?"
-    return base
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map(s => s[0]?.toUpperCase())
-        .join("")
-        || base.charAt(0).toUpperCase()
-}
-
-function corAvatar(p: ProfissionalVinculado): string {
-    // Determinismo simples — hash do vinculoId em uma paleta amigável.
-    // vinculoId pode ser null pro Dono (linha sintética sem vínculo formal);
-    // nesse caso usa o último índice da paleta como cor estável.
-    const paleta = [
-        "hsl(254 56% 38%)", "hsl(190 60% 45%)", "hsl(280 55% 50%)",
-        "hsl(140 45% 45%)", "hsl(40 70% 50%)", "hsl(340 55% 55%)",
-        "hsl(220 55% 50%)", "hsl(170 50% 40%)",
-    ]
-    const idx = p.vinculoId == null ? paleta.length - 1 : (p.vinculoId % paleta.length)
-    return paleta[idx]
-}
-
 function modeloDe(p: ProfissionalVinculado): ModeloPermissao | undefined {
     return props.modelos.find(m => m.id === p.modeloPermissaoId)
 }
@@ -250,8 +226,12 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
                 </label>
 
                 <div class="pr-name">
-                    <div class="pr-avatar" :style="{ background: corAvatar(p) }">
-                        {{ iniciais(p) }}
+                    <div class="pr-avatar-wrap">
+                        <AppAvatar
+                            :nome="p.nomeCompleto || p.email"
+                            :foto-url="p.fotoUrl"
+                            tamanho="md"
+                        />
                         <span v-if="p.status === 'Dono'" class="owner-crown" title="Dono da clínica">
                             <i class="fa-solid fa-crown"></i>
                         </span>
@@ -378,11 +358,7 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
 .pt-checkbox.disabled:hover .cb-box { border-color: hsl(var(--secondary) / 0.3); }
 
 .pr-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.pr-avatar {
-    width: 38px; height: 38px; border-radius: 50%;
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 12px; flex-shrink: 0; position: relative;
-}
+.pr-avatar-wrap { position: relative; flex-shrink: 0; }
 .owner-crown {
     position: absolute; bottom: -3px; right: -3px;
     width: 16px; height: 16px; border-radius: 50%;

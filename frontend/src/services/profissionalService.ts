@@ -48,4 +48,9 @@ export const profissionalService = {
         )
         return data.fotoUrl
     },
+
+    /** Remove a foto de perfil. Idempotente — sem foto previa nao falha. */
+    async removerFoto(): Promise<void> {
+        await httpClient.delete("/profissional/me/foto")
+    },
 }
