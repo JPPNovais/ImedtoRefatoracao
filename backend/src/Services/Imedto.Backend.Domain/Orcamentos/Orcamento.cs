@@ -1,3 +1,4 @@
+using System.Globalization;
 using Imedto.Backend.Domain.Orcamentos.Events;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -487,8 +488,10 @@ public class Orcamento : Entity
         var somaFormas = Math.Round(FormasPagamento.Sum(f => f.Valor), 2);
         if (Math.Abs(somaFormas - total) > 0.01m)
         {
+            // Formatação em pt-BR explícita — não confiar em CurrentCulture (CI roda en-US).
+            var ptBr = CultureInfo.GetCultureInfo("pt-BR");
             throw new BusinessException(
-                $"Soma das formas de pagamento ({somaFormas:N2}) não confere com o total ({total:N2}).");
+                $"Soma das formas de pagamento ({somaFormas.ToString("N2", ptBr)}) não confere com o total ({total.ToString("N2", ptBr)}).");
         }
     }
 
