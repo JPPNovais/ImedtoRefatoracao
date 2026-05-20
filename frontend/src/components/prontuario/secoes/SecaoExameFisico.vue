@@ -234,6 +234,19 @@ function removerRegiao(index: number) {
     substituirRegioes(novas)
 }
 
+/**
+ * Aplica um patch parcial em uma região examinada — emitido pelo
+ * RegionExamCard a cada alteração de campo (texto_exame/achados/observacoes).
+ * Mantemos imutabilidade no array para o v-model do pai detectar a mudança
+ * mesmo se ele clonar raso o modelValue.
+ */
+function atualizarRegiao({ index, patch }: { index: number; patch: Partial<RegiaoAnatomicaSelecionada> }) {
+    if (index < 0 || index >= regioes.value.length) return
+    const novas = [...regioes.value]
+    novas[index] = { ...novas[index], ...patch }
+    substituirRegioes(novas)
+}
+
 // Carrega catálogo de regiões 1× quando a seção monta. Falha silenciosa — sem
 // rede, o mapa fica sem regiões clicáveis mas os campos textuais continuam.
 onMounted(async () => {
@@ -462,11 +475,12 @@ onMounted(async () => {
             <h4 class="subsec-titulo">Regiões examinadas ({{ regioes.length }})</h4>
             <RegionExamCard
                 v-for="(regiao, idx) in regioes"
-                :key="idx"
+                :key="`${regiao.regiao_id}-${regiao.lateralidade ?? ''}-${idx}`"
                 :regiao="regiao"
                 :index="idx"
                 :open="true"
                 @remover="removerRegiao"
+                @atualizar="atualizarRegiao"
             />
         </div>
 

@@ -136,6 +136,12 @@ function handleClick(regiao: ExameFisicoRegiao) {
         </defs>
 
         <!-- Imagem de fundo do corpo -->
+        <!--
+          pointer-events="none" garante que a <image> opaca não capture o clique
+          em navegadores que respeitam `visiblePainted` (Safari/Firefox em
+          alguns modos). Sem isso, paths transparentes que ficam por cima
+          podem não receber o evento.
+        -->
         <image
           :href="bgSrc"
           x="0"
@@ -143,6 +149,7 @@ function handleClick(regiao: ExameFisicoRegiao) {
           width="1400"
           height="1024"
           preserveAspectRatio="xMidYMid meet"
+          pointer-events="none"
         />
 
         <!-- Linha divisória entre anterior e posterior -->
@@ -197,6 +204,7 @@ function handleClick(regiao: ExameFisicoRegiao) {
 <style scoped>
 .region-hotspot {
   cursor: pointer;
+  pointer-events: all;
   transition: fill 0.15s ease, stroke 0.15s ease;
 }
 

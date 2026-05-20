@@ -22,7 +22,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   remover: [index: number]
   'update:open': [value: boolean]
+  /** Atualiza um campo da região via patch. O pai aplica no array via splice. */
+  atualizar: [payload: { index: number; patch: Partial<RegiaoExaminada> }]
 }>()
+
+function atualizarCampo(patch: Partial<RegiaoExaminada>) {
+  emit('atualizar', { index: props.index, patch })
+}
 
 const isOpen = ref(props.open !== undefined ? props.open : true)
 
@@ -76,28 +82,31 @@ function getLateralidadeLabel(lat: string | null): string {
       <div class="space-y-1">
         <label class="field-label-compact">Exame</label>
         <textarea
-          v-model="regiao.texto_exame"
+          :value="regiao.texto_exame"
           class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 min-h-[80px] resize-y"
           placeholder="Descreva os achados do exame físico desta região..."
           :readonly="readonly"
+          @input="(e) => atualizarCampo({ texto_exame: (e.target as HTMLTextAreaElement).value })"
         />
       </div>
       <div class="space-y-1">
         <label class="field-label-compact">Achados</label>
         <input
-          v-model="regiao.achados"
+          :value="regiao.achados"
           class="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
           placeholder="Ex: Normal, Sem alterações..."
           :readonly="readonly"
+          @input="(e) => atualizarCampo({ achados: (e.target as HTMLInputElement).value })"
         />
       </div>
       <div class="space-y-1">
         <label class="field-label-compact">Observações</label>
         <textarea
-          v-model="regiao.observacoes"
+          :value="regiao.observacoes"
           class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 min-h-[48px] resize-y"
           placeholder="Observações adicionais..."
           :readonly="readonly"
+          @input="(e) => atualizarCampo({ observacoes: (e.target as HTMLTextAreaElement).value })"
         />
       </div>
     </div>
