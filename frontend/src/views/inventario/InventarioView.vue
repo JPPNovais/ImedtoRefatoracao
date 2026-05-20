@@ -203,7 +203,9 @@ async function inativar(item: ItemInventario) {
     if (!confirm(`Inativar "${item.nome}"?`)) return
     try {
         await inventarioService.inativarItem(item.id)
-        await carregarItens()
+        // Recarrega itens E movimentações — a inativação cria uma movimentação
+        // tipo "Inativacao" para auditoria, que precisa aparecer na aba sem F5.
+        await Promise.all([carregarItens(), carregarMovimentacoes()])
     } catch (e: any) {
         alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
     }
