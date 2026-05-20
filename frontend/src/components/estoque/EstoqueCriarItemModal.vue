@@ -86,10 +86,10 @@ async function confirmar() {
                 </AppSelect>
             </AppField>
             <AppField label="Quantidade inicial">
-                <AppInput v-model="form.quantidadeInicial" type="number" :min="0" :step="0.001" />
+                <AppInput v-model="form.quantidadeInicial" type="number" :min="0" :step="1" />
             </AppField>
             <AppField label="Quantidade mínima" required>
-                <AppInput v-model="form.quantidadeMinima" type="number" :min="0" :step="0.001" />
+                <AppInput v-model="form.quantidadeMinima" type="number" :min="0" :step="1" />
             </AppField>
             <AppField
                 v-if="form.quantidadeInicial > 0"

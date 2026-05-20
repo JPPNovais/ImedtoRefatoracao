@@ -70,7 +70,7 @@ async function confirmar() {
                 <AppInput v-model="form.unidadeMedida" />
             </AppField>
             <AppField label="Quantidade mínima" required>
-                <AppInput v-model="form.quantidadeMinima" type="number" :min="0" :step="0.001" />
+                <AppInput v-model="form.quantidadeMinima" type="number" :min="0" :step="1" />
             </AppField>
         </div>
 

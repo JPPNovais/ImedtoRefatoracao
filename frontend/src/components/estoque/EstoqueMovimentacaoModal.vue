@@ -114,8 +114,8 @@ async function confirmar() {
                 <AppInput
                     v-model="quantidade"
                     type="number"
-                    :min="0.001"
-                    :step="0.001"
+                    :min="0"
+                    :step="1"
                     placeholder="0"
                 />
             </AppField>
