@@ -1,21 +1,6 @@
 import httpClient from "./httpClient"
 
-export type TipoConsentimento = "TermosUso" | "PoliticaPrivacidade" | "UsoIA"
-
-export interface Consentimento {
-    id: number
-    tipo: TipoConsentimento
-    versao: string
-    aceitoEm: string
-}
-
 export const lgpdService = {
-    /** Retorna lista de consentimentos registrados do usuário logado. */
-    async listarConsentimentos(): Promise<Consentimento[]> {
-        const { data } = await httpClient.get<Consentimento[]>("/lgpd/consentimentos/meus")
-        return data
-    },
-
     /**
      * Exporta todos os dados do usuário como JSON e aciona o download no
      * navegador. Não retorna um valor — o download é disparado internamente.

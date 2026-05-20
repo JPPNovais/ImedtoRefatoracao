@@ -746,15 +746,12 @@ public static class Container
         services.AddSingleton<BuscarProcedimentoCatalogoQueryHandlers>();
         services.AddSingleton<ObterProcedimentoPorCodigoQueryHandlers>();
 
-        // Item 4.3 — LGPD: anonimização, consentimentos e exportação.
+        // Item 4.3 — LGPD: anonimização e exportação de dados do titular.
         services.AddScoped<ILgpdAnonimizacaoRepository, LgpdAnonimizacaoRepository>();
-        services.AddScoped<ILgpdConsentimentoRepository, LgpdConsentimentoRepository>();
         services.AddScoped<IAnonimizacaoService, AnonimizacaoService>();
         services.AddSingleton<LgpdQueryRepository>();
-        services.AddScoped<RegistrarConsentimentoCommandHandler>();
         services.AddScoped<AnonimizarMinhaContaCommandHandler>();
         services.AddSingleton<ExportarMeusDadosLgpdQueryHandlers>();
-        services.AddScoped<ListarMeusConsentimentosQueryHandlers>();
         services.AddScoped<IJobHandler, AnonimizarPacientesInativosJob>();
 
         // Dashboard & Relatórios
@@ -949,7 +946,6 @@ public static class Container
             bus.Register<RegistrarRespostaPublicaTermoCommand, RegistrarRespostaPublicaTermoCommandHandler>();
             bus.Register<ReenviarLinkTermoCommand, ReenviarLinkTermoCommandHandler>();
             // Item 4.3 — LGPD.
-            bus.Register<RegistrarConsentimentoCommand, RegistrarConsentimentoCommandHandler>();
             bus.Register<AnonimizarMinhaContaCommand, AnonimizarMinhaContaCommandHandler>();
             return bus;
         });
@@ -1037,7 +1033,6 @@ public static class Container
             bus.Register<RelatorioOrcamentosQuery, RelatorioOrcamentosDto, RelatorioOrcamentosQueryHandler>();
             // Item 4.3 — LGPD.
             bus.Register<ExportarMeusDadosQuery, MeusDadosLgpdDto, ExportarMeusDadosLgpdQueryHandlers>();
-            bus.Register<ListarMeusConsentimentosQuery, IEnumerable<ConsentimentoDto>, ListarMeusConsentimentosQueryHandlers>();
             bus.Register<ObterConfiguracaoAutomacaoQuery, ConfiguracaoAutomacaoDto, ObterConfiguracaoAutomacaoQueryHandlers>();
             bus.Register<ListarProfissoesQuery, IEnumerable<ProfissaoListadaDto>, ListarProfissoesQueryHandlers>();
             bus.Register<ListarEspecialidadesQuery, IEnumerable<EspecialidadeListadaDto>, ListarEspecialidadesQueryHandlers>();

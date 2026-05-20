@@ -10,3 +10,5 @@
 - [Termos de Consentimento — Fase 1 (2026-05-19)](project_termos_consentimento_fase1.md) — backend completo + Cidade/UF no Estabelecimento + 5 padrões seedados; stubs 501 para Fases 3/4.
 - [Termos de Consentimento — Fase 2 (2026-05-19)](project_termos_consentimento_fase2.md) — UI TipTap (lista + form) + Cidade/UF expostos no form do Estabelecimento; rotas `TermosModelos/Novo/Editar` gateadas por `termos.gerenciar_modelos`.
 - [Termos de Consentimento — Fase 3 (2026-05-19)](project_termos_consentimento_fase3.md) — aba do paciente + wizard de emissão + PDF gerado no front + upload manual; sem upload automático (preserva integridade do Pendente→Assinado).
+- [Termos de Consentimento — Fase 4 (2026-05-20)](project_termos_consentimento_fase4.md) — view pública `/termos/aceite/:token` + cliente axios dedicado (sem withCredentials) + EmitirTermoModal habilitado com sub-opções e-mail/copia.
+- [Termos de Consentimento — Fase 5 (2026-05-20)](project_termos_consentimento_fase5.md) — módulo legado `lgpd_consentimento` removido; tabela renomeada para `_arquivo`; ExportarMeusDados.Consentimentos sempre vazio até existir vínculo paciente↔usuário.

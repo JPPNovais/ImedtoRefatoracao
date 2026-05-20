@@ -76,17 +76,12 @@ public class LgpdQueryRepository
 
         var notificacoes = await conn.QueryAsync<NotificacaoResumidaDto>(sqlNotif, new { UsuarioId = usuarioId });
 
-        // Consentimentos LGPD
-        const string sqlConsentimentos = """
-            SELECT  tipo        AS Tipo,
-                    versao      AS Versao,
-                    aceito_em   AS AceitoEm
-            FROM    public.lgpd_consentimentos
-            WHERE   usuario_id = @UsuarioId
-            ORDER BY aceito_em DESC
-            """;
-
-        var consentimentos = await conn.QueryAsync<ConsentimentoDto>(sqlConsentimentos, new { UsuarioId = usuarioId });
+        // Consentimentos LGPD são exibidos quando o usuário também é paciente — ligação
+        // formal entre paciente e usuário ainda não existe no schema (Paciente não tem
+        // usuario_id). Enquanto não há vínculo, devolvemos lista vazia: o módulo
+        // legado lgpd_consentimentos foi arquivado na Fase 5 de Termos de Consentimento.
+        // Quando paciente_usuario existir, popular daqui via termo_emitido (categoria=lgpd, assinado).
+        var consentimentos = Array.Empty<ConsentimentoDto>();
 
         return new MeusDadosLgpdDto
         {

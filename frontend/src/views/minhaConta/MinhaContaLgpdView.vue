@@ -1,30 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref } from "vue"
 import { useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
-import { lgpdService, type Consentimento, type TipoConsentimento } from "@/services/lgpdService"
-import { AppButton, AppCard, AppModal, AppPageHeader, AppBadge } from "@/components/ui"
+import { lgpdService } from "@/services/lgpdService"
+import { AppButton, AppCard, AppModal, AppPageHeader } from "@/components/ui"
 
 const auth   = useAuthStore()
 const router = useRouter()
-
-// ─── Consentimentos ───────────────────────────────────────────────────────────
-
-const consentimentos   = ref<Consentimento[]>([])
-const carregando       = ref(false)
-const erroCarregar     = ref<string | null>(null)
-
-async function carregarConsentimentos() {
-    carregando.value = true
-    erroCarregar.value = null
-    try {
-        consentimentos.value = await lgpdService.listarConsentimentos()
-    } catch (e: any) {
-        erroCarregar.value = e?.response?.data?.mensagem ?? "Erro ao carregar consentimentos."
-    } finally {
-        carregando.value = false
-    }
-}
 
 // ─── Exportar dados ───────────────────────────────────────────────────────────
 
@@ -77,27 +59,6 @@ async function excluirConta() {
         excluindo.value = false
     }
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const LABELS_TIPO: Record<TipoConsentimento, string> = {
-    TermosUso:         "Termos de Uso",
-    PoliticaPrivacidade: "Política de Privacidade",
-    UsoIA:             "Uso de IA",
-}
-
-function fmtData(iso: string) {
-    try {
-        return new Date(iso).toLocaleString("pt-BR", {
-            day: "2-digit", month: "2-digit", year: "numeric",
-            hour: "2-digit", minute: "2-digit",
-        })
-    } catch {
-        return iso
-    }
-}
-
-onMounted(carregarConsentimentos)
 </script>
 
 <template>
@@ -113,6 +74,10 @@ onMounted(carregarConsentimentos)
                 De acordo com o Art. 18 da LGPD, você tem direito de acessar seus dados pessoais.
                 O arquivo inclui dados de perfil, agendamentos, prontuários e histórico de atividade.
             </p>
+            <p class="info-texto info-texto--sutil">
+                Os termos de consentimento clínicos que você assinou ficam disponíveis na sua ficha de paciente,
+                dentro de cada estabelecimento.
+            </p>
             <p v-if="erroExportar" class="msg-erro" role="alert">{{ erroExportar }}</p>
             <template #footer>
                 <AppButton
@@ -124,36 +89,6 @@ onMounted(carregarConsentimentos)
                     Exportar meus dados
                 </AppButton>
             </template>
-        </AppCard>
-
-        <!-- Consentimentos -->
-        <AppCard title="Meus consentimentos" subtitle="Documentos que você aceitou ao usar a plataforma.">
-            <div v-if="carregando" class="estado-msg">
-                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
-                Carregando...
-            </div>
-            <p v-else-if="erroCarregar" class="msg-erro" role="alert">{{ erroCarregar }}</p>
-            <div v-else-if="consentimentos.length === 0" class="estado-msg">
-                Nenhum consentimento registrado.
-            </div>
-            <table v-else class="tabela-consentimentos">
-                <thead>
-                    <tr>
-                        <th>Documento</th>
-                        <th>Versão</th>
-                        <th>Aceito em</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="c in consentimentos" :key="c.id">
-                        <td>
-                            <AppBadge variant="info" :label="LABELS_TIPO[c.tipo] ?? c.tipo" />
-                        </td>
-                        <td class="texto-muted">{{ c.versao }}</td>
-                        <td class="texto-muted">{{ fmtData(c.aceitoEm) }}</td>
-                    </tr>
-                </tbody>
-            </table>
         </AppCard>
 
         <!-- Excluir conta -->
@@ -240,14 +175,9 @@ onMounted(carregarConsentimentos)
     margin: 0 0 0.5rem;
     line-height: 1.6;
 }
-
-.estado-msg {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-muted);
-    font-size: 0.9em;
-    padding: 1rem 0;
+.info-texto--sutil {
+    font-size: 0.82em;
+    opacity: 0.85;
 }
 
 .msg-erro {
@@ -255,27 +185,6 @@ onMounted(carregarConsentimentos)
     font-size: 0.875em;
     margin: 0.5rem 0 0;
 }
-
-.tabela-consentimentos {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.88em;
-}
-.tabela-consentimentos th {
-    text-align: left;
-    padding: 0.4rem 0.6rem;
-    border-bottom: 2px solid hsl(var(--border));
-    font-weight: 600;
-    color: hsl(var(--muted-foreground));
-    font-size: 0.8em;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.tabela-consentimentos td {
-    padding: 0.55rem 0.6rem;
-    border-bottom: 1px solid hsl(var(--border));
-}
-.texto-muted { color: var(--text-muted); }
 
 .aviso-excluir {
     display: flex;

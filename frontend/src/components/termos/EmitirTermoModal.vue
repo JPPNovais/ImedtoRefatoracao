@@ -316,8 +316,8 @@ if (!_profStore.carregado) {
 
 <template>
     <AppModal :aberto="aberto" titulo="Emitir termo de consentimento" largura="lg" @fechar="fechar">
-        <!-- Stepper -->
-        <div class="et-stepper">
+        <!-- Stepper (oculto na tela final de sucesso pra dar destaque ao link) -->
+        <div v-if="passo < 4" class="et-stepper">
             <div class="et-step" :class="{ ativo: passo === 1, concluido: passo > 1 }">
                 <span class="num">1</span>Modelo
             </div>
@@ -393,7 +393,7 @@ if (!_profStore.carregado) {
         </section>
 
         <!-- Passo 3: Forma de assinatura -->
-        <section v-else class="et-pane et-confirmar">
+        <section v-else-if="passo === 3" class="et-pane et-confirmar">
             <h4>Como o paciente vai assinar?</h4>
             <div class="et-tipos">
                 <label
@@ -411,15 +411,42 @@ if (!_profStore.carregado) {
                     </div>
                 </label>
 
-                <label class="et-tipo desabilitado" title="Disponível na próxima atualização">
-                    <input type="radio" disabled />
+                <label
+                    class="et-tipo"
+                    :class="{ ativo: tipoAssinatura === 'aceite_link' }"
+                >
+                    <input v-model="tipoAssinatura" type="radio" value="aceite_link" />
                     <div class="et-tipo-body">
                         <div class="et-tipo-head">
                             <i class="fa-solid fa-link"></i>
-                            <b>Enviar link de aceite por e-mail</b>
-                            <span class="et-rec em-breve">Em breve</span>
+                            <b>Enviar link de aceite</b>
                         </div>
-                        <p>O paciente recebe um link e aceita digitalmente. Disponível na próxima atualização.</p>
+                        <p>O paciente recebe (ou você copia) um link e aceita digitalmente. O link vale 30 dias.</p>
+
+                        <!-- Sub-opções do canal — visível só quando este tipo está selecionado -->
+                        <div v-if="tipoAssinatura === 'aceite_link'" class="et-subop">
+                            <label class="et-radio-mini" :class="{ desabilitado: pacienteSemEmail }">
+                                <input
+                                    v-model="canalEnvio"
+                                    type="radio"
+                                    value="email"
+                                    :disabled="pacienteSemEmail"
+                                />
+                                <span>
+                                    Enviar por e-mail
+                                    <small v-if="pacienteSemEmail" class="et-aviso-mini">
+                                        — paciente sem e-mail cadastrado
+                                    </small>
+                                    <small v-else-if="paciente?.email" class="et-email-mini">
+                                        ({{ paciente.email }})
+                                    </small>
+                                </span>
+                            </label>
+                            <label class="et-radio-mini">
+                                <input v-model="canalEnvio" type="radio" value="copia" />
+                                <span>Apenas copiar link (sem enviar e-mail)</span>
+                            </label>
+                        </div>
                     </div>
                 </label>
             </div>
@@ -443,27 +470,63 @@ if (!_profStore.carregado) {
             </div>
         </section>
 
+        <!-- Passo 4: Confirmação pós-emissão (só aceite_link) -->
+        <section v-else class="et-pane et-sucesso">
+            <i class="fa-solid fa-circle-check et-sucesso-icone" aria-hidden="true"></i>
+            <h4>Link de aceite gerado</h4>
+            <p v-if="canalEnvioConfirmado === 'email'">
+                E-mail enviado para <b>{{ paciente?.email }}</b>. O paciente tem 30 dias para responder.
+            </p>
+            <p v-else>
+                Compartilhe o link abaixo com o paciente. Validade: 30 dias.
+            </p>
+
+            <div class="et-link-box">
+                <input
+                    id="link-aceite-gerado"
+                    :value="linkGerado"
+                    readonly
+                    class="et-link-input"
+                    aria-label="Link de aceite gerado"
+                    @focus="($event.target as HTMLInputElement).select()"
+                />
+                <AppButton
+                    variant="secondary"
+                    :icon="linkCopiado ? 'fa-solid fa-check' : 'fa-regular fa-copy'"
+                    @click="copiarLink"
+                >
+                    {{ linkCopiado ? "Copiado" : "Copiar" }}
+                </AppButton>
+            </div>
+        </section>
+
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
         <template #rodape>
-            <AppButton variant="secondary" :disabled="emitindo" @click="fechar">Cancelar</AppButton>
-            <AppButton v-if="passo > 1" variant="secondary" :disabled="emitindo" @click="voltar">Voltar</AppButton>
-            <AppButton
-                v-if="passo < 3"
-                :disabled="(passo === 1 && !modeloSelecionado) || carregandoModelos || carregandoContexto || nomePacienteVazio"
-                @click="avancar"
-            >
-                {{ passo === 1 ? "Avançar para preview" : "Avançar" }}
-            </AppButton>
-            <AppButton
-                v-else
-                icon="fa-solid fa-file-signature"
-                :loading="emitindo"
-                :disabled="nomePacienteVazio"
-                @click="emitir"
-            >
-                Emitir termo
-            </AppButton>
+            <!-- Passo 4 (sucesso aceite_link): só um botão "Fechar" -->
+            <template v-if="passo === 4">
+                <AppButton icon="fa-solid fa-check" @click="fecharAposSucesso">Fechar</AppButton>
+            </template>
+            <template v-else>
+                <AppButton variant="secondary" :disabled="emitindo" @click="fechar">Cancelar</AppButton>
+                <AppButton v-if="passo > 1" variant="secondary" :disabled="emitindo" @click="voltar">Voltar</AppButton>
+                <AppButton
+                    v-if="passo < 3"
+                    :disabled="(passo === 1 && !modeloSelecionado) || carregandoModelos || carregandoContexto || nomePacienteVazio"
+                    @click="avancar"
+                >
+                    {{ passo === 1 ? "Avançar para preview" : "Avançar" }}
+                </AppButton>
+                <AppButton
+                    v-else
+                    icon="fa-solid fa-file-signature"
+                    :loading="emitindo"
+                    :disabled="nomePacienteVazio"
+                    @click="emitir"
+                >
+                    Emitir termo
+                </AppButton>
+            </template>
         </template>
     </AppModal>
 </template>
@@ -641,7 +704,49 @@ if (!_profStore.carregado) {
     margin-top: 8px;
 }
 
+/* Sub-opções de canal (e-mail/copia) dentro do card "Enviar link" */
+.et-subop {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed hsl(var(--secondary) / 0.18);
+    display: flex; flex-direction: column; gap: 6px;
+}
+.et-radio-mini {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: hsl(var(--foreground));
+    cursor: pointer;
+}
+.et-radio-mini.desabilitado { color: hsl(var(--secondary) / 0.55); cursor: not-allowed; }
+.et-radio-mini input[type="radio"] { accent-color: hsl(var(--primary)); }
+.et-aviso-mini { color: hsl(var(--warning)); font-weight: 600; }
+.et-email-mini { color: hsl(var(--secondary) / 0.65); }
+
+/* Passo 4 — confirmação pós-emissão (aceite_link) */
+.et-sucesso {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 10px; padding: 20px 0;
+}
+.et-sucesso-icone { font-size: 44px; color: hsl(160 79% 32%); }
+.et-sucesso h4 { margin: 0; font-size: 16px; color: hsl(var(--primary-dark)); font-weight: 700; }
+.et-sucesso p { margin: 0; font-size: 13.5px; color: hsl(var(--secondary) / 0.8); max-width: 480px; }
+
+.et-link-box {
+    display: flex; gap: 8px; width: 100%; max-width: 560px;
+    margin-top: 8px;
+}
+.et-link-input {
+    flex: 1; min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid hsl(var(--secondary) / 0.15);
+    border-radius: 8px;
+    background: hsl(var(--muted) / 0.5);
+    font-size: 13px; font-family: ui-monospace, monospace;
+    color: hsl(var(--foreground));
+}
+.et-link-input:focus { outline: 2px solid hsl(var(--primary) / 0.35); outline-offset: 1px; }
+
 @media (max-width: 720px) {
     .et-preview-grid { grid-template-columns: 1fr; min-height: unset; max-height: 60vh; }
+    .et-link-box { flex-direction: column; }
 }
 </style>

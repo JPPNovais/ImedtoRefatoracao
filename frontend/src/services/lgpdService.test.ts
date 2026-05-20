@@ -19,20 +19,6 @@ describe("lgpdService", () => {
         vi.mocked(httpClient.delete).mockReset()
     })
 
-    describe("listarConsentimentos", () => {
-        it("retorna lista vinda do GET /lgpd/consentimentos/meus", async () => {
-            const consentimentos = [
-                { id: 1, tipo: "TermosUso", versao: "v1", aceitoEm: "2026-01-01T00:00:00Z" },
-            ]
-            vi.mocked(httpClient.get).mockResolvedValueOnce({ data: consentimentos } as any)
-
-            const r = await lgpdService.listarConsentimentos()
-
-            expect(httpClient.get).toHaveBeenCalledWith("/lgpd/consentimentos/meus")
-            expect(r).toEqual(consentimentos)
-        })
-    })
-
     describe("excluirConta", () => {
         it("chama DELETE /minha-conta com a senha no body", async () => {
             vi.mocked(httpClient.delete).mockResolvedValueOnce({ data: null } as any)

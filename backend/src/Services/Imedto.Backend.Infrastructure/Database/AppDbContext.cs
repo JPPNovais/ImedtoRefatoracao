@@ -122,9 +122,8 @@ public class AppDbContext : DbContext
     public DbSet<OrcamentoPacoteTeamRole> OrcamentoPacoteTeamRoles => Set<OrcamentoPacoteTeamRole>();
 
 
-    // Item 4.3 — LGPD: anonimizações e consentimentos.
+    // Item 4.3 — LGPD: anonimizações.
     public DbSet<LgpdAnonimizacao> LgpdAnonimizacoes => Set<LgpdAnonimizacao>();
-    public DbSet<LgpdConsentimento> LgpdConsentimentos => Set<LgpdConsentimento>();
 
     // Item 4.13 — Catálogo TUSS/CBHPM de procedimentos.
     public DbSet<ProcedimentoCatalogo> CatalogoProcedimentos => Set<ProcedimentoCatalogo>();

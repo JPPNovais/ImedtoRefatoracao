@@ -15,6 +15,7 @@ import { CATEGORIAS_TERMO } from "@/constants/termoVariaveis"
 import EmitirTermoModal from "./EmitirTermoModal.vue"
 import TermoVisualizacaoDrawer from "./TermoVisualizacaoDrawer.vue"
 import { useTermoPdf } from "@/composables/useTermoPdf"
+import { montarUrlAceitePublico } from "@/services/termoAceitePublicoService"
 import type { Paciente } from "@/services/pacienteService"
 
 /**
@@ -164,9 +165,16 @@ function abrirEmitir() {
 const { gerarPdf } = useTermoPdf()
 
 async function onEmitido(payload: { termoEmitidoId: number; modeloTitulo: string }) {
-    emit("notificar", `Termo "${payload.modeloTitulo}" emitido. Baixando PDF para impressão…`, "success")
-    // Recarrega lista pra mostrar o novo item antes de gerar o PDF (lista é rápida).
+    // Recarrega lista pra mostrar o novo item (rápido — lista é pequena).
     await carregar()
+    // Quando o termo recém-emitido é aceite_link, o próprio modal exibe a tela
+    // de confirmação com o link/cópia — não geramos PDF de impressão aqui.
+    const recem = termos.value.find(t => t.id === payload.termoEmitidoId)
+    if (recem?.assinaturaTipo === "AceiteLink") {
+        emit("notificar", `Termo "${payload.modeloTitulo}" emitido.`, "success")
+        return
+    }
+    emit("notificar", `Termo "${payload.modeloTitulo}" emitido. Baixando PDF para impressão…`, "success")
     try {
         const detalhe = await pacienteTermoService.obter(props.paciente.id, payload.termoEmitidoId)
         await gerarPdf(detalhe, props.paciente, "download")
@@ -240,6 +248,50 @@ async function onArquivoSelecionado(ev: Event) {
         await carregar()
     } catch (e: any) {
         emit("notificar", e?.response?.data?.mensagem ?? "Erro ao anexar PDF.", "error")
+    } finally {
+        acaoEmAndamentoId.value = null
+    }
+}
+
+// ─── Ações específicas de aceite_link (Fase 4) ────────────────────────────
+const pacienteSemEmail = computed(() => !props.paciente?.email?.trim())
+
+/**
+ * Copia o link público do termo. Como o token NÃO é exposto na listagem (LGPD),
+ * pegamos via `reenviarLink(canal: "copia")` — endpoint sem cooldown que
+ * devolve o token atual do termo sem enviar e-mail.
+ */
+async function copiarLinkAceite(t: TermoEmitidoResumo) {
+    if (acaoEmAndamentoId.value !== null) return
+    acaoEmAndamentoId.value = t.id
+    try {
+        const r = await pacienteTermoService.reenviarLink(t.id, "copia")
+        const url = montarUrlAceitePublico(r.tokenAceite)
+        try {
+            await navigator.clipboard.writeText(url)
+            emit("notificar", "Link copiado.", "success")
+        } catch {
+            // Sem clipboard API (http não-seguro ou bloqueio do browser):
+            // mostra a URL no toast pro usuário copiar manualmente.
+            emit("notificar", `Copie manualmente: ${url}`, "info")
+        }
+    } catch (e: any) {
+        emit("notificar", e?.response?.data?.mensagem ?? "Não foi possível obter o link.", "error")
+    } finally {
+        acaoEmAndamentoId.value = null
+    }
+}
+
+async function reenviarEmailAceite(t: TermoEmitidoResumo) {
+    if (acaoEmAndamentoId.value !== null) return
+    acaoEmAndamentoId.value = t.id
+    try {
+        await pacienteTermoService.reenviarLink(t.id, "email")
+        emit("notificar", "E-mail reenviado.", "success")
+    } catch (e: any) {
+        // O backend devolve 422 com mensagem amigável quando dentro do cooldown
+        // ("Aguarde X minutos antes de reenviar."). Exibe a mensagem dele.
+        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao reenviar e-mail.", "error")
     } finally {
         acaoEmAndamentoId.value = null
     }
@@ -409,6 +461,28 @@ onMounted(() => {
                             disabled
                         >
                             <i class="fa-solid fa-lock"></i>
+                        </button>
+
+                        <!-- Fase 4: aceite_link pendente — copiar link público -->
+                        <button
+                            v-if="podeEmitir && t.status === 'Pendente' && t.assinaturaTipo === 'AceiteLink'"
+                            class="btn-icon"
+                            title="Copiar link de aceite"
+                            :disabled="acaoEmAndamentoId === t.id"
+                            @click="copiarLinkAceite(t)"
+                        >
+                            <i class="fa-solid fa-link"></i>
+                        </button>
+
+                        <!-- Fase 4: aceite_link pendente + paciente com e-mail — reenviar -->
+                        <button
+                            v-if="podeEmitir && t.status === 'Pendente' && t.assinaturaTipo === 'AceiteLink' && !pacienteSemEmail"
+                            class="btn-icon"
+                            title="Reenviar e-mail de aceite"
+                            :disabled="acaoEmAndamentoId === t.id"
+                            @click="reenviarEmailAceite(t)"
+                        >
+                            <i class="fa-solid fa-envelope"></i>
                         </button>
 
                         <!-- Revogar: só assinados, gated por gerenciar_modelos -->
