@@ -7,7 +7,7 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 
 public interface IPedidoExameQueryRepository
 {
-    Task<IReadOnlyList<PedidoExameDto>> ListarDoPaciente(long pacienteId, long estabelecimentoId);
+    Task<PaginaPedidosExameDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
     Task<PedidoExameDto?> ObterPorId(long pedidoExameId, long estabelecimentoId);
 }
 
@@ -53,9 +53,21 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
         };
     }
 
-    public async Task<IReadOnlyList<PedidoExameDto>> ListarDoPaciente(long pacienteId, long estabelecimentoId)
+    public async Task<PaginaPedidosExameDto> ListarDoPaciente(
+        long pacienteId,
+        long estabelecimentoId,
+        int pagina,
+        int tamanhoPagina)
     {
-        const string sql = """
+        const string sqlTotal = """
+            SELECT COUNT(*)
+            FROM   public.pedidos_exame p
+            WHERE  p.paciente_id = @PacienteId
+              AND  p.estabelecimento_id = @EstabelecimentoId
+              AND  p.deletado_em IS NULL
+            """;
+
+        const string sqlItens = """
             SELECT  p.id                  AS Id,
                     p.paciente_id         AS PacienteId,
                     p.profissional_usuario_id AS ProfissionalUsuarioId,
@@ -72,15 +84,31 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
               AND   p.estabelecimento_id = @EstabelecimentoId
               AND   p.deletado_em IS NULL
             ORDER BY p.criado_em DESC
+            LIMIT   @Tamanho OFFSET @Offset
             """;
 
         await using var conn = new NpgsqlConnection(_connStr);
-        var rows = await conn.QueryAsync<PedidoExameRaw>(sql, new
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
         });
-        return rows.Select(r => r.ToDto()).ToList();
+
+        var rows = await conn.QueryAsync<PedidoExameRaw>(sqlItens, new
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = estabelecimentoId,
+            Tamanho = tamanhoPagina,
+            Offset = (pagina - 1) * tamanhoPagina,
+        });
+
+        return new PaginaPedidosExameDto
+        {
+            Itens = rows.Select(r => r.ToDto()).ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina,
+        };
     }
 
     public async Task<PedidoExameDto?> ObterPorId(long pedidoExameId, long estabelecimentoId)

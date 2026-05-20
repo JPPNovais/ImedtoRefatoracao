@@ -19,6 +19,8 @@ public class EstabelecimentoConfiguration : IEntityTypeConfiguration<Estabelecim
         builder.Property(e => e.Cnpj).HasColumnName("cnpj").HasMaxLength(14);
         builder.Property(e => e.Telefone).HasColumnName("telefone").HasMaxLength(20);
         builder.Property(e => e.Endereco).HasColumnName("endereco").HasMaxLength(500);
+        builder.Property(e => e.Cidade).HasColumnName("cidade").HasMaxLength(100);
+        builder.Property(e => e.Estado).HasColumnName("estado").HasMaxLength(2).IsFixedLength();
         builder.Property(e => e.FotoUrl).HasColumnName("foto_url").HasMaxLength(2000);
         builder.Property(e => e.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.CriadoEm).HasColumnName("criado_em").IsRequired();

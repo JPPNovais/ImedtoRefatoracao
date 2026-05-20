@@ -63,6 +63,11 @@ const erro       = ref<string | null>(null)
 const abaAtiva = ref<AbaProntuario>("consulta")
 const focus    = ref(false)
 
+// Total de evoluções — vem do endpoint paginado ao abrir "Consultas anteriores"
+// (ou do contagem-evolucoes na carga inicial), em vez de pront.evolucoes.length
+// (que era limitado a timeline=50 e não escalava).
+const totalEvolucoes = ref(0)
+
 // Toast simples
 const toast = ref<{ msg: string, variante: "info" | "success" | "error" } | null>(null)
 function notificar(msg: string, variante: "info" | "success" | "error" = "success") {
@@ -117,7 +122,12 @@ async function carregar() {
         pront.value = prontuarioCarregado
         if (pront.value) {
             modeloConsultaAtual.value = pront.value.prontuario.modeloDeProntuarioId
+            totalEvolucoes.value = pront.value.evolucoes.length
             inicializarFormEvolucao()
+            // Carrega o total real (sem ficar preso ao cap timeline=50 do payload inicial).
+            prontuarioService.contarEvolucoes(pacienteId.value)
+                .then(n => { totalEvolucoes.value = n })
+                .catch(() => { /* mantém o cap como aproximação */ })
         } else {
             modeloEscolhido.value = modelos.length > 0 ? modelos[0].id : null
         }
@@ -426,7 +436,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
             <ProntuarioTabs
                 v-show="!focus"
                 v-model="abaAtiva"
-                :contagem-anteriores="pront.evolucoes.length"
+                :contagem-anteriores="totalEvolucoes"
             />
 
             <ConsultaAtualTab
@@ -443,7 +453,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
 
             <ConsultasAnterioresTab
                 v-else-if="abaAtiva === 'anteriores'"
-                :evolucoes="pront.evolucoes"
+                :paciente-id="pacienteId"
                 :anexos="anexos"
                 :uploadando="uploadando"
                 :evolucao-sendo-baixada="evolucaoSendoBaixada"
@@ -452,6 +462,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 @selecionar-arquivo="selecionarArquivo"
                 @enviar-anexo="enviarAnexo"
                 @gerar-pdf-evolucao="exportarPdfEvolucao($event.evolucao, $event.modo)"
+                @total-atualizado="totalEvolucoes = $event"
             />
 
             <ReceitasTab

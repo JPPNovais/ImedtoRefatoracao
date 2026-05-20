@@ -25,6 +25,7 @@ using Imedto.Backend.Domain.Profissionais;
 using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Domain.Receitas;
 using Imedto.Backend.Domain.Salas;
+using Imedto.Backend.Domain.Termos;
 using Imedto.Backend.Domain.Unidades;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.Domain.Vinculos;
@@ -132,6 +133,13 @@ public class AppDbContext : DbContext
     public DbSet<AuthCredencial> AuthCredenciais => Set<AuthCredencial>();
     public DbSet<AuthRefreshToken> AuthRefreshTokens => Set<AuthRefreshToken>();
     public DbSet<AuthEmailToken> AuthEmailTokens => Set<AuthEmailToken>();
+
+    // Termos de consentimento (Fase 1 — 2026-05-19).
+    public DbSet<TermoModelo> TermosModelo => Set<TermoModelo>();
+    public DbSet<TermoModeloVersao> TermosModeloVersao => Set<TermoModeloVersao>();
+    public DbSet<TermoEmitido> TermosEmitidos => Set<TermoEmitido>();
+    public DbSet<TermoAuditLog> TermosAuditLog => Set<TermoAuditLog>();
+    public DbSet<TermoEmitidoAcessoLog> TermosEmitidoAcessoLog => Set<TermoEmitidoAcessoLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

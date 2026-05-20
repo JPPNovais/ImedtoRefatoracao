@@ -1,21 +1,22 @@
 <!--
-    Aba "Consultas anteriores" — visual timeline do design Imedto care:
-      - Filtro por ano (chips no topo).
-      - Linha do tempo vertical com cards (EvolucaoTimelineItem) por evolução:
-        data destacada, modelo, profissional, resumo e badge "Mais recente".
-      - Cada card tem botão "PDF" individual; um botão geral "Exportar histórico"
-        permanece no header.
-      - Card de Anexos (lista + upload) abaixo.
+    Aba "Consultas anteriores" — linha do tempo de evoluções do prontuário.
+    Lista paginada server-side via /api/paciente/{id}/prontuario/evolucoes —
+    cada troca de página/tamanho dispara uma request fatiada (LIMIT/OFFSET).
+    Card de Anexos abaixo (não paginado — geralmente são poucos por paciente).
 -->
 <script setup lang="ts">
-import { ref, computed, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { AppButton, AppEmptyState, AppPagination } from "@/components/ui"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
-import type { Evolucao, Anexo } from "@/services/prontuarioService"
+import {
+    prontuarioService,
+    type Anexo,
+    type Evolucao,
+} from "@/services/prontuarioService"
 import type { PdfSaidaModo } from "@/composables/useProntuarioPdf"
 
 const props = defineProps<{
-    evolucoes: Evolucao[]
+    pacienteId: number
     anexos: Anexo[]
     uploadando: boolean
     evolucaoSendoBaixada: number | null
@@ -28,9 +29,41 @@ const emit = defineEmits<{
     selecionarArquivo: [event: Event]
     enviarAnexo: []
     gerarPdfEvolucao: [payload: { evolucao: Evolucao, modo: PdfSaidaModo }]
+    totalAtualizado: [total: number]
 }>()
 
-// ─── Upload local ────────────────────────────────────────────────────────────
+// ─── Carregamento server-side ───────────────────────────────────────────────
+const evolucoes = ref<Evolucao[]>([])
+const total     = ref(0)
+const pagina    = ref(1)
+const tamanho   = ref(10)
+const carregando = ref(false)
+const erro       = ref<string | null>(null)
+
+async function carregar() {
+    carregando.value = true
+    erro.value = null
+    try {
+        const r = await prontuarioService.listarEvolucoes(props.pacienteId, {
+            pagina: pagina.value, tamanho: tamanho.value,
+        })
+        evolucoes.value = r.itens
+        total.value = r.total
+        emit("totalAtualizado", r.total)
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar evoluções."
+    } finally {
+        carregando.value = false
+    }
+}
+
+defineExpose({ recarregar: carregar })
+watch([pagina, tamanho], carregar)
+onMounted(carregar)
+
+const idMaisRecente = computed(() => evolucoes.value[0]?.id ?? null)
+
+// ─── Upload local de anexo (delegado ao pai) ────────────────────────────────
 const inputFileRef = ref<HTMLInputElement | null>(null)
 const nomeArquivoSelecionado = ref<string | null>(null)
 
@@ -46,50 +79,6 @@ function onEnviarAnexo() {
     if (inputFileRef.value) inputFileRef.value.value = ""
 }
 
-// ─── Filtro por ano (chips) ─────────────────────────────────────────────────
-const anos = computed(() => {
-    const set = new Set<number>()
-    props.evolucoes.forEach(e => {
-        const d = new Date(e.criadaEm)
-        if (Number.isFinite(d.getTime())) set.add(d.getFullYear())
-    })
-    return Array.from(set).sort((a, b) => b - a)
-})
-const anoSelecionado = ref<number | null>(null)
-watch(anos, vals => {
-    if (!vals.length) { anoSelecionado.value = null; return }
-    if (!anoSelecionado.value || !vals.includes(anoSelecionado.value)) {
-        anoSelecionado.value = vals[0]
-    }
-}, { immediate: true })
-
-// ─── Filtragem + ordenação cronológica decrescente ──────────────────────────
-const evolucoesFiltradas = computed(() => {
-    const lista = [...props.evolucoes].sort((a, b) =>
-        new Date(b.criadaEm).getTime() - new Date(a.criadaEm).getTime(),
-    )
-    if (!anoSelecionado.value) return lista
-    return lista.filter(e => {
-        const d = new Date(e.criadaEm)
-        return Number.isFinite(d.getTime()) && d.getFullYear() === anoSelecionado.value
-    })
-})
-
-const idMaisRecente = computed(() => evolucoesFiltradas.value[0]?.id ?? null)
-
-// ─── Paginação client-side (lista já carregada) ─────────────────────────────
-const pagina  = ref(1)
-const tamanho = ref(10)
-
-// Reset de página quando o filtro de ano muda ou a lista é recarregada.
-watch([anoSelecionado, () => props.evolucoes.length], () => { pagina.value = 1 })
-
-const totalFiltrado = computed(() => evolucoesFiltradas.value.length)
-const evolucoesPagina = computed(() => {
-    const inicio = (pagina.value - 1) * tamanho.value
-    return evolucoesFiltradas.value.slice(inicio, inicio + tamanho.value)
-})
-
 // ─── Helpers de formatação (anexos) ─────────────────────────────────────────
 function fmtData(iso: string) { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) }
 function fmtTamanho(bytes: number) {
@@ -101,15 +90,15 @@ function fmtTamanho(bytes: number) {
 
 <template>
     <div class="anteriores-wrap">
-        <!-- Header com filtros + ações -->
+        <!-- Header com ações -->
         <div class="ht-head">
             <div>
                 <h2 class="ht-titulo">Linha do tempo de atendimentos</h2>
                 <p class="ht-sub">
-                    {{ evolucoes.length }} {{ evolucoes.length === 1 ? "evolução registrada" : "evoluções registradas" }}
+                    {{ total }} {{ total === 1 ? "evolução registrada" : "evoluções registradas" }}
                 </p>
             </div>
-            <div v-if="evolucoes.length > 0" class="ht-actions">
+            <div v-if="total > 0" class="ht-actions">
                 <AppButton
                     variant="secondary"
                     icon="fa-solid fa-eye"
@@ -129,30 +118,12 @@ function fmtTamanho(bytes: number) {
             </div>
         </div>
 
-        <div v-if="anos.length > 1" class="ht-filtros">
-            <button
-                type="button"
-                class="fchip"
-                :class="{ active: anoSelecionado === null }"
-                @click="anoSelecionado = null"
-            >
-                Todos os anos
-            </button>
-            <button
-                v-for="a in anos"
-                :key="a"
-                type="button"
-                class="fchip"
-                :class="{ active: anoSelecionado === a }"
-                @click="anoSelecionado = a"
-            >
-                {{ a }}
-            </button>
-        </div>
+        <p v-if="erro" class="msg-erro">{{ erro }}</p>
+        <p v-if="carregando" class="estado-msg">Carregando evoluções...</p>
 
         <!-- Empty -->
         <AppEmptyState
-            v-if="evolucoes.length === 0"
+            v-else-if="total === 0"
             mensagem="Nenhuma evolução registrada ainda."
         />
 
@@ -160,10 +131,10 @@ function fmtTamanho(bytes: number) {
         <template v-else>
             <div class="ht-timeline-full" role="list">
                 <EvolucaoTimelineItem
-                    v-for="evo in evolucoesPagina"
+                    v-for="evo in evolucoes"
                     :key="evo.id"
                     :evolucao="evo"
-                    :destaque="evo.id === idMaisRecente"
+                    :destaque="pagina === 1 && evo.id === idMaisRecente"
                     :gerando-pdf="evolucaoSendoBaixada === evo.id"
                     @gerar-pdf="emit('gerarPdfEvolucao', $event)"
                 />
@@ -171,7 +142,7 @@ function fmtTamanho(bytes: number) {
             <AppPagination
                 v-model:pagina="pagina"
                 v-model:tamanho="tamanho"
-                :total="totalFiltrado"
+                :total="total"
                 rotulo-itens="evolução(ões)"
             />
         </template>
@@ -238,18 +209,8 @@ function fmtTamanho(bytes: number) {
 }
 .ht-actions { display: flex; gap: 8px; }
 
-/* ──── Filtro por ano (chips) ──── */
-.ht-filtros { display: flex; gap: 6px; flex-wrap: wrap; }
-.fchip {
-    background: white; border: 1px solid hsl(var(--secondary) / 0.12);
-    height: 30px; padding: 0 12px; border-radius: 999px;
-    font: inherit; font-size: 12px; font-weight: 600;
-    color: hsl(var(--secondary) / 0.8);
-    cursor: pointer; display: inline-flex; align-items: center;
-    transition: all 150ms;
-}
-.fchip:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.4); }
-.fchip.active { background: hsl(var(--primary)); color: white; border-color: hsl(var(--primary)); }
+.estado-msg { text-align: center; color: var(--text-muted); padding: 1.5rem 1rem; font-size: 0.9em; }
+.msg-erro   { color: hsl(var(--error)); font-size: 0.875em; margin: 0; }
 
 /* ──── Wrapper de timeline (compartilhado com PacienteDetalheView via EvolucaoTimelineItem) ──── */
 .ht-timeline-full {

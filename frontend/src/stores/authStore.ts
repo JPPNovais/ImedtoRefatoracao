@@ -20,7 +20,7 @@ import { bootstrapService } from "@/services/bootstrapService"
  */
 const STORAGE_KEYS_SESSAO: ReadonlyArray<string> = [
     "imedto.atendimento_ativo", // composables/useAtendimentoAtivo.ts
-    "imedto.receitas.v1",        // services/receitaLocalService.ts (PII de paciente)
+    "imedto.receitas.v1",        // legado de receitaLocalService — limpar em logouts de usuários antigos
 ]
 
 /**

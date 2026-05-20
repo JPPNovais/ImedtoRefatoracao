@@ -31,18 +31,15 @@ const props = defineProps<{
 const { gerarPdf } = useAtestadoPdf()
 
 const atestados = ref<Atestado[]>([])
+const total     = ref(0)
 const modelos = ref<ModeloAtestado[]>([])
 const paciente = ref<Paciente | null>(null)
 const carregando = ref(false)
 
-// ─── Paginação client-side ──────────────────────────────────────────────────
+// ─── Paginação server-side ──────────────────────────────────────────────────
 const pagina  = ref(1)
 const tamanho = ref(10)
-watch(() => atestados.value.length, () => { pagina.value = 1 })
-const atestadosPagina = computed(() => {
-    const inicio = (pagina.value - 1) * tamanho.value
-    return atestados.value.slice(inicio, inicio + tamanho.value)
-})
+watch([pagina, tamanho], () => carregarHistorico())
 
 // Toast simples
 const toast = ref<{ msg: string; variante: "info" | "success" | "error" } | null>(null)
@@ -125,7 +122,11 @@ async function abrirEmissao() {
 async function carregarHistorico() {
     carregando.value = true
     try {
-        atestados.value = await atestadoService.listarDoPaciente(props.pacienteId)
+        const r = await atestadoService.listarDoPaciente(props.pacienteId, {
+            pagina: pagina.value, tamanho: tamanho.value,
+        })
+        atestados.value = r.itens
+        total.value = r.total
     } catch (e: any) {
         notificar(e?.response?.data?.mensagem ?? "Erro ao carregar atestados.", "error")
     } finally {
@@ -310,7 +311,7 @@ function tipoLabel(tipo: TipoAtestado): string {
                     <i class="fa-solid fa-file-signature"></i>
                     Atestados
                 </h2>
-                <p class="ata-sub">{{ atestados.length }} atestado(s) emitido(s) para este paciente.</p>
+                <p class="ata-sub">{{ total }} atestado(s) emitido(s) para este paciente.</p>
             </div>
             <div class="ata-acoes">
                 <AppButton variant="ghost" icon="fa-solid fa-list" @click="abrirModelos">
@@ -330,7 +331,7 @@ function tipoLabel(tipo: TipoAtestado): string {
             descricao="Os atestados emitidos para este paciente aparecerão aqui."
         />
         <ul v-else class="ata-lista">
-            <li v-for="a in atestadosPagina" :key="a.id" class="ata-card">
+            <li v-for="a in atestados" :key="a.id" class="ata-card">
                 <div class="ata-card-head">
                     <span class="ata-tipo">{{ tipoLabel(a.tipo) }}</span>
                     <span v-if="a.diasAfastamento" class="ata-meta">{{ a.diasAfastamento }} dia(s)</span>
@@ -348,10 +349,10 @@ function tipoLabel(tipo: TipoAtestado): string {
         </ul>
 
         <AppPagination
-            v-if="atestados.length > 0"
+            v-if="total > 0"
             v-model:pagina="pagina"
             v-model:tamanho="tamanho"
-            :total="atestados.length"
+            :total="total"
             rotulo-itens="atestado(s)"
         />
 

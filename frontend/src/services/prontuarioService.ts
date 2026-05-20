@@ -44,6 +44,13 @@ export interface ProntuarioCompleto {
     evolucoes: Evolucao[]
 }
 
+export interface PaginaEvolucoes {
+    itens: Evolucao[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 export interface Anexo {
     id: number
     prontuarioId: number
@@ -98,6 +105,22 @@ export const prontuarioService = {
 
     async iniciar(pacienteId: number, modeloDeProntuarioId: number): Promise<void> {
         await httpClient.post(`/paciente/${pacienteId}/prontuario`, { modeloDeProntuarioId })
+    },
+
+    /**
+     * Listagem paginada das evoluções (aba "Consultas anteriores"). Resposta
+     * fatiada no backend (LIMIT/OFFSET) — usar em vez de pront.evolucoes para
+     * históricos longos.
+     */
+    async listarEvolucoes(
+        pacienteId: number,
+        params: { pagina?: number; tamanho?: number } = {},
+    ): Promise<PaginaEvolucoes> {
+        const { data } = await httpClient.get<PaginaEvolucoes>(
+            `/paciente/${pacienteId}/prontuario/evolucoes`,
+            { params: { pagina: params.pagina ?? 1, tamanho: params.tamanho ?? 10 } },
+        )
+        return data
     },
 
     async registrarEvolucao(

@@ -32,3 +32,11 @@ public class ProntuarioCompletoDto
     public ProntuarioDto Prontuario { get; set; }
     public IEnumerable<EvolucaoDto> Evolucoes { get; set; } = Array.Empty<EvolucaoDto>();
 }
+
+public class PaginaEvolucoesDto
+{
+    public IEnumerable<EvolucaoDto> Itens { get; set; } = Array.Empty<EvolucaoDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}

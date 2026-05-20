@@ -76,6 +76,85 @@ public class ProntuarioQueryRepository
     }
 
     /// <summary>
+    /// Listagem paginada das evoluções do prontuário do paciente. Retorna lista vazia
+    /// + total 0 quando o paciente ainda não tem prontuário (o front exibe o CTA).
+    /// </summary>
+    public async Task<PaginaEvolucoesDto> ListarEvolucoesPaginadas(
+        long pacienteId,
+        long estabelecimentoId,
+        int pagina,
+        int tamanhoPagina)
+    {
+        const string sqlProntId = """
+            SELECT  p.id
+            FROM    public.prontuarios p
+            WHERE   p.paciente_id = @PacienteId
+              AND   p.estabelecimento_id = @EstabelecimentoId
+              AND   p.deletado_em IS NULL
+            """;
+
+        const string sqlTotal = """
+            SELECT COUNT(*)
+            FROM   public.prontuario_evolucoes e
+            WHERE  e.prontuario_id = @ProntuarioId
+              AND  e.deletado_em IS NULL
+            """;
+
+        const string sqlItens = """
+            SELECT  e.id                             AS Id,
+                    e.prontuario_id                  AS ProntuarioId,
+                    u.nome_completo                  AS AutorNome,
+                    mdp.nome                         AS ModeloNome,
+                    e.conteudo                       AS Conteudo,
+                    e.modelo_snapshot                AS ModeloSnapshot,
+                    e.modelo_de_prontuario_id_origem AS ModeloDeProntuarioIdOrigem,
+                    e.criada_em                      AS CriadaEm
+            FROM    public.prontuario_evolucoes e
+            LEFT JOIN public.usuarios u ON u.id = e.autor_usuario_id
+            LEFT JOIN public.modelo_de_prontuario mdp ON mdp.id = e.modelo_de_prontuario_id_origem
+            WHERE   e.prontuario_id = @ProntuarioId
+              AND   e.deletado_em IS NULL
+            ORDER BY e.criada_em DESC
+            LIMIT   @Tamanho OFFSET @Offset
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var prontuarioId = await conn.QuerySingleOrDefaultAsync<long?>(sqlProntId, new
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = estabelecimentoId
+        });
+
+        if (prontuarioId is null)
+        {
+            return new PaginaEvolucoesDto
+            {
+                Itens = Array.Empty<EvolucaoDto>(),
+                Total = 0,
+                Pagina = pagina,
+                TamanhoPagina = tamanhoPagina,
+            };
+        }
+
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new { ProntuarioId = prontuarioId.Value });
+
+        var itens = await conn.QueryAsync<EvolucaoDto>(sqlItens, new
+        {
+            ProntuarioId = prontuarioId.Value,
+            Tamanho = tamanhoPagina,
+            Offset = (pagina - 1) * tamanhoPagina,
+        });
+
+        return new PaginaEvolucoesDto
+        {
+            Itens = itens,
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina,
+        };
+    }
+
+    /// <summary>
     /// Conta evoluções não-deletadas do prontuário do paciente. 0 se ainda não tem prontuário.
     /// Filtro multi-tenant via join em <c>prontuarios.estabelecimento_id</c>.
     /// </summary>

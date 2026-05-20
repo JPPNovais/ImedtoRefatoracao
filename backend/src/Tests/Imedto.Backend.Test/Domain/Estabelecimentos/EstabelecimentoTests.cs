@@ -370,4 +370,43 @@ public class EstabelecimentoTests
         var diff = ((int)alvo - (int)hoje.DayOfWeek + 7) % 7;
         return hoje.AddDays(diff == 0 ? 7 : diff);
     }
+
+    // ----- AtualizarEndereco (Fase 1 Termos — 2026-05-19) -----
+
+    [Test]
+    public void AtualizarEndereco_CamposValidos_PopulaCidadeEUf()
+    {
+        var e = CriarValido();
+        e.AtualizarEndereco("Rua Nova, 50", "São Paulo", "sp");
+
+        Assert.That(e.Endereco, Is.EqualTo("Rua Nova, 50"));
+        Assert.That(e.Cidade, Is.EqualTo("São Paulo"));
+        Assert.That(e.Estado, Is.EqualTo("SP"));
+        Assert.That(e.AtualizadoEm, Is.Not.Null);
+    }
+
+    [Test]
+    public void AtualizarEndereco_CamposVazios_PersistemNulo()
+    {
+        var e = CriarValido();
+        e.AtualizarEndereco("", "  ", null);
+
+        Assert.That(e.Endereco, Is.Null);
+        Assert.That(e.Cidade, Is.Null);
+        Assert.That(e.Estado, Is.Null);
+    }
+
+    [Test]
+    public void AtualizarEndereco_UfComMaisDeDuasLetras_LancaBusinessException()
+    {
+        var e = CriarValido();
+        Assert.Throws<BusinessException>(() => e.AtualizarEndereco("Rua", "Cidade", "SAO"));
+    }
+
+    [Test]
+    public void AtualizarEndereco_UfComDigitos_LancaBusinessException()
+    {
+        var e = CriarValido();
+        Assert.Throws<BusinessException>(() => e.AtualizarEndereco("Rua", "Cidade", "S1"));
+    }
 }

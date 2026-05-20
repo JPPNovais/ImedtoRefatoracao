@@ -3,11 +3,13 @@ using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Contracts.PedidosExame.Queries;
 
-public class ListarPedidosExameDoPacienteQuery : IQuery<IReadOnlyList<PedidoExameDto>>
+public class ListarPedidosExameDoPacienteQuery : IQuery<PaginaPedidosExameDto>
 {
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
+    public int Pagina { get; set; } = 1;
+    public int TamanhoPagina { get; set; } = 20;
 }
 
 public class ObterPedidoExameQuery : IQuery<PedidoExameDto>

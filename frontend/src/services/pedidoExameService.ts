@@ -27,6 +27,13 @@ export interface EmitirPedidoExameInput {
     observacoes?: string | null
 }
 
+export interface PaginaPedidosExame {
+    itens: PedidoExame[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 export const pedidoExameService = {
     async emitir(pacienteId: number, input: EmitirPedidoExameInput): Promise<{ pedidoExameId: number }> {
         const { data } = await httpClient.post<{ pedidoExameId: number }>(
@@ -36,8 +43,14 @@ export const pedidoExameService = {
         return data
     },
 
-    async listarDoPaciente(pacienteId: number): Promise<PedidoExame[]> {
-        const { data } = await httpClient.get<PedidoExame[]>(`/pacientes/${pacienteId}/pedidos-exame`)
+    async listarDoPaciente(
+        pacienteId: number,
+        params: { pagina?: number; tamanho?: number } = {},
+    ): Promise<PaginaPedidosExame> {
+        const { data } = await httpClient.get<PaginaPedidosExame>(
+            `/pacientes/${pacienteId}/pedidos-exame`,
+            { params: { pagina: params.pagina ?? 1, tamanho: params.tamanho ?? 10 } },
+        )
         return data
     },
 

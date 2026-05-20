@@ -42,6 +42,13 @@ export interface SalvarModeloAtestadoInput {
     conteudo: string
 }
 
+export interface PaginaAtestados {
+    itens: Atestado[]
+    total: number
+    pagina: number
+    tamanhoPagina: number
+}
+
 export const atestadoService = {
     async emitir(pacienteId: number, input: EmitirAtestadoInput): Promise<{ atestadoId: number }> {
         const { data } = await httpClient.post<{ atestadoId: number }>(
@@ -51,8 +58,14 @@ export const atestadoService = {
         return data
     },
 
-    async listarDoPaciente(pacienteId: number): Promise<Atestado[]> {
-        const { data } = await httpClient.get<Atestado[]>(`/pacientes/${pacienteId}/atestados`)
+    async listarDoPaciente(
+        pacienteId: number,
+        params: { pagina?: number; tamanho?: number } = {},
+    ): Promise<PaginaAtestados> {
+        const { data } = await httpClient.get<PaginaAtestados>(
+            `/pacientes/${pacienteId}/atestados`,
+            { params: { pagina: params.pagina ?? 1, tamanho: params.tamanho ?? 10 } },
+        )
         return data
     },
 

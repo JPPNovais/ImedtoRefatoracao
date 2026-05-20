@@ -25,17 +25,14 @@ const props = defineProps<{
 const { gerarPdf } = usePedidoExamePdf()
 
 const pedidos = ref<PedidoExame[]>([])
+const total   = ref(0)
 const paciente = ref<Paciente | null>(null)
 const carregando = ref(false)
 
-// ─── Paginação client-side ──────────────────────────────────────────────────
+// ─── Paginação server-side ──────────────────────────────────────────────────
 const pagina  = ref(1)
 const tamanho = ref(10)
-watch(() => pedidos.value.length, () => { pagina.value = 1 })
-const pedidosPagina = computed(() => {
-    const inicio = (pagina.value - 1) * tamanho.value
-    return pedidos.value.slice(inicio, inicio + tamanho.value)
-})
+watch([pagina, tamanho], () => carregarHistorico())
 
 const toast = ref<{ msg: string; variante: "info" | "success" | "error" } | null>(null)
 function notificar(msg: string, variante: "info" | "success" | "error" = "success") {
@@ -121,7 +118,11 @@ function abrirEmissao() {
 async function carregarHistorico() {
     carregando.value = true
     try {
-        pedidos.value = await pedidoExameService.listarDoPaciente(props.pacienteId)
+        const r = await pedidoExameService.listarDoPaciente(props.pacienteId, {
+            pagina: pagina.value, tamanho: tamanho.value,
+        })
+        pedidos.value = r.itens
+        total.value = r.total
     } catch (e: any) {
         notificar(e?.response?.data?.mensagem ?? "Erro ao carregar pedidos de exame.", "error")
     } finally {
@@ -213,7 +214,7 @@ function tipoLabel(tipo: TipoPedidoExame): string {
                     <i class="fa-solid fa-vial"></i>
                     Pedidos de exame
                 </h2>
-                <p class="pex-sub">{{ pedidos.length }} pedido(s) emitido(s) para este paciente.</p>
+                <p class="pex-sub">{{ total }} pedido(s) emitido(s) para este paciente.</p>
             </div>
             <AppButton icon="fa-solid fa-plus" @click="abrirEmissao">Solicitar exames</AppButton>
         </header>
@@ -226,7 +227,7 @@ function tipoLabel(tipo: TipoPedidoExame): string {
             descricao="Os pedidos de exame emitidos aparecerão aqui."
         />
         <ul v-else class="pex-lista">
-            <li v-for="p in pedidosPagina" :key="p.id" class="pex-card">
+            <li v-for="p in pedidos" :key="p.id" class="pex-card">
                 <div class="pex-card-head">
                     <span class="pex-tipo">{{ tipoLabel(p.tipo) }}</span>
                     <span v-if="p.cid10" class="pex-meta">CID-10 {{ p.cid10 }}</span>
@@ -246,10 +247,10 @@ function tipoLabel(tipo: TipoPedidoExame): string {
         </ul>
 
         <AppPagination
-            v-if="pedidos.length > 0"
+            v-if="total > 0"
             v-model:pagina="pagina"
             v-model:tamanho="tamanho"
-            :total="pedidos.length"
+            :total="total"
             rotulo-itens="pedido(s)"
         />
 

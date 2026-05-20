@@ -1190,6 +1190,11 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("atualizado_em");
 
+                    b.Property<string>("Cidade")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("cidade");
+
                     b.Property<string>("Cnpj")
                         .HasMaxLength(14)
                         .HasColumnType("character varying(14)")
@@ -1227,6 +1232,12 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("endereco");
+
+                    b.Property<string>("Estado")
+                        .HasMaxLength(2)
+                        .HasColumnType("character(2)")
+                        .HasColumnName("estado")
+                        .IsFixedLength();
 
                     b.Property<string>("FotoUrl")
                         .HasMaxLength(2000)
@@ -4643,6 +4654,355 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("uq_tipo_sala_nome");
 
                     b.ToTable("tipo_sala_atendimento", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Termos.TermoAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Acao")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("acao");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<string>("Entidade")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("entidade");
+
+                    b.Property<long>("EntidadeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("entidade_id");
+
+                    b.Property<long?>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("IpOrigem")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_origem");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("metadata_json");
+
+                    b.Property<Guid?>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "CriadoEm")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_termo_audit_log_estab_criado");
+
+                    b.HasIndex("Entidade", "EntidadeId", "CriadoEm")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("ix_termo_audit_log_entidade_criado");
+
+                    b.ToTable("termo_audit_log", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Termos.TermoEmitido", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AssinadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assinado_em");
+
+                    b.Property<string>("AssinaturaTipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("assinatura_tipo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<string>("ConteudoSnapshotHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("conteudo_snapshot_html");
+
+                    b.Property<string>("ConteudoSnapshotTexto")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("conteudo_snapshot_texto");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid>("EmitidoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("emitido_por_usuario_id");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("HashIntegridade")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("hash_integridade")
+                        .IsFixedLength();
+
+                    b.Property<string>("IpAssinatura")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_assinatura");
+
+                    b.Property<long>("PacienteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paciente_id");
+
+                    b.Property<string>("PdfHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("pdf_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("PdfUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("pdf_url");
+
+                    b.Property<DateTime?>("RevogadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revogado_em");
+
+                    b.Property<string>("RevogadoMotivo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("revogado_motivo");
+
+                    b.Property<Guid?>("RevogadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("revogado_por_usuario_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<long>("TermoModeloId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("termo_modelo_id");
+
+                    b.Property<string>("TokenAceite")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("token_aceite");
+
+                    b.Property<DateTime?>("TokenExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("token_expira_em");
+
+                    b.Property<string>("UserAgentAssinatura")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent_assinatura");
+
+                    b.Property<int>("VersaoModelo")
+                        .HasColumnType("integer")
+                        .HasColumnName("versao_modelo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenAceite")
+                        .IsUnique()
+                        .HasDatabaseName("uq_termo_emitido_token")
+                        .HasFilter("token_aceite IS NOT NULL");
+
+                    b.HasIndex("EstabelecimentoId", "Status")
+                        .HasDatabaseName("ix_termo_emitido_estab_status");
+
+                    b.HasIndex("PacienteId", "EstabelecimentoId", "CriadoEm")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("ix_termo_emitido_paciente_estab_criado");
+
+                    b.ToTable("termo_emitido", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Termos.TermoEmitidoAcessoLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Acao")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("acao");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<string>("IpOrigem")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)")
+                        .HasColumnName("ip_origem");
+
+                    b.Property<long>("TermoEmitidoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("termo_emitido_id");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TermoEmitidoId", "CriadoEm")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_termo_emitido_acesso_log_termo_criado");
+
+                    b.ToTable("termo_emitido_acesso_log", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Termos.TermoModelo", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<string>("Categoria")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("categoria");
+
+                    b.Property<string>("ConteudoHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("conteudo_html");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid?>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
+                    b.Property<DateTime?>("DeletadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deletado_em");
+
+                    b.Property<long?>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<long?>("PadraoClonadoDeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("padrao_clonado_de");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("titulo");
+
+                    b.Property<int>("VersaoAtual")
+                        .HasColumnType("integer")
+                        .HasColumnName("versao_atual");
+
+                    b.Property<uint>("VersaoConcorrencia")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Categoria")
+                        .HasDatabaseName("ix_termo_modelo_padrao_categoria")
+                        .HasFilter("estabelecimento_id IS NULL");
+
+                    b.HasIndex("EstabelecimentoId", "DeletadoEm")
+                        .HasDatabaseName("ix_termo_modelo_estab_deletado");
+
+                    b.HasIndex("EstabelecimentoId", "Categoria", "Ativo")
+                        .HasDatabaseName("ix_termo_modelo_estab_cat_ativo");
+
+                    b.ToTable("termo_modelo", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Termos.TermoModeloVersao", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ConteudoHtml")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("conteudo_html");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid?>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
+                    b.Property<long>("TermoModeloId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("termo_modelo_id");
+
+                    b.Property<int>("Versao")
+                        .HasColumnType("integer")
+                        .HasColumnName("versao");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TermoModeloId", "Versao")
+                        .IsUnique()
+                        .HasDatabaseName("uq_termo_modelo_versao");
+
+                    b.ToTable("termo_modelo_versao", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Unidades.UnidadeEstabelecimento", b =>

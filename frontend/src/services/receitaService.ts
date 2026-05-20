@@ -1,60 +1,96 @@
 import httpClient from "./httpClient"
 
-export type TipoReceita = "Comum" | "Controlada" | "Antibiotico" | "Especial"
-export type StatusReceita = "Rascunho" | "Emitida" | "Cancelada" | "Substituida"
+/**
+ * Receitas/prescrições. Backend é fonte de verdade — toda regra (validade,
+ * tipo notificação, retenção, finalização) vive no aggregate Receita. Frontend
+ * consome paginação server-side.
+ *
+ * Fluxo: novo rascunho → autosave (itens + observações) → finalizar → PDF.
+ * Cancelar/duplicar disponíveis após finalização.
+ */
 
-export interface ReceitaItem {
+export type TipoReceita = "Comum" | "Controlada" | "Antibiotico" | "Especial"
+export type TipoNotificacao = "A" | "B" | "C" | "Especial"
+export type StatusReceita = "Rascunho" | "Emitida" | "Cancelada" | "Substituida"
+export type StatusAssinatura = "NaoAssinada" | "AssinadaIcp" | "AssinadaMemed"
+
+export interface ItemReceita {
     id?: number
-    ordem: number
+    ordem?: number
     medicamento: string
     posologia: string
-    quantidade?: string
-    concentracao?: string
-    viaAdministracao?: string
-    formaFarmaceutica?: string
-    duracao?: string
-    observacao?: string
+    quantidade?: string | null
+    via?: string | null
+    observacao?: string | null
+    concentracao?: string | null
+    formaFarmaceutica?: string | null
+    duracao?: string | null
+}
+
+export interface ReceitaResumo {
+    id: number
+    pacienteId: number
+    prontuarioId: number
+    tipo: TipoReceita
+    tipoNotificacao: TipoNotificacao | null
+    status: StatusReceita
+    emitidaEm: string | null
+    validadeAte: string | null
+    requerRetencao: boolean
+    quantidadeItens: number
+    profissionalNome: string | null
 }
 
 export interface Receita {
     id: number
     prontuarioId: number
     pacienteId: number
-    profissionalUsuarioId: string
     estabelecimentoId: number
+    profissionalUsuarioId: string
+    profissionalNome: string | null
     tipo: TipoReceita
-    emitidaEm: string
-    validadeAte: string | null
-    observacoes: string | null
+    tipoNotificacao: TipoNotificacao | null
     status: StatusReceita
-    itens: ReceitaItem[]
-    criadaEm: string
+    emitidaEm: string | null
+    validadeAte: string | null
+    requerRetencao: boolean
+    assinaturaDigitalStatus: StatusAssinatura
+    observacoes: string | null
+    canceladaEm: string | null
+    motivoCancelamento: string | null
+    itens: ItemReceita[]
 }
 
 export interface PaginaReceitas {
+    itens: ReceitaResumo[]
     total: number
     pagina: number
-    tamanho: number
-    itens: Receita[]
+    tamanhoPagina: number
 }
 
-export interface EmitirReceitaPayload {
-    prontuarioId: number
+export interface IniciarRascunhoInput {
     pacienteId: number
     tipo: TipoReceita
-    observacoes?: string
-    itens: Omit<ReceitaItem, "id">[]
+    tipoNotificacao?: TipoNotificacao | null
+    validadeAte?: string | null
+    observacoes?: string | null
+    itens?: Omit<ItemReceita, "id" | "ordem">[]
+}
+
+export interface AtualizarRascunhoInput {
+    observacoes?: string | null
+    itens: Omit<ItemReceita, "id" | "ordem">[]
 }
 
 export const receitaService = {
     async listarDoPaciente(
         pacienteId: number,
-        pagina = 1,
-        tamanho = 20,
+        params: { pagina?: number; tamanho?: number } = {},
     ): Promise<PaginaReceitas> {
-        const { data } = await httpClient.get<PaginaReceitas>("/receitas", {
-            params: { pacienteId, pagina, tamanho },
-        })
+        const { data } = await httpClient.get<PaginaReceitas>(
+            `/pacientes/${pacienteId}/receitas`,
+            { params: { pagina: params.pagina ?? 1, tamanho: params.tamanho ?? 10 } },
+        )
         return data
     },
 
@@ -63,17 +99,30 @@ export const receitaService = {
         return data
     },
 
-    async emitir(payload: EmitirReceitaPayload): Promise<Receita> {
-        const { data } = await httpClient.post<Receita>("/receitas", payload)
+    async iniciarRascunho(input: IniciarRascunhoInput): Promise<{ receitaId: number }> {
+        const { data } = await httpClient.post<{ receitaId: number }>(
+            "/receitas/rascunho",
+            input,
+        )
         return data
+    },
+
+    async atualizarRascunho(id: number, input: AtualizarRascunhoInput): Promise<void> {
+        await httpClient.put(`/receitas/${id}/rascunho`, input)
+    },
+
+    async finalizar(id: number): Promise<void> {
+        await httpClient.post(`/receitas/${id}/finalizar`)
     },
 
     async cancelar(id: number, motivo: string): Promise<void> {
         await httpClient.post(`/receitas/${id}/cancelar`, { motivo })
     },
 
-    async duplicar(id: number): Promise<Receita> {
-        const { data } = await httpClient.post<Receita>(`/receitas/${id}/duplicar`)
+    async duplicar(id: number): Promise<{ receitaId: number }> {
+        const { data } = await httpClient.post<{ receitaId: number }>(
+            `/receitas/${id}/duplicar`,
+        )
         return data
     },
 
@@ -87,22 +136,30 @@ export const receitaService = {
 
 export default receitaService
 
-// Constantes reusadas do legado
+// ─── Constantes de UI ────────────────────────────────────────────────────────
+
 export const FORMAS_FARMACEUTICAS = [
-    "Comprimido", "Capsula", "Dragea", "Solucao oral", "Suspensao oral",
+    "Comprimido", "Cápsula", "Drágea", "Solução oral", "Suspensão oral",
     "Xarope", "Gotas", "Pomada", "Creme", "Gel", "Spray",
-    "Injecao", "Supositorio", "Adesivo", "Colitrio",
+    "Injeção", "Supositório", "Adesivo", "Colírio",
 ]
 
 export const VIAS_ADMINISTRACAO = [
     "Oral", "Sublingual", "Retal", "Vaginal",
-    "Intramuscular (IM)", "Intravenosa (IV)", "Subcutanea (SC)",
-    "Topica", "Inalatoria", "Oftalmica", "Otologica", "Nasal",
+    "Intramuscular (IM)", "Intravenosa (IV)", "Subcutânea (SC)",
+    "Tópica", "Inalatória", "Oftálmica", "Otológica", "Nasal",
 ]
 
 export const TIPOS_RECEITA: { valor: TipoReceita; label: string }[] = [
-    { valor: "Comum",      label: "Comum" },
-    { valor: "Controlada", label: "Controlada" },
-    { valor: "Antibiotico",label: "Antibiotico" },
-    { valor: "Especial",   label: "Especial" },
+    { valor: "Comum",       label: "Comum" },
+    { valor: "Controlada",  label: "Controlada" },
+    { valor: "Antibiotico", label: "Antibiótico" },
+    { valor: "Especial",    label: "Especial" },
+]
+
+export const TIPOS_NOTIFICACAO: { valor: TipoNotificacao; label: string }[] = [
+    { valor: "A",        label: "A (amarela — entorpecentes)" },
+    { valor: "B",        label: "B (azul — psicotrópicos)" },
+    { valor: "C",        label: "C (branca — controle especial)" },
+    { valor: "Especial", label: "Especial (anabolizantes/C5)" },
 ]

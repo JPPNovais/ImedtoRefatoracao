@@ -77,6 +77,30 @@ public class ProntuarioController : ControllerBase
         return Ok(dto);
     }
 
+    /// <summary>
+    /// Listagem paginada das evoluções do prontuário. Usada pela aba "Consultas
+    /// anteriores" para evitar carregar todas as evoluções na primeira request.
+    /// Retorna lista vazia + total 0 quando não há prontuário iniciado.
+    /// </summary>
+    [HttpGet("evolucoes")]
+    [ProducesResponseType(typeof(PaginaEvolucoesDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarEvolucoes(
+        long pacienteId,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
+    {
+        var dto = await _requestBus.Query<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto>(
+            new ListarEvolucoesProntuarioPacienteQuery
+            {
+                PacienteId = pacienteId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                Pagina = pagina,
+                TamanhoPagina = tamanho,
+            });
+        return Ok(dto);
+    }
+
     /// <summary>Inicia o prontuário do paciente com um modelo (padrão-sistema ou próprio).</summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]

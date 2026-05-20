@@ -10,7 +10,7 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 /// </summary>
 public interface IAtestadoQueryRepository
 {
-    Task<IReadOnlyList<AtestadoDto>> ListarDoPaciente(long pacienteId, long estabelecimentoId);
+    Task<PaginaAtestadosDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
     Task<AtestadoDto?> ObterPorId(long atestadoId, long estabelecimentoId);
     Task<IReadOnlyList<ModeloAtestadoDto>> ListarModelos(long estabelecimentoId);
 }
@@ -21,9 +21,21 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
 
     public AtestadoQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
 
-    public async Task<IReadOnlyList<AtestadoDto>> ListarDoPaciente(long pacienteId, long estabelecimentoId)
+    public async Task<PaginaAtestadosDto> ListarDoPaciente(
+        long pacienteId,
+        long estabelecimentoId,
+        int pagina,
+        int tamanhoPagina)
     {
-        const string sql = """
+        const string sqlTotal = """
+            SELECT COUNT(*)
+            FROM   public.atestados a
+            WHERE  a.paciente_id = @PacienteId
+              AND  a.estabelecimento_id = @EstabelecimentoId
+              AND  a.deletado_em IS NULL
+            """;
+
+        const string sqlItens = """
             SELECT  a.id                  AS Id,
                     a.paciente_id         AS PacienteId,
                     a.profissional_usuario_id AS ProfissionalUsuarioId,
@@ -39,15 +51,31 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
               AND   a.estabelecimento_id = @EstabelecimentoId
               AND   a.deletado_em IS NULL
             ORDER BY a.criado_em DESC
+            LIMIT   @Tamanho OFFSET @Offset
             """;
 
         await using var conn = new NpgsqlConnection(_connStr);
-        var itens = await conn.QueryAsync<AtestadoDto>(sql, new
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
         });
-        return itens.ToList();
+
+        var itens = await conn.QueryAsync<AtestadoDto>(sqlItens, new
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = estabelecimentoId,
+            Tamanho = tamanhoPagina,
+            Offset = (pagina - 1) * tamanhoPagina,
+        });
+
+        return new PaginaAtestadosDto
+        {
+            Itens = itens,
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina,
+        };
     }
 
     public async Task<AtestadoDto?> ObterPorId(long atestadoId, long estabelecimentoId)

@@ -1,171 +1,342 @@
 <!--
-  Aba de Receitas dentro do prontuário — replica o fluxo do legado
-  (ReceitasTabSection.vue → ReceitaEditor.vue → ReceitaItemForm.vue).
-  Enquanto não há endpoint no backend, persistimos em localStorage via
-  receitaLocalService. Quando o backend criar o módulo, basta trocar o service.
+  Aba de Receitas dentro do prontuário. Backend é fonte da verdade: lista
+  paginada server-side via /api/pacientes/{id}/receitas e CRUD via aggregate
+  Receita. Fluxo: novo rascunho → autosave (atualizar-rascunho) → finalizar.
+  Receitas finalizadas podem ser canceladas, duplicadas e impressas.
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import {
-    receitaLocalService,
+    receitaService,
     FORMAS_FARMACEUTICAS,
     VIAS_ADMINISTRACAO,
+    TIPOS_NOTIFICACAO,
+    type ItemReceita,
     type Receita,
-    type ReceitaItem,
+    type ReceitaResumo,
+    type StatusReceita,
+    type TipoNotificacao,
     type TipoReceita,
-} from "@/services/receitaLocalService"
-import { useAuthStore } from "@/stores/authStore"
-import { useTenantStore } from "@/stores/tenantStore"
-import { AppButton, AppInput, AppPagination, AppSelect, AppTextarea } from "@/components/ui"
+} from "@/services/receitaService"
+import {
+    AppButton, AppConfirmDialog, AppInput, AppPagination, AppSelect, AppTextarea, AppToast,
+} from "@/components/ui"
 
 const props = defineProps<{
     pacienteId: number
     pacienteNome: string
 }>()
 
-const auth   = useAuthStore()
-const tenant = useTenantStore()
+// ─── Estado de lista (paginação server-side) ─────────────────────────────────
+const receitas = ref<ReceitaResumo[]>([])
+const total    = ref(0)
+const pagina   = ref(1)
+const tamanho  = ref(10)
+const carregandoLista = ref(false)
 
-const receitas = ref<Receita[]>([])
-const abertaId = ref<string | null>(null)   // null = lista; preenchido = editando
-const erro     = ref<string | null>(null)
+// ─── Estado de editor ────────────────────────────────────────────────────────
+const receitaAberta   = ref<Receita | null>(null)
+const carregandoEditor = ref(false)
+const salvandoAcao    = ref(false)
 
-const receitaAberta = computed<Receita | null>(() =>
-    abertaId.value ? receitas.value.find(r => r.id === abertaId.value) ?? null : null,
-)
-
-// ─── Paginação client-side da lista de receitas ─────────────────────────────
-const pagina  = ref(1)
-const tamanho = ref(10)
-watch(() => receitas.value.length, () => { pagina.value = 1 })
-const receitasPagina = computed(() => {
-    const inicio = (pagina.value - 1) * tamanho.value
-    return receitas.value.slice(inicio, inicio + tamanho.value)
-})
-
-function recarregar() {
-    if (!tenant.ativo) return
-    receitas.value = receitaLocalService.listarDoPaciente(tenant.ativo.id, props.pacienteId)
+// ─── Confirms / toast ────────────────────────────────────────────────────────
+const toast = ref<{ msg: string; variante: "info" | "success" | "error" } | null>(null)
+function notificar(msg: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { msg, variante }
 }
 
-onMounted(recarregar)
+const confirmar = ref<{
+    titulo: string
+    mensagem: string
+    variante?: "primary" | "danger"
+    rotulo?: string
+    onConfirm: () => void | Promise<void>
+} | null>(null)
 
-function novaReceita(tipo: TipoReceita = "SIMPLES") {
-    if (!tenant.ativo || !auth.usuario) return
-    const r = receitaLocalService.criar({
-        estabelecimentoId: tenant.ativo.id,
-        pacienteId: props.pacienteId,
-        autor: auth.usuario.nomeCompleto ?? auth.usuario.email,
-        tipo,
-    })
-    recarregar()
-    abertaId.value = r.id
+function pedirConfirmacao(payload: NonNullable<typeof confirmar.value>) {
+    confirmar.value = payload
+}
+async function confirmarAcao() {
+    if (!confirmar.value) return
+    const fn = confirmar.value.onConfirm
+    confirmar.value = null
+    await fn()
 }
 
-function abrirReceita(r: Receita) { abertaId.value = r.id }
-function fecharEditor()           { abertaId.value = null; recarregar() }
-
-function formatarData(iso: string) {
-    return new Date(iso).toLocaleDateString("pt-BR", {
-        day: "2-digit", month: "2-digit", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-    })
+// ─── Carregamento da lista ──────────────────────────────────────────────────
+async function carregar() {
+    carregandoLista.value = true
+    try {
+        const r = await receitaService.listarDoPaciente(props.pacienteId, {
+            pagina: pagina.value, tamanho: tamanho.value,
+        })
+        receitas.value = r.itens
+        total.value = r.total
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao carregar receitas.", "error")
+    } finally {
+        carregandoLista.value = false
+    }
 }
 
-// ─── Editor: form de item ────────────────────────────────────────────────────
-const editandoItemId = ref<string | null>(null)
-const form = reactive<Omit<ReceitaItem, "id">>({
-    medicamento: "", concentracao: "", formaFarmaceutica: "",
-    quantidade: "", viaAdministracao: "", posologia: "",
-    duracao: "", instrucoes: "",
-})
+watch([pagina, tamanho], carregar)
+onMounted(carregar)
+
+// ─── Criar nova receita (rascunho) ──────────────────────────────────────────
+async function novaReceita(tipo: TipoReceita) {
+    salvandoAcao.value = true
+    try {
+        const { receitaId } = await receitaService.iniciarRascunho({
+            pacienteId: props.pacienteId,
+            tipo,
+            // Para Controlada, default sugerido. Usuário pode trocar depois.
+            tipoNotificacao: tipo === "Controlada" ? "B" : null,
+        })
+        await abrirReceita(receitaId)
+        await carregar()
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao iniciar receita.", "error")
+    } finally {
+        salvandoAcao.value = false
+    }
+}
+
+async function abrirReceita(id: number) {
+    carregandoEditor.value = true
+    try {
+        receitaAberta.value = await receitaService.obter(id)
+        formObs.value = receitaAberta.value.observacoes ?? ""
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao carregar receita.", "error")
+    } finally {
+        carregandoEditor.value = false
+    }
+}
+
+function fecharEditor() {
+    receitaAberta.value = null
+    mostrandoFormItem.value = false
+    editandoItemId.value = null
+    carregar()
+}
+
+// ─── Editor de item ──────────────────────────────────────────────────────────
+const formObs = ref("")
 const mostrandoFormItem = ref(false)
+const editandoItemId    = ref<number | null>(null)
+const erro = ref<string | null>(null)
+
+const form = reactive<{
+    medicamento: string
+    concentracao: string
+    formaFarmaceutica: string
+    quantidade: string
+    via: string
+    posologia: string
+    duracao: string
+    observacao: string
+}>({
+    medicamento: "", concentracao: "", formaFarmaceutica: "", quantidade: "",
+    via: "", posologia: "", duracao: "", observacao: "",
+})
 
 function limparForm() {
-    form.medicamento = ""; form.concentracao = ""
-    form.formaFarmaceutica = ""; form.quantidade = ""
-    form.viaAdministracao = ""; form.posologia = ""
-    form.duracao = ""; form.instrucoes = ""
+    form.medicamento = ""
+    form.concentracao = ""
+    form.formaFarmaceutica = ""
+    form.quantidade = ""
+    form.via = ""
+    form.posologia = ""
+    form.duracao = ""
+    form.observacao = ""
 }
 
 function abrirFormNovoItem() {
-    limparForm(); editandoItemId.value = null; mostrandoFormItem.value = true
-}
-function abrirFormEdicaoItem(item: ReceitaItem) {
-    editandoItemId.value = item.id
-    Object.assign(form, item)
+    limparForm()
+    editandoItemId.value = null
     mostrandoFormItem.value = true
+    erro.value = null
 }
-function salvarItem() {
+
+function abrirFormEdicaoItem(item: ItemReceita) {
+    editandoItemId.value = item.id ?? null
+    form.medicamento = item.medicamento
+    form.concentracao = item.concentracao ?? ""
+    form.formaFarmaceutica = item.formaFarmaceutica ?? ""
+    form.quantidade = item.quantidade ?? ""
+    form.via = item.via ?? ""
+    form.posologia = item.posologia
+    form.duracao = item.duracao ?? ""
+    form.observacao = item.observacao ?? ""
+    mostrandoFormItem.value = true
+    erro.value = null
+}
+
+/**
+ * Backend recebe o array completo de itens no autosave (PUT /rascunho).
+ * Construímos a próxima versão da lista localmente, enviamos e sincronizamos
+ * com a resposta (id do item gerado/atualizado pelo backend).
+ */
+async function salvarItem() {
     if (!receitaAberta.value) return
     if (!form.medicamento.trim() || !form.posologia.trim()) {
-        erro.value = "Informe ao menos o medicamento e a posologia."; return
+        erro.value = "Informe ao menos o medicamento e a posologia."
+        return
     }
     erro.value = null
-    if (editandoItemId.value) {
-        receitaLocalService.atualizarItem(receitaAberta.value.id, editandoItemId.value, { ...form })
-    } else {
-        receitaLocalService.adicionarItem(receitaAberta.value.id, { ...form })
+
+    const itemNovo: Omit<ItemReceita, "id" | "ordem"> = {
+        medicamento: form.medicamento.trim(),
+        posologia: form.posologia.trim(),
+        quantidade: form.quantidade.trim() || null,
+        via: form.via.trim() || null,
+        observacao: form.observacao.trim() || null,
+        concentracao: form.concentracao.trim() || null,
+        formaFarmaceutica: form.formaFarmaceutica.trim() || null,
+        duracao: form.duracao.trim() || null,
     }
-    recarregar()
+
+    const itensAtuais = receitaAberta.value.itens.map(stripIds)
+    const proximaLista = editandoItemId.value
+        ? itensAtuais.map((it, idx) =>
+            receitaAberta.value!.itens[idx].id === editandoItemId.value ? itemNovo : it,
+          )
+        : [...itensAtuais, itemNovo]
+
+    await persistirRascunho(proximaLista, formObs.value)
     mostrandoFormItem.value = false
     editandoItemId.value = null
     limparForm()
 }
-function removerItem(item: ReceitaItem) {
+
+function stripIds(it: ItemReceita): Omit<ItemReceita, "id" | "ordem"> {
+    return {
+        medicamento: it.medicamento,
+        posologia: it.posologia,
+        quantidade: it.quantidade ?? null,
+        via: it.via ?? null,
+        observacao: it.observacao ?? null,
+        concentracao: it.concentracao ?? null,
+        formaFarmaceutica: it.formaFarmaceutica ?? null,
+        duracao: it.duracao ?? null,
+    }
+}
+
+async function removerItem(item: ItemReceita) {
     if (!receitaAberta.value) return
-    if (!confirm(`Remover medicamento "${item.medicamento}"?`)) return
-    receitaLocalService.removerItem(receitaAberta.value.id, item.id)
-    recarregar()
+    pedirConfirmacao({
+        titulo: "Remover medicamento?",
+        mensagem: `Remover &quot;${item.medicamento}&quot; desta receita?`,
+        variante: "danger",
+        rotulo: "Remover",
+        onConfirm: async () => {
+            const proxima = receitaAberta.value!.itens
+                .filter(it => it.id !== item.id)
+                .map(stripIds)
+            await persistirRascunho(proxima, formObs.value)
+        },
+    })
+}
+
+async function persistirRascunho(
+    itens: Omit<ItemReceita, "id" | "ordem">[],
+    observacoes: string,
+) {
+    if (!receitaAberta.value) return
+    salvandoAcao.value = true
+    try {
+        await receitaService.atualizarRascunho(receitaAberta.value.id, {
+            observacoes: observacoes.trim() || null,
+            itens,
+        })
+        // Recarrega para refletir ordem/ids atribuídos pelo backend.
+        receitaAberta.value = await receitaService.obter(receitaAberta.value.id)
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao salvar rascunho.", "error")
+    } finally {
+        salvandoAcao.value = false
+    }
+}
+
+// ─── Observações: debounced autosave ────────────────────────────────────────
+let obsTimer: ReturnType<typeof setTimeout> | null = null
+function onObsChange(v: string) {
+    formObs.value = v
+    if (obsTimer) clearTimeout(obsTimer)
+    obsTimer = setTimeout(() => {
+        if (!receitaAberta.value) return
+        if (receitaAberta.value.status !== "Rascunho") return
+        const itens = receitaAberta.value.itens.map(stripIds)
+        persistirRascunho(itens, formObs.value)
+    }, 600)
 }
 
 // ─── Ações na receita ────────────────────────────────────────────────────────
-function atualizarObs(v: string) {
-    if (!receitaAberta.value) return
-    receitaLocalService.atualizar(receitaAberta.value.id, { observacoes: v })
-    recarregar()
-}
-function togglePDF(v: boolean) {
-    if (!receitaAberta.value) return
-    receitaLocalService.atualizar(receitaAberta.value.id, { incluirDataNoPdf: v })
-    recarregar()
-}
-function finalizar() {
+async function finalizar() {
     if (!receitaAberta.value) return
     if (receitaAberta.value.itens.length === 0) {
-        erro.value = "Adicione ao menos um medicamento antes de finalizar."; return
+        notificar("Adicione ao menos um medicamento antes de finalizar.", "error")
+        return
     }
-    if (!confirm("Finalizar receita? Após finalizada só pode ser cancelada ou gerar nova versão.")) return
-    receitaLocalService.finalizar(receitaAberta.value.id)
-    recarregar()
-}
-function cancelar() {
-    if (!receitaAberta.value) return
-    if (!confirm("Cancelar esta receita?")) return
-    receitaLocalService.cancelar(receitaAberta.value.id)
-    recarregar()
-}
-function excluir() {
-    if (!receitaAberta.value) return
-    if (!confirm("Excluir receita em rascunho? Esta ação é irreversível.")) return
-    receitaLocalService.excluir(receitaAberta.value.id)
-    abertaId.value = null
-    recarregar()
-}
-function criarNovaVersao() {
-    if (!receitaAberta.value) return
-    const nova = receitaLocalService.novaVersao(receitaAberta.value.id)
-    recarregar()
-    if (nova) abertaId.value = nova.id
+    pedirConfirmacao({
+        titulo: "Finalizar receita?",
+        mensagem: "Após finalizada, só será possível cancelar ou duplicar para gerar uma nova versão.",
+        rotulo: "Finalizar",
+        onConfirm: async () => {
+            salvandoAcao.value = true
+            try {
+                await receitaService.finalizar(receitaAberta.value!.id)
+                await abrirReceita(receitaAberta.value!.id)
+                notificar("Receita finalizada.", "success")
+            } catch (e: any) {
+                notificar(e?.response?.data?.mensagem ?? "Erro ao finalizar.", "error")
+            } finally {
+                salvandoAcao.value = false
+            }
+        },
+    })
 }
 
-// ─── Impressão / PDF ─────────────────────────────────────────────────────────
-async function imprimir() {
+async function cancelar() {
+    if (!receitaAberta.value) return
+    const motivo = window.prompt("Motivo do cancelamento (obrigatório):")
+    if (!motivo || !motivo.trim()) return
+    salvandoAcao.value = true
+    try {
+        await receitaService.cancelar(receitaAberta.value.id, motivo.trim())
+        await abrirReceita(receitaAberta.value.id)
+        notificar("Receita cancelada.", "success")
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao cancelar.", "error")
+    } finally {
+        salvandoAcao.value = false
+    }
+}
+
+async function duplicar() {
+    if (!receitaAberta.value) return
+    salvandoAcao.value = true
+    try {
+        const { receitaId } = await receitaService.duplicar(receitaAberta.value.id)
+        await abrirReceita(receitaId)
+        await carregar()
+        notificar("Nova versão criada como rascunho.", "success")
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao duplicar.", "error")
+    } finally {
+        salvandoAcao.value = false
+    }
+}
+
+// ─── Impressão (HTML simples — assinatura digital ainda não implementada) ───
+function imprimir() {
     const r = receitaAberta.value
     if (!r) return
-    // Abrimos uma janela com conteúdo formatado e chamamos print()
     const w = window.open("", "_blank", "width=800,height=900")
-    if (!w) return
+    if (!w) {
+        notificar("Permita pop-ups para imprimir.", "info")
+        return
+    }
     w.document.write(gerarHtmlImpressao(r))
     w.document.close()
     w.onload = () => { w.focus(); w.print() }
@@ -177,12 +348,12 @@ function gerarHtmlImpressao(r: Receita): string {
             <strong>${i + 1}. ${escape(it.medicamento)}${it.concentracao ? " — " + escape(it.concentracao) : ""}</strong>
             ${it.formaFarmaceutica ? `<div>${escape(it.formaFarmaceutica)}${it.quantidade ? " · " + escape(it.quantidade) : ""}</div>` : ""}
             <div class="pos"><em>${escape(it.posologia)}</em></div>
-            ${it.viaAdministracao ? `<div>Via: ${escape(it.viaAdministracao)}</div>` : ""}
+            ${it.via ? `<div>Via: ${escape(it.via)}</div>` : ""}
             ${it.duracao ? `<div>Duração: ${escape(it.duracao)}</div>` : ""}
-            ${it.instrucoes ? `<div class="obs">${escape(it.instrucoes)}</div>` : ""}
+            ${it.observacao ? `<div class="obs">${escape(it.observacao)}</div>` : ""}
         </div>
     `).join("")
-    const dataRef = r.incluirDataNoPdf ? formatarData(r.criadaEm) : ""
+    const dataRef = formatarData(r.emitidaEm ?? new Date().toISOString())
     return `<!doctype html><html><head><meta charset="utf-8"><title>Receita — ${escape(props.pacienteNome)}</title>
       <style>
         body{font-family:Nunito,sans-serif;max-width:720px;margin:40px auto;padding:0 1rem;color:#111;}
@@ -193,16 +364,14 @@ function gerarHtmlImpressao(r: Receita): string {
         .obs{font-size:.85rem;color:#555;margin-top:.2rem}
         .aviso-print{margin-top:2rem;padding:.75rem 1rem;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;font-size:.85rem;color:#7c2d12;line-height:1.45}
         .rodape{margin-top:3rem;padding-top:1rem;border-top:1px dashed #ccc;font-size:.85rem;color:#555;text-align:right}
-        .tipo{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:700}
-        .tipo.SIMPLES{background:#dbeafe;color:#1e40af}
-        .tipo.CONTROLADA{background:#fee2e2;color:#991b1b}
+        .tipo{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:700;background:#dbeafe;color:#1e40af}
+        .tipo.ctrl{background:#fee2e2;color:#991b1b}
       </style></head><body>
-      <h1>Receita médica <span class="tipo ${r.tipo}">${r.tipo}</span></h1>
+      <h1>Receita médica <span class="tipo ${r.tipo === "Controlada" ? "ctrl" : ""}">${r.tipo}${r.tipoNotificacao ? " — " + r.tipoNotificacao : ""}</span></h1>
       <div class="meta">
         <strong>Paciente:</strong> ${escape(props.pacienteNome)}<br>
-        <strong>Profissional:</strong> ${escape(r.autor)}<br>
-        ${dataRef ? `<strong>Data:</strong> ${dataRef}<br>` : ""}
-        <strong>Versão:</strong> ${r.versao}
+        ${r.profissionalNome ? `<strong>Profissional:</strong> ${escape(r.profissionalNome)}<br>` : ""}
+        <strong>Data:</strong> ${dataRef}<br>
       </div>
       ${itensHtml}
       ${r.observacoes ? `<p><strong>Observações:</strong> ${escape(r.observacoes)}</p>` : ""}
@@ -214,16 +383,41 @@ function gerarHtmlImpressao(r: Receita): string {
       <div class="rodape">___________________________<br>Assinatura</div>
     </body></html>`
 }
+
 function escape(s: string) {
     return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c] as string))
 }
 
-// Status helpers
-function statusLabel(s: string) {
-    return s === "DRAFT" ? "Rascunho" : s === "FINALIZED" ? "Finalizada" : "Cancelada"
+function formatarData(iso: string) {
+    return new Date(iso).toLocaleDateString("pt-BR", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
+    })
 }
-function statusBadgeClass(s: string) {
-    return s === "DRAFT" ? "badge-warning" : s === "FINALIZED" ? "badge-success" : "badge-muted"
+
+// ─── Helpers visuais ─────────────────────────────────────────────────────────
+function statusLabel(s: StatusReceita) {
+    return s === "Rascunho" ? "Rascunho"
+        : s === "Emitida"   ? "Emitida"
+        : s === "Cancelada" ? "Cancelada"
+        : "Substituída"
+}
+function statusBadgeClass(s: StatusReceita) {
+    return s === "Rascunho"  ? "badge-warning"
+        : s === "Emitida"    ? "badge-success"
+        : s === "Cancelada"  ? "badge-muted"
+        : "badge-info"
+}
+const podeAtualizarNotificacao = computed(() =>
+    receitaAberta.value?.tipo === "Controlada" && receitaAberta.value?.status === "Rascunho",
+)
+
+async function atualizarTipoNotificacao(tn: TipoNotificacao) {
+    if (!receitaAberta.value) return
+    // O backend só aceita tipoNotificacao via Emitir/IniciarRascunho. Para
+    // mudar depois, recriamos via cancel+novo. UX simplificada: o usuário
+    // confirma e seguimos. (Versão futura: endpoint dedicado.)
+    notificar("Para alterar tipo de notificação, cancele esta receita e crie uma nova.", "info")
 }
 </script>
 
@@ -233,41 +427,59 @@ function statusBadgeClass(s: string) {
         <div class="receitas-header">
             <h3 class="titulo">Receitas do paciente</h3>
             <div class="header-acoes">
-                <AppButton variant="secondary" size="sm" icon="fa-solid fa-shield-halved" @click="novaReceita('CONTROLADA')">
+                <AppButton
+                    variant="secondary" size="sm"
+                    icon="fa-solid fa-shield-halved"
+                    :loading="salvandoAcao"
+                    @click="novaReceita('Controlada')"
+                >
                     Nova controlada
                 </AppButton>
-                <AppButton size="sm" icon="fa-solid fa-plus" @click="novaReceita('SIMPLES')">
+                <AppButton
+                    size="sm" icon="fa-solid fa-plus"
+                    :loading="salvandoAcao"
+                    @click="novaReceita('Comum')"
+                >
                     Nova receita
                 </AppButton>
             </div>
         </div>
 
-        <div v-if="receitas.length === 0" class="estado-vazio">
+        <div v-if="carregandoLista" class="estado-info">Carregando...</div>
+
+        <div v-else-if="receitas.length === 0" class="estado-vazio">
             <i class="fa-solid fa-prescription icone-vazio"></i>
             <p>Nenhuma receita emitida para este paciente.</p>
-            <AppButton size="sm" @click="novaReceita('SIMPLES')">Criar primeira receita</AppButton>
+            <AppButton size="sm" @click="novaReceita('Comum')">Criar primeira receita</AppButton>
         </div>
 
         <ul v-else class="receitas">
             <li
-                v-for="r in receitasPagina" :key="r.id"
-                class="receita-card" :class="{ finalizada: r.status === 'FINALIZED' }"
-                @click="abrirReceita(r)"
+                v-for="r in receitas" :key="r.id"
+                class="receita-card"
+                :class="{ finalizada: r.status === 'Emitida' }"
+                @click="abrirReceita(r.id)"
             >
                 <div class="receita-principal">
                     <div class="receita-header-linha">
-                        <span :class="['badge', r.tipo === 'CONTROLADA' ? 'badge-error' : 'badge-info']">
+                        <span :class="['badge', r.tipo === 'Controlada' ? 'badge-error' : 'badge-info']">
                             {{ r.tipo }}
                         </span>
                         <span :class="['badge', statusBadgeClass(r.status)]">
                             {{ statusLabel(r.status) }}
                         </span>
-                        <span v-if="r.versao > 1" class="badge badge-muted">v{{ r.versao }}</span>
+                        <span v-if="r.tipoNotificacao" class="badge badge-muted">
+                            Notif. {{ r.tipoNotificacao }}
+                        </span>
+                        <span v-if="r.requerRetencao" class="badge badge-warning">RETER</span>
                     </div>
-                    <div class="receita-data">{{ formatarData(r.criadaEm) }}</div>
+                    <div class="receita-data">
+                        {{ formatarData(r.emitidaEm ?? new Date().toISOString()) }}
+                    </div>
                     <div class="receita-meta">
-                        {{ r.itens.length }} {{ r.itens.length === 1 ? "medicamento" : "medicamentos" }}
-                        · por {{ r.autor }}
+                        {{ r.quantidadeItens }}
+                        {{ r.quantidadeItens === 1 ? "medicamento" : "medicamentos" }}
+                        <span v-if="r.profissionalNome"> · por {{ r.profissionalNome }}</span>
                     </div>
                 </div>
                 <i class="fa-solid fa-chevron-right seta"></i>
@@ -275,10 +487,10 @@ function statusBadgeClass(s: string) {
         </ul>
 
         <AppPagination
-            v-if="receitas.length > 0"
+            v-if="total > 0"
             v-model:pagina="pagina"
             v-model:tamanho="tamanho"
-            :total="receitas.length"
+            :total="total"
             rotulo-itens="receita(s)"
         />
     </div>
@@ -290,29 +502,21 @@ function statusBadgeClass(s: string) {
                 Voltar às receitas
             </AppButton>
             <div class="header-badges">
-                <span :class="['badge', receitaAberta.tipo === 'CONTROLADA' ? 'badge-error' : 'badge-info']">
+                <span :class="['badge', receitaAberta.tipo === 'Controlada' ? 'badge-error' : 'badge-info']">
                     {{ receitaAberta.tipo }}
                 </span>
                 <span :class="['badge', statusBadgeClass(receitaAberta.status)]">
                     {{ statusLabel(receitaAberta.status) }}
                 </span>
-                <span class="badge badge-muted">v{{ receitaAberta.versao }}</span>
+                <span v-if="receitaAberta.tipoNotificacao" class="badge badge-muted">
+                    Notif. {{ receitaAberta.tipoNotificacao }}
+                </span>
+                <span v-if="receitaAberta.requerRetencao" class="badge badge-warning">RETER</span>
             </div>
-            <AppButton
-                v-if="receitaAberta.status === 'DRAFT'"
-                variant="danger" size="sm" icon="fa-solid fa-trash" @click="excluir"
-            >
-                Excluir
-            </AppButton>
         </div>
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
-        <!--
-          Aviso obrigatório: o sistema ainda NÃO assina a receita digitalmente
-          (sem integração ICP-Brasil / Memed). Para uso em farmácias que exigem
-          assinatura digital, imprima e assine manualmente. CFM 2.299/2021.
-        -->
         <div class="aviso-assinatura" role="note">
             <i class="fa-solid fa-circle-exclamation"></i>
             <div>
@@ -330,8 +534,10 @@ function statusBadgeClass(s: string) {
             <div class="secao-header">
                 <h4 class="secao-titulo">Medicamentos</h4>
                 <AppButton
-                    v-if="receitaAberta.status === 'DRAFT' && !mostrandoFormItem"
-                    size="sm" icon="fa-solid fa-plus" @click="abrirFormNovoItem"
+                    v-if="receitaAberta.status === 'Rascunho' && !mostrandoFormItem"
+                    size="sm" icon="fa-solid fa-plus"
+                    :loading="salvandoAcao"
+                    @click="abrirFormNovoItem"
                 >
                     Adicionar medicamento
                 </AppButton>
@@ -364,7 +570,7 @@ function statusBadgeClass(s: string) {
                     </div>
                     <div class="campo">
                         <label class="field-label">Via de administração</label>
-                        <AppSelect v-model="form.viaAdministracao">
+                        <AppSelect v-model="form.via">
                             <option value="">Selecione...</option>
                             <option v-for="v in VIAS_ADMINISTRACAO" :key="v" :value="v">{{ v }}</option>
                         </AppSelect>
@@ -385,7 +591,7 @@ function statusBadgeClass(s: string) {
                     </div>
                     <div class="campo campo-span-2">
                         <label class="field-label">Instruções adicionais</label>
-                        <AppInput v-model="form.instrucoes" placeholder="Ex: Tomar em jejum, evitar sol..." />
+                        <AppInput v-model="form.observacao" placeholder="Ex: Tomar em jejum, evitar sol..." />
                     </div>
                 </div>
                 <div class="form-footer">
@@ -394,6 +600,7 @@ function statusBadgeClass(s: string) {
                     </AppButton>
                     <AppButton
                         size="sm"
+                        :loading="salvandoAcao"
                         :disabled="!form.medicamento.trim() || !form.posologia.trim()"
                         @click="salvarItem"
                     >
@@ -407,7 +614,7 @@ function statusBadgeClass(s: string) {
                 Nenhum medicamento adicionado ainda.
             </div>
             <ol v-else-if="!mostrandoFormItem" class="itens-lista">
-                <li v-for="(it, i) in receitaAberta.itens" :key="it.id" class="item-card">
+                <li v-for="(it, i) in receitaAberta.itens" :key="it.id ?? i" class="item-card">
                     <div class="item-conteudo">
                         <div class="item-titulo">
                             <strong>{{ i + 1 }}. {{ it.medicamento }}</strong>
@@ -417,11 +624,11 @@ function statusBadgeClass(s: string) {
                             {{ it.formaFarmaceutica }}<span v-if="it.quantidade"> · {{ it.quantidade }}</span>
                         </div>
                         <div class="item-linha item-posologia">{{ it.posologia }}</div>
-                        <div v-if="it.viaAdministracao" class="item-linha"><strong>Via:</strong> {{ it.viaAdministracao }}</div>
+                        <div v-if="it.via" class="item-linha"><strong>Via:</strong> {{ it.via }}</div>
                         <div v-if="it.duracao" class="item-linha"><strong>Duração:</strong> {{ it.duracao }}</div>
-                        <div v-if="it.instrucoes" class="item-instrucoes">💡 {{ it.instrucoes }}</div>
+                        <div v-if="it.observacao" class="item-instrucoes">💡 {{ it.observacao }}</div>
                     </div>
-                    <div v-if="receitaAberta.status === 'DRAFT'" class="item-acoes">
+                    <div v-if="receitaAberta.status === 'Rascunho'" class="item-acoes">
                         <button class="btn-icon" title="Editar" @click="abrirFormEdicaoItem(it)">
                             <i class="fa-solid fa-pen"></i>
                         </button>
@@ -437,48 +644,58 @@ function statusBadgeClass(s: string) {
         <div class="secao">
             <h4 class="secao-titulo">Observações</h4>
             <AppTextarea
-                :model-value="receitaAberta.observacoes"
+                :model-value="formObs"
                 :rows="3"
                 placeholder="Orientações gerais para o paciente (dieta, atividade física...)"
-                :disabled="receitaAberta.status !== 'DRAFT'"
-                @update:model-value="(v) => atualizarObs(String(v))"
+                :disabled="receitaAberta.status !== 'Rascunho'"
+                @update:model-value="(v) => onObsChange(String(v))"
             />
-
-            <label class="check-inline">
-                <input
-                    type="checkbox" :checked="receitaAberta.incluirDataNoPdf"
-                    :disabled="receitaAberta.status !== 'DRAFT'"
-                    @change="(e) => togglePDF((e.target as HTMLInputElement).checked)"
-                />
-                Incluir data no PDF da receita
-            </label>
+            <p v-if="receitaAberta.status === 'Cancelada' && receitaAberta.motivoCancelamento" class="motivo-cancelamento">
+                <strong>Motivo do cancelamento:</strong> {{ receitaAberta.motivoCancelamento }}
+            </p>
         </div>
 
         <!-- Ações -->
         <div class="acoes-footer">
-            <template v-if="receitaAberta.status === 'DRAFT'">
-                <AppButton variant="ghost" @click="cancelar">Cancelar receita</AppButton>
+            <template v-if="receitaAberta.status === 'Rascunho'">
+                <AppButton variant="ghost" :loading="salvandoAcao" @click="cancelar">Cancelar receita</AppButton>
                 <AppButton
                     icon="fa-solid fa-check"
+                    :loading="salvandoAcao"
                     :disabled="receitaAberta.itens.length === 0"
                     @click="finalizar"
                 >
                     Finalizar receita
                 </AppButton>
             </template>
-            <template v-else-if="receitaAberta.status === 'FINALIZED'">
-                <AppButton variant="secondary" icon="fa-solid fa-copy" @click="criarNovaVersao">
+            <template v-else-if="receitaAberta.status === 'Emitida'">
+                <AppButton variant="ghost" :loading="salvandoAcao" @click="cancelar">Cancelar receita</AppButton>
+                <AppButton variant="secondary" icon="fa-solid fa-copy" :loading="salvandoAcao" @click="duplicar">
                     Nova versão
                 </AppButton>
                 <AppButton icon="fa-solid fa-print" @click="imprimir">
-                    Imprimir / Baixar PDF
+                    Imprimir
                 </AppButton>
             </template>
             <template v-else>
-                <p class="aviso-cancelada">Esta receita foi cancelada.</p>
+                <p class="aviso-cancelada">
+                    {{ receitaAberta.status === "Cancelada" ? "Esta receita foi cancelada." : "Esta receita foi substituída." }}
+                </p>
             </template>
         </div>
     </div>
+
+    <AppConfirmDialog
+        :aberto="confirmar !== null"
+        :titulo="confirmar?.titulo ?? ''"
+        :mensagem="confirmar?.mensagem ?? ''"
+        :confirmar-rotulo="confirmar?.rotulo ?? 'Confirmar'"
+        :variante="confirmar?.variante ?? 'primary'"
+        @confirmar="confirmarAcao"
+        @cancelar="confirmar = null"
+    />
+
+    <AppToast v-if="toast" :mensagem="toast.msg" :variante="toast.variante" @fechar="toast = null" />
 </template>
 
 <style scoped>
@@ -490,6 +707,8 @@ function statusBadgeClass(s: string) {
 }
 .titulo { font-size: 1rem; font-weight: 700; margin: 0; }
 .header-acoes { display: flex; gap: 0.5rem; }
+
+.estado-info { padding: 1rem; text-align: center; color: hsl(var(--muted-foreground)); font-size: 0.9em; }
 
 .estado-vazio {
     text-align: center; padding: 3rem 1rem;
@@ -536,7 +755,6 @@ function statusBadgeClass(s: string) {
     font-size: 0.85em; margin: 0;
 }
 
-/* Aviso fixo (LGPD/CFM): receita sem assinatura digital. */
 .aviso-assinatura {
     display: flex;
     gap: 0.75rem;
@@ -613,11 +831,10 @@ function statusBadgeClass(s: string) {
     padding-top: 0.5rem; border-top: 1px solid hsl(var(--border));
 }
 
-.check-inline {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    font-size: 0.85em; color: hsl(var(--muted-foreground)); cursor: pointer;
+.motivo-cancelamento {
+    font-size: 0.85em; color: hsl(var(--muted-foreground));
+    margin: 0.5rem 0 0;
 }
-.check-inline input { cursor: pointer; }
 
 .acoes-footer {
     display: flex; justify-content: flex-end; gap: 0.5rem;

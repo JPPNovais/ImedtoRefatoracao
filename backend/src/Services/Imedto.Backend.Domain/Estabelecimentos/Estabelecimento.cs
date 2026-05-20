@@ -16,6 +16,14 @@ public class Estabelecimento : Entity
     public virtual string Cnpj { get; protected set; }
     public virtual string Telefone { get; protected set; }
     public virtual string Endereco { get; protected set; }
+    /// <summary>
+    /// Cidade onde o estabelecimento opera. Opcional para retrocompatibilidade — estabs
+    /// criados antes da feature de Termos não tinham o campo. Usado, p.ex., na variável
+    /// <c>{{cidade_atual}}</c> dos termos de consentimento (com fallback "____").
+    /// </summary>
+    public virtual string Cidade { get; protected set; }
+    /// <summary>UF da unidade (2 letras maiúsculas). Opcional.</summary>
+    public virtual string Estado { get; protected set; }
     public virtual string FotoUrl { get; protected set; }
     public virtual EstabelecimentoStatus Status { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
@@ -253,6 +261,28 @@ public class Estabelecimento : Entity
             throw new BusinessException(
                 $"Este horário está bloqueado{desc}: {bloqueio.Inicio:HH\\:mm}–{bloqueio.Fim:HH\\:mm}.");
         }
+    }
+
+    /// <summary>
+    /// Atualiza endereço, cidade e UF. Campos opcionais — quando vazio/branco, persistem
+    /// como <c>null</c>. UF é normalizada para maiúsculas e exige exatamente 2 letras.
+    /// Usado por features que precisam do endereço estruturado (ex: variável
+    /// <c>{{cidade_atual}}</c> de termos de consentimento).
+    /// </summary>
+    public virtual void AtualizarEndereco(string endereco, string cidade, string uf)
+    {
+        string ufNormalizada = null;
+        if (!string.IsNullOrWhiteSpace(uf))
+        {
+            ufNormalizada = uf.Trim().ToUpperInvariant();
+            if (ufNormalizada.Length != 2 || !ufNormalizada.All(char.IsLetter))
+                throw new BusinessException("UF deve ter exatamente 2 letras.");
+        }
+
+        Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim();
+        Cidade = string.IsNullOrWhiteSpace(cidade) ? null : cidade.Trim();
+        Estado = ufNormalizada;
+        AtualizadoEm = DateTime.UtcNow;
     }
 
     public virtual void AlterarFoto(string fotoUrl)

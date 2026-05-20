@@ -13,6 +13,14 @@ public class AtestadoDto
     public DateTime CriadoEm { get; set; }
 }
 
+public class PaginaAtestadosDto
+{
+    public IEnumerable<AtestadoDto> Itens { get; set; } = Array.Empty<AtestadoDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
 public class ModeloAtestadoDto
 {
     public long Id { get; set; }

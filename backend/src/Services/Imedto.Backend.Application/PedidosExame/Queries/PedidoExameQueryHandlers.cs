@@ -9,7 +9,7 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Application.PedidosExame.Queries;
 
 public class ListarPedidosExameDoPacienteQueryHandlers
-    : IRequestHandler<ListarPedidosExameDoPacienteQuery, IReadOnlyList<PedidoExameDto>>
+    : IRequestHandler<ListarPedidosExameDoPacienteQuery, PaginaPedidosExameDto>
 {
     private readonly IPedidoExameQueryRepository _queryRepo;
     private readonly IPacienteRepository _pacienteRepo;
@@ -28,24 +28,28 @@ public class ListarPedidosExameDoPacienteQueryHandlers
         _acessoLog = acessoLog;
     }
 
-    public async Task<IReadOnlyList<PedidoExameDto>> Handle(ListarPedidosExameDoPacienteQuery query)
+    public async Task<PaginaPedidosExameDto> Handle(ListarPedidosExameDoPacienteQuery query)
     {
         if (query.PacienteId <= 0)
             throw new BusinessException("Paciente é obrigatório.");
 
+        var pagina = query.Pagina < 1 ? 1 : query.Pagina;
+        var tamanho = query.TamanhoPagina is < 1 or > 100 ? 20 : query.TamanhoPagina;
+
         var paciente = await _pacienteRepo.ObterPorIdOuNulo(query.PacienteId, query.EstabelecimentoId)
             ?? throw new BusinessException("Paciente não encontrado.");
 
-        var pedidos = await _queryRepo.ListarDoPaciente(query.PacienteId, query.EstabelecimentoId);
+        var resultado = await _queryRepo.ListarDoPaciente(
+            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(paciente.Id, query.EstabelecimentoId);
-        if (prontuario is not null && pedidos.Count > 0)
+        if (prontuario is not null && resultado.Total > 0)
         {
             await _acessoLog.RegistrarAsync(
                 prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
         }
 
-        return pedidos;
+        return resultado;
     }
 }
 

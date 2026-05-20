@@ -14,7 +14,7 @@ namespace Imedto.Backend.Application.Atestados.Queries;
 /// Scoped — depende do <see cref="IProntuarioAcessoLogService"/> (Scoped).
 /// </summary>
 public class ListarAtestadosDoPacienteQueryHandlers
-    : IRequestHandler<ListarAtestadosDoPacienteQuery, IReadOnlyList<AtestadoDto>>
+    : IRequestHandler<ListarAtestadosDoPacienteQuery, PaginaAtestadosDto>
 {
     private readonly IAtestadoQueryRepository _queryRepo;
     private readonly IPacienteRepository _pacienteRepo;
@@ -33,24 +33,28 @@ public class ListarAtestadosDoPacienteQueryHandlers
         _acessoLog = acessoLog;
     }
 
-    public async Task<IReadOnlyList<AtestadoDto>> Handle(ListarAtestadosDoPacienteQuery query)
+    public async Task<PaginaAtestadosDto> Handle(ListarAtestadosDoPacienteQuery query)
     {
         if (query.PacienteId <= 0)
             throw new BusinessException("Paciente é obrigatório.");
 
+        var pagina = query.Pagina < 1 ? 1 : query.Pagina;
+        var tamanho = query.TamanhoPagina is < 1 or > 100 ? 20 : query.TamanhoPagina;
+
         var paciente = await _pacienteRepo.ObterPorIdOuNulo(query.PacienteId, query.EstabelecimentoId)
             ?? throw new BusinessException("Paciente não encontrado.");
 
-        var atestados = await _queryRepo.ListarDoPaciente(query.PacienteId, query.EstabelecimentoId);
+        var resultado = await _queryRepo.ListarDoPaciente(
+            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(paciente.Id, query.EstabelecimentoId);
-        if (prontuario is not null && atestados.Count > 0)
+        if (prontuario is not null && resultado.Total > 0)
         {
             await _acessoLog.RegistrarAsync(
                 prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
         }
 
-        return atestados;
+        return resultado;
     }
 }
 

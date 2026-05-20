@@ -31,6 +31,7 @@ public static class CatalogoPermissoes
         new Area("relatorios",    new[] { "ver", "exportar" }),
         new Area("configuracoes", new[] { "gerenciar" }),
         new Area("equipe",        new[] { "ver", "convidar", "permissoes", "remover" }),
+        new Area("termos",        new[] { "emitir", "gerenciar_modelos" }),
     };
 
     /// <summary>Todas as permissões granulares (catálogo completo).</summary>
@@ -49,6 +50,7 @@ public static class CatalogoPermissoes
         "pacientes.ver", "pacientes.criar", "pacientes.editar",
         "orcamento.ver", "orcamento.criar", "orcamento.editar",
         "relatorios.ver",
+        "termos.emitir",
     };
 
     /// <summary>Conjunto padrão para o papel Recepção (agenda + cadastro de pacientes + leitura financeiro).</summary>
@@ -59,6 +61,7 @@ public static class CatalogoPermissoes
         "prontuario.ver",
         "convenios.ver",
         "financeiro.ver",
+        "termos.emitir",
     };
 
     /// <summary>

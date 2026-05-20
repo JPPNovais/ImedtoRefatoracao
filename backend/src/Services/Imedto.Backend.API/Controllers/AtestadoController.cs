@@ -54,17 +54,22 @@ public class AtestadoController : ControllerBase
             new { atestadoId = cmd.AtestadoIdCriado });
     }
 
-    /// <summary>Lista atestados do paciente — ordenados desc por data.</summary>
+    /// <summary>Lista paginada de atestados do paciente — ordenados desc por data.</summary>
     [HttpGet("api/pacientes/{pacienteId:long}/atestados")]
-    [ProducesResponseType(typeof(IReadOnlyList<AtestadoDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListarDoPaciente(long pacienteId)
+    [ProducesResponseType(typeof(PaginaAtestadosDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarDoPaciente(
+        long pacienteId,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var dto = await _requestBus.Query<ListarAtestadosDoPacienteQuery, IReadOnlyList<AtestadoDto>>(
+        var dto = await _requestBus.Query<ListarAtestadosDoPacienteQuery, PaginaAtestadosDto>(
             new ListarAtestadosDoPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                Pagina = pagina,
+                TamanhoPagina = tamanho,
             });
         return Ok(dto);
     }

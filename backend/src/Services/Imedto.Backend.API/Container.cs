@@ -165,6 +165,14 @@ using Imedto.Backend.Domain.Receitas;
 using Imedto.Backend.Domain.Receitas.Events;
 using Imedto.Backend.Domain.Atestados;
 using Imedto.Backend.Domain.PedidosExame;
+using Imedto.Backend.Domain.Termos;
+using Imedto.Backend.Domain.Termos.Events;
+using Imedto.Backend.Application.Termos.Commands;
+using Imedto.Backend.Application.Termos.Queries;
+using Imedto.Backend.Contracts.Termos.Commands;
+using Imedto.Backend.Contracts.Termos.Queries;
+using Imedto.Backend.Contracts.Termos.Dtos;
+using Imedto.Backend.Infrastructure.Termos;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Jobs;
@@ -379,6 +387,7 @@ public static class Container
         services.AddScoped<RegistrarExportacaoProntuarioCommandHandler>();
         services.AddScoped<RegistrarExportacaoEvolucaoCommandHandler>();
         services.AddScoped<ObterProntuarioDoPacienteQueryHandlers>(); // scoped — injeta IProntuarioAcessoLogService (scoped)
+        services.AddScoped<ListarEvolucoesProntuarioPacienteQueryHandlers>(); // scoped — injeta IProntuarioAcessoLogService (scoped)
         services.AddSingleton<ContarEvolucoesProntuarioPacienteQueryHandlers>(); // só COUNT, sem audit — pode ser singleton
         services.AddSingleton<ProntuarioQueryRepository>();
         services.AddScoped<ProntuarioIniciadoEventHandler>();
@@ -422,6 +431,34 @@ public static class Container
         services.AddScoped<EmitirPedidoExameCommandHandler>();
         services.AddScoped<ListarPedidosExameDoPacienteQueryHandlers>();
         services.AddScoped<ObterPedidoExameQueryHandlers>();
+
+        // Termos de consentimento (Fase 1 — 2026-05-19).
+        // Sanitizer e Resolver são stateless após o ctor → singleton.
+        services.AddSingleton<ITermoHtmlSanitizer, GanssHtmlSanitizer>();
+        services.AddSingleton<ITermoTextoExtractor, SimpleTermoTextoExtractor>();
+        services.AddSingleton<ITermoResolverDeVariaveis, TermoResolverDeVariaveis>();
+        services.AddScoped<ITermoModeloRepository, TermoModeloRepository>();
+        services.AddScoped<ITermoEmitidoRepository, TermoEmitidoRepository>();
+        services.AddSingleton<ITermoModeloQueryRepository, TermoModeloQueryRepository>();
+        services.AddSingleton<ITermoEmitidoQueryRepository, TermoEmitidoQueryRepository>();
+        services.AddScoped<ITermoAuditLogger, EfTermoAuditLogger>();
+        services.AddScoped<ITermoPdfStorageService, S3TermoPdfStorageService>();
+        services.AddScoped<CriarModeloTermoCommandHandler>();
+        services.AddScoped<AtualizarModeloTermoCommandHandler>();
+        services.AddScoped<AlterarAtivoModeloTermoCommandHandler>();
+        services.AddScoped<ExcluirModeloTermoCommandHandler>();
+        services.AddScoped<ClonarModeloTermoCommandHandler>();
+        services.AddScoped<EmitirTermoCommandHandler>();
+        services.AddScoped<AnexarPdfTermoCommandHandler>();
+        services.AddScoped<RevogarTermoCommandHandler>();
+        // Query handlers que auditam acesso ou dependem do DbContext via repo são Scoped.
+        services.AddSingleton<ListarModelosTermoQueryHandlers>();
+        services.AddSingleton<ListarModelosPadraoTermoQueryHandlers>();
+        services.AddSingleton<ObterModeloTermoQueryHandlers>();
+        services.AddSingleton<ListarVariaveisDisponiveisQueryHandlers>();
+        services.AddScoped<ListarTermosDoPacienteQueryHandlers>();
+        services.AddScoped<ObterTermoEmitidoQueryHandlers>();
+        services.AddScoped<ObterUrlPdfTermoQueryHandlers>();
 
         // Modelos de Permissão
         services.AddScoped<CriarModeloPermissaoCommandHandler>();
@@ -891,6 +928,15 @@ public static class Container
             bus.Register<ExcluirModeloAtestadoCommand, ExcluirModeloAtestadoCommandHandler>();
             // Pedidos de exame (2026-05-18).
             bus.Register<EmitirPedidoExameCommand, EmitirPedidoExameCommandHandler>();
+            // Termos de consentimento (Fase 1 — 2026-05-19).
+            bus.Register<CriarModeloTermoCommand, CriarModeloTermoCommandHandler>();
+            bus.Register<AtualizarModeloTermoCommand, AtualizarModeloTermoCommandHandler>();
+            bus.Register<AlterarAtivoModeloTermoCommand, AlterarAtivoModeloTermoCommandHandler>();
+            bus.Register<ExcluirModeloTermoCommand, ExcluirModeloTermoCommandHandler>();
+            bus.Register<ClonarModeloTermoCommand, ClonarModeloTermoCommandHandler>();
+            bus.Register<EmitirTermoCommand, EmitirTermoCommandHandler>();
+            bus.Register<AnexarPdfTermoCommand, AnexarPdfTermoCommandHandler>();
+            bus.Register<RevogarTermoCommand, RevogarTermoCommandHandler>();
             // Item 4.3 — LGPD.
             bus.Register<RegistrarConsentimentoCommand, RegistrarConsentimentoCommandHandler>();
             bus.Register<AnonimizarMinhaContaCommand, AnonimizarMinhaContaCommandHandler>();
@@ -923,6 +969,7 @@ public static class Container
             bus.Register<ObterModeloDeProntuarioQuery, ModeloProntuarioDto, ObterModeloDeProntuarioQueryHandlers>();
             bus.Register<ListarVariaveisPoolQuery, IEnumerable<VariavelPoolDto>, ListarVariaveisPoolQueryHandlers>();
             bus.Register<ObterProntuarioDoPacienteQuery, ProntuarioCompletoDto, ObterProntuarioDoPacienteQueryHandlers>();
+            bus.Register<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto, ListarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto, ContarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>, ListarAnexosDoProntuarioQueryHandlers>();
             bus.Register<ObterUrlAnexoQuery, AnexoUrlDto, ObterUrlAnexoQueryHandlers>();
@@ -1004,12 +1051,20 @@ public static class Container
             bus.Register<ListarExamesFisicosDoPacienteQuery, PaginaExamesFisicosDto, ObterExameFisicoQueryHandlers>();
             bus.Register<TimelineExamesFisicosQuery, IEnumerable<ExameFisicoResumoDto>, ObterExameFisicoQueryHandlers>();
             // Atestados (2026-05-18).
-            bus.Register<ListarAtestadosDoPacienteQuery, IReadOnlyList<AtestadoDto>, ListarAtestadosDoPacienteQueryHandlers>();
+            bus.Register<ListarAtestadosDoPacienteQuery, PaginaAtestadosDto, ListarAtestadosDoPacienteQueryHandlers>();
             bus.Register<ObterAtestadoQuery, AtestadoDto, ObterAtestadoQueryHandlers>();
             bus.Register<ListarModelosAtestadoQuery, IReadOnlyList<ModeloAtestadoDto>, ListarModelosAtestadoQueryHandlers>();
             // Pedidos de exame (2026-05-18).
-            bus.Register<ListarPedidosExameDoPacienteQuery, IReadOnlyList<PedidoExameDto>, ListarPedidosExameDoPacienteQueryHandlers>();
+            bus.Register<ListarPedidosExameDoPacienteQuery, PaginaPedidosExameDto, ListarPedidosExameDoPacienteQueryHandlers>();
             bus.Register<ObterPedidoExameQuery, PedidoExameDto, ObterPedidoExameQueryHandlers>();
+            // Termos de consentimento (Fase 1 — 2026-05-19).
+            bus.Register<ListarModelosTermoQuery, PaginaModelosTermoDto, ListarModelosTermoQueryHandlers>();
+            bus.Register<ListarModelosPadraoTermoQuery, IReadOnlyList<TermoModeloDto>, ListarModelosPadraoTermoQueryHandlers>();
+            bus.Register<ObterModeloTermoQuery, TermoModeloDto, ObterModeloTermoQueryHandlers>();
+            bus.Register<ListarVariaveisDisponiveisQuery, IReadOnlyList<VariavelDisponivelDto>, ListarVariaveisDisponiveisQueryHandlers>();
+            bus.Register<ListarTermosDoPacienteQuery, IReadOnlyList<TermoEmitidoResumoDto>, ListarTermosDoPacienteQueryHandlers>();
+            bus.Register<ObterTermoEmitidoQuery, TermoEmitidoDetalheDto, ObterTermoEmitidoQueryHandlers>();
+            bus.Register<ObterUrlPdfTermoQuery, TermoPdfUrlDto, ObterUrlPdfTermoQueryHandlers>();
             return bus;
         });
 

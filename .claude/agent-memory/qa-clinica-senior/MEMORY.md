@@ -25,3 +25,4 @@
 - [QA revalidação foto profissional 2026-05-19 (04031d2+a6b82ca)](project_qa_revalidacao_foto_profissional_2026_05_19.md) — 10/10 fluxos verde; débitos P1 confirm() nativo, P2 a11y dup, P3 fallback Dono sem fotoUrl.
 - [UnitOfWorkFilter global faz SaveChangesAsync sem [UnitOfWork] explícito](feedback_unitofworkfilter_global_save.md) — não marcar como bug se handler/Salvar não chama SaveChanges.
 - [QA pós-deploy da3a906 2026-05-19 (fix presigned URL expirando em 24h)](project_qa_posdeploy_da3a906_2026_05_19.md) — fotoUrl agora fresca em toda resposta; logo OK em UI/PDF/bootstrap; profissional n/a (sem foto cadastrada).
+- [QA pós-deploy 00b0b71 2026-05-19 (inativação=movimentação + atalho paciente→orçamento)](project_qa_posdeploy_00b0b71_2026_05_19.md) — P1 pego em prod (aba Mov não recarregava pós-inativar) corrigido in-loop; ambas features verde.

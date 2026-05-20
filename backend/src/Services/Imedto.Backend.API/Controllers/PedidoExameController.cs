@@ -55,15 +55,20 @@ public class PedidoExameController : ControllerBase
     }
 
     [HttpGet("api/pacientes/{pacienteId:long}/pedidos-exame")]
-    [ProducesResponseType(typeof(IReadOnlyList<PedidoExameDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListarDoPaciente(long pacienteId)
+    [ProducesResponseType(typeof(PaginaPedidosExameDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarDoPaciente(
+        long pacienteId,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
     {
-        var dto = await _requestBus.Query<ListarPedidosExameDoPacienteQuery, IReadOnlyList<PedidoExameDto>>(
+        var dto = await _requestBus.Query<ListarPedidosExameDoPacienteQuery, PaginaPedidosExameDto>(
             new ListarPedidosExameDoPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                Pagina = pagina,
+                TamanhoPagina = tamanho,
             });
         return Ok(dto);
     }

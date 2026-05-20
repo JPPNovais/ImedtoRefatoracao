@@ -13,3 +13,11 @@ public class PedidoExameDto
     public string? Observacoes { get; set; }
     public DateTime CriadoEm { get; set; }
 }
+
+public class PaginaPedidosExameDto
+{
+    public IEnumerable<PedidoExameDto> Itens { get; set; } = Array.Empty<PedidoExameDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
