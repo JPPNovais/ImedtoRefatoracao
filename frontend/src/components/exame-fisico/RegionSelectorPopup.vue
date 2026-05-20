@@ -105,6 +105,18 @@ function voltarParaNivel(index: number) {
   navegacao.value.splice(index)
 }
 
+// Mapeia o id de um filho do lado direito para o equivalente esquerdo.
+// Ex: "ombro-direito" → "ombro-esquerdo", "menisco-medial-d" → "menisco-medial-e"
+function idEsquerdoDe(idDireito: string): string {
+  return idDireito.replace(/-direito\b/gi, '-esquerdo').replace(/-d$/, '-e')
+}
+
+// Exibe o nome do filho sem "direito" quando o popup representa ambos os membros.
+function nomeExibido(filho: ExameFisicoRegiao): string {
+  if (!props.membroRegioes) return filho.nome
+  return filho.nome.replace(/\s+direito\b/gi, '').replace(/\s+D\b/, '').trim()
+}
+
 function confirmar() {
   const resultado: Array<{ regiaoId: string; lateralidade: 'D' | 'E' | 'bilateral' | null }> = []
 
@@ -112,10 +124,9 @@ function confirmar() {
     const lat = (lateralidades[regiaoId] ?? null) as 'D' | 'E' | 'bilateral' | null
 
     if (props.membroRegioes && props.membroRegioes.esquBase) {
-      const dirChild = props.regioes.find((r) => r.id === regiaoId)
-      const esquChild = dirChild
-        ? props.getFilhos(props.membroRegioes.esquBase.id).find((r) => r.nome === dirChild.nome)
-        : undefined
+      // Casa o filho esquerdo equivalente pelo id (troca sufixo -direito→-esquerdo ou -d→-e)
+      const esquId = idEsquerdoDe(regiaoId)
+      const esquChild = props.getFilhos(props.membroRegioes.esquBase.id).find((r) => r.id === esquId)
 
       if (lat === 'bilateral' && esquChild) {
         resultado.push({ regiaoId, lateralidade: 'D' })
@@ -255,7 +266,7 @@ function fechar() {
             class="text-xs flex-1 select-none"
             :class="{ 'text-muted-foreground': jaFoiSelecionada(filho.id) }"
           >
-            {{ filho.nome }}
+            {{ nomeExibido(filho) }}
           </span>
 
           <!-- Lateralidade -->
