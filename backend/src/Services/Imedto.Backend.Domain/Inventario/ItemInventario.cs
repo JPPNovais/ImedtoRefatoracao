@@ -174,11 +174,22 @@ public class ItemInventario : Entity
             TipoMovimentacaoEstoque.Saida, quantidade, anterior, QuantidadeAtual, usuarioId, custoUnitarioSnapshot, observacao);
     }
 
-    public virtual void Inativar()
+    /// <summary>
+    /// Inativa o item e retorna uma movimentação de auditoria (Tipo=Inativacao, sem alterar estoque).
+    /// </summary>
+    public virtual MovimentacaoEstoque Inativar(Guid usuarioId, string? observacao = null)
     {
         if (!Ativo) throw new BusinessException("Item já está inativo.");
+        if (usuarioId == Guid.Empty)
+            throw new BusinessException("Usuário responsável pela inativação é obrigatório.");
+
+        var quantidade = QuantidadeAtual;
         Ativo = false;
         AtualizadoEm = DateTime.UtcNow;
+
+        return MovimentacaoEstoque.Criar(Id, EstabelecimentoId,
+            TipoMovimentacaoEstoque.Inativacao, 0m, quantidade, quantidade,
+            usuarioId, CustoMedio, observacao);
     }
 
     public virtual void Reativar()

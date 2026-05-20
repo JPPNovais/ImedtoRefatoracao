@@ -25,11 +25,13 @@ export interface ItemInventario {
     criadoEm: string
 }
 
+export type TipoMovimentacao = "Entrada" | "Saida" | "Inativacao"
+
 export interface MovimentacaoEstoque {
     id: number
     itemInventarioId: number
     itemNome: string
-    tipo: "Entrada" | "Saida"
+    tipo: TipoMovimentacao
     quantidade: number
     quantidadeAnterior: number
     quantidadeApos: number
@@ -100,8 +102,8 @@ export const inventarioService = {
         await httpClient.put(`/inventario/itens/${id}`, payload)
     },
 
-    async inativarItem(id: number): Promise<void> {
-        await httpClient.post(`/inventario/itens/${id}/inativar`)
+    async inativarItem(id: number, observacao?: string | null): Promise<void> {
+        await httpClient.post(`/inventario/itens/${id}/inativar`, { observacao: observacao ?? null })
     },
 
     async listarMovimentacoes(params?: {

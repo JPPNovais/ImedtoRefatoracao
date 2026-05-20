@@ -42,6 +42,20 @@ const valorTotal = computed(() =>
 )
 
 const ultimasMovimentacoes = computed(() => props.movimentacoes.slice(0, 6))
+
+function classeTipoMov(tipo: MovimentacaoEstoque["tipo"]) {
+    return tipo === "Entrada" ? "entrada" : tipo === "Saida" ? "saida" : "inativacao"
+}
+
+function iconeTipoMov(tipo: MovimentacaoEstoque["tipo"]) {
+    if (tipo === "Entrada") return "fa-solid fa-arrow-down-to-bracket"
+    if (tipo === "Saida") return "fa-solid fa-arrow-up-from-bracket"
+    return "fa-solid fa-ban"
+}
+
+function rotuloTipoMov(tipo: MovimentacaoEstoque["tipo"]) {
+    return tipo === "Entrada" ? "Entrada" : tipo === "Saida" ? "Saída" : "Inativação"
+}
 </script>
 
 <template>
@@ -121,23 +135,25 @@ const ultimasMovimentacoes = computed(() => props.movimentacoes.slice(0, 6))
                         :key="m.id"
                         class="mov-item"
                     >
-                        <div
-                            class="mov-icone"
-                            :class="m.tipo === 'Entrada' ? 'entrada' : 'saida'"
-                        >
-                            <i :class="m.tipo === 'Entrada' ? 'fa-solid fa-arrow-down-to-bracket' : 'fa-solid fa-arrow-up-from-bracket'"></i>
+                        <div class="mov-icone" :class="classeTipoMov(m.tipo)">
+                            <i :class="iconeTipoMov(m.tipo)"></i>
                         </div>
                         <div class="mov-desc">
-                            <div class="mov-nome">{{ m.tipo }} · {{ formatarQtd(m.quantidade) }} {{ item.unidadeMedida }}</div>
+                            <div class="mov-nome">
+                                {{ rotuloTipoMov(m.tipo) }}
+                                <template v-if="m.tipo !== 'Inativacao'">
+                                    · {{ formatarQtd(m.quantidade) }} {{ item.unidadeMedida }}
+                                </template>
+                            </div>
                             <div class="mov-meta">
                                 {{ formatarData(m.criadoEm) }} {{ formatarHora(m.criadoEm) }} · {{ m.usuarioNome }}
                             </div>
                         </div>
-                        <div
-                            class="mov-valor"
-                            :class="m.tipo === 'Entrada' ? 'entrada' : 'saida'"
-                        >
-                            {{ m.tipo === "Entrada" ? "+" : "−" }}{{ formatarQtd(m.quantidade) }}
+                        <div class="mov-valor" :class="classeTipoMov(m.tipo)">
+                            <template v-if="m.tipo === 'Inativacao'">—</template>
+                            <template v-else>
+                                {{ m.tipo === "Entrada" ? "+" : "−" }}{{ formatarQtd(m.quantidade) }}
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -297,6 +313,7 @@ const ultimasMovimentacoes = computed(() => props.movimentacoes.slice(0, 6))
 }
 .mov-icone.entrada { background: hsl(160 79% 39%); }
 .mov-icone.saida { background: hsl(0 70% 50%); }
+.mov-icone.inativacao { background: hsl(38 92% 50%); }
 
 .mov-nome { font-size: 13px; font-weight: 700; color: hsl(var(--primary-dark)); }
 .mov-meta { font-size: 11px; color: hsl(var(--secondary) / 0.55); }
@@ -304,4 +321,5 @@ const ultimasMovimentacoes = computed(() => props.movimentacoes.slice(0, 6))
 .mov-valor { font-size: 14px; font-weight: 800; }
 .mov-valor.entrada { color: hsl(160 79% 32%); }
 .mov-valor.saida { color: hsl(0 70% 45%); }
+.mov-valor.inativacao { color: hsl(38 92% 40%); }
 </style>

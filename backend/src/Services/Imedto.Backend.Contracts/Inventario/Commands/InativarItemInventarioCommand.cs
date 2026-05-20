@@ -6,4 +6,6 @@ public class InativarItemInventarioCommand : ICommand
 {
     public long ItemId { get; set; }
     public long EstabelecimentoId { get; set; }
+    public Guid UsuarioId { get; set; }
+    public string? Observacao { get; set; }
 }

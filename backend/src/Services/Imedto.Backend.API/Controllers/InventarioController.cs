@@ -97,12 +97,14 @@ public class InventarioController : ControllerBase
 
     [HttpPost("itens/{id:long}/inativar")]
     [RequiresPapel(TenantPapel.Dono, TenantPapel.Recepcionista)]
-    public async Task<ActionResult> InativarItem(long id)
+    public async Task<ActionResult> InativarItem(long id, [FromBody] InativarItemInventarioDto? dto = null)
     {
         await _cmd.Send(new InativarItemInventarioCommand
         {
             ItemId = id,
-            EstabelecimentoId = _tenant.EstabelecimentoId
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            UsuarioId = _tenant.UsuarioId,
+            Observacao = dto?.Observacao
         });
         return NoContent();
     }
@@ -175,3 +177,5 @@ public record RegistrarMovimentacaoDto(
     decimal Quantidade,
     decimal CustoUnitario,
     string? Observacao);
+
+public record InativarItemInventarioDto(string? Observacao);

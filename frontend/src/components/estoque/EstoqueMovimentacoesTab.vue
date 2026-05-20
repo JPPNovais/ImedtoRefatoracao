@@ -19,7 +19,7 @@ const emit = defineEmits<{
     "filtro-tipo-change": [tipo: string]
 }>()
 
-type FiltroTipo = "todos" | "Entrada" | "Saida"
+type FiltroTipo = "todos" | "Entrada" | "Saida" | "Inativacao"
 
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
@@ -32,7 +32,24 @@ const opcoesTipo = [
     { valor: "todos" as FiltroTipo, label: "Todas", count: undefined },
     { valor: "Entrada" as FiltroTipo, label: "Entradas", dot: "success" as const },
     { valor: "Saida" as FiltroTipo, label: "Saídas", dot: "error" as const },
+    { valor: "Inativacao" as FiltroTipo, label: "Inativações", dot: "warning" as const },
 ]
+
+const tipoIcone: Record<MovimentacaoEstoque["tipo"], string> = {
+    Entrada: "fa-solid fa-arrow-down-to-bracket",
+    Saida: "fa-solid fa-arrow-up-from-bracket",
+    Inativacao: "fa-solid fa-ban",
+}
+
+const tipoLabel: Record<MovimentacaoEstoque["tipo"], string> = {
+    Entrada: "Entrada",
+    Saida: "Saída",
+    Inativacao: "Inativação",
+}
+
+function classeTipo(tipo: MovimentacaoEstoque["tipo"]) {
+    return tipo === "Entrada" ? "entrada" : tipo === "Saida" ? "saida" : "inativacao"
+}
 
 // Agrupamento por dia
 const porDia = computed(() => {
@@ -102,24 +119,27 @@ function formatarQtd(n: number) {
                     :key="m.id"
                     class="mov-row"
                 >
-                    <div
-                        class="mov-icone"
-                        :class="m.tipo === 'Entrada' ? 'entrada' : 'saida'"
-                    >
-                        <i :class="m.tipo === 'Entrada' ? 'fa-solid fa-arrow-down-to-bracket' : 'fa-solid fa-arrow-up-from-bracket'"></i>
+                    <div class="mov-icone" :class="classeTipo(m.tipo)">
+                        <i :class="tipoIcone[m.tipo]"></i>
                     </div>
                     <div class="mov-hora">{{ formatarHora(m.criadoEm) }}</div>
                     <div class="mov-item">
                         <b>{{ m.itemNome }}</b>
                         <span v-if="m.observacao">{{ m.observacao }}</span>
                     </div>
-                    <div class="mov-qty" :class="m.tipo === 'Entrada' ? 'entrada' : 'saida'">
-                        {{ m.tipo === "Entrada" ? "+" : "−" }}{{ formatarQtd(m.quantidade) }}
-                        <small>{{ m.tipo }}</small>
+                    <div class="mov-qty" :class="classeTipo(m.tipo)">
+                        <template v-if="m.tipo === 'Inativacao'">—</template>
+                        <template v-else>
+                            {{ m.tipo === "Entrada" ? "+" : "−" }}{{ formatarQtd(m.quantidade) }}
+                        </template>
+                        <small>{{ tipoLabel[m.tipo] }}</small>
                     </div>
                     <div class="mov-meta">
                         <b>{{ m.usuarioNome }}</b>
-                        <span>
+                        <span v-if="m.tipo === 'Inativacao'">
+                            Estoque no momento: {{ formatarQtd(m.quantidadeApos) }}
+                        </span>
+                        <span v-else>
                             Antes: {{ formatarQtd(m.quantidadeAnterior) }} → Após: {{ formatarQtd(m.quantidadeApos) }}
                         </span>
                     </div>
@@ -207,6 +227,7 @@ function formatarQtd(n: number) {
 }
 .mov-icone.entrada { background: hsl(160 79% 39%); }
 .mov-icone.saida { background: hsl(0 70% 50%); }
+.mov-icone.inativacao { background: hsl(38 92% 50%); }
 
 .mov-hora {
     font-size: 11px;
@@ -225,6 +246,7 @@ function formatarQtd(n: number) {
 }
 .mov-qty.entrada { color: hsl(160 79% 32%); }
 .mov-qty.saida { color: hsl(0 70% 45%); }
+.mov-qty.inativacao { color: hsl(38 92% 40%); }
 .mov-qty small { display: block; font-size: 10px; font-weight: 600; color: hsl(var(--secondary) / 0.5); }
 
 .mov-meta b { font-size: 13px; font-weight: 700; color: hsl(var(--primary-dark)); display: block; }

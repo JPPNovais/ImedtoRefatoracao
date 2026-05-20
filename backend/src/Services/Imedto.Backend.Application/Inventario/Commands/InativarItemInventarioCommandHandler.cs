@@ -8,9 +8,15 @@ namespace Imedto.Backend.Application.Inventario.Commands;
 public class InativarItemInventarioCommandHandler : ICommandHandler<InativarItemInventarioCommand>
 {
     private readonly IItemInventarioRepository _repo;
+    private readonly IMovimentacaoEstoqueRepository _movRepo;
 
-    public InativarItemInventarioCommandHandler(IItemInventarioRepository repo)
-        => _repo = repo;
+    public InativarItemInventarioCommandHandler(
+        IItemInventarioRepository repo,
+        IMovimentacaoEstoqueRepository movRepo)
+    {
+        _repo = repo;
+        _movRepo = movRepo;
+    }
 
     public async Task Handle(InativarItemInventarioCommand cmd)
     {
@@ -18,7 +24,8 @@ public class InativarItemInventarioCommandHandler : ICommandHandler<InativarItem
         var item = await _repo.ObterPorIdOuNulo(cmd.ItemId, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Item não encontrado.");
 
-        item.Inativar();
+        var movimentacao = item.Inativar(cmd.UsuarioId, cmd.Observacao);
         await _repo.Salvar(item);
+        await _movRepo.Salvar(movimentacao);
     }
 }
