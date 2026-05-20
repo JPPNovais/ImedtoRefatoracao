@@ -64,7 +64,10 @@ public class PacienteTermoController : ControllerBase
     }
 
     /// <summary>
-    /// Emite um termo. Body: <c>{ modeloId, assinaturaTipo: "pdf_anexado" | "aceite_link" }</c>.
+    /// Emite um termo. Body: <c>{ modeloId, assinaturaTipo: "pdf_anexado" | "aceite_link", canalEnvio?: "email" | "copia" }</c>.
+    /// <para><c>canalEnvio</c> só é considerado quando <c>assinaturaTipo = aceite_link</c>:
+    /// "email" (default) dispara o envio automático; "copia" suprime o e-mail e retorna o token
+    /// para o emissor copiar o link.</para>
     /// Idempotente via header <c>Idempotency-Key</c>.
     /// </summary>
     [HttpPost("api/pacientes/{pacienteId:long}/termos")]
@@ -81,6 +84,7 @@ public class PacienteTermoController : ControllerBase
             EmissorUsuarioId = _tenant.UsuarioId,
             ModeloId = request.ModeloId,
             AssinaturaTipo = request.AssinaturaTipo,
+            CanalEnvio = string.IsNullOrWhiteSpace(request.CanalEnvio) ? "email" : request.CanalEnvio,
         };
         await _commandBus.Send(cmd);
         return CreatedAtAction(nameof(Obter), new { pacienteId, id = cmd.TermoEmitidoId },
@@ -171,18 +175,34 @@ public class PacienteTermoController : ControllerBase
     }
 
     /// <summary>
-    /// Stub Fase 4 — reenviar e-mail/link público para o paciente. Responde 501 nesta fase.
+    /// Reenvia o link público (Fase 4). Body: <c>{ canal?: "email" | "copia" }</c>.
+    /// <list type="bullet">
+    ///   <item>"email" (default): envia e-mail ao paciente. Cooldown de 5 min entre envios.</item>
+    ///   <item>"copia": não envia e-mail — só devolve o token pro front exibir/copiar.</item>
+    /// </list>
     /// </summary>
     [HttpPost("api/termos/{id:long}/reenviar-link")]
     [RequiresAcao("termos", "emitir")]
-    [ProducesResponseType(StatusCodes.Status501NotImplemented)]
-    public IActionResult ReenviarLink(long id) =>
-        StatusCode(StatusCodes.Status501NotImplemented, new
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ReenviarLink(long id, [FromBody] ReenviarLinkRequest request)
+    {
+        var cmd = new ReenviarLinkTermoCommand
         {
-            tipo = "NaoImplementado",
-            mensagem = "Reenvio de link público planejado para a Fase 4.",
+            TermoEmitidoId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId,
+            Canal = string.IsNullOrWhiteSpace(request?.Canal) ? "email" : request.Canal,
+        };
+        await _commandBus.Send(cmd);
+        return Ok(new
+        {
+            tokenAceite = cmd.TokenAceite,
+            canal = cmd.Canal,
         });
+    }
 }
 
-public record EmitirTermoRequest(long ModeloId, string AssinaturaTipo);
+public record EmitirTermoRequest(long ModeloId, string AssinaturaTipo, string CanalEnvio = "email");
 public record RevogarTermoRequest(string Motivo);
+public record ReenviarLinkRequest(string Canal = "email");

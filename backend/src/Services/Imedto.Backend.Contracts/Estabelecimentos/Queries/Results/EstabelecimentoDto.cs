@@ -13,6 +13,10 @@ public class EstabelecimentoDto
     public string Cnpj { get; set; }
     public string Telefone { get; set; }
     public string Endereco { get; set; }
+    /// <summary>Cidade onde o estabelecimento opera. Pode ser null (legado pré-feature de Termos).</summary>
+    public string Cidade { get; set; }
+    /// <summary>UF do estabelecimento (2 letras). Pode ser null.</summary>
+    public string Estado { get; set; }
     public string FotoUrl { get; set; }
     public string Status { get; set; }
     public DateTime CriadoEm { get; set; }

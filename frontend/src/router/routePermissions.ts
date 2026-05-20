@@ -79,6 +79,14 @@ export const ROTAS_RESTRITAS: Record<string, RegraRota> = {
     // Automação inteligente — permissão extra dedicada.
     Automacoes:         { extras: ["automacao_config"] },
 
+    // Termos de consentimento — só quem pode gerenciar modelos enxerga a tela.
+    // Backend exige `termos.gerenciar_modelos` para CRUD (controller); para
+    // listar, basta a área `termos`. A view de lista também é o ponto de
+    // entrada de criação/clonagem, então gateamos pelo direito mais forte.
+    TermosModelos:      { acao: "termos.gerenciar_modelos" },
+    TermosNovo:         { acao: "termos.gerenciar_modelos" },
+    TermosEditar:       { acao: "termos.gerenciar_modelos" },
+
     // Cirurgias — vinculadas a prontuário.
     CirurgiaDetalhe:    { acao: "prontuario.ver" },
 }

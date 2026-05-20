@@ -21,6 +21,8 @@ export interface Estabelecimento {
     cnpj: string | null
     telefone: string | null
     endereco: string | null
+    cidade: string | null
+    estado: string | null
     fotoUrl: string | null
     status: string
     criadoEm: string
@@ -47,6 +49,8 @@ export interface CriarEstabelecimentoPayload {
     cnpj?: string
     telefone?: string
     endereco?: string
+    cidade?: string
+    estado?: string
 }
 
 export interface AtualizarFuncionamentoPayload {

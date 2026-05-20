@@ -102,7 +102,9 @@ public class EstabelecimentoController : ControllerBase
             RazaoSocial = request.RazaoSocial,
             Cnpj = request.Cnpj,
             Telefone = request.Telefone,
-            Endereco = request.Endereco
+            Endereco = request.Endereco,
+            Cidade = request.Cidade,
+            Estado = request.Estado,
         });
 
         return NoContent();
@@ -231,7 +233,9 @@ public record AtualizarEstabelecimentoRequest(
     string RazaoSocial,
     string Cnpj,
     string Telefone,
-    string Endereco);
+    string Endereco,
+    string Cidade = null,
+    string Estado = null);
 
 public record AtualizarFuncionamentoRequest(
     TimeOnly HorarioInicio,

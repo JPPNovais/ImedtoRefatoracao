@@ -1,0 +1,352 @@
+<script setup lang="ts">
+/**
+ * TermoFormView — criação e edição de modelos de termo de consentimento.
+ *
+ * Rota:
+ *   /configuracoes/termos/novo            → criar
+ *   /configuracoes/termos/:id/editar      → editar existente
+ *
+ * Layout 2 colunas:
+ *   - Coluna principal: título + categoria + editor TipTap
+ *   - Sidebar: variáveis disponíveis (clique insere chip) + preview
+ *
+ * Backend valida tudo (título 3-120 chars, conteúdo obrigatório, categoria
+ * conhecida, sanitização HTML via Ganss.Xss). 422 → toast.
+ *
+ * Permissão: rota gateada por `termos.gerenciar_modelos`.
+ */
+import { ref, computed, onMounted } from "vue"
+import { useRouter, useRoute } from "vue-router"
+import {
+    AppPageHeader, AppButton, AppField, AppInput, AppSelect, AppToast, AppCard,
+} from "@/components/ui"
+import TermoEditorTipTap from "@/components/termos/TermoEditorTipTap.vue"
+import { CATEGORIAS_TERMO, TERMO_VARIAVEIS, GRUPOS_VARIAVEL, resolverVariaveisFake } from "@/constants/termoVariaveis"
+import { termoModeloService, type CategoriaTermo } from "@/services/termoModeloService"
+
+const router = useRouter()
+const route = useRoute()
+
+const id = computed(() => {
+    const p = route.params.id
+    if (!p) return null
+    const n = Number(p)
+    return Number.isFinite(n) && n > 0 ? n : null
+})
+const modoEdicao = computed(() => id.value !== null)
+
+const titulo = ref("")
+const categoria = ref<CategoriaTermo>("geral")
+const conteudoHtml = ref("")
+const versaoAtual = ref<number | null>(null)
+
+const editorRef = ref<InstanceType<typeof TermoEditorTipTap> | null>(null)
+const carregando = ref(false)
+const salvando = ref(false)
+const toast = ref<{ texto: string; variante: "success" | "error" | "info" } | null>(null)
+
+const opcoesCategoria = computed(() => CATEGORIAS_TERMO.map(c => ({ value: c.chave, label: c.label })))
+
+// ─── Validação espelhada (UX) ─────────────────────────────────────────────
+const erroTitulo = computed(() => {
+    const t = titulo.value.trim()
+    if (!t) return null            // só mostra erro no submit
+    if (t.length < 3) return "Mínimo 3 caracteres."
+    if (t.length > 120) return "Máximo 120 caracteres."
+    return null
+})
+const conteudoVazio = computed(() => {
+    // Remove tags pra checar se há texto real (TipTap retorna "<p></p>" vazio).
+    const tmp = document.createElement("div")
+    tmp.innerHTML = conteudoHtml.value
+    return (tmp.textContent ?? "").trim().length === 0
+})
+const podeSalvar = computed(() =>
+    !salvando.value
+    && titulo.value.trim().length >= 3
+    && titulo.value.trim().length <= 120
+    && !conteudoVazio.value,
+)
+
+// ─── Carregar (modo edição) ───────────────────────────────────────────────
+async function carregar() {
+    if (!modoEdicao.value || !id.value) return
+    carregando.value = true
+    try {
+        const m = await termoModeloService.obterModelo(id.value)
+        titulo.value = m.titulo
+        categoria.value = m.categoria
+        conteudoHtml.value = m.conteudoHtml
+        versaoAtual.value = m.versaoAtual
+    } catch (e: any) {
+        toast.value = { texto: e?.response?.data?.mensagem ?? "Erro ao carregar modelo.", variante: "error" }
+        // Em erro 404/422 do back, volta pra lista. Caso seja erro de rede,
+        // mantém o usuário aqui pra dar reload manual — comportamento conservador.
+    } finally {
+        carregando.value = false
+    }
+}
+
+// ─── Salvar ───────────────────────────────────────────────────────────────
+async function salvar() {
+    if (!podeSalvar.value) return
+    salvando.value = true
+    try {
+        const payload = {
+            categoria: categoria.value,
+            titulo: titulo.value.trim(),
+            conteudoHtml: conteudoHtml.value,
+        }
+        if (modoEdicao.value && id.value) {
+            await termoModeloService.atualizarModelo(id.value, payload)
+            toast.value = { texto: "Modelo salvo.", variante: "success" }
+        } else {
+            const novoId = await termoModeloService.criarModelo(payload)
+            toast.value = { texto: "Modelo criado.", variante: "success" }
+            router.replace({ name: "TermosEditar", params: { id: novoId } })
+        }
+    } catch (e: any) {
+        const status = e?.response?.status
+        if (status === 409) {
+            toast.value = { texto: "Este modelo foi atualizado por outra pessoa. Recarregue a página.", variante: "error" }
+        } else {
+            toast.value = { texto: e?.response?.data?.mensagem ?? "Erro ao salvar.", variante: "error" }
+        }
+    } finally {
+        salvando.value = false
+    }
+}
+
+function voltar() {
+    router.push({ name: "TermosModelos" })
+}
+
+// ─── Sidebar: inserir variável ────────────────────────────────────────────
+function inserirVariavel(chave: string) {
+    editorRef.value?.inserirVariavel(chave)
+}
+
+const variaveisPorGrupo = computed(() =>
+    GRUPOS_VARIAVEL.map(g => ({
+        ...g,
+        itens: TERMO_VARIAVEIS.filter(v => v.grupo === g.chave),
+    })),
+)
+
+// ─── Preview ──────────────────────────────────────────────────────────────
+const previewAberto = ref(false)
+const previewHtml = computed(() => resolverVariaveisFake(conteudoHtml.value))
+
+onMounted(carregar)
+</script>
+
+<template>
+    <div class="app-page app-page--wide">
+        <AppPageHeader
+            :titulo="modoEdicao ? 'Editar modelo de termo' : 'Novo modelo de termo'"
+            :subtitulo="modoEdicao && versaoAtual ? `Versão atual: v${versaoAtual}` : 'Preencha título, escolha a categoria e elabore o conteúdo do termo.'"
+        >
+            <template #acoes>
+                <AppButton variant="secondary" icon="fa-solid fa-arrow-left" @click="voltar">Voltar</AppButton>
+                <AppButton :loading="salvando" :disabled="!podeSalvar" icon="fa-solid fa-floppy-disk" @click="salvar">
+                    {{ modoEdicao ? "Salvar alterações" : "Criar modelo" }}
+                </AppButton>
+            </template>
+        </AppPageHeader>
+
+        <div v-if="carregando" class="estado-msg">Carregando…</div>
+
+        <div v-else class="form-grid">
+            <!-- Coluna principal ─────────────────────────────────────────── -->
+            <div class="col-principal">
+                <AppCard>
+                    <div class="grade-meta">
+                        <AppField label="Título do modelo" :erro="erroTitulo" required>
+                            <AppInput
+                                v-model="titulo as any"
+                                placeholder="Ex.: Termo de Consentimento Cirúrgico"
+                                :disabled="salvando"
+                            />
+                        </AppField>
+                        <AppField label="Categoria" required>
+                            <AppSelect
+                                v-model="categoria as any"
+                                :options="opcoesCategoria as any"
+                                :disabled="salvando"
+                            />
+                        </AppField>
+                    </div>
+
+                    <AppField label="Conteúdo do termo" hint="Use as variáveis da barra lateral — elas serão substituídas automaticamente quando o termo for emitido.">
+                        <TermoEditorTipTap
+                            ref="editorRef"
+                            v-model="conteudoHtml"
+                            :disabled="salvando"
+                            placeholder="Comece digitando o conteúdo do termo. Use a barra lateral para inserir variáveis dinâmicas."
+                        />
+                    </AppField>
+
+                    <div v-if="conteudoVazio" class="aviso-vazio">
+                        O conteúdo é obrigatório.
+                    </div>
+                </AppCard>
+            </div>
+
+            <!-- Coluna lateral ───────────────────────────────────────────── -->
+            <aside class="col-sidebar">
+                <AppCard>
+                    <h3 class="card-titulo">
+                        <i class="fa-solid fa-puzzle-piece" /> Variáveis disponíveis
+                    </h3>
+                    <p class="card-sub">Clique para inserir no cursor do editor.</p>
+
+                    <div v-for="g in variaveisPorGrupo" :key="g.chave" class="var-grupo">
+                        <h4 class="var-grupo-titulo">
+                            <i :class="g.icone" /> {{ g.rotulo }}
+                        </h4>
+                        <ul class="var-lista">
+                            <li v-for="v in g.itens" :key="v.chave">
+                                <button
+                                    type="button"
+                                    class="var-btn"
+                                    :title="`Inserir ${v.chave}`"
+                                    @click="inserirVariavel(v.chave)"
+                                >
+                                    <span class="var-rotulo">{{ v.rotulo }}</span>
+                                    <code class="var-chave">{{ v.chave }}</code>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </AppCard>
+
+                <AppCard class="card-preview">
+                    <header class="preview-cab">
+                        <h3 class="card-titulo">
+                            <i class="fa-solid fa-eye" /> Preview
+                        </h3>
+                        <AppButton variant="ghost" size="sm" @click="previewAberto = !previewAberto">
+                            {{ previewAberto ? "Ocultar" : "Mostrar" }}
+                        </AppButton>
+                    </header>
+                    <p class="card-sub">Pré-visualização com dados fictícios. Em produção, os dados reais do paciente, profissional e estabelecimento substituirão as variáveis.</p>
+                    <div v-if="previewAberto" class="preview-area" v-html="previewHtml" />
+                </AppCard>
+            </aside>
+        </div>
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.texto"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
+    </div>
+</template>
+
+<style scoped>
+.estado-msg { text-align: center; padding: 3rem 1rem; color: hsl(var(--muted-foreground)); }
+
+.form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1.25rem;
+    align-items: start;
+    margin-top: 1rem;
+}
+@media (max-width: 980px) {
+    .form-grid { grid-template-columns: 1fr; }
+}
+
+.col-principal { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.col-sidebar { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 1rem; }
+
+.grade-meta {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+@media (max-width: 720px) {
+    .grade-meta { grid-template-columns: 1fr; }
+}
+
+.aviso-vazio {
+    margin-top: 0.5rem; padding: 0.5rem 0.8rem;
+    color: hsl(var(--error));
+    background: hsl(var(--error) / 0.08);
+    border-radius: var(--radius);
+    font-size: 0.82em;
+}
+
+.card-titulo {
+    margin: 0;
+    font-size: 0.95em;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 0.5rem;
+    color: hsl(var(--foreground));
+}
+.card-titulo i { color: hsl(var(--primary)); }
+.card-sub {
+    margin: 0.25rem 0 0.75rem;
+    font-size: 0.78em;
+    color: hsl(var(--muted-foreground));
+}
+
+.var-grupo { margin-top: 0.85rem; }
+.var-grupo-titulo {
+    font-size: 0.78em;
+    font-weight: 600;
+    color: hsl(var(--primary));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 0.35rem;
+    display: flex; align-items: center; gap: 0.4rem;
+}
+.var-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.var-btn {
+    width: 100%;
+    text-align: left;
+    background: hsl(var(--muted));
+    border: 1px solid transparent;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex; flex-direction: column; gap: 1px;
+    font-family: inherit; font-size: 0.82em;
+    transition: all 0.12s;
+}
+.var-btn:hover {
+    background: hsl(var(--primary) / 0.08);
+    border-color: hsl(var(--primary) / 0.25);
+}
+.var-rotulo { font-weight: 600; color: hsl(var(--foreground)); }
+.var-chave {
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+    color: hsl(var(--muted-foreground));
+}
+
+.card-preview { max-height: 65vh; overflow-y: auto; }
+.preview-cab { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.preview-area {
+    margin-top: 0.5rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid hsl(var(--border));
+    background: white;
+    border-radius: var(--radius);
+    font-size: 0.85em; line-height: 1.55;
+    max-height: 50vh; overflow-y: auto;
+}
+.preview-area :deep(h2) { font-size: 1.15em; font-weight: 700; margin: 0.8em 0 0.3em; }
+.preview-area :deep(h3) { font-size: 1.02em; font-weight: 700; margin: 0.6em 0 0.3em; }
+.preview-area :deep(p) { margin: 0 0 0.5em; }
+.preview-area :deep(blockquote) {
+    border-left: 3px solid hsl(var(--primary) / 0.4);
+    padding-left: 10px;
+    color: hsl(var(--muted-foreground));
+    margin: 0.5em 0;
+}
+.preview-area :deep(ul),
+.preview-area :deep(ol) { padding-left: 1.2em; margin: 0 0 0.5em; }
+</style>

@@ -11,4 +11,8 @@ public class AtualizarEstabelecimentoCommand : ICommand
     public string Cnpj { get; set; }
     public string Telefone { get; set; }
     public string Endereco { get; set; }
+    /// <summary>Cidade onde o estabelecimento opera. Opcional. Usado em {{cidade_atual}} dos termos.</summary>
+    public string Cidade { get; set; }
+    /// <summary>UF (2 letras). Opcional. Validação no Aggregate.</summary>
+    public string Estado { get; set; }
 }

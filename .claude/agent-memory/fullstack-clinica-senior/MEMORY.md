@@ -7,3 +7,6 @@
 - [Prontuário 5 abas (2026-05-18)](project_prontuario_5_abas_2026_05_18.md) — aba "exame" sumiu; mapa corporal vive em SecaoExameFisico; novas abas Atestado e Pedidos-exame.
 - [Orçamento — paridade com legado (2026-05-18)](project_orcamento_paridade_legado_2026_05_18.md) — internação substituída por LocalCirurgia (5 tipos), consolidação de produtos no back, OrcamentoFormView reescrita, novas permissões aprovar/configurar.
 - [Foto profissional — propagação 7 superfícies (2026-05-18)](project_foto_profissional_propagacao.md) — AppAvatar + AppAvatarSelect novos no design system, DELETE /me/foto, PDFs ficaram de fora (decisão registrada).
+- [Termos de Consentimento — Fase 1 (2026-05-19)](project_termos_consentimento_fase1.md) — backend completo + Cidade/UF no Estabelecimento + 5 padrões seedados; stubs 501 para Fases 3/4.
+- [Termos de Consentimento — Fase 2 (2026-05-19)](project_termos_consentimento_fase2.md) — UI TipTap (lista + form) + Cidade/UF expostos no form do Estabelecimento; rotas `TermosModelos/Novo/Editar` gateadas por `termos.gerenciar_modelos`.
+- [Termos de Consentimento — Fase 3 (2026-05-19)](project_termos_consentimento_fase3.md) — aba do paciente + wizard de emissão + PDF gerado no front + upload manual; sem upload automático (preserva integridade do Pendente→Assinado).

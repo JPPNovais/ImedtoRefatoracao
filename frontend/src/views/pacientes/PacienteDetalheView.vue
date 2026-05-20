@@ -5,6 +5,7 @@ import {
     AppButton, AppEmptyState, AppToast,
 } from "@/components/ui"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
+import PacienteTermosTab from "@/components/termos/PacienteTermosTab.vue"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { prontuarioService, type ProntuarioCompleto, type Anexo, type Evolucao } from "@/services/prontuarioService"
 import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
@@ -657,10 +658,10 @@ function orcStatusClass(s: string): string {
                 </section>
 
                 <section v-else-if="aba === 'termos'">
-                    <AppEmptyState
-                        icone="📝"
-                        titulo="Termos de consentimento"
-                        descricao="Termos LGPD, consentimentos cirúrgicos e demais documentos assinados serão listados aqui em breve."
+                    <PacienteTermosTab
+                        :paciente="paciente"
+                        :ativa="aba === 'termos'"
+                        @notificar="notificar"
                     />
                 </section>
             </div>

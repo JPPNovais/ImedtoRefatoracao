@@ -26,3 +26,4 @@
 - [UnitOfWorkFilter global faz SaveChangesAsync sem [UnitOfWork] explícito](feedback_unitofworkfilter_global_save.md) — não marcar como bug se handler/Salvar não chama SaveChanges.
 - [QA pós-deploy da3a906 2026-05-19 (fix presigned URL expirando em 24h)](project_qa_posdeploy_da3a906_2026_05_19.md) — fotoUrl agora fresca em toda resposta; logo OK em UI/PDF/bootstrap; profissional n/a (sem foto cadastrada).
 - [QA pós-deploy 00b0b71 2026-05-19 (inativação=movimentação + atalho paciente→orçamento)](project_qa_posdeploy_00b0b71_2026_05_19.md) — P1 pego em prod (aba Mov não recarregava pós-inativar) corrigido in-loop; ambas features verde.
+- [QA pós-deploy 837b50d 2026-05-19 (Termos de Consentimento)](project_qa_posdeploy_837b50d_2026_05_19.md) — P0: TermoResolverDeVariaveis usa `p.id` em vez de `p.usuario_id` → emissão 500. CRUD modelos/multi-tenant/paginação OK.

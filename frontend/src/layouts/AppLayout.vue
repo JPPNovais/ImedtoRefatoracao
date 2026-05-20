@@ -70,7 +70,7 @@ const navMain = computed(() => {
 // de prontuário). Mostrar enquanto qualquer uma delas estiver acessível, e
 // apontar para a primeira que o usuário pode abrir — evita router redirecionar
 // para Home se ele só tem `modelos_prontuario`, por exemplo.
-const ROTAS_CONFIG = ["Estabelecimento", "IaSettings", "ModelosProntuario"] as const
+const ROTAS_CONFIG = ["Estabelecimento", "IaSettings", "ModelosProntuario", "TermosModelos"] as const
 const configDestino = computed(() => {
     const helpers = {
         ehDono: permissoes.ehDono,
@@ -102,7 +102,7 @@ const activeMap: Record<string, string> = {
 
 // "Configurações" no footer agrupa todas as telas de configuração do estabelecimento.
 const configuracoesAtiva = computed(() => {
-    const sub = ["Estabelecimento", "IaSettings", "MinhaAssinatura", "Planos", "ModelosProntuario"]
+    const sub = ["Estabelecimento", "IaSettings", "MinhaAssinatura", "Planos", "ModelosProntuario", "TermosModelos", "TermosNovo", "TermosEditar"]
     return sub.includes(route.name as string)
 })
 

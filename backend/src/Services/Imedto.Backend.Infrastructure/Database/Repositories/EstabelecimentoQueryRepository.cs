@@ -39,6 +39,8 @@ public class EstabelecimentoQueryRepository
                     e.cnpj                        AS Cnpj,
                     e.telefone                    AS Telefone,
                     e.endereco                    AS Endereco,
+                    e.cidade                      AS Cidade,
+                    e.estado                      AS Estado,
                     e.foto_url                    AS FotoUrl,
                     e.status                      AS Status,
                     e.criado_em                   AS CriadoEm,
@@ -61,6 +63,8 @@ public class EstabelecimentoQueryRepository
                     e.cnpj,
                     e.telefone,
                     e.endereco,
+                    e.cidade,
+                    e.estado,
                     e.foto_url,
                     e.status,
                     e.criado_em,
@@ -93,6 +97,8 @@ public class EstabelecimentoQueryRepository
             Cnpj = r.Cnpj,
             Telefone = r.Telefone,
             Endereco = r.Endereco,
+            Cidade = r.Cidade,
+            Estado = r.Estado,
             FotoUrl = _fotoStorage.GerarUrlLeitura(r.FotoUrl),
             Status = r.Status,
             CriadoEm = r.CriadoEm,
@@ -179,6 +185,8 @@ public class EstabelecimentoQueryRepository
         public string Cnpj { get; set; }
         public string Telefone { get; set; }
         public string Endereco { get; set; }
+        public string Cidade { get; set; }
+        public string Estado { get; set; }
         public string FotoUrl { get; set; }
         public string Status { get; set; }
         public DateTime CriadoEm { get; set; }

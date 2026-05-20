@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { redimensionarImagem } from "@/services/imageUtils"
 import { invalidarCacheEstabelecimentoAtivo } from "@/composables/usePdfHeader"
 import { useTenantStore } from "@/stores/tenantStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 import FuncionamentoTab from "@/components/estabelecimento/FuncionamentoTab.vue"
 import UnidadesTab from "@/components/estabelecimento/UnidadesTab.vue"
 import ReparticoesTab from "@/components/estabelecimento/ReparticoesTab.vue"
@@ -14,6 +15,11 @@ import { AppButton, AppPhotoUpload, AppConfirmDialog, AppToast } from "@/compone
 
 const router = useRouter()
 const tenant = useTenantStore()
+const permissoes = usePermissoesStore()
+
+// Atalho "Termos" só aparece para quem efetivamente pode gerenciar — o gate da
+// rota é o mesmo, mas evitamos mostrar card "fantasma" que redirecionaria.
+const podeGerenciarTermos = computed(() => permissoes.pode("termos.gerenciar_modelos"))
 
 const carregando = ref(false)
 const salvando   = ref(false)
@@ -26,6 +32,29 @@ const razaoSocial  = ref("")
 const cnpj         = ref("")
 const telefone     = ref("")
 const endereco     = ref("")
+const cidade       = ref("")
+const estado       = ref("")
+
+// 27 UFs do Brasil + entrada vazia inicial. Validação de 2 letras já vive
+// no aggregate Estabelecimento.AtualizarEndereco; aqui apenas restringimos a
+// opção via <select> (UX). 422 do backend é fonte da verdade.
+const UFS_BRASIL = [
+    { value: "", label: "—" },
+    { value: "AC", label: "AC - Acre" }, { value: "AL", label: "AL - Alagoas" },
+    { value: "AP", label: "AP - Amapá" }, { value: "AM", label: "AM - Amazonas" },
+    { value: "BA", label: "BA - Bahia" }, { value: "CE", label: "CE - Ceará" },
+    { value: "DF", label: "DF - Distrito Federal" }, { value: "ES", label: "ES - Espírito Santo" },
+    { value: "GO", label: "GO - Goiás" }, { value: "MA", label: "MA - Maranhão" },
+    { value: "MT", label: "MT - Mato Grosso" }, { value: "MS", label: "MS - Mato Grosso do Sul" },
+    { value: "MG", label: "MG - Minas Gerais" }, { value: "PA", label: "PA - Pará" },
+    { value: "PB", label: "PB - Paraíba" }, { value: "PR", label: "PR - Paraná" },
+    { value: "PE", label: "PE - Pernambuco" }, { value: "PI", label: "PI - Piauí" },
+    { value: "RJ", label: "RJ - Rio de Janeiro" }, { value: "RN", label: "RN - Rio Grande do Norte" },
+    { value: "RS", label: "RS - Rio Grande do Sul" }, { value: "RO", label: "RO - Rondônia" },
+    { value: "RR", label: "RR - Roraima" }, { value: "SC", label: "SC - Santa Catarina" },
+    { value: "SP", label: "SP - São Paulo" }, { value: "SE", label: "SE - Sergipe" },
+    { value: "TO", label: "TO - Tocantins" },
+] as const
 
 // Aba ativa — mesma estrutura do legado.
 type Aba = "geral" | "dados" | "funcionamento" | "unidades" | "reparticoes" | "variaveis"
@@ -45,6 +74,8 @@ async function carregar() {
             cnpj.value         = atual.cnpj ?? ""
             telefone.value     = atual.telefone ?? ""
             endereco.value     = atual.endereco ?? ""
+            cidade.value       = atual.cidade ?? ""
+            estado.value       = atual.estado ?? ""
         }
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar dados."
@@ -65,6 +96,8 @@ async function salvar() {
             cnpj:         cnpj.value || undefined,
             telefone:     telefone.value || undefined,
             endereco:     endereco.value || undefined,
+            cidade:       cidade.value || undefined,
+            estado:       estado.value || undefined,
         })
         if (tenant.ativo && tenant.ativo.id === estab.value.id) {
             tenant.selecionar({
@@ -228,6 +261,17 @@ onMounted(async () => {
                     </div>
                 </div>
 
+                <div v-if="podeGerenciarTermos" class="atalho-card">
+                    <div class="atalho-icone">📝</div>
+                    <div class="atalho-info">
+                        <h4 class="atalho-titulo">Termos de consentimento</h4>
+                        <p class="atalho-desc">Gerencie os modelos de termos que serão emitidos para os pacientes (LGPD, cirúrgico, imagem, etc.).</p>
+                        <AppButton @click="router.push({ name: 'TermosModelos' })">
+                            Gerenciar termos
+                        </AppButton>
+                    </div>
+                </div>
+
                 <div class="atalho-card">
                     <div class="atalho-icone">⭐</div>
                     <div class="atalho-info">
@@ -309,9 +353,34 @@ onMounted(async () => {
                     <input
                         v-model="endereco"
                         class="input-field"
-                        placeholder="Rua, número, bairro, cidade - UF"
+                        placeholder="Rua, número, bairro"
                         :disabled="!podeEditar"
                     />
+                </div>
+
+                <div class="grade-cidade-uf">
+                    <div class="campo">
+                        <label class="campo-label">Cidade</label>
+                        <input
+                            v-model="cidade"
+                            class="input-field"
+                            maxlength="100"
+                            placeholder="Ex.: São Paulo"
+                            :disabled="!podeEditar"
+                        />
+                    </div>
+                    <div class="campo">
+                        <label class="campo-label">Estado / UF</label>
+                        <select
+                            v-model="estado"
+                            class="input-field"
+                            :disabled="!podeEditar"
+                        >
+                            <option v-for="uf in UFS_BRASIL" :key="uf.value" :value="uf.value">
+                                {{ uf.label }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
 
                 <p v-if="erro" class="msg-erro">{{ erro }}</p>
@@ -466,6 +535,7 @@ onMounted(async () => {
 }
 
 .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.grade-cidade-uf { display: grid; grid-template-columns: 1fr 220px; gap: 1rem; }
 
 .campo       { display: flex; flex-direction: column; gap: 0.3rem; }
 .campo-label { font-size: 0.82em; font-weight: 600; color: var(--text-muted); }

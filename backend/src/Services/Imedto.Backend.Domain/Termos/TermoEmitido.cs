@@ -124,13 +124,15 @@ public class TermoEmitido : Entity
 
     /// <summary>
     /// Marca como emitido — anexa <see cref="TermoEmitidoEvent"/>. Chamar depois de
-    /// persistir (Id já resolvido).
+    /// persistir (Id já resolvido). <paramref name="canalEnvio"/> só faz sentido quando
+    /// <see cref="AssinaturaTipo"/> = <see cref="AssinaturaTipo.AceiteLink"/>:
+    /// "email" dispara envio automático no handler; "copia" suprime o e-mail.
     /// </summary>
-    public virtual void MarcarComoEmitido()
+    public virtual void MarcarComoEmitido(string canalEnvio = "email")
     {
         if (Id == 0)
             throw new InvalidOperationException("Termo ainda não foi persistido — Id é 0.");
-        AddDomainEvent(new TermoEmitidoEvent(Id, PacienteId, EstabelecimentoId, TermoModeloId, EmitidoPorUsuarioId, AssinaturaTipo));
+        AddDomainEvent(new TermoEmitidoEvent(Id, PacienteId, EstabelecimentoId, TermoModeloId, EmitidoPorUsuarioId, AssinaturaTipo, canalEnvio ?? "email"));
     }
 
     /// <summary>
@@ -191,8 +193,27 @@ public class TermoEmitido : Entity
             throw new BusinessException("Link expirado.");
 
         Status = StatusTermoEmitido.Recusado;
+        // Reuso de assinado_em para registrar o "momento da resposta" (aceito ou recusado).
+        // Mantemos o nome da coluna por compat com a Fase 1 — semanticamente, é "respondido_em".
+        AssinadoEm = DateTime.UtcNow;
         IpAssinatura = string.IsNullOrWhiteSpace(ipOrigem) ? null : ipOrigem.Trim();
         UserAgentAssinatura = TruncarUserAgent(userAgent);
+        AtualizadoEm = DateTime.UtcNow;
+
+        AddDomainEvent(new TermoRecusadoEvent(Id, PacienteId, EstabelecimentoId, AssinadoEm.Value));
+    }
+
+    /// <summary>
+    /// Marca o instante do último envio de e-mail do link público (cooldown anti-spam).
+    /// Reutiliza <see cref="AtualizadoEm"/> como timestamp do último envio — o fluxo de
+    /// reenviar-link só toca esse campo (não muda status nem snapshot).
+    /// </summary>
+    public virtual void MarcarReenvioLinkEmail()
+    {
+        if (AssinaturaTipo != AssinaturaTipo.AceiteLink)
+            throw new BusinessException("Este termo não usa link de aceite.");
+        if (Status != StatusTermoEmitido.Pendente)
+            throw new BusinessException("Termo não está pendente.");
         AtualizadoEm = DateTime.UtcNow;
     }
 

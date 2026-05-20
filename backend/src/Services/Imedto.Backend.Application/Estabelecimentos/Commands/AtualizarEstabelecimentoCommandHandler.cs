@@ -44,6 +44,11 @@ public class AtualizarEstabelecimentoCommandHandler : ICommandHandler<AtualizarE
             command.Telefone,
             command.Endereco);
 
+        // Cidade/UF foram movidas para AtualizarEndereco (validação de UF de 2 letras
+        // vive no aggregate). Mantemos a chamada incondicional — passar null/whitespace
+        // limpa o campo, que é o comportamento esperado quando o usuário esvazia o input.
+        estab.AtualizarEndereco(command.Endereco, command.Cidade, command.Estado);
+
         await _repository.Salvar(estab);
     }
 }

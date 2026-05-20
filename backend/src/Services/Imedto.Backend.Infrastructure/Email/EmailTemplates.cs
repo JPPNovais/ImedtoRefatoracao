@@ -143,6 +143,70 @@ public static class EmailTemplates
         return Wrap("Nova solicitação de vínculo", conteudo);
     }
 
+    /// <summary>
+    /// E-mail enviado ao paciente quando o estabelecimento emite um termo com
+    /// fluxo "aceite por link". Inclui apenas: nome do estabelecimento, tipo de termo
+    /// (categoria), link com token. Sem PII clínica ou dados sensíveis.
+    /// </summary>
+    public static string TermoAceiteParaPaciente(string estabelecimentoNome, string tituloTermo, string linkAceite)
+    {
+        var conteudo = $$"""
+            <h1>Termo aguardando seu aceite</h1>
+            <p>Olá,</p>
+            <p><strong>{{HtmlEscape(estabelecimentoNome)}}</strong> emitiu um termo de consentimento que aguarda seu aceite:</p>
+            <div class="info-box">
+              <p><strong>{{HtmlEscape(tituloTermo)}}</strong></p>
+              <p>Acesse o link abaixo para revisar e aceitar.</p>
+            </div>
+            <p style="text-align:center;"><a href="{{HtmlEscape(linkAceite)}}" class="button">Revisar e responder</a></p>
+            <div class="divider"></div>
+            <p style="font-size:14px;color:#737373;">
+              <strong>O link é válido por 30 dias.</strong> Se não conseguir clicar no botão, copie e cole este endereço no seu navegador:<br>
+              <span style="word-break:break-all;color:#442B97;">{{HtmlEscape(linkAceite)}}</span>
+            </p>
+            <p style="font-size:14px;color:#737373;">
+              Em caso de dúvidas, entre em contato diretamente com o estabelecimento.
+            </p>
+            """;
+        return Wrap($"Termo aguardando seu aceite — {estabelecimentoNome}", conteudo);
+    }
+
+    /// <summary>
+    /// E-mail enviado ao profissional emissor quando o paciente aceita ou recusa o termo
+    /// via link público. Sem PII sensível — só nome do paciente (que o emissor já conhece),
+    /// data/hora, IP e hash de integridade.
+    /// </summary>
+    public static string TermoRespondidoParaEmissor(
+        string profissionalNome,
+        string pacienteNome,
+        string tituloTermo,
+        bool aceito,
+        DateTime respondidoEm,
+        string ipAssinatura,
+        string hashIntegridade,
+        string linkDetalheTermo)
+    {
+        var acao = aceito ? "assinou" : "recusou";
+        var dataFormatada = respondidoEm.ToString("dd/MM/yyyy 'às' HH:mm", new System.Globalization.CultureInfo("pt-BR"));
+        var conteudo = $$"""
+            <h1>Termo {{(aceito ? "assinado" : "recusado")}}</h1>
+            <p>Olá {{HtmlEscape(profissionalNome ?? "")}},</p>
+            <p><strong>{{HtmlEscape(pacienteNome)}}</strong> {{acao}} o termo <strong>"{{HtmlEscape(tituloTermo)}}"</strong> em {{HtmlEscape(dataFormatada)}}.</p>
+            <div class="info-box">
+              <p><strong>Evidência registrada</strong></p>
+              <p>IP de resposta: <code>{{HtmlEscape(ipAssinatura ?? "—")}}</code></p>
+              <p>Hash de integridade: <code style="word-break:break-all;">{{HtmlEscape(hashIntegridade ?? "—")}}</code></p>
+            </div>
+            <p style="text-align:center;"><a href="{{HtmlEscape(linkDetalheTermo)}}" class="button">Ver detalhe do termo</a></p>
+            <div class="divider"></div>
+            <p style="font-size:14px;color:#737373;">
+              Você está recebendo este e-mail porque emitiu este termo.
+            </p>
+            """;
+        var assunto = aceito ? $"Termo assinado por {pacienteNome}" : $"Termo recusado por {pacienteNome}";
+        return Wrap(assunto, conteudo);
+    }
+
     private static string Wrap(string titulo, string conteudo)
     {
         return $$"""

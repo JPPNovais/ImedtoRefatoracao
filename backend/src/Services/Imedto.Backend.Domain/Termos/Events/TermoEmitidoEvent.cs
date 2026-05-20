@@ -12,7 +12,9 @@ public record TermoEmitidoEvent(
     long EstabelecimentoId,
     long TermoModeloId,
     Guid EmitidoPorUsuarioId,
-    AssinaturaTipo AssinaturaTipo) : IDomainEvent
+    AssinaturaTipo AssinaturaTipo,
+    /// <summary>"email" ou "copia" quando AssinaturaTipo = AceiteLink. Ignorado em PdfAnexado.</summary>
+    string CanalEnvio = "email") : IDomainEvent
 {
     public DateTime OcorridoEm { get; } = DateTime.UtcNow;
 }

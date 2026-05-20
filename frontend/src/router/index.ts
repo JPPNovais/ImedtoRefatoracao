@@ -103,6 +103,26 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresTenant: true, ...APP },
         },
 
+        // Termos de consentimento (modelos)
+        {
+            path: "/configuracoes/termos",
+            name: "TermosModelos",
+            component: () => import("@/views/configuracoes/TermosListaView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/configuracoes/termos/novo",
+            name: "TermosNovo",
+            component: () => import("@/views/configuracoes/TermoFormView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+        {
+            path: "/configuracoes/termos/:id(\\d+)/editar",
+            name: "TermosEditar",
+            component: () => import("@/views/configuracoes/TermoFormView.vue"),
+            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+        },
+
         // Equipe e permissões — tela unificada (apenas Dono).
         {
             path: "/equipe",

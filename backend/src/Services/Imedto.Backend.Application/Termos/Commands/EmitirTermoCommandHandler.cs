@@ -60,6 +60,15 @@ public sealed class EmitirTermoCommandHandler : ICommandHandler<EmitirTermoComma
 
         var assinaturaTipo = TermoParsers.ParseAssinaturaTipo(cmd.AssinaturaTipo);
 
+        // Defense-in-depth UX: se aceite_link + canal email, paciente precisa ter e-mail.
+        // O front também trava isso, mas regra de negócio é fonte da verdade (CLAUDE.md §1).
+        if (assinaturaTipo == AssinaturaTipo.AceiteLink
+            && string.Equals(cmd.CanalEnvio, "email", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(paciente.Email))
+        {
+            throw new BusinessException("Paciente sem e-mail cadastrado. Use 'copiar link' ou cadastre o e-mail antes.");
+        }
+
         // 2. Modelo do tenant OU padrão do sistema.
         var modelo = await _modeloRepo.ObterPorIdDoEstabelecimentoOuNulo(cmd.ModeloId, cmd.EstabelecimentoId);
         modelo ??= await _modeloRepo.ObterPadraoDoSistemaPorIdOuNulo(cmd.ModeloId);
@@ -92,7 +101,7 @@ public sealed class EmitirTermoCommandHandler : ICommandHandler<EmitirTermoComma
             TtlLinkPublico);
 
         await _termoRepo.Salvar(termo);
-        termo.MarcarComoEmitido();
+        termo.MarcarComoEmitido(cmd.CanalEnvio);
         cmd.TermoEmitidoId = termo.Id;
         cmd.TokenAceiteGerado = termo.TokenAceite;
 

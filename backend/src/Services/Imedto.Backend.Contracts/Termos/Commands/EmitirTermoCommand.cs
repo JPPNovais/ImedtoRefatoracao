@@ -16,6 +16,13 @@ public class EmitirTermoCommand : ICommand
     /// <summary>"pdf_anexado" | "aceite_link".</summary>
     public string AssinaturaTipo { get; set; } = "pdf_anexado";
 
+    /// <summary>
+    /// Para <c>aceite_link</c>: "email" (default — dispara envio) ou "copia"
+    /// (não envia, só devolve o token pra mostrar ao emissor). Ignorado em
+    /// <c>pdf_anexado</c>.
+    /// </summary>
+    public string CanalEnvio { get; set; } = "email";
+
     /// <summary>Preenchido pelo handler — id do termo emitido.</summary>
     public long TermoEmitidoId { get; set; }
     /// <summary>Preenchido pelo handler quando assinatura_tipo = aceite_link.</summary>
