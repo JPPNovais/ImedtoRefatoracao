@@ -5,7 +5,7 @@
   receitaLocalService. Quando o backend criar o módulo, basta trocar o service.
 -->
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import {
     receitaLocalService,
     FORMAS_FARMACEUTICAS,
@@ -16,7 +16,7 @@ import {
 } from "@/services/receitaLocalService"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
-import { AppButton, AppInput, AppSelect, AppTextarea } from "@/components/ui"
+import { AppButton, AppInput, AppPagination, AppSelect, AppTextarea } from "@/components/ui"
 
 const props = defineProps<{
     pacienteId: number
@@ -33,6 +33,15 @@ const erro     = ref<string | null>(null)
 const receitaAberta = computed<Receita | null>(() =>
     abertaId.value ? receitas.value.find(r => r.id === abertaId.value) ?? null : null,
 )
+
+// ─── Paginação client-side da lista de receitas ─────────────────────────────
+const pagina  = ref(1)
+const tamanho = ref(10)
+watch(() => receitas.value.length, () => { pagina.value = 1 })
+const receitasPagina = computed(() => {
+    const inicio = (pagina.value - 1) * tamanho.value
+    return receitas.value.slice(inicio, inicio + tamanho.value)
+})
 
 function recarregar() {
     if (!tenant.ativo) return
@@ -241,7 +250,7 @@ function statusBadgeClass(s: string) {
 
         <ul v-else class="receitas">
             <li
-                v-for="r in receitas" :key="r.id"
+                v-for="r in receitasPagina" :key="r.id"
                 class="receita-card" :class="{ finalizada: r.status === 'FINALIZED' }"
                 @click="abrirReceita(r)"
             >
@@ -264,6 +273,14 @@ function statusBadgeClass(s: string) {
                 <i class="fa-solid fa-chevron-right seta"></i>
             </li>
         </ul>
+
+        <AppPagination
+            v-if="receitas.length > 0"
+            v-model:pagina="pagina"
+            v-model:tamanho="tamanho"
+            :total="receitas.length"
+            rotulo-itens="receita(s)"
+        />
     </div>
 
     <!-- ══════════════════ EDITOR DE RECEITA ══════════════════ -->

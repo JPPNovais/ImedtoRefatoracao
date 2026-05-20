@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
-import { AppButton, AppEmptyState } from "@/components/ui"
+import { AppButton, AppEmptyState, AppPagination } from "@/components/ui"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
 import type { Evolucao, Anexo } from "@/services/prontuarioService"
 import type { PdfSaidaModo } from "@/composables/useProntuarioPdf"
@@ -76,6 +76,19 @@ const evolucoesFiltradas = computed(() => {
 })
 
 const idMaisRecente = computed(() => evolucoesFiltradas.value[0]?.id ?? null)
+
+// ─── Paginação client-side (lista já carregada) ─────────────────────────────
+const pagina  = ref(1)
+const tamanho = ref(10)
+
+// Reset de página quando o filtro de ano muda ou a lista é recarregada.
+watch([anoSelecionado, () => props.evolucoes.length], () => { pagina.value = 1 })
+
+const totalFiltrado = computed(() => evolucoesFiltradas.value.length)
+const evolucoesPagina = computed(() => {
+    const inicio = (pagina.value - 1) * tamanho.value
+    return evolucoesFiltradas.value.slice(inicio, inicio + tamanho.value)
+})
 
 // ─── Helpers de formatação (anexos) ─────────────────────────────────────────
 function fmtData(iso: string) { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) }
@@ -144,16 +157,24 @@ function fmtTamanho(bytes: number) {
         />
 
         <!-- Timeline -->
-        <div v-else class="ht-timeline-full" role="list">
-            <EvolucaoTimelineItem
-                v-for="evo in evolucoesFiltradas"
-                :key="evo.id"
-                :evolucao="evo"
-                :destaque="evo.id === idMaisRecente"
-                :gerando-pdf="evolucaoSendoBaixada === evo.id"
-                @gerar-pdf="emit('gerarPdfEvolucao', $event)"
+        <template v-else>
+            <div class="ht-timeline-full" role="list">
+                <EvolucaoTimelineItem
+                    v-for="evo in evolucoesPagina"
+                    :key="evo.id"
+                    :evolucao="evo"
+                    :destaque="evo.id === idMaisRecente"
+                    :gerando-pdf="evolucaoSendoBaixada === evo.id"
+                    @gerar-pdf="emit('gerarPdfEvolucao', $event)"
+                />
+            </div>
+            <AppPagination
+                v-model:pagina="pagina"
+                v-model:tamanho="tamanho"
+                :total="totalFiltrado"
+                rotulo-itens="evolução(ões)"
             />
-        </div>
+        </template>
 
         <!-- Card de Anexos -->
         <section class="anexos-card">

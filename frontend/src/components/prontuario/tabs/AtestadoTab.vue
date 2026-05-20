@@ -9,7 +9,7 @@
     (fallback download se popup bloqueado).
 -->
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import {
     atestadoService,
     type Atestado,
@@ -19,7 +19,7 @@ import {
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { useAtestadoPdf } from "@/composables/useAtestadoPdf"
 import {
-    AppButton, AppEmptyState, AppField, AppInput, AppSelect, AppTextarea,
+    AppButton, AppEmptyState, AppField, AppInput, AppPagination, AppSelect, AppTextarea,
     AppModal, AppDrawer, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 
@@ -34,6 +34,15 @@ const atestados = ref<Atestado[]>([])
 const modelos = ref<ModeloAtestado[]>([])
 const paciente = ref<Paciente | null>(null)
 const carregando = ref(false)
+
+// ─── Paginação client-side ──────────────────────────────────────────────────
+const pagina  = ref(1)
+const tamanho = ref(10)
+watch(() => atestados.value.length, () => { pagina.value = 1 })
+const atestadosPagina = computed(() => {
+    const inicio = (pagina.value - 1) * tamanho.value
+    return atestados.value.slice(inicio, inicio + tamanho.value)
+})
 
 // Toast simples
 const toast = ref<{ msg: string; variante: "info" | "success" | "error" } | null>(null)
@@ -321,7 +330,7 @@ function tipoLabel(tipo: TipoAtestado): string {
             descricao="Os atestados emitidos para este paciente aparecerão aqui."
         />
         <ul v-else class="ata-lista">
-            <li v-for="a in atestados" :key="a.id" class="ata-card">
+            <li v-for="a in atestadosPagina" :key="a.id" class="ata-card">
                 <div class="ata-card-head">
                     <span class="ata-tipo">{{ tipoLabel(a.tipo) }}</span>
                     <span v-if="a.diasAfastamento" class="ata-meta">{{ a.diasAfastamento }} dia(s)</span>
@@ -337,6 +346,14 @@ function tipoLabel(tipo: TipoAtestado): string {
                 </div>
             </li>
         </ul>
+
+        <AppPagination
+            v-if="atestados.length > 0"
+            v-model:pagina="pagina"
+            v-model:tamanho="tamanho"
+            :total="atestados.length"
+            rotulo-itens="atestado(s)"
+        />
 
         <!-- ─── Modal de emissão ──────────────────────────────────────── -->
         <AppModal :aberto="emissaoAberta" titulo="Emitir atestado" largura="lg" @fechar="emissaoAberta = false">

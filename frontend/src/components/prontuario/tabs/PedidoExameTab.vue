@@ -4,7 +4,7 @@
   fallback popup blocker.
 -->
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from "vue"
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
 import {
     pedidoExameService,
     type PedidoExame,
@@ -13,7 +13,7 @@ import {
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { usePedidoExamePdf } from "@/composables/usePedidoExamePdf"
 import {
-    AppButton, AppEmptyState, AppField, AppInput, AppSelect, AppTextarea,
+    AppButton, AppEmptyState, AppField, AppInput, AppPagination, AppSelect, AppTextarea,
     AppModal, AppToast,
 } from "@/components/ui"
 
@@ -27,6 +27,15 @@ const { gerarPdf } = usePedidoExamePdf()
 const pedidos = ref<PedidoExame[]>([])
 const paciente = ref<Paciente | null>(null)
 const carregando = ref(false)
+
+// ─── Paginação client-side ──────────────────────────────────────────────────
+const pagina  = ref(1)
+const tamanho = ref(10)
+watch(() => pedidos.value.length, () => { pagina.value = 1 })
+const pedidosPagina = computed(() => {
+    const inicio = (pagina.value - 1) * tamanho.value
+    return pedidos.value.slice(inicio, inicio + tamanho.value)
+})
 
 const toast = ref<{ msg: string; variante: "info" | "success" | "error" } | null>(null)
 function notificar(msg: string, variante: "info" | "success" | "error" = "success") {
@@ -217,7 +226,7 @@ function tipoLabel(tipo: TipoPedidoExame): string {
             descricao="Os pedidos de exame emitidos aparecerão aqui."
         />
         <ul v-else class="pex-lista">
-            <li v-for="p in pedidos" :key="p.id" class="pex-card">
+            <li v-for="p in pedidosPagina" :key="p.id" class="pex-card">
                 <div class="pex-card-head">
                     <span class="pex-tipo">{{ tipoLabel(p.tipo) }}</span>
                     <span v-if="p.cid10" class="pex-meta">CID-10 {{ p.cid10 }}</span>
@@ -235,6 +244,14 @@ function tipoLabel(tipo: TipoPedidoExame): string {
                 </div>
             </li>
         </ul>
+
+        <AppPagination
+            v-if="pedidos.length > 0"
+            v-model:pagina="pagina"
+            v-model:tamanho="tamanho"
+            :total="pedidos.length"
+            rotulo-itens="pedido(s)"
+        />
 
         <!-- ─── Modal de emissão ──────────────────────────────────────── -->
         <AppModal :aberto="emissaoAberta" titulo="Solicitar exames" largura="lg" @fechar="emissaoAberta = false">
