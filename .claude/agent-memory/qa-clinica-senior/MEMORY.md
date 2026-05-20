@@ -30,3 +30,4 @@
 - [QA pós-deploy ff2ff5d 2026-05-20 (fix P0 SQL Termos)](project_qa_posdeploy_ff2ff5d_2026_05_20.md) — P0 backend resolvido (4/4 cenários OK); P1 novo: template do EmitirTermoModal não foi comitado, UI de aceite_link aparece "Em breve" disabled.
 - [QA pós-deploy 3ce5e7f 2026-05-20 (aceite_link UI + LGPD arquivada)](project_qa_posdeploy_3ce5e7f_2026_05_20.md) — Fase 4 e 5 entregues; aceite público end-to-end OK; cooldown 5min, multi-tenant, idempotência validados.
 - [Seed paciente exige genero=nome do enum](feedback_seed_paciente_genero_enum.md) — usar 'Feminino'/'Masculino', não 'F'/'M'; 'F' quebra com 500 em qualquer endpoint EF que carrega paciente.
+- [QA pós-deploy 2d94290 2026-05-20 (mapa corporal — pointer-events + emit)](project_qa_posdeploy_2d94290_2026_05_20.md) — bundle prod tem o fix; Vitest 8/8; cenários browser pendentes (sem MCP Chrome na sessão).

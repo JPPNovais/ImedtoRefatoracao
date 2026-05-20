@@ -4,6 +4,9 @@ namespace Imedto.Backend.Domain.Receitas;
 public enum ViaAdministracao
 {
     Oral,
+    Sublingual,
+    Retal,
+    Vaginal,
     Topica,
     /// <summary>Intramuscular.</summary>
     IM,
@@ -11,5 +14,9 @@ public enum ViaAdministracao
     EV,
     /// <summary>Subcutânea.</summary>
     SC,
+    Inalatoria,
+    Oftalmica,
+    Otologica,
+    Nasal,
     Outra
 }

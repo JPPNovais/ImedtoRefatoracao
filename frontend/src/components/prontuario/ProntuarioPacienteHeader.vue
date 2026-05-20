@@ -1,8 +1,7 @@
 <!--
     Header sticky do prontuário (visual do design Imedto care):
       - Esquerda: voltar + avatar + nome/idade/sexo/CPF/contato + alertas
-      - Direita: timer (quando há atendimento ativo) + ações (modo foco,
-        imprimir, receita, finalizar)
+      - Direita: timer (quando há atendimento ativo) + ação finalizar
     Não toca o backend — `finalizar` apenas emite evento (a view chama
     `agendaService.concluir`).
 -->
@@ -17,17 +16,12 @@ const props = defineProps<{
     paciente: Paciente | null
     agendamento?: Agendamento | null
     estabelecimento?: string | null
-    /** true esconde sidebars (modo foco) */
-    focus?: boolean
     /** Permite ocultar a coluna de ações (em telas read-only / sem agendamento) */
     semAcoes?: boolean
 }>()
 
 const emit = defineEmits<{
     "voltar": []
-    "toggle-focus": []
-    "imprimir": []
-    "receita": []
     "finalizar": []
 }>()
 
@@ -98,7 +92,7 @@ void emit
 </script>
 
 <template>
-    <header class="pront-header" :class="{ focus }">
+    <header class="pront-header">
         <div class="ph-left">
             <button type="button" class="ph-back" aria-label="Voltar" @click="emit('voltar')">
                 <i class="fa-solid fa-arrow-left"></i>
@@ -147,27 +141,6 @@ void emit
             </div>
 
             <button
-                type="button"
-                class="ph-btn ph-btn-secondary"
-                :class="{ on: focus }"
-                :title="focus ? 'Sair do modo foco (F)' : 'Entrar no modo foco (F)'"
-                @click="emit('toggle-focus')"
-            >
-                <i class="fa-solid" :class="focus ? 'fa-eye-slash' : 'fa-eye'"></i>
-                {{ focus ? "Sair do foco" : "Modo foco" }}
-            </button>
-
-            <button type="button" class="ph-btn ph-btn-secondary" @click="emit('imprimir')">
-                <i class="fa-solid fa-print"></i>
-                Imprimir
-            </button>
-
-            <button type="button" class="ph-btn ph-btn-secondary" @click="emit('receita')">
-                <i class="fa-solid fa-prescription"></i>
-                Receita
-            </button>
-
-            <button
                 v-if="ativoAqui"
                 type="button"
                 class="ph-btn ph-btn-success"
@@ -194,8 +167,6 @@ void emit
     gap: 20px; flex-wrap: wrap;
     box-shadow: var(--shadow-sm);
 }
-.pront-header.focus { top: 0; }
-
 .ph-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 380px; }
 .ph-back {
     width: 36px; height: 36px; border-radius: 50%;
@@ -262,7 +233,6 @@ void emit
     border-color: hsl(var(--secondary) / 0.18);
 }
 .ph-btn-secondary:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.4); }
-.ph-btn-secondary.on { background: hsl(var(--primary-dark)); color: white; border-color: hsl(var(--primary-dark)); }
 .ph-btn-success {
     background: hsl(155 60% 50%); color: white; border-color: hsl(155 60% 50%);
 }

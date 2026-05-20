@@ -21,6 +21,7 @@ import {
 import {
     AppButton, AppConfirmDialog, AppInput, AppPagination, AppSelect, AppTextarea, AppToast,
 } from "@/components/ui"
+import CancelarReceitaModal from "@/components/prontuario/CancelarReceitaModal.vue"
 
 const props = defineProps<{
     pacienteId: number
@@ -61,6 +62,29 @@ async function confirmarAcao() {
     const fn = confirmar.value.onConfirm
     confirmar.value = null
     await fn()
+}
+
+// ─── Modal de cancelamento de receita ────────────────────────────────────────
+const modalCancelar = ref(false)
+
+async function onCancelarConfirmado(motivo: string) {
+    if (!receitaAberta.value) return
+    modalCancelar.value = false
+    salvandoAcao.value = true
+    try {
+        await receitaService.cancelar(receitaAberta.value.id, motivo)
+        await abrirReceita(receitaAberta.value.id)
+        notificar("Receita cancelada.", "success")
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao cancelar.", "error")
+    } finally {
+        salvandoAcao.value = false
+    }
+}
+
+function viaLabel(via: string | null | undefined): string {
+    if (!via) return ""
+    return VIAS_ADMINISTRACAO.find(v => v.valor === via)?.label ?? via
 }
 
 // ─── Carregamento da lista ──────────────────────────────────────────────────
@@ -297,20 +321,9 @@ async function finalizar() {
     })
 }
 
-async function cancelar() {
+function cancelar() {
     if (!receitaAberta.value) return
-    const motivo = window.prompt("Motivo do cancelamento (obrigatório):")
-    if (!motivo || !motivo.trim()) return
-    salvandoAcao.value = true
-    try {
-        await receitaService.cancelar(receitaAberta.value.id, motivo.trim())
-        await abrirReceita(receitaAberta.value.id)
-        notificar("Receita cancelada.", "success")
-    } catch (e: any) {
-        notificar(e?.response?.data?.mensagem ?? "Erro ao cancelar.", "error")
-    } finally {
-        salvandoAcao.value = false
-    }
+    modalCancelar.value = true
 }
 
 async function duplicar() {
@@ -348,7 +361,7 @@ function gerarHtmlImpressao(r: Receita): string {
             <strong>${i + 1}. ${escape(it.medicamento)}${it.concentracao ? " — " + escape(it.concentracao) : ""}</strong>
             ${it.formaFarmaceutica ? `<div>${escape(it.formaFarmaceutica)}${it.quantidade ? " · " + escape(it.quantidade) : ""}</div>` : ""}
             <div class="pos"><em>${escape(it.posologia)}</em></div>
-            ${it.via ? `<div>Via: ${escape(it.via)}</div>` : ""}
+            ${it.via ? `<div>Via: ${escape(viaLabel(it.via))}</div>` : ""}
             ${it.duracao ? `<div>Duração: ${escape(it.duracao)}</div>` : ""}
             ${it.observacao ? `<div class="obs">${escape(it.observacao)}</div>` : ""}
         </div>
@@ -572,7 +585,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                         <label class="field-label">Via de administração</label>
                         <AppSelect v-model="form.via">
                             <option value="">Selecione...</option>
-                            <option v-for="v in VIAS_ADMINISTRACAO" :key="v" :value="v">{{ v }}</option>
+                            <option v-for="v in VIAS_ADMINISTRACAO" :key="v.valor" :value="v.valor">{{ v.label }}</option>
                         </AppSelect>
                     </div>
                 </div>
@@ -624,7 +637,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                             {{ it.formaFarmaceutica }}<span v-if="it.quantidade"> · {{ it.quantidade }}</span>
                         </div>
                         <div class="item-linha item-posologia">{{ it.posologia }}</div>
-                        <div v-if="it.via" class="item-linha"><strong>Via:</strong> {{ it.via }}</div>
+                        <div v-if="it.via" class="item-linha"><strong>Via:</strong> {{ viaLabel(it.via) }}</div>
                         <div v-if="it.duracao" class="item-linha"><strong>Duração:</strong> {{ it.duracao }}</div>
                         <div v-if="it.observacao" class="item-instrucoes">💡 {{ it.observacao }}</div>
                     </div>
@@ -684,6 +697,13 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
             </template>
         </div>
     </div>
+
+    <CancelarReceitaModal
+        :aberto="modalCancelar"
+        :receita-id="receitaAberta?.id ?? null"
+        @fechar="modalCancelar = false"
+        @confirmar="onCancelarConfirmado"
+    />
 
     <AppConfirmDialog
         :aberto="confirmar !== null"

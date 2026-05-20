@@ -144,10 +144,20 @@ export const FORMAS_FARMACEUTICAS = [
     "Injeção", "Supositório", "Adesivo", "Colírio",
 ]
 
-export const VIAS_ADMINISTRACAO = [
-    "Oral", "Sublingual", "Retal", "Vaginal",
-    "Intramuscular (IM)", "Intravenosa (IV)", "Subcutânea (SC)",
-    "Tópica", "Inalatória", "Oftálmica", "Otológica", "Nasal",
+export const VIAS_ADMINISTRACAO: { valor: string; label: string }[] = [
+    { valor: "Oral",       label: "Oral" },
+    { valor: "Sublingual", label: "Sublingual" },
+    { valor: "Retal",      label: "Retal" },
+    { valor: "Vaginal",    label: "Vaginal" },
+    { valor: "IM",         label: "Intramuscular (IM)" },
+    { valor: "EV",         label: "Endovenosa (EV)" },
+    { valor: "SC",         label: "Subcutânea (SC)" },
+    { valor: "Topica",     label: "Tópica" },
+    { valor: "Inalatoria", label: "Inalatória" },
+    { valor: "Oftalmica",  label: "Oftálmica" },
+    { valor: "Otologica",  label: "Otológica" },
+    { valor: "Nasal",      label: "Nasal" },
+    { valor: "Outra",      label: "Outra" },
 ]
 
 export const TIPOS_RECEITA: { valor: TipoReceita; label: string }[] = [

@@ -13,7 +13,7 @@
  *   - "Finalizar e assinar" chama POST /agendamentos/:id/concluir e limpa a
  *     marca local de atendimento ativo.
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
     prontuarioService,
@@ -61,7 +61,6 @@ const carregando = ref(true)
 const erro       = ref<string | null>(null)
 
 const abaAtiva = ref<AbaProntuario>("consulta")
-const focus    = ref(false)
 
 // Total de evoluções — vem do endpoint paginado ao abrir "Consultas anteriores"
 // (ou do contagem-evolucoes na carga inicial), em vez de pront.evolucoes.length
@@ -274,11 +273,6 @@ function voltar() {
     router.back()
 }
 
-// ─── Handlers do header sticky ───────────────────────────────────────────────
-function toggleFocus() {
-    focus.value = !focus.value
-}
-
 /**
  * Para o modo "visualizar", precisamos chamar `window.open` SINCRONICAMENTE
  * ao clique do usuário — qualquer `await` antes dispara popup blocker em
@@ -323,12 +317,6 @@ async function exportarHistorico(modo: PdfSaidaModo) {
     }
 }
 
-// Mantido como atalho do header sticky (botão "Imprimir") — comportamento
-// histórico era download direto. Não mudamos a UX do header agora.
-async function imprimir() {
-    await exportarHistorico("download")
-}
-
 async function exportarPdfEvolucao(evolucao: Evolucao, modo: PdfSaidaModo = "download") {
     if (!pront.value) return
     if (evolucaoSendoBaixada.value !== null) return
@@ -356,10 +344,6 @@ async function exportarPdfEvolucao(evolucao: Evolucao, modo: PdfSaidaModo = "dow
     }
 }
 
-function abrirReceita() {
-    abaAtiva.value = "receitas"
-}
-
 async function finalizarAtendimento() {
     if (!agendamento.value) {
         // Sem agendamento: só limpa marca local
@@ -378,33 +362,17 @@ async function finalizarAtendimento() {
     }
 }
 
-// Atalhos: F = toggle focus
-function onKey(e: KeyboardEvent) {
-    if (e.target && (e.target as HTMLElement).matches("input, textarea, select, [contenteditable]")) return
-    if (e.key === "F" || e.key === "f") {
-        e.preventDefault()
-        toggleFocus()
-    } else if (e.key === "Escape" && focus.value) {
-        focus.value = false
-    }
-}
-onMounted(() => window.addEventListener("keydown", onKey))
-onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
 </script>
 
 <template>
-    <main class="app-page app-page--wide pront-shell" :class="{ 'focus-mode': focus }">
+    <main class="app-page app-page--wide pront-shell">
         <!-- Sticky header do paciente -->
         <ProntuarioPacienteHeader
             :paciente="paciente"
             :agendamento="agendamento"
             :estabelecimento="tenant.ativo?.nomeFantasia ?? null"
-            :focus="focus"
             :sem-acoes="!pront"
             @voltar="voltar"
-            @toggle-focus="toggleFocus"
-            @imprimir="imprimir"
-            @receita="abrirReceita"
             @finalizar="finalizarAtendimento"
         />
 
@@ -434,7 +402,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
         <!-- Prontuário iniciado: tabs + conteúdo -->
         <template v-if="pront">
             <ProntuarioTabs
-                v-show="!focus"
                 v-model="abaAtiva"
                 :contagem-anteriores="totalEvolucoes"
             />
@@ -446,7 +413,6 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
                 :secoes="secoesConsultaAtual"
                 :nova-evolucao="novaEvolucao"
                 :salvando="salvandoEvolucao"
-                :focus="focus"
                 :paciente-sexo="paciente?.genero ?? null"
                 @salvar="salvarEvolucao"
             />
