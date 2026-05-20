@@ -273,7 +273,7 @@ function abrirProntuario() {
 }
 
 function criarOrcamento() {
-    router.push({ name: "Orcamentos", query: { pacienteId: String(pacienteId.value) } })
+    router.push({ name: "OrcamentoNovo", query: { pacienteId: String(pacienteId.value) } })
 }
 
 function abrirOrcamento(o: OrcamentoResumo) {

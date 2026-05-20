@@ -173,6 +173,30 @@ function onSelecionarPaciente(id: number) {
     pacienteNome.value = p?.nomeCompleto ?? ""
 }
 
+// Pré-seleciona paciente vindo via ?pacienteId=. Se não estiver na busca rápida
+// inicial (paciente antigo, fora do top 30), faz fetch direto e injeta na lista
+// para o <AppSelect> conseguir exibir o nome.
+async function preselecionarPaciente(id: number) {
+    const existente = pacientesEncontrados.value.find(p => p.id === id)
+    if (existente) {
+        pacienteId.value = id
+        pacienteNome.value = existente.nomeCompleto
+        return
+    }
+    try {
+        const p = await pacienteService.obter(id)
+        pacientesEncontrados.value = [
+            { id: p.id, nomeCompleto: p.nomeCompleto },
+            ...pacientesEncontrados.value,
+        ]
+        pacienteId.value = id
+        pacienteNome.value = p.nomeCompleto
+    } catch {
+        // Acesso negado ou paciente inexistente — deixa o seletor vazio.
+        pacienteId.value = null
+    }
+}
+
 // ── Tempo total da cirurgia (sum automático com override manual) ───────────
 const tempoAutoMinutos = computed(() =>
     cirurgias.value.reduce((acc, c) => acc + (c.duracaoMinutos * c.quantidade), 0)
@@ -458,14 +482,11 @@ async function carregar() {
             orcamentoCarregado.value = orc
             hidratarFormulario(orc)
         } else {
-            // Modo "criar" — pré-popular se vier de agendamento.
+            // Modo "criar" — pré-popular se vier de agendamento/paciente.
             if (agendamentoIdInicial.value) agendamentoId.value = agendamentoIdInicial.value
+            await buscarPacientes(undefined)
             if (pacienteIdInicial.value) {
-                pacienteId.value = pacienteIdInicial.value
-                // Carrega o nome via busca-rapida com lista mínima para o seletor.
-                await buscarPacientes(undefined)
-            } else {
-                await buscarPacientes(undefined)
+                await preselecionarPaciente(pacienteIdInicial.value)
             }
         }
     } catch (e: any) {
