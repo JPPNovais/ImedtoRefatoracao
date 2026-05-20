@@ -459,12 +459,12 @@ function formatarQtd(n: number) {
                     </AppField>
 
                     <AppField label="Qtd. mínima" required>
-                        <AppInput v-model="form.quantidadeMinima" type="number" :min="0" :step="0.001" />
+                        <AppInput v-model="form.quantidadeMinima" type="number" :min="0" :step="1" />
                     </AppField>
 
                     <template v-if="!ehEdicao">
                         <AppField label="Qtd. inicial">
-                            <AppInput v-model="form.quantidadeInicial" type="number" :min="0" :step="0.001" />
+                            <AppInput v-model="form.quantidadeInicial" type="number" :min="0" :step="1" />
                         </AppField>
                         <AppField
                             v-if="form.quantidadeInicial > 0"

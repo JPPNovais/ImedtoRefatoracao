@@ -903,7 +903,7 @@ onMounted(carregar)
                                     </AppSelect>
                                 </AppField>
                                 <AppField label="Qtd" class="campo-min">
-                                    <AppInput type="number" :min="1" :step="0.001" v-model="i.quantidade" />
+                                    <AppInput type="number" :min="1" :step="1" v-model="i.quantidade" />
                                 </AppField>
                                 <AppField label="Unitário" class="campo-min">
                                     <AppInput type="number" :step="0.01" v-model="i.valorUnitario" />

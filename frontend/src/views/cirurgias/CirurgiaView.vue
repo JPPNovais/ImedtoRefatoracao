@@ -269,7 +269,7 @@ onMounted(carregar)
             </div>
 
             <!-- Tabs -->
-            <AppTabs v-model="abaAtiva" :abas="abas" class="tabs-cirurgia" />
+            <AppTabs v-model="abaAtiva" :abas="abas" variante="underline" class="tabs-cirurgia" />
 
             <!-- Conteúdo das tabs -->
             <div class="tab-conteudo">

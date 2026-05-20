@@ -72,7 +72,7 @@ function mostrarBreve(texto: string) {
             </template>
         </AppPageHeader>
 
-        <AppTabs :model-value="aba" :abas="abas" @update:model-value="(v: any) => trocarAba(v as AbaKey)" />
+        <AppTabs :model-value="aba" :abas="abas" variante="underline" @update:model-value="(v: any) => trocarAba(v as AbaKey)" />
 
         <div class="tab-content">
             <ProcedimentosTab v-if="aba === 'procedimentos'" @contagem="(n) => setContagem('procedimentos', n)" />

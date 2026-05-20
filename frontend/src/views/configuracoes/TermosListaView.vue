@@ -235,7 +235,7 @@ onMounted(() => {
             </template>
         </AppPageHeader>
 
-        <AppTabs :model-value="aba" :abas="abas" @update:model-value="(v: any) => aba = v as AbaKey" />
+        <AppTabs :model-value="aba" :abas="abas" variante="underline" @update:model-value="(v: any) => aba = v as AbaKey" />
 
         <!-- ─────────────────────── Aba: Meus termos ─────────────────────── -->
         <section v-if="aba === 'meus'" class="painel">
