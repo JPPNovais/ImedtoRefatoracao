@@ -18,4 +18,8 @@
         <ProjectReference Include="..\Imedto.Backend.Infrastructure\Imedto.Backend.Infrastructure.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="Imedto.Backend.Test" />
+    </ItemGroup>
+
 </Project>

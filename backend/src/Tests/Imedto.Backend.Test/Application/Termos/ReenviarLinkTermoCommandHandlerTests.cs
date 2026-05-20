@@ -58,7 +58,7 @@ public class ReenviarLinkTermoCommandHandlerTests
     private Paciente PacienteComEmail(string email = "p@example.com")
     {
         var p = Paciente.Cadastrar(EstabId, "Paciente", null, null,
-            GeneroPaciente.NaoInformado, null, null, email, null);
+            GeneroPaciente.NaoInformado, null, email, null, null);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, PacienteId);
         return p;
     }

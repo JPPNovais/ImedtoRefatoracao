@@ -12,6 +12,13 @@ public class EmitirTermoCommand : ICommand
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
     public Guid EmissorUsuarioId { get; set; }
+    /// <summary>
+    /// Quando informado, deve corresponder a um profissional com vínculo Ativo no estabelecimento.
+    /// É esse usuário que aparece nas variáveis <c>{{profissional.*}}</c> do snapshot.
+    /// Quando ausente (null/Guid.Empty), as variáveis caem para o fallback <c>___________</c>.
+    /// O emissor (recepção/Dono administrativo) <b>não</b> é tratado automaticamente como profissional.
+    /// </summary>
+    public Guid? ProfissionalUsuarioId { get; set; }
     public long ModeloId { get; set; }
     /// <summary>"pdf_anexado" | "aceite_link".</summary>
     public string AssinaturaTipo { get; set; } = "pdf_anexado";

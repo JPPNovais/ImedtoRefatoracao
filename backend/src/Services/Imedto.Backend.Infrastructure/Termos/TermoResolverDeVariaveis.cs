@@ -117,6 +117,10 @@ public sealed class TermoResolverDeVariaveis : ITermoResolverDeVariaveis
         ProfissionalResolver prof = null;
         if (ctx.ProfissionalUsuarioId is { } pid && pid != Guid.Empty)
         {
+            // Defense-in-depth multi-tenant: só carrega o profissional se ele tiver
+            // vínculo Ativo no estabelecimento atual. Sem isso, profissional que
+            // atua em outro estab poderia ter seus dados (conselho/UF/registro)
+            // puxados num termo de tenant diferente.
             prof = await conn.QuerySingleOrDefaultAsync<ProfissionalResolver>(
                 new CommandDefinition("""
                     SELECT  u.nome_completo  AS Nome,
@@ -125,10 +129,15 @@ public sealed class TermoResolverDeVariaveis : ITermoResolverDeVariaveis
                             p.numero_registro AS NumeroRegistro,
                             p.especialidade  AS Especialidade
                     FROM    public.profissionais p
-                    INNER JOIN public.usuarios u ON u.id = p.id
-                    WHERE   p.id = @UsuarioId
+                    INNER JOIN public.usuarios u
+                            ON u.id = p.usuario_id
+                    INNER JOIN public.vinculo_profissional_estabelecimento v
+                            ON v.profissional_usuario_id = p.usuario_id
+                           AND v.estabelecimento_id = @EstabelecimentoId
+                           AND v.status = 'Ativo'
+                    WHERE   p.usuario_id = @UsuarioId
                       AND   p.deletado_em IS NULL
-                    """, new { UsuarioId = pid }, cancellationToken: ct));
+                    """, new { UsuarioId = pid, ctx.EstabelecimentoId }, cancellationToken: ct));
         }
 
         return new DadosResolver(paciente, estab, prof);

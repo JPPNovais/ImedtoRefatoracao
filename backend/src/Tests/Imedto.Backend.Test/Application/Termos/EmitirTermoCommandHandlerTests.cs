@@ -3,6 +3,7 @@ using Imedto.Backend.Contracts.Termos.Commands;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Termos;
 using Imedto.Backend.Domain.Termos.Events;
+using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
@@ -16,6 +17,7 @@ public class EmitirTermoCommandHandlerTests
     private Mock<ITermoEmitidoRepository> _termoRepo = null!;
     private Mock<ITermoModeloRepository> _modeloRepo = null!;
     private Mock<IPacienteRepository> _pacienteRepo = null!;
+    private Mock<IVinculoRepository> _vinculoRepo = null!;
     private Mock<ITermoResolverDeVariaveis> _resolver = null!;
     private Mock<ITermoHtmlSanitizer> _sanitizer = null!;
     private Mock<ITermoTextoExtractor> _texto = null!;
@@ -34,6 +36,7 @@ public class EmitirTermoCommandHandlerTests
         _termoRepo = new Mock<ITermoEmitidoRepository>();
         _modeloRepo = new Mock<ITermoModeloRepository>();
         _pacienteRepo = new Mock<IPacienteRepository>();
+        _vinculoRepo = new Mock<IVinculoRepository>();
         _resolver = new Mock<ITermoResolverDeVariaveis>();
         _sanitizer = new Mock<ITermoHtmlSanitizer>();
         _texto = new Mock<ITermoTextoExtractor>();
@@ -41,14 +44,14 @@ public class EmitirTermoCommandHandlerTests
         _eventBus = new Mock<IEventBus>();
         _sut = new EmitirTermoCommandHandler(
             _termoRepo.Object, _modeloRepo.Object, _pacienteRepo.Object,
-            _resolver.Object, _sanitizer.Object, _texto.Object,
-            _audit.Object, _eventBus.Object);
+            _vinculoRepo.Object, _resolver.Object, _sanitizer.Object,
+            _texto.Object, _audit.Object, _eventBus.Object);
     }
 
-    private static Paciente PacienteAtivo()
+    private static Paciente PacienteAtivo(string email = "paciente@local")
     {
         var p = Paciente.Cadastrar(EstabId, "Paciente", null, null,
-            GeneroPaciente.NaoInformado, null, null, null, null);
+            GeneroPaciente.NaoInformado, null, email, null, null);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, PacienteId);
         return p;
     }
@@ -149,5 +152,72 @@ public class EmitirTermoCommandHandlerTests
 
         await _sut.Handle(Cmd());
         _termoRepo.Verify(r => r.Salvar(It.IsAny<TermoEmitido>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_SemProfissionalUsuarioId_NaoTrataEmissorComoProfissional()
+    {
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
+        _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
+        _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("<p>x</p>");
+        _sanitizer.Setup(s => s.Sanitizar(It.IsAny<string>())).Returns("<p>x</p>");
+        _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("x");
+        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
+            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 1L))
+            .Returns(Task.CompletedTask);
+
+        ContextoDeVariaveis? capturado = null;
+        _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))
+            .Callback<string, ContextoDeVariaveis, CancellationToken>((_, c, _) => capturado = c)
+            .ReturnsAsync("<p>x</p>");
+
+        await _sut.Handle(Cmd());
+
+        Assert.That(capturado!.ProfissionalUsuarioId, Is.Null,
+            "Emissor não pode virar profissional automaticamente — fallback é responsabilidade do resolver.");
+        _vinculoRepo.Verify(v => v.PodeAtuarComoProfissional(It.IsAny<Guid>(), It.IsAny<long>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_ComProfissionalUsuarioIdValido_ValidaVinculoEPropaga()
+    {
+        var profissionalId = Guid.NewGuid();
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
+        _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
+        _vinculoRepo.Setup(v => v.PodeAtuarComoProfissional(profissionalId, EstabId)).ReturnsAsync(true);
+        _sanitizer.Setup(s => s.Sanitizar(It.IsAny<string>())).Returns("<p>x</p>");
+        _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("x");
+        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
+            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 2L))
+            .Returns(Task.CompletedTask);
+
+        ContextoDeVariaveis? capturado = null;
+        _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))
+            .Callback<string, ContextoDeVariaveis, CancellationToken>((_, c, _) => capturado = c)
+            .ReturnsAsync("<p>x</p>");
+
+        var cmd = Cmd();
+        cmd.ProfissionalUsuarioId = profissionalId;
+        await _sut.Handle(cmd);
+
+        Assert.That(capturado!.ProfissionalUsuarioId, Is.EqualTo(profissionalId));
+        _vinculoRepo.Verify(v => v.PodeAtuarComoProfissional(profissionalId, EstabId), Times.Once);
+    }
+
+    [Test]
+    public void Handle_ComProfissionalUsuarioIdInvalido_LancaMensagemGenerica()
+    {
+        var profissionalId = Guid.NewGuid();
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
+        _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
+        _vinculoRepo.Setup(v => v.PodeAtuarComoProfissional(profissionalId, EstabId)).ReturnsAsync(false);
+
+        var cmd = Cmd();
+        cmd.ProfissionalUsuarioId = profissionalId;
+
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
+        Assert.That(ex!.Message, Is.EqualTo("Profissional inválido."));
+        _termoRepo.Verify(r => r.Salvar(It.IsAny<TermoEmitido>()), Times.Never);
     }
 }

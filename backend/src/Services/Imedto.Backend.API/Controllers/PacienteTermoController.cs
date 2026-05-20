@@ -82,6 +82,7 @@ public class PacienteTermoController : ControllerBase
             PacienteId = pacienteId,
             EstabelecimentoId = _tenant.EstabelecimentoId,
             EmissorUsuarioId = _tenant.UsuarioId,
+            ProfissionalUsuarioId = request.ProfissionalUsuarioId,
             ModeloId = request.ModeloId,
             AssinaturaTipo = request.AssinaturaTipo,
             CanalEnvio = string.IsNullOrWhiteSpace(request.CanalEnvio) ? "email" : request.CanalEnvio,
@@ -203,6 +204,10 @@ public class PacienteTermoController : ControllerBase
     }
 }
 
-public record EmitirTermoRequest(long ModeloId, string AssinaturaTipo, string CanalEnvio = "email");
+public record EmitirTermoRequest(
+    long ModeloId,
+    string AssinaturaTipo,
+    string CanalEnvio = "email",
+    Guid? ProfissionalUsuarioId = null);
 public record RevogarTermoRequest(string Motivo);
 public record ReenviarLinkRequest(string Canal = "email");

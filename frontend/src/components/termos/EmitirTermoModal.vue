@@ -9,6 +9,7 @@ import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { termoModeloService, type TermoModeloDto } from "@/services/termoModeloService"
 import { pacienteTermoService } from "@/services/pacienteTermoService"
+import { montarUrlAceitePublico } from "@/services/termoAceitePublicoService"
 import { profissionalService } from "@/services/profissionalService"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { resolverVariaveis, type ContextoResolucaoTermo } from "@/utils/termoResolverVariaveis"
@@ -42,7 +43,9 @@ const emit = defineEmits<{
 }>()
 
 // ─── Estado do wizard ──────────────────────────────────────────────────────
-const passo = ref<1 | 2 | 3>(1)
+// Passo 4 = confirmação pós-emissão de aceite_link (mostra link + copiar).
+// O fluxo pdf_anexado nunca chega ao passo 4 — fecha o modal direto no emit.
+const passo = ref<1 | 2 | 3 | 4>(1)
 const emitindo = ref(false)
 const erro = ref<string | null>(null)
 
@@ -60,6 +63,14 @@ const estabelecimentoAtivo = ref<Estabelecimento | null>(null)
 const profissionalAtivo = ref<{ nome: string | null; conselho: string | null; uf: string | null; numeroRegistro: string | null; especialidade: string | null } | null>(null)
 
 const tipoAssinatura = ref<"pdf_anexado" | "aceite_link">("pdf_anexado")
+const canalEnvio = ref<"email" | "copia">("email")
+
+// Estado da tela de confirmação (passo 4 — só aceite_link)
+const linkGerado = ref<string | null>(null)
+const linkCopiado = ref(false)
+const canalEnvioConfirmado = ref<"email" | "copia">("email")
+
+const pacienteSemEmail = computed(() => !props.paciente?.email?.trim())
 
 // ─── Reset ao abrir/fechar ────────────────────────────────────────────────
 watch(() => props.aberto, (aberto) => {
@@ -68,11 +79,22 @@ watch(() => props.aberto, (aberto) => {
         erro.value = null
         modeloSelecionado.value = null
         tipoAssinatura.value = "pdf_anexado"
+        canalEnvio.value = "email"
+        linkGerado.value = null
+        linkCopiado.value = false
         filtroBuscaInput.value = ""
         filtroCategoria.value = "todas"
         carregarModelos()
     }
 }, { immediate: true })
+
+// Quando o emissor escolhe aceite_link mas o paciente não tem e-mail,
+// já força "copia" pra evitar enviar à API um canalEnvio inviável.
+watch(tipoAssinatura, (novo) => {
+    if (novo === "aceite_link" && pacienteSemEmail.value) {
+        canalEnvio.value = "copia"
+    }
+})
 
 // ─── Passo 1 — modelos ─────────────────────────────────────────────────────
 async function carregarModelos() {
@@ -221,13 +243,38 @@ async function emitir() {
         erro.value = "Paciente sem nome — não é possível emitir o termo."
         return
     }
+    // Validação UX (back é fonte da verdade — 422 se o paciente não tiver e-mail).
+    if (tipoAssinatura.value === "aceite_link" && canalEnvio.value === "email" && pacienteSemEmail.value) {
+        erro.value = "Paciente sem e-mail cadastrado — escolha “Apenas copiar link” ou cadastre o e-mail."
+        return
+    }
     emitindo.value = true
     erro.value = null
     try {
         const r = await pacienteTermoService.emitir(props.paciente.id, {
             modeloId: modeloSelecionado.value.id,
             assinaturaTipo: tipoAssinatura.value,
+            ...(tipoAssinatura.value === "aceite_link"
+                ? { canalEnvio: canalEnvio.value }
+                : {}),
         })
+
+        if (tipoAssinatura.value === "aceite_link" && r.tokenAceite) {
+            // Para aceite_link, NÃO fecha imediato — mostra tela de confirmação
+            // com o link e botão "Copiar". O `emitido` é emitido pra view pai
+            // atualizar a lista, mas o modal segue aberto.
+            linkGerado.value = montarUrlAceitePublico(r.tokenAceite)
+            canalEnvioConfirmado.value = canalEnvio.value
+            linkCopiado.value = false
+            emit("emitido", {
+                termoEmitidoId: r.termoEmitidoId,
+                modeloTitulo: modeloSelecionado.value.titulo,
+            })
+            passo.value = 4
+            return
+        }
+
+        // pdf_anexado: comportamento legado — emite e fecha; a view pai baixa o PDF.
         emit("emitido", {
             termoEmitidoId: r.termoEmitidoId,
             modeloTitulo: modeloSelecionado.value.titulo,
@@ -239,6 +286,24 @@ async function emitir() {
     } finally {
         emitindo.value = false
     }
+}
+
+async function copiarLink() {
+    if (!linkGerado.value) return
+    try {
+        await navigator.clipboard.writeText(linkGerado.value)
+        linkCopiado.value = true
+        window.setTimeout(() => { linkCopiado.value = false }, 2400)
+    } catch {
+        // Fallback: seleciona o texto pra usuário copiar manualmente.
+        const el = document.getElementById("link-aceite-gerado") as HTMLInputElement | null
+        el?.select()
+    }
+}
+
+function fecharAposSucesso() {
+    emit("update:aberto", false)
+    emit("fechar")
 }
 
 // ─── Ferramentas auxiliares (necessárias para o profissionalStore) ─────────

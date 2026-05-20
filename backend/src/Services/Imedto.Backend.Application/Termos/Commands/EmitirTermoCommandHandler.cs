@@ -1,6 +1,7 @@
 using Imedto.Backend.Contracts.Termos.Commands;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Termos;
+using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -21,6 +22,7 @@ public sealed class EmitirTermoCommandHandler : ICommandHandler<EmitirTermoComma
     private readonly ITermoEmitidoRepository _termoRepo;
     private readonly ITermoModeloRepository _modeloRepo;
     private readonly IPacienteRepository _pacienteRepo;
+    private readonly IVinculoRepository _vinculoRepo;
     private readonly ITermoResolverDeVariaveis _resolver;
     private readonly ITermoHtmlSanitizer _sanitizer;
     private readonly ITermoTextoExtractor _textoExtractor;
@@ -34,6 +36,7 @@ public sealed class EmitirTermoCommandHandler : ICommandHandler<EmitirTermoComma
         ITermoEmitidoRepository termoRepo,
         ITermoModeloRepository modeloRepo,
         IPacienteRepository pacienteRepo,
+        IVinculoRepository vinculoRepo,
         ITermoResolverDeVariaveis resolver,
         ITermoHtmlSanitizer sanitizer,
         ITermoTextoExtractor textoExtractor,
@@ -43,6 +46,7 @@ public sealed class EmitirTermoCommandHandler : ICommandHandler<EmitirTermoComma
         _termoRepo = termoRepo;
         _modeloRepo = modeloRepo;
         _pacienteRepo = pacienteRepo;
+        _vinculoRepo = vinculoRepo;
         _resolver = resolver;
         _sanitizer = sanitizer;
         _textoExtractor = textoExtractor;
@@ -78,7 +82,19 @@ public sealed class EmitirTermoCommandHandler : ICommandHandler<EmitirTermoComma
             throw new BusinessException("Modelo de termo inativo.");
 
         // 3. Resolve variáveis com contexto do tenant.
-        var contexto = new ContextoDeVariaveis(paciente.Id, cmd.EstabelecimentoId, cmd.EmissorUsuarioId);
+        // O emissor (recepção/Dono) não é tratado como profissional automaticamente.
+        // Variáveis {{profissional.*}} só são preenchidas quando ProfissionalUsuarioId
+        // explícito é informado e válido — caso contrário, caem em fallback no resolver.
+        Guid? profissionalUsuarioId = null;
+        if (cmd.ProfissionalUsuarioId is { } pid && pid != Guid.Empty)
+        {
+            var podeAtuar = await _vinculoRepo.PodeAtuarComoProfissional(pid, cmd.EstabelecimentoId);
+            if (!podeAtuar)
+                throw new BusinessException("Profissional inválido.");
+            profissionalUsuarioId = pid;
+        }
+
+        var contexto = new ContextoDeVariaveis(paciente.Id, cmd.EstabelecimentoId, profissionalUsuarioId);
         var conteudoResolvido = await _resolver.ResolverAsync(modelo.ConteudoHtml, contexto);
 
         // 4. Re-sanitiza após resolver — variável pode ter contido HTML, e nunca

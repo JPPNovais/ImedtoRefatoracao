@@ -59,11 +59,34 @@ export interface TermoEmitidoDetalhe extends TermoEmitidoResumo {
 export interface EmitirTermoPayload {
     modeloId: number
     assinaturaTipo: AssinaturaTipoEmitir
+    /**
+     * Canal de envio do link público — só lido pelo backend quando
+     * `assinaturaTipo = "aceite_link"`:
+     *  - "email" (default): dispara o e-mail "termo aguardando seu aceite".
+     *  - "copia": suprime o e-mail; o front exibe o link pra emissor copiar.
+     * Ignorado em `pdf_anexado`.
+     */
+    canalEnvio?: "email" | "copia"
+    /**
+     * Usuário-profissional que assina o termo — usado pra resolver as variáveis
+     * `{{profissional.*}}` (nome, conselho, especialidade). Quando ausente, o
+     * backend deixa os placeholders em fallback `___________`. O emissor da
+     * requisição (recepção/Dono) NÃO é tratado automaticamente como profissional.
+     * Precisa ser um profissional com vínculo Ativo no estabelecimento atual.
+     */
+    profissionalUsuarioId?: string | null
 }
 
 export interface EmitirTermoResposta {
     termoEmitidoId: number
+    /** Preenchido quando `assinaturaTipo = aceite_link`; null em pdf_anexado. */
     tokenAceite: string | null
+}
+
+export interface ReenviarLinkResposta {
+    /** Token atualizado/regenerado — useful pra reidratar o link copiado. */
+    tokenAceite: string
+    canal: "email" | "copia"
 }
 
 export const pacienteTermoService = {
@@ -132,6 +155,29 @@ export const pacienteTermoService = {
     /** Revoga termo assinado. `motivo` é obrigatório (10-500 chars no back). */
     async revogar(termoId: number, motivo: string): Promise<void> {
         await httpClient.post(`/termos/${termoId}/revogar`, { motivo })
+    },
+
+    /**
+     * Fase 4 — reenvia o link público (`aceite_link`) por e-mail ou apenas
+     * devolve o token pra ser exibido/copiado pelo emissor.
+     *
+     * Comportamento por canal:
+     *  - "email" (default): backend envia o e-mail. Cooldown de 5 min entre
+     *    envios — 422 com mensagem amigável se ainda dentro do cooldown.
+     *  - "copia": SEM cooldown — útil pra reabrir o modal "Copiar link" quando
+     *    o emissor fechou a tela após emitir.
+     *
+     * Permissão: `termos.emitir`. Termo precisa estar Pendente.
+     */
+    async reenviarLink(
+        termoId: number,
+        canal: "email" | "copia" = "email",
+    ): Promise<ReenviarLinkResposta> {
+        const { data } = await httpClient.post<ReenviarLinkResposta>(
+            `/termos/${termoId}/reenviar-link`,
+            { canal },
+        )
+        return data
     },
 }
 

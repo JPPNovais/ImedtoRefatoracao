@@ -59,6 +59,14 @@ const router = createRouter({
             name: "Termos",
             component: () => import("@/views/legal/TermosView.vue"),
         },
+        // Aceite de termo via link público (Fase 4). Anônima, sem AppLayout —
+        // autenticação é o próprio token na URL. NÃO incluir em ROTAS_RESTRITAS
+        // nem marcar como requiresAuth; o backend já trata segurança e LGPD.
+        {
+            path: "/termos/aceite/:token",
+            name: "AceiteTermoPublico",
+            component: () => import("@/views/publico/AceiteTermoPublicoView.vue"),
+        },
 
         // Pós-login sem tenant (sem layout)
         {
