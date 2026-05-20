@@ -28,3 +28,5 @@
 - [QA pós-deploy 00b0b71 2026-05-19 (inativação=movimentação + atalho paciente→orçamento)](project_qa_posdeploy_00b0b71_2026_05_19.md) — P1 pego em prod (aba Mov não recarregava pós-inativar) corrigido in-loop; ambas features verde.
 - [QA pós-deploy 837b50d 2026-05-19 (Termos de Consentimento)](project_qa_posdeploy_837b50d_2026_05_19.md) — P0: TermoResolverDeVariaveis usa `p.id` em vez de `p.usuario_id` → emissão 500. CRUD modelos/multi-tenant/paginação OK.
 - [QA pós-deploy ff2ff5d 2026-05-20 (fix P0 SQL Termos)](project_qa_posdeploy_ff2ff5d_2026_05_20.md) — P0 backend resolvido (4/4 cenários OK); P1 novo: template do EmitirTermoModal não foi comitado, UI de aceite_link aparece "Em breve" disabled.
+- [QA pós-deploy 3ce5e7f 2026-05-20 (aceite_link UI + LGPD arquivada)](project_qa_posdeploy_3ce5e7f_2026_05_20.md) — Fase 4 e 5 entregues; aceite público end-to-end OK; cooldown 5min, multi-tenant, idempotência validados.
+- [Seed paciente exige genero=nome do enum](feedback_seed_paciente_genero_enum.md) — usar 'Feminino'/'Masculino', não 'F'/'M'; 'F' quebra com 500 em qualquer endpoint EF que carrega paciente.
