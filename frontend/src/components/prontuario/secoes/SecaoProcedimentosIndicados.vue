@@ -1,7 +1,7 @@
 <!-- Lista simples de procedimentos indicados. -->
 <script setup lang="ts">
 import { computed } from "vue"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppInput, AppTextarea } from "@/components/ui"
 
 interface Proc { descricao: string; observacao: string }
 interface Data { procedimentos?: Proc[]; observacoes?: string }
@@ -36,17 +36,18 @@ function setField(idx: number, field: keyof Proc, valor: string) {
         </div>
 
         <div v-for="(p, i) in lista" :key="i" class="linha">
-            <input
-                :value="p.descricao" class="input-field input-principal"
+            <AppInput
+                :model-value="p.descricao"
+                class="input-principal"
                 placeholder="Procedimento (ex: Cirurgia de vesícula, Infiltração articular...)"
                 :disabled="readOnly"
-                @input="(e) => setField(i, 'descricao', (e.target as HTMLInputElement).value)"
+                @update:model-value="(v) => setField(i, 'descricao', String(v))"
             />
-            <input
-                :value="p.observacao" class="input-field"
+            <AppInput
+                :model-value="p.observacao"
                 placeholder="Observação"
                 :disabled="readOnly"
-                @input="(e) => setField(i, 'observacao', (e.target as HTMLInputElement).value)"
+                @update:model-value="(v) => setField(i, 'observacao', String(v))"
             />
             <AppButton variant="danger" size="sm" type="button" title="Remover"
                 :disabled="readOnly" @click="removeProc(i)">✕</AppButton>
@@ -58,12 +59,12 @@ function setField(idx: number, field: keyof Proc, valor: string) {
 
         <div class="subsecao-obs">
             <label class="campo-label">Observações gerais</label>
-            <textarea
-                :value="modelValue.observacoes ?? ''" rows="2" class="input-field"
+            <AppTextarea
+                :model-value="modelValue.observacoes ?? ''" :rows="2"
                 placeholder="Outras considerações sobre os procedimentos indicados..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ observacoes: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+                @update:model-value="(v) => atualizar({ observacoes: String(v) })"
+            />
         </div>
     </div>
 </template>
@@ -75,12 +76,6 @@ function setField(idx: number, field: keyof Proc, valor: string) {
 .linha {
     display: grid; grid-template-columns: 2fr 1.5fr 32px; gap: 0.5rem; align-items: center;
 }
-.input-field {
-    padding: 0.4rem 0.6rem; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-family: inherit; font-size: 0.85em;
-    background: var(--bg-card); color: var(--text); width: 100%; box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: var(--primary); }
 
 .subsecao-obs { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.3rem; }
 .campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); }

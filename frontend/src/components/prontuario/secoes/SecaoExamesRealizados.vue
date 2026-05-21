@@ -1,7 +1,7 @@
 <!-- Lista de exames realizados (laboratoriais, imagem, etc). -->
 <script setup lang="ts">
 import { computed } from "vue"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppInput, AppTextarea, AppSelect } from "@/components/ui"
 
 interface Exame { tipo: string; material: string; nome: string; comentario: string }
 interface Data { itens?: Exame[]; observacoes?: string }
@@ -41,39 +41,39 @@ function setField(idx: number, field: keyof Exame, valor: string) {
             <div class="grade">
                 <div class="campo">
                     <label>Tipo</label>
-                    <select
-                        :value="e.tipo" class="input-field"
+                    <AppSelect
+                        :model-value="e.tipo"
                         :disabled="readOnly"
-                        @change="(ev) => setField(i, 'tipo', (ev.target as HTMLSelectElement).value)"
+                        @update:model-value="(v) => setField(i, 'tipo', String(v))"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="t in TIPOS" :key="t" :value="t">{{ t }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
                 <div class="campo">
                     <label>Material</label>
-                    <input
-                        :value="e.material" class="input-field"
+                    <AppInput
+                        :model-value="e.material"
                         placeholder="Sangue, urina, tecido..."
                         :disabled="readOnly"
-                        @input="(ev) => setField(i, 'material', (ev.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setField(i, 'material', String(v))"
                     />
                 </div>
                 <div class="campo">
                     <label>Nome do exame</label>
-                    <input
-                        :value="e.nome" class="input-field"
+                    <AppInput
+                        :model-value="e.nome"
                         placeholder="Hemograma completo, RX tórax..."
                         :disabled="readOnly"
-                        @input="(ev) => setField(i, 'nome', (ev.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setField(i, 'nome', String(v))"
                     />
                 </div>
             </div>
-            <input
-                :value="e.comentario" class="input-field"
+            <AppInput
+                :model-value="e.comentario"
                 placeholder="Resultado / comentário"
                 :disabled="readOnly"
-                @input="(ev) => setField(i, 'comentario', (ev.target as HTMLInputElement).value)"
+                @update:model-value="(v) => setField(i, 'comentario', String(v))"
             />
             <AppButton variant="danger" size="sm" type="button" :disabled="readOnly" @click="removeItem(i)">
                 Remover exame
@@ -86,12 +86,12 @@ function setField(idx: number, field: keyof Exame, valor: string) {
 
         <div class="subsecao-obs">
             <label class="campo-label">Observações gerais dos exames</label>
-            <textarea
-                :value="modelValue.observacoes ?? ''" rows="2" class="input-field"
+            <AppTextarea
+                :model-value="modelValue.observacoes ?? ''" :rows="2"
                 placeholder="Conclusões, pendências de exames..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ observacoes: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+                @update:model-value="(v) => atualizar({ observacoes: String(v) })"
+            />
             <p class="hint">
                 📎 Para anexar arquivos (PDFs, imagens), use a seção <strong>Anexos</strong> na aba Histórico após salvar a evolução.
             </p>
@@ -112,13 +112,6 @@ function setField(idx: number, field: keyof Exame, valor: string) {
 .campo { display: flex; flex-direction: column; gap: 0.15rem; }
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
 .campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); }
-
-.input-field {
-    padding: 0.4rem 0.6rem; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-family: inherit; font-size: 0.85em;
-    background: var(--bg-card); color: var(--text); width: 100%; box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: var(--primary); }
 
 .subsecao-obs {
     border-top: 1px solid var(--border); padding-top: 0.75rem;

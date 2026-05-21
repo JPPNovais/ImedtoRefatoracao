@@ -1,7 +1,7 @@
 <!-- História familiar: pai, mãe, parentes com doenças hereditárias. -->
 <script setup lang="ts">
 import { computed } from "vue"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppInput, AppTextarea, AppSelect } from "@/components/ui"
 
 interface Parente { parentesco: string; doencas: string; comentario: string }
 interface HfData {
@@ -50,37 +50,37 @@ function setParente(idx: number, field: keyof Parente, valor: string) {
             <div class="card-pai">
                 <h4 class="card-titulo">Pai</h4>
                 <label class="campo-label">Doenças hereditárias</label>
-                <input
-                    :value="modelValue.paiDoencas ?? ''" class="input-field"
+                <AppInput
+                    :model-value="modelValue.paiDoencas ?? ''"
                     placeholder="Ex: Hipertensão, diabetes..."
                     :disabled="readOnly"
-                    @input="(e) => atualizar({ paiDoencas: (e.target as HTMLInputElement).value })"
+                    @update:model-value="(v) => atualizar({ paiDoencas: String(v) })"
                 />
                 <label class="campo-label">Descrição</label>
-                <textarea
-                    :value="modelValue.paiDescricao ?? ''" rows="3" class="input-field"
+                <AppTextarea
+                    :model-value="modelValue.paiDescricao ?? ''" :rows="3"
                     placeholder="Detalhes adicionais"
                     :disabled="readOnly"
-                    @input="(e) => atualizar({ paiDescricao: (e.target as HTMLTextAreaElement).value })"
-                ></textarea>
+                    @update:model-value="(v) => atualizar({ paiDescricao: String(v) })"
+                />
             </div>
 
             <div class="card-mae">
                 <h4 class="card-titulo">Mãe</h4>
                 <label class="campo-label">Doenças hereditárias</label>
-                <input
-                    :value="modelValue.maeDoencas ?? ''" class="input-field"
+                <AppInput
+                    :model-value="modelValue.maeDoencas ?? ''"
                     placeholder="Ex: Hipertensão, diabetes..."
                     :disabled="readOnly"
-                    @input="(e) => atualizar({ maeDoencas: (e.target as HTMLInputElement).value })"
+                    @update:model-value="(v) => atualizar({ maeDoencas: String(v) })"
                 />
                 <label class="campo-label">Descrição</label>
-                <textarea
-                    :value="modelValue.maeDescricao ?? ''" rows="3" class="input-field"
+                <AppTextarea
+                    :model-value="modelValue.maeDescricao ?? ''" :rows="3"
                     placeholder="Detalhes adicionais"
                     :disabled="readOnly"
-                    @input="(e) => atualizar({ maeDescricao: (e.target as HTMLTextAreaElement).value })"
-                ></textarea>
+                    @update:model-value="(v) => atualizar({ maeDescricao: String(v) })"
+                />
             </div>
         </div>
 
@@ -94,30 +94,30 @@ function setParente(idx: number, field: keyof Parente, valor: string) {
                     <div class="grade-parente">
                         <div class="campo">
                             <label>Grau de parentesco</label>
-                            <select
-                                :value="p.parentesco" class="input-field"
+                            <AppSelect
+                                :model-value="p.parentesco"
                                 :disabled="readOnly"
-                                @change="(e) => setParente(i, 'parentesco', (e.target as HTMLSelectElement).value)"
+                                @update:model-value="(v) => setParente(i, 'parentesco', String(v))"
                             >
                                 <option value="">Selecione...</option>
                                 <option v-for="g in PARENTESCOS" :key="g" :value="g">{{ g }}</option>
-                            </select>
+                            </AppSelect>
                         </div>
                         <div class="campo">
                             <label>Doenças hereditárias</label>
-                            <input
-                                :value="p.doencas" class="input-field"
+                            <AppInput
+                                :model-value="p.doencas"
                                 placeholder="Ex: Câncer, AVC..."
                                 :disabled="readOnly"
-                                @input="(e) => setParente(i, 'doencas', (e.target as HTMLInputElement).value)"
+                                @update:model-value="(v) => setParente(i, 'doencas', String(v))"
                             />
                         </div>
                     </div>
-                    <input
-                        :value="p.comentario" class="input-field"
+                    <AppInput
+                        :model-value="p.comentario"
                         placeholder="Comentário (opcional)"
                         :disabled="readOnly"
-                        @input="(e) => setParente(i, 'comentario', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setParente(i, 'comentario', String(v))"
                     />
                     <AppButton
                         variant="danger" size="sm" type="button"
@@ -136,12 +136,12 @@ function setParente(idx: number, field: keyof Parente, valor: string) {
 
         <div class="subsecao">
             <label class="campo-label">Observações</label>
-            <textarea
-                :value="modelValue.observacao ?? ''" rows="3" class="input-field"
+            <AppTextarea
+                :model-value="modelValue.observacao ?? ''" :rows="3"
                 placeholder="Outras informações relevantes da história familiar..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ observacao: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+                @update:model-value="(v) => atualizar({ observacao: String(v) })"
+            />
         </div>
     </div>
 </template>
@@ -177,13 +177,6 @@ function setParente(idx: number, field: keyof Parente, valor: string) {
 .campo { display: flex; flex-direction: column; gap: 0.15rem; }
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
 .campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); margin-top: 0.25rem; }
-
-.input-field {
-    padding: 0.4rem 0.6rem; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-family: inherit; font-size: 0.85em;
-    background: var(--bg-card); color: var(--text); width: 100%; box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: var(--primary); }
 
 @media (max-width: 768px) {
     .grade-2, .grade-parente { grid-template-columns: 1fr; }

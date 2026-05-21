@@ -4,7 +4,7 @@
 -->
 <script setup lang="ts">
 import { computed } from "vue"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppInput, AppTextarea, AppSelect } from "@/components/ui"
 
 interface Alergia { nome: string; observacao: string }
 interface Medicacao { nome: string; dose: string; frequencia: string; motivo: string; observacoes: string }
@@ -118,17 +118,17 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 
             <div v-if="modelValue.alergiasTem" class="lista">
                 <div v-for="(a, i) in alergias" :key="i" class="item-linha">
-                    <input
-                        :value="a.nome" class="input-field"
+                    <AppInput
+                        :model-value="a.nome"
                         placeholder="Alergia (ex: Dipirona, Amendoim)"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('alergias', i, 'nome', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('alergias', i, 'nome', String(v))"
                     />
-                    <input
-                        :value="a.observacao" class="input-field"
+                    <AppInput
+                        :model-value="a.observacao"
                         placeholder="Observação (reação, gravidade...)"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('alergias', i, 'observacao', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('alergias', i, 'observacao', String(v))"
                     />
                     <AppButton
                         v-if="alergias.length > 1" variant="danger" size="sm" type="button" title="Remover"
@@ -169,48 +169,48 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
                     <div class="grade-med">
                         <div class="campo">
                             <label>Medicamento</label>
-                            <input
-                                :value="m.nome" class="input-field"
+                            <AppInput
+                                :model-value="m.nome"
                                 placeholder="Nome do medicamento"
                                 :disabled="readOnly"
-                                @input="(e) => setItemField('medicacoes', i, 'nome', (e.target as HTMLInputElement).value)"
+                                @update:model-value="(v) => setItemField('medicacoes', i, 'nome', String(v))"
                             />
                         </div>
                         <div class="campo">
                             <label>Dose</label>
-                            <input
-                                :value="m.dose" class="input-field"
+                            <AppInput
+                                :model-value="m.dose"
                                 placeholder="Ex: 50mg"
                                 :disabled="readOnly"
-                                @input="(e) => setItemField('medicacoes', i, 'dose', (e.target as HTMLInputElement).value)"
+                                @update:model-value="(v) => setItemField('medicacoes', i, 'dose', String(v))"
                             />
                         </div>
                         <div class="campo">
                             <label>Frequência</label>
-                            <select
-                                :value="m.frequencia" class="input-field"
+                            <AppSelect
+                                :model-value="m.frequencia"
                                 :disabled="readOnly"
-                                @change="(e) => setItemField('medicacoes', i, 'frequencia', (e.target as HTMLSelectElement).value)"
+                                @update:model-value="(v) => setItemField('medicacoes', i, 'frequencia', String(v))"
                             >
                                 <option value="">Selecione...</option>
                                 <option v-for="f in FREQUENCIAS" :key="f" :value="f">{{ f }}</option>
-                            </select>
+                            </AppSelect>
                         </div>
                         <div class="campo">
                             <label>Motivo / Indicação</label>
-                            <input
-                                :value="m.motivo" class="input-field"
+                            <AppInput
+                                :model-value="m.motivo"
                                 placeholder="Ex: Hipertensão"
                                 :disabled="readOnly"
-                                @input="(e) => setItemField('medicacoes', i, 'motivo', (e.target as HTMLInputElement).value)"
+                                @update:model-value="(v) => setItemField('medicacoes', i, 'motivo', String(v))"
                             />
                         </div>
                     </div>
-                    <input
-                        :value="m.observacoes" class="input-field"
+                    <AppInput
+                        :model-value="m.observacoes"
                         placeholder="Observações (opcional)"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('medicacoes', i, 'observacoes', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('medicacoes', i, 'observacoes', String(v))"
                     />
                     <AppButton
                         v-if="medicacoes.length > 1" variant="danger" size="sm" type="button"
@@ -248,24 +248,24 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 
             <div v-if="modelValue.cirurgiasTem" class="lista">
                 <div v-for="(c, i) in cirurgias" :key="i" class="item-grade-cirurgia">
-                    <input
-                        :value="c.nome" class="input-field"
+                    <AppInput
+                        :model-value="c.nome"
                         placeholder="Cirurgia realizada"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('cirurgias', i, 'nome', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('cirurgias', i, 'nome', String(v))"
                     />
-                    <input
-                        :value="c.ano" type="number" min="1900" max="2100"
-                        class="input-field input-ano"
+                    <AppInput
+                        :model-value="c.ano" type="number" min="1900" max="2100"
+                        class="input-ano"
                         placeholder="Ano"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('cirurgias', i, 'ano', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('cirurgias', i, 'ano', String(v))"
                     />
-                    <input
-                        :value="c.observacao" class="input-field"
+                    <AppInput
+                        :model-value="c.observacao"
                         placeholder="Observação"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('cirurgias', i, 'observacao', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('cirurgias', i, 'observacao', String(v))"
                     />
                     <AppButton
                         v-if="cirurgias.length > 1" variant="danger" size="sm" type="button" title="Remover"
@@ -303,17 +303,17 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 
             <div v-if="modelValue.doencasTem" class="lista">
                 <div v-for="(d, i) in doencas" :key="i" class="item-linha">
-                    <input
-                        :value="d.nome" class="input-field"
+                    <AppInput
+                        :model-value="d.nome"
                         placeholder="Doença"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('doencas', i, 'nome', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('doencas', i, 'nome', String(v))"
                     />
-                    <input
-                        :value="d.observacao" class="input-field"
+                    <AppInput
+                        :model-value="d.observacao"
                         placeholder="Observação"
                         :disabled="readOnly"
-                        @input="(e) => setItemField('doencas', i, 'observacao', (e.target as HTMLInputElement).value)"
+                        @update:model-value="(v) => setItemField('doencas', i, 'observacao', String(v))"
                     />
                     <AppButton
                         v-if="doencas.length > 1" variant="danger" size="sm" type="button" title="Remover"
@@ -332,14 +332,13 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
         <!-- ── Observações finais ────────────────────────────────────────── -->
         <div class="subsecao">
             <label class="campo-label-solo">Observações gerais</label>
-            <textarea
-                :value="modelValue.observacoes ?? ''"
-                rows="3"
-                class="input-field"
+            <AppTextarea
+                :model-value="modelValue.observacoes ?? ''"
+                :rows="3"
                 placeholder="Outras informações relevantes da HPP..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ observacoes: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+                @update:model-value="(v) => atualizar({ observacoes: String(v) })"
+            />
         </div>
     </div>
 </template>
@@ -398,17 +397,9 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
 .campo-label-solo { font-size: 0.82em; font-weight: 600; color: var(--text-muted); }
 
-.input-field {
-    padding: 0.4rem 0.6rem; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-family: inherit; font-size: 0.85em;
-    background: var(--bg-card); color: var(--text); width: 100%; box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: var(--primary); }
-.input-field:disabled { background: #f9fafb; color: var(--text-muted); }
-
 @media (max-width: 768px) {
     .grade-med { grid-template-columns: 1fr 1fr; }
     .item-grade-cirurgia { grid-template-columns: 1fr 80px 32px; }
-    .item-grade-cirurgia .input-field:nth-child(3) { grid-column: 1 / -1; }
+    .item-grade-cirurgia > :nth-child(3) { grid-column: 1 / -1; }
 }
 </style>

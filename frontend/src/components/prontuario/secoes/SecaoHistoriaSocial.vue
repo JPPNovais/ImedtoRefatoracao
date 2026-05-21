@@ -1,5 +1,6 @@
 <!-- História social: tabagismo, etilismo, drogas, atividade física, alimentação, sono. -->
 <script setup lang="ts">
+import { AppInput, AppTextarea, AppSelect } from "@/components/ui"
 interface HsData {
     estadoCivil?: string
     filhosTem?: boolean
@@ -44,14 +45,14 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
             <div class="grade-2">
                 <div class="campo">
                     <label>Estado civil</label>
-                    <select
-                        :value="modelValue.estadoCivil ?? ''" class="input-field"
+                    <AppSelect
+                        :model-value="modelValue.estadoCivil ?? ''"
                         :disabled="readOnly"
-                        @change="(e) => atualizar({ estadoCivil: (e.target as HTMLSelectElement).value })"
+                        @update:model-value="(v) => atualizar({ estadoCivil: String(v) })"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="s in ESTADOS_CIVIS" :key="s" :value="s">{{ s }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
                 <div class="campo">
                     <label>Filhos?</label>
@@ -74,27 +75,27 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
             <div v-if="modelValue.filhosTem" class="grade-3">
                 <div class="campo">
                     <label>Quantos?</label>
-                    <input
-                        :value="modelValue.filhosQuantos ?? ''" type="number" min="0" class="input-field"
+                    <AppInput
+                        :model-value="modelValue.filhosQuantos ?? ''" type="number" min="0"
                         :disabled="readOnly"
-                        @input="(e) => atualizar({ filhosQuantos: (e.target as HTMLInputElement).value })"
+                        @update:model-value="(v) => atualizar({ filhosQuantos: String(v) })"
                     />
                 </div>
                 <div class="campo">
                     <label>Idades</label>
-                    <input
-                        :value="modelValue.filhosIdades ?? ''" class="input-field"
+                    <AppInput
+                        :model-value="modelValue.filhosIdades ?? ''"
                         placeholder="Ex: 8, 12, 15"
                         :disabled="readOnly"
-                        @input="(e) => atualizar({ filhosIdades: (e.target as HTMLInputElement).value })"
+                        @update:model-value="(v) => atualizar({ filhosIdades: String(v) })"
                     />
                 </div>
                 <div class="campo">
                     <label>Observações</label>
-                    <input
-                        :value="modelValue.filhosObs ?? ''" class="input-field"
+                    <AppInput
+                        :model-value="modelValue.filhosObs ?? ''"
                         :disabled="readOnly"
-                        @input="(e) => atualizar({ filhosObs: (e.target as HTMLInputElement).value })"
+                        @update:model-value="(v) => atualizar({ filhosObs: String(v) })"
                     />
                 </div>
             </div>
@@ -113,22 +114,22 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
             <div v-if="modelValue.tabagismoTem" class="grade-2">
                 <div class="campo">
                     <label>Status</label>
-                    <select
-                        :value="modelValue.tabagismoStatus ?? ''" class="input-field"
+                    <AppSelect
+                        :model-value="modelValue.tabagismoStatus ?? ''"
                         :disabled="readOnly"
-                        @change="(e) => atualizar({ tabagismoStatus: (e.target as HTMLSelectElement).value })"
+                        @update:model-value="(v) => atualizar({ tabagismoStatus: String(v) })"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="t in TABAGISMO" :key="t" :value="t">{{ t }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
                 <div class="campo">
                     <label>Observações</label>
-                    <input
-                        :value="modelValue.tabagismoObs ?? ''" class="input-field"
+                    <AppInput
+                        :model-value="modelValue.tabagismoObs ?? ''"
                         placeholder="Quantidade, tempo de uso..."
                         :disabled="readOnly"
-                        @input="(e) => atualizar({ tabagismoObs: (e.target as HTMLInputElement).value })"
+                        @update:model-value="(v) => atualizar({ tabagismoObs: String(v) })"
                     />
                 </div>
             </div>
@@ -147,22 +148,22 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
             <div v-if="modelValue.etilismoTem" class="grade-2">
                 <div class="campo">
                     <label>Status</label>
-                    <select
-                        :value="modelValue.etilismoStatus ?? ''" class="input-field"
+                    <AppSelect
+                        :model-value="modelValue.etilismoStatus ?? ''"
                         :disabled="readOnly"
-                        @change="(e) => atualizar({ etilismoStatus: (e.target as HTMLSelectElement).value })"
+                        @update:model-value="(v) => atualizar({ etilismoStatus: String(v) })"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="e in ETILISMO" :key="e" :value="e">{{ e }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
                 <div class="campo">
                     <label>Observações</label>
-                    <input
-                        :value="modelValue.etilismoObs ?? ''" class="input-field"
+                    <AppInput
+                        :model-value="modelValue.etilismoObs ?? ''"
                         placeholder="Tipo, frequência..."
                         :disabled="readOnly"
-                        @input="(e) => atualizar({ etilismoObs: (e.target as HTMLInputElement).value })"
+                        @update:model-value="(v) => atualizar({ etilismoObs: String(v) })"
                     />
                 </div>
             </div>
@@ -179,12 +180,12 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
                 </div>
             </div>
             <div v-if="modelValue.drogasTem">
-                <textarea
-                    :value="modelValue.drogasObs ?? ''" rows="2" class="input-field"
+                <AppTextarea
+                    :model-value="modelValue.drogasObs ?? ''" :rows="2"
                     placeholder="Tipo, via de uso, frequência, há quanto tempo..."
                     :disabled="readOnly"
-                    @input="(e) => atualizar({ drogasObs: (e.target as HTMLTextAreaElement).value })"
-                ></textarea>
+                    @update:model-value="(v) => atualizar({ drogasObs: String(v) })"
+                />
             </div>
         </div>
 
@@ -201,22 +202,22 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
             <div v-if="modelValue.atividadeFisicaTem" class="grade-2">
                 <div class="campo">
                     <label>Nível</label>
-                    <select
-                        :value="modelValue.atividadeFisicaNivel ?? ''" class="input-field"
+                    <AppSelect
+                        :model-value="modelValue.atividadeFisicaNivel ?? ''"
                         :disabled="readOnly"
-                        @change="(e) => atualizar({ atividadeFisicaNivel: (e.target as HTMLSelectElement).value })"
+                        @update:model-value="(v) => atualizar({ atividadeFisicaNivel: String(v) })"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="n in NIVEIS_ATIV" :key="n" :value="n">{{ n }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
                 <div class="campo">
                     <label>Observações</label>
-                    <input
-                        :value="modelValue.atividadeFisicaObs ?? ''" class="input-field"
+                    <AppInput
+                        :model-value="modelValue.atividadeFisicaObs ?? ''"
                         placeholder="Modalidades, frequência semanal..."
                         :disabled="readOnly"
-                        @input="(e) => atualizar({ atividadeFisicaObs: (e.target as HTMLInputElement).value })"
+                        @update:model-value="(v) => atualizar({ atividadeFisicaObs: String(v) })"
                     />
                 </div>
             </div>
@@ -226,39 +227,39 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
             <div class="grade-2">
                 <div class="campo">
                     <label>Alimentação</label>
-                    <select
-                        :value="modelValue.alimentacao ?? ''" class="input-field"
+                    <AppSelect
+                        :model-value="modelValue.alimentacao ?? ''"
                         :disabled="readOnly"
-                        @change="(e) => atualizar({ alimentacao: (e.target as HTMLSelectElement).value })"
+                        @update:model-value="(v) => atualizar({ alimentacao: String(v) })"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="a in TIPOS_ALIM" :key="a" :value="a">{{ a }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
                 <div class="campo">
                     <label>Sono e rotina</label>
-                    <select
-                        :value="modelValue.sonoQualidade ?? ''" class="input-field"
+                    <AppSelect
+                        :model-value="modelValue.sonoQualidade ?? ''"
                         :disabled="readOnly"
-                        @change="(e) => atualizar({ sonoQualidade: (e.target as HTMLSelectElement).value })"
+                        @update:model-value="(v) => atualizar({ sonoQualidade: String(v) })"
                     >
                         <option value="">Selecione...</option>
                         <option v-for="q in QUAL_SONO" :key="q" :value="q">{{ q }}</option>
-                    </select>
+                    </AppSelect>
                 </div>
             </div>
-            <textarea
-                :value="modelValue.alimentacaoObs ?? ''" rows="2" class="input-field"
+            <AppTextarea
+                :model-value="modelValue.alimentacaoObs ?? ''" :rows="2"
                 placeholder="Observações de alimentação..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ alimentacaoObs: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
-            <textarea
-                :value="modelValue.sonoObs ?? ''" rows="2" class="input-field"
+                @update:model-value="(v) => atualizar({ alimentacaoObs: String(v) })"
+            />
+            <AppTextarea
+                :model-value="modelValue.sonoObs ?? ''" :rows="2"
                 placeholder="Observações de sono..."
                 :disabled="readOnly"
-                @input="(e) => atualizar({ sonoObs: (e.target as HTMLTextAreaElement).value })"
-            ></textarea>
+                @update:model-value="(v) => atualizar({ sonoObs: String(v) })"
+            />
         </div>
     </div>
 </template>
@@ -279,13 +280,6 @@ const QUAL_SONO      = ["Bom (7-8h)", "Regular (5-6h)", "Ruim / insônia", "Irre
 
 .campo { display: flex; flex-direction: column; gap: 0.15rem; }
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
-
-.input-field {
-    padding: 0.4rem 0.6rem; border: 1px solid var(--border-strong);
-    border-radius: var(--radius); font-family: inherit; font-size: 0.85em;
-    background: var(--bg-card); color: var(--text); width: 100%; box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: var(--primary); }
 
 .toggle {
     display: inline-flex; padding: 3px;
