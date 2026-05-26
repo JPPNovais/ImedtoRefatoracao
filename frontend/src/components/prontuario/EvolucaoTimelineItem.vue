@@ -19,10 +19,13 @@ const props = defineProps<{
     evolucao: Evolucao
     destaque?: boolean
     gerandoPdf?: boolean
+    /** Indica se o usuário atual pode abrir o drawer de visualização (autor || admin). */
+    podeVer?: boolean
 }>()
 
 const emit = defineEmits<{
     "gerar-pdf": [payload: { evolucao: Evolucao, modo: PdfSaidaModo }]
+    "ver-evolucao": [evolucao: Evolucao]
 }>()
 
 const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -80,9 +83,20 @@ function emitirPdf(modo: PdfSaidaModo) {
 
                 <div class="httf-acoes acoes-pdf">
                     <AppButton
-                        variant="secondary"
+                        v-if="podeVer"
+                        variant="primary"
                         size="sm"
                         icon="fa-solid fa-eye"
+                        aria-label="Visualizar evolução em tela"
+                        data-test="btn-ver-evolucao"
+                        @click="emit('ver-evolucao', evolucao)"
+                    >
+                        Ver
+                    </AppButton>
+                    <AppButton
+                        variant="secondary"
+                        size="sm"
+                        icon="fa-solid fa-file-pdf"
                         :loading="gerandoPdf"
                         :disabled="gerandoPdf"
                         aria-label="Visualizar PDF desta evolução"

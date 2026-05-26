@@ -19,6 +19,7 @@ vi.mock("@/components/ui", () => {
     return { AppButton }
 })
 
+
 import EvolucaoTimelineItem from "./EvolucaoTimelineItem.vue"
 
 const evolucaoMock: Evolucao = {
@@ -94,5 +95,47 @@ describe("EvolucaoTimelineItem", () => {
             props: { evolucao: evolucaoMock, destaque: false },
         })
         expect(w.text()).not.toContain("Mais recente")
+    })
+
+    // ─── CA3, CA4, CA5 — RBAC do botão "Ver" ────────────────────────────────
+
+    it("CA3/CA4 — botão 'Ver' aparece quando podeVer=true", () => {
+        const w = mount(EvolucaoTimelineItem, {
+            props: { evolucao: evolucaoMock, podeVer: true },
+        })
+        expect(w.find("[data-test='btn-ver-evolucao']").exists()).toBe(true)
+    })
+
+    it("CA5 — botão 'Ver' não aparece quando podeVer=false", () => {
+        const w = mount(EvolucaoTimelineItem, {
+            props: { evolucao: evolucaoMock, podeVer: false },
+        })
+        expect(w.find("[data-test='btn-ver-evolucao']").exists()).toBe(false)
+    })
+
+    it("CA5 — botão 'Ver' não aparece quando podeVer não é passado (padrão)", () => {
+        const w = mount(EvolucaoTimelineItem, {
+            props: { evolucao: evolucaoMock },
+        })
+        expect(w.find("[data-test='btn-ver-evolucao']").exists()).toBe(false)
+    })
+
+    it("clique no botão 'Ver' emite 'ver-evolucao' com a evolução", async () => {
+        const w = mount(EvolucaoTimelineItem, {
+            props: { evolucao: evolucaoMock, podeVer: true },
+        })
+        await w.find("[data-test='btn-ver-evolucao']").trigger("click")
+        const eventos = w.emitted("ver-evolucao")
+        expect(eventos).toBeTruthy()
+        expect(eventos![0][0]).toEqual(evolucaoMock)
+    })
+
+    it("botão 'Ver PDF' continua aparecendo independente do podeVer", () => {
+        // CA5: outro profissional ainda vê o botão Ver PDF
+        const w = mount(EvolucaoTimelineItem, {
+            props: { evolucao: evolucaoMock, podeVer: false },
+        })
+        expect(w.find("[data-test='btn-pdf-visualizar']").exists()).toBe(true)
+        expect(w.find("[data-test='btn-pdf-baixar']").exists()).toBe(true)
     })
 })

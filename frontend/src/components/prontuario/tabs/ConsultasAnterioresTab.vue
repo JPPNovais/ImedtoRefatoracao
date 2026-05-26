@@ -8,12 +8,15 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { AppButton, AppEmptyState, AppPagination } from "@/components/ui"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
+import EvolucaoDetalheDrawer from "@/components/prontuario/EvolucaoDetalheDrawer.vue"
 import {
     prontuarioService,
     type Anexo,
     type Evolucao,
 } from "@/services/prontuarioService"
 import type { PdfSaidaModo } from "@/composables/useProntuarioPdf"
+import { useAuthStore } from "@/stores/authStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 
 const props = defineProps<{
     pacienteId: number
@@ -60,6 +63,34 @@ async function carregar() {
 defineExpose({ recarregar: carregar })
 watch([pagina, tamanho], carregar)
 onMounted(carregar)
+
+// ─── RBAC e drawer de visualização ──────────────────────────────────────────
+const authStore = useAuthStore()
+const permissoesStore = usePermissoesStore()
+
+/** Evolução aberta no drawer; null quando fechado. */
+const evolucaoNoDrawer = ref<Evolucao | null>(null)
+
+/** true quando o usuário é Dono do estabelecimento. */
+const ehDono = computed(() => permissoesStore.ehDono)
+
+/**
+ * Retorna true se o usuário pode abrir o drawer de visualização para a evolução.
+ * Regra: autor da evolução OU Dono do estabelecimento (admin).
+ * Briefing 2026-05-25_001, R1.
+ */
+function podeVerEvolucao(evo: Evolucao): boolean {
+    if (ehDono.value) return true
+    return evo.autorUsuarioId === authStore.usuario?.id
+}
+
+function abrirDrawer(evo: Evolucao) {
+    evolucaoNoDrawer.value = evo
+}
+
+function fecharDrawer() {
+    evolucaoNoDrawer.value = null
+}
 
 const idMaisRecente = computed(() => evolucoes.value[0]?.id ?? null)
 
@@ -136,7 +167,9 @@ function fmtTamanho(bytes: number) {
                     :evolucao="evo"
                     :destaque="pagina === 1 && evo.id === idMaisRecente"
                     :gerando-pdf="evolucaoSendoBaixada === evo.id"
+                    :pode-ver="podeVerEvolucao(evo)"
                     @gerar-pdf="emit('gerarPdfEvolucao', $event)"
+                    @ver-evolucao="abrirDrawer"
                 />
             </div>
             <AppPagination
@@ -146,6 +179,13 @@ function fmtTamanho(bytes: number) {
                 rotulo-itens="evolução(ões)"
             />
         </template>
+
+        <!-- Drawer de visualização da evolução (somente leitura) -->
+        <EvolucaoDetalheDrawer
+            :evolucao="evolucaoNoDrawer"
+            :aberto="evolucaoNoDrawer !== null"
+            @fechar="fecharDrawer"
+        />
 
         <!-- Card de Anexos -->
         <section class="anexos-card">

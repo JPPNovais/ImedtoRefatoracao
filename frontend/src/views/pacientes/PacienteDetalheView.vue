@@ -10,9 +10,12 @@ import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { prontuarioService, type ProntuarioCompleto, type Anexo, type Evolucao } from "@/services/prontuarioService"
 import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
+import EvolucaoDetalheDrawer from "@/components/prontuario/EvolucaoDetalheDrawer.vue"
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { resolverTag } from "@/constants/pacienteTags"
+import { useAuthStore } from "@/stores/authStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 
 /**
  * Tela de detalhe de paciente. Header sticky com avatar grande, alertas
@@ -58,6 +61,28 @@ const carregandoAnexos = ref(false)
 
 const { gerarPdfEvolucao } = useProntuarioPdf()
 const evolucaoSendoBaixada = ref<number | null>(null)
+
+// ─── RBAC e drawer de visualização da evolução ────────────────────────────
+const authStore = useAuthStore()
+const permissoesStore = usePermissoesStore()
+
+const evolucaoNoDrawer = ref<Evolucao | null>(null)
+
+const ehDono = computed(() => permissoesStore.ehDono)
+
+/** Regra: autor da evolução OU Dono do estabelecimento. Briefing 2026-05-25_001, R1. */
+function podeVerEvolucao(evo: Evolucao): boolean {
+    if (ehDono.value) return true
+    return evo.autorUsuarioId === authStore.usuario?.id
+}
+
+function abrirDrawer(evo: Evolucao) {
+    evolucaoNoDrawer.value = evo
+}
+
+function fecharDrawer() {
+    evolucaoNoDrawer.value = null
+}
 
 /**
  * Para "visualizar" precisamos abrir `window.open` SINCRONICAMENTE ao clique
@@ -518,7 +543,9 @@ function orcStatusClass(s: string): string {
                             :evolucao="ev"
                             :destaque="ev.id === idEvolucaoMaisRecente"
                             :gerando-pdf="evolucaoSendoBaixada === ev.id"
+                            :pode-ver="podeVerEvolucao(ev)"
                             @gerar-pdf="exportarPdfEvolucao"
+                            @ver-evolucao="abrirDrawer"
                         />
                     </div>
                 </section>
@@ -666,6 +693,13 @@ function orcStatusClass(s: string): string {
                 </section>
             </div>
         </template>
+
+        <!-- Drawer de visualização da evolução (somente leitura) -->
+        <EvolucaoDetalheDrawer
+            :evolucao="evolucaoNoDrawer"
+            :aberto="evolucaoNoDrawer !== null"
+            @fechar="fecharDrawer"
+        />
 
         <!-- Modal de edição -->
         <PacienteFormModal
