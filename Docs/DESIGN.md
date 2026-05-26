@@ -1,0 +1,70 @@
+# Design e padrão de produto
+
+> **Quando ler**: ao tocar UI, view, componente, layout, design system, fluxo visual, formulário, lista, drawer, modal, tema, cor, tipografia, responsividade.
+>
+> **Quando atualizar**: ao introduzir novo componente reutilizável, nova variante de `app-page`, novo token de cor, nova regra de UX cross-cutting. **Responsabilidade primária: `imedto-business-analyst`** (atualiza junto com o briefing) e `imedto-developer` (quando cria componente novo no design system).
+
+---
+
+## Premissa central
+
+O Imedto é um produto único — toda tela, fluxo e interação precisa parecer parte do mesmo software, escrita pela mesma equipe. Estas premissas valem para qualquer mudança em qualquer área.
+
+## Experiência consistente em todo o site
+
+- **Container de página padrão**: toda view interna (dentro do `AppLayout`) começa com `<div class="app-page ...">` (definido em [main.css](../frontend/src/assets/main.css)). Centraliza, aplica padding e limita largura — evita o anti-padrão de "espaço em branco colado em um dos lados". Variantes:
+  - `.app-page` (padrão, 1280px) — listas, cards, dashboards.
+  - `.app-page--narrow` (880px) — formulários, perfil, telas de conta/configuração.
+  - `.app-page--wide` (1480px) — relatórios, prontuário, calendários grandes.
+  - `.app-page--full` (100%) — apenas para casos que exigem width inteiro (ex: agenda em modo mês).
+  - **Não** declarar `max-width`/`margin: 0 auto`/`padding` próprio na raiz da view — usar a classe utilitária. Ao tocar uma view legada que ainda usa container próprio, migrar para `.app-page`.
+- Mesmo "shape" de cabeçalho de página: `AppPageHeader` com título, subtítulo opcional e slot de ações.
+- Mesmas primitivas para listas, drawers, modais, badges de status, toggles de período, cards e empty states (todos vivem em [frontend/src/components/ui/](../frontend/src/components/ui/) — ver [index.ts](../frontend/src/components/ui/index.ts) para a lista oficial do design system).
+- **Listas paginadas**: usar sempre o `AppPagination` (`v-model:pagina` + `v-model:tamanho` + `:total`). O componente já fornece o seletor de itens por página (10/20/30 padrão), navegação numerada com ellipsis e o texto "1–20 de 47 itens" — não reimplementar lógica de página/ellipsis na view.
+- **Botões de ação em tabelas**: usar as classes globais `.btn-icon` + `.btn-icon-ver` (olho/primary), `.btn-icon-editar` (lápis/azul), `.btn-icon-excluir` (lixeira/danger) definidas em [main.css](../frontend/src/assets/main.css). Não criar variantes scoped — duplicar em `<style scoped>` reabriria o bug "scoped data-attr atinge root do componente filho".
+- **Buscas que tocam a API**: TODO input cujo valor dispara request HTTP precisa de debounce (~300 ms) — caso contrário cada caractere digitado vira uma requisição. Use o composable [useDebouncedRef](../frontend/src/composables/useDebouncedRef.ts), nunca `setTimeout` manual. Padrão:
+  ```ts
+  const buscaInput = ref("")                       // v-model do <input>
+  const busca      = useDebouncedRef(buscaInput)   // ref atrasado que aciona a request
+
+  watch(busca, () => { pagina.value = 1 })
+  watch([busca, pagina, tamanho], () => carregar(), { immediate: true })
+  ```
+  Filtros que rodam **client-side** (lista já carregada e filtrada por `computed`) não precisam de debounce — apenas inputs cujo valor passa para um service/HTTP. Cliques em paginação/ordenação devem ser imediatos (não ficam atrás do debounce).
+- Cores, tipografia, espaçamentos, raios e sombras vêm dos tokens HSL em [frontend/src/assets/main.css](../frontend/src/assets/main.css) — **nunca** hardcodar cores ou montar botão/input do zero.
+- Estados (loading, vazio, erro, sucesso, desabilitado) sempre presentes e uniformes — uma tabela vazia usa `AppEmptyState`, não um `<p>` solto.
+- Mensagens de erro de negócio vêm do backend (`BusinessException` → 422) e são exibidas no mesmo formato em todas as telas.
+
+## Componentização máxima
+
+- Antes de escrever HTML/CSS scoped numa view, perguntar: *"isso aparece em outra tela ou pode aparecer?"*. Se sim → componente em `components/ui/` ou `components/<dominio>/`.
+- Trecho de template repetido entre views (mesmo similar) é cheiro: extraia para componente parametrizado por props.
+- Evitar componentes "Frankenstein" com 15 props booleanas — quebrar em vários componentes menores compostos é melhor que um componente único configurável.
+- Drawers, modais e formulários compartilhados entre fluxos viram componentes (ex: [AgendamentoFormFields](../frontend/src/components/agenda/AgendamentoFormFields.vue) é compartilhado entre criar e editar).
+- **Todos os componentes do frontend devem pegar do design system** com objetivo de padronizar. Só criar algo scoped quando for bem específico para aquele cenário e **não** for reutilizável.
+- **Caso o componente não exista no design system e seja reutilizável**, deve ser criado no design system primeiro, e depois importado no front. Mantém padronização.
+- **Antes de criar componente novo no front**, verifique se ele existe no design system.
+
+## Padrão de desenvolvimento
+
+- Backend segue DDD + CQRS (commands/queries/events) com **regra de negócio sempre no domain/handler**, nunca no controller, no SQL ou na view.
+- Frontend: views consomem **stores Pinia** ou **services**, nunca `httpClient` direto; HTTP só passa por `*Service` em [frontend/src/services/](../frontend/src/services/).
+- Toda nova feature é validada com type-check (`vue-tsc`/`dotnet build`) e, quando o caso, testes (`dotnet test`/`vitest`) **antes de declarar pronto**.
+- Trava do front sempre tem trava espelhada no back (defense-in-depth: 422 do backend é a fonte da verdade; o front é UX).
+
+## Reuso > duplicação
+
+Antes de criar **qualquer** endpoint, query, repositório, store, service no front, componente UI, helper ou DTO, **procure o que já existe** e reutilize. Duplicar lógica fragmenta regras, divide a verdade entre dois lugares e gera bugs sutis quando um lado muda e o outro não.
+
+Como aplicar:
+- **Backend**: antes de adicionar um método em `*QueryRepository` ou um endpoint novo no controller, faça `grep`/`Glob` por algo equivalente. Procure por padrões: nome do conceito (`Profissional`, `Vinculo`, `Dono`), nome do dado (`especialidade`), nome da operação (`Listar*`, `Obter*`, `Tem*`).
+- **Frontend**: antes de criar um `*Service` novo, ver se já existe método equivalente em [frontend/src/services/](../frontend/src/services/). Antes de criar componente, ver [frontend/src/components/ui/](../frontend/src/components/ui/) e [frontend/src/components/ui/index.ts](../frontend/src/components/ui/index.ts) (lista oficial do design system).
+- **DTOs/queries**: se o DTO retornado já tem o campo que você precisa para uma nova tela, reuse — não crie um DTO paralelo só para "deixar mais limpo". Estenda o existente ou reaproveite.
+- **Quando duplicar é inevitável** (ex: a query existente faz join pesado e a nova precisa ser leve): documente o porquê em comentário ou commit message, e cite a outra como referência.
+
+Se um conceito de domínio aparece em **duas operações diferentes** com a mesma regra (ex: "este usuário pode atuar como profissional neste estabelecimento" → vale para criar agendamento, editar agendamento, listar disponibilidade), extraia em **uma** função do repositório e chame nos dois lugares — não copie o `if`.
+
+## Documentos relacionados
+
+- [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.
+- [`03A_FASE_3_UX_ADR.md`](03A_FASE_3_UX_ADR.md) — decisões de UX históricas (ADRs).

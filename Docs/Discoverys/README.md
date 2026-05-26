@@ -32,4 +32,10 @@ Para tarefas de implementação direta (bug, refactor pontual, melhoria de UX), 
 
 ## Quando arquivar
 
-Discovery virou ADR + plano de execução? Mover para `Docs/` (arquivado) e deixar só um link de redirect aqui. Discoveries ativos ficam aqui para serem retomados.
+Discovery virou ADR + plano de execução? Mover o conteúdo final para `Docs/` (no diretório-mãe) e deixar só um link de redirect aqui. Discoveries ativos ficam nesta pasta para serem retomados.
+
+## Documentos relacionados
+
+- [`../README.md`](../README.md) — índice geral da pasta `Docs/`
+- [`../ARQUITETURA.md`](../ARQUITETURA.md) — quando o discovery resulta em decisão arquitetural
+- [`../INFRA.md`](../INFRA.md) — quando o discovery resulta em decisão de infra
