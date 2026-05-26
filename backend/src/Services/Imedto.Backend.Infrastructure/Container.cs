@@ -92,8 +92,11 @@ public static class InfrastructureExtensions
         services.AddScoped<Domain.Prontuarios.IExameFisicoRepository, Database.Repositories.ExameFisicoRepository>();
         services.AddScoped<Database.Repositories.ExameFisicoQueryRepository>();
 
-        // Storage de fotos públicas (avatar de profissional, logo de estabelecimento)
-        services.AddScoped<Domain.Common.IFotoStorageService, Infrastructure.Storage.S3FotoStorageService>();
+        // Storage de fotos públicas (avatar de profissional, logo de estabelecimento).
+        // Singleton: stateless (depende só de IAmazonS3 + IOptions, ambos Singleton).
+        // Necessário para que QueryRepositories Singleton possam injetar este serviço
+        // sem conflito de lifetime (DI validation falha em scoped→singleton).
+        services.AddSingleton<Domain.Common.IFotoStorageService, Infrastructure.Storage.S3FotoStorageService>();
 
         // Agendamentos
         services.AddScoped<Domain.Agendamentos.IAgendamentoRepository, Database.Repositories.AgendamentoRepository>();
