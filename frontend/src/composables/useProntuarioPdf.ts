@@ -138,10 +138,14 @@ export function useProntuarioPdf() {
         const limiteY = h - PDF_MARGIN.bottom - 18 // reserva 18mm para o rodapé
 
         // ── Cabeçalho institucional ─────────────────────────────────────────
-        let y = desenharCabecalho(doc, est, logo, {
+        // Captura o Y final do cabeçalho para reusar como margin.top do
+        // autoTable: em quebra automática de página, o cabeçalho é redesenhado
+        // via didDrawPage e a tabela precisa reservar essa faixa no topo.
+        const yPosCabecalho = desenharCabecalho(doc, est, logo, {
             docTitle: "PRONTUÁRIO MÉDICO",
             docSubtitle: `Emitido em ${new Date().toLocaleDateString("pt-BR")}`,
         })
+        let y = yPosCabecalho
 
         // ── Bloco do paciente ───────────────────────────────────────────────
         const pacObj: Paciente | { nomeCompleto: string } = typeof paciente === "string"
@@ -220,7 +224,7 @@ export function useProntuarioPdf() {
                     0: { fontStyle: "bold", cellWidth: 42, textColor: [PDF_THEME.inkTitle[0], PDF_THEME.inkTitle[1], PDF_THEME.inkTitle[2]] },
                     1: { cellWidth: "auto" },
                 },
-                margin: { left, right: PDF_MARGIN.side },
+                margin: { left, right: PDF_MARGIN.side, top: yPosCabecalho + 2 },
                 theme: "plain",
                 pageBreak: "auto",
                 rowPageBreak: "avoid",
@@ -294,7 +298,11 @@ export function useProntuarioPdf() {
         const docTitle = "PRONTUÁRIO MÉDICO — EVOLUÇÃO"
         const docSubtitle = `Evolução de ${dataFmt(evolucao.criadaEm)}`
 
-        let y = desenharCabecalho(doc, est, logo, { docTitle, docSubtitle })
+        // Captura o Y final do cabeçalho para reusar como margin.top do
+        // autoTable: em quebra automática de página, o cabeçalho é redesenhado
+        // via didDrawPage e a tabela precisa reservar essa faixa no topo.
+        const yPosCabecalho = desenharCabecalho(doc, est, logo, { docTitle, docSubtitle })
+        let y = yPosCabecalho
 
         const pacObj: Paciente | { nomeCompleto: string } = typeof paciente === "string"
             ? { nomeCompleto: paciente }
@@ -342,7 +350,7 @@ export function useProntuarioPdf() {
                 0: { fontStyle: "bold", cellWidth: 42, textColor: [PDF_THEME.inkTitle[0], PDF_THEME.inkTitle[1], PDF_THEME.inkTitle[2]] },
                 1: { cellWidth: "auto" },
             },
-            margin: { left, right: PDF_MARGIN.side },
+            margin: { left, right: PDF_MARGIN.side, top: yPosCabecalho + 2 },
             theme: "plain",
             pageBreak: "auto",
             rowPageBreak: "avoid",
