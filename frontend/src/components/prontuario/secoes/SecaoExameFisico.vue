@@ -125,6 +125,7 @@ const RESPIRACAO       = ["Bradipneico", "Eupneico", "Taquipneico", "Dispneico"]
 
 const catalogoRegioes = ref<ExameFisicoRegiao[]>([])
 const carregandoRegioes = ref(false)
+const erroRegioes = ref<string | null>(null)
 
 const regioesNivel1 = computed(() => catalogoRegioes.value.filter(r => r.nivel === 1))
 
@@ -252,10 +253,18 @@ function atualizarRegiao({ index, patch }: { index: number; patch: Partial<Regia
 onMounted(async () => {
     if (props.readOnly) return
     carregandoRegioes.value = true
+    erroRegioes.value = null
     try {
         catalogoRegioes.value = await exameFisicoService.listarRegioes(undefined, true)
-    } catch {
-        // ignora — campos textuais continuam funcionando
+        if (catalogoRegioes.value.length === 0) {
+            erroRegioes.value = "Catálogo de regiões anatômicas vazio."
+        }
+    } catch (err) {
+        // Engolir em silêncio escondia falha de API/auth e deixava o mapa sem hotspots
+        // clicáveis (paths só renderizam quando o catálogo carrega). Logar + sinalizar
+        // visualmente alinha com o comportamento do legado (useExameFisico.loadRegioes).
+        console.error("[exame-fisico] falha ao carregar catálogo de regiões:", err)
+        erroRegioes.value = "Não foi possível carregar as regiões anatômicas."
     } finally {
         carregandoRegioes.value = false
     }
@@ -458,6 +467,7 @@ onMounted(async () => {
             <h4 class="subsec-titulo">
                 Mapa corporal
                 <span v-if="carregandoRegioes" class="hint">carregando regiões...</span>
+                <span v-else-if="erroRegioes" class="hint hint-erro">{{ erroRegioes }} Recarregue a página.</span>
                 <span v-else class="hint">clique em uma região para examinar</span>
             </h4>
             <div class="mapa-container">
@@ -523,6 +533,9 @@ onMounted(async () => {
 }
 .subsec-titulo .hint {
     font-weight: 500; font-size: 0.82em; color: var(--text-muted);
+}
+.subsec-titulo .hint-erro {
+    color: hsl(var(--destructive, 0 84% 50%));
 }
 
 .grade-sv    { display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 0.6rem; align-items: end; }
