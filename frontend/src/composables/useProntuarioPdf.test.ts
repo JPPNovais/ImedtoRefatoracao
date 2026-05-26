@@ -195,6 +195,16 @@ describe("useProntuarioPdf — redesign institucional", () => {
         expect(chamada.body[0][0]).toBe("Queixa principal")
     })
 
+    it("passa margin.top ao autoTable igual ao Y final do cabeçalho + folga (evita sobreposição em quebra de página)", async () => {
+        const autoTable = (await import("jspdf-autotable")).default as any
+        const { gerarPdf } = useProntuarioPdf()
+        await gerarPdf(prontComEvolucoes, pacienteCompleto)
+
+        // desenharCabecalho está mockado retornando 30; margin.top esperado = 32.
+        const chamada = autoTable.mock.calls[0][1]
+        expect(chamada.margin).toEqual({ left: 18, right: 18, top: 32 })
+    })
+
     it("chama finalizarPaginas com aviso de assinatura manual no rodapé", async () => {
         const { gerarPdf } = useProntuarioPdf()
         await gerarPdf(prontComEvolucoes, pacienteCompleto)
@@ -263,6 +273,16 @@ describe("useProntuarioPdf — gerarPdfEvolucao (PDF individual)", () => {
         await gerarPdfEvolucao(prontComEvolucoes, evolucao, "Joao Soares")
         const nomeArquivo = docMock.save.mock.calls[0][0] as string
         expect(nomeArquivo).toContain("joao-soares")
+    })
+
+    it("passa margin.top ao autoTable igual ao Y final do cabeçalho + folga (evita sobreposição em quebra de página)", async () => {
+        const autoTable = (await import("jspdf-autotable")).default as any
+        const { gerarPdfEvolucao } = useProntuarioPdf()
+        await gerarPdfEvolucao(prontComEvolucoes, evolucao, pacienteCompleto)
+
+        // desenharCabecalho está mockado retornando 30; margin.top esperado = 32.
+        const chamada = autoTable.mock.calls[0][1]
+        expect(chamada.margin).toEqual({ left: 18, right: 18, top: 32 })
     })
 })
 
