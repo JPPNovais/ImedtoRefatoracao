@@ -463,7 +463,7 @@ onMounted(async () => {
         </div>
 
         <!-- Mapa corporal -->
-        <div v-if="!readOnly" class="subsecao mapa-section">
+        <div v-if="!readOnly" class="subsecao">
             <h4 class="subsec-titulo">
                 Mapa corporal
                 <span v-if="carregandoRegioes" class="hint">carregando regiões...</span>
@@ -520,13 +520,24 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.secao { display: flex; flex-direction: column; gap: 1rem; }
+/*
+    Layout flat: a seção já vive dentro do card "module" do ProntuárioView,
+    então sub-blocos não usam mais border/background próprios (evita
+    "card dentro de card"). Separação entre eles é apenas um divisor leve
+    no topo, igual ao espaçamento das seções textuais (QP, HDA).
+*/
+.secao { display: flex; flex-direction: column; gap: 1.25rem; }
 
 .subsecao {
-    border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 0.9rem 1.1rem; background: var(--bg-card);
     display: flex; flex-direction: column; gap: 0.6rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
 }
+.subsecao:first-child {
+    padding-top: 0;
+    border-top: none;
+}
+
 .subsec-titulo {
     font-weight: 700; font-size: 0.9em; color: var(--primary); margin: 0 0 0.2rem;
     display: flex; align-items: center; gap: 8px;
@@ -547,8 +558,7 @@ onMounted(async () => {
 
 .ecto-descricao { margin-top: 0.25rem; }
 
-.mapa-section { padding: 1rem 1.1rem; }
-.mapa-container { display: flex; justify-content: center; padding: 0.5rem 0; }
+.mapa-container { display: flex; justify-content: center; padding: 0.25rem 0; }
 
 @media (max-width: 900px) {
     .grade-sv, .grade-antro { grid-template-columns: 1fr 1fr; }
