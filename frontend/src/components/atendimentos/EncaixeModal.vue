@@ -14,6 +14,7 @@ import { useDebouncedRef } from "@/composables/useDebouncedRef"
 const props = defineProps<{
     aberto: boolean
     desabilitado?: boolean
+    erro?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -81,6 +82,16 @@ function mascararCpf(cpf: string | null) {
                 agendamento será criado automaticamente e você será redirecionado
                 para o prontuário.
             </p>
+        </div>
+
+        <div v-if="erro" class="erro-box" role="alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>{{ erro }}</span>
+        </div>
+
+        <div v-if="desabilitado" class="loading-box" role="status">
+            <i class="fa-solid fa-spinner fa-spin"></i>
+            <span>Criando encaixe...</span>
         </div>
 
         <div class="campo">
@@ -165,6 +176,20 @@ function mascararCpf(cpf: string | null) {
 }
 .alerta i { margin-top: 0.15rem; }
 .alerta p { margin: 0; }
+
+.erro-box {
+    display: flex; gap: 0.6rem; align-items: center;
+    background: hsl(var(--destructive) / 0.1); color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.4);
+    border-radius: var(--radius); padding: 0.7rem 0.9rem;
+    font-size: 0.85em; line-height: 1.4;
+}
+
+.loading-box {
+    display: flex; gap: 0.6rem; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 0.85em;
+    padding: 0.6rem;
+}
 
 .campo { display: flex; flex-direction: column; gap: 0.35rem; }
 .campo-label { font-size: 0.85em; font-weight: 600; color: var(--text); }

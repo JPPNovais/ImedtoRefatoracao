@@ -241,17 +241,21 @@ async function onSalaAlocada() {
 // ─── Novo encaixe ────────────────────────────────────────────────────────────
 const modalEncaixe = ref(false)
 const criandoEncaixe = ref(false)
+const erroEncaixe = ref<string | null>(null)
 
 async function criarEncaixe(p: PacienteListaItem) {
     if (!auth.usuario?.id) return
     criandoEncaixe.value = true
+    erroEncaixe.value = null
     try {
-        const agora = new Date()
-        const fim   = new Date(agora.getTime() + 30 * 60_000)
+        // +60s evita que o backend rejeite como "no passado" por causa do tempo
+        // entre o new Date() do front e o BrasiliaTime.Now do handler.
+        const inicio = new Date(Date.now() + 60_000)
+        const fim    = new Date(inicio.getTime() + 30 * 60_000)
         const { agendamentoId } = await agendaService.criar({
             pacienteId:            p.id,
             profissionalUsuarioId: auth.usuario.id,
-            inicioPrevisto:        agora.toISOString(),
+            inicioPrevisto:        inicio.toISOString(),
             fimPrevisto:           fim.toISOString(),
             tipoServico:           "Encaixe",
             observacoes:           "Atendimento de encaixe criado a partir de Meus Atendimentos.",
@@ -261,10 +265,15 @@ async function criarEncaixe(p: PacienteListaItem) {
         iniciarAtendimento(agendamentoId, p.id)
         router.push({ name: "Prontuario", params: { id: p.id }, query: { eventoId: agendamentoId } })
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao criar encaixe."
+        erroEncaixe.value = e?.response?.data?.mensagem ?? "Erro ao criar encaixe."
     } finally {
         criandoEncaixe.value = false
     }
+}
+
+function fecharEncaixe() {
+    modalEncaixe.value = false
+    erroEncaixe.value = null
 }
 
 </script>
@@ -396,7 +405,8 @@ async function criarEncaixe(p: PacienteListaItem) {
         <EncaixeModal
             :aberto="modalEncaixe"
             :desabilitado="criandoEncaixe"
-            @fechar="modalEncaixe = false"
+            :erro="erroEncaixe"
+            @fechar="fecharEncaixe"
             @selecionado="criarEncaixe"
         />
 
