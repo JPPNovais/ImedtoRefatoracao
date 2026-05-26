@@ -5,13 +5,14 @@
  * Fluxo:
  * 1. Exibe resumo do agendamento (profissional, data/hora, tipo de serviço).
  * 2. Exibe dados do paciente (nome, telefone, CPF) carregados via pacienteService.
- * 3. Permite editar os dados do paciente via PacienteFormModal (botão "Editar dados").
- * 4. Ao confirmar: se paciente foi editado, salva; em seguida, registra o check-in.
+ * 3. Solicita edição via emit `editar-paciente` — o pai (AgendaView) renderiza o
+ *    PacienteFormModal paralelo a este modal, evitando portais aninhados (overlay
+ *    do design-system fica em z-50 fixo e some quando um Dialog abre dentro de outro).
+ * 4. Ao confirmar: registra o check-in.
  * 5. Emite `checkin-realizado` em caso de sucesso; exibe erro 422 sem fechar.
  */
 import { computed, ref, watch } from "vue"
 import { AppButton, AppField, AppModal, AppSelect } from "@/components/ui"
-import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { formatDataHora, formatHora } from "@/utils/datetime"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
@@ -24,11 +25,15 @@ const props = defineProps<{
     aberto: boolean
     agendamento: Agendamento | null
     outrosAgendamentosDoDia?: Agendamento[]
+    // Quando o pai termina a edição do paciente, repassa o objeto atualizado
+    // aqui para refletir nome/CPF/telefone sem refetch.
+    pacienteAtualizado?: Paciente | null
 }>()
 
 const emit = defineEmits<{
     (e: "fechar"): void
     (e: "checkin-realizado"): void
+    (e: "editar-paciente", paciente: Paciente): void
 }>()
 
 const paciente = ref<Paciente | null>(null)
@@ -36,9 +41,6 @@ const carregandoPaciente = ref(false)
 const erroPaciente = ref<string | null>(null)
 const erroCheckIn = ref<string | null>(null)
 const executando = ref(false)
-
-// Controle do modal de edição do paciente
-const editarPacienteAberto = ref(false)
 
 // Salas ativas + seleção
 const salas = ref<Sala[]>([])
@@ -130,9 +132,15 @@ const duracaoMin = computed(() => {
     return Math.round((fim - ini) / 60000)
 })
 
-function onPacienteSalvo(p: Paciente) {
-    paciente.value = p
-    editarPacienteAberto.value = false
+// O pai dispara a edição via emit; quando salvar, devolve o paciente
+// atualizado via prop `pacienteAtualizado` — refletimos aqui.
+watch(() => props.pacienteAtualizado, (p) => {
+    if (p) paciente.value = p
+})
+
+function solicitarEdicaoPaciente() {
+    if (!paciente.value) return
+    emit("editar-paciente", paciente.value)
 }
 
 async function confirmarCheckIn() {
@@ -204,7 +212,7 @@ function fechar() {
                     type="button"
                     class="btn-editar-pac"
                     :disabled="executando"
-                    @click="editarPacienteAberto = true"
+                    @click="solicitarEdicaoPaciente"
                 >
                     <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                     Editar dados
@@ -278,15 +286,6 @@ function fechar() {
             </AppButton>
         </template>
     </AppModal>
-
-    <!-- Modal de edição do paciente (aninhado, acima do check-in) -->
-    <PacienteFormModal
-        v-if="paciente"
-        :aberto="editarPacienteAberto"
-        :paciente="paciente"
-        @fechar="editarPacienteAberto = false"
-        @salvo="onPacienteSalvo"
-    />
 </template>
 
 <style scoped>

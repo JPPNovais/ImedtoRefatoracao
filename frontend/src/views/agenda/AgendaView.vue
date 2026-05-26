@@ -23,10 +23,11 @@ import NovoAgendamentoModal from "@/components/agenda/NovoAgendamentoModal.vue"
 import EditarAgendamentoModal from "@/components/agenda/EditarAgendamentoModal.vue"
 import CheckInModal from "@/components/agenda/CheckInModal.vue"
 import CancelarAgendamentoModal from "@/components/agenda/CancelarAgendamentoModal.vue"
+import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { salaService, type Sala } from "@/services/salaService"
 import { listaEsperaService, type ListaEsperaItem } from "@/services/listaEsperaService"
-import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
+import { pacienteService, type Paciente, type PacienteListaItem } from "@/services/pacienteService"
 import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
 import { profissionalService } from "@/services/profissionalService"
 import { useAuthStore } from "@/stores/authStore"
@@ -308,16 +309,35 @@ async function concluirAgendamento(a: Agendamento) {
 // ─── Modal de check-in ───
 const modalCheckInAberto = ref(false)
 const agendamentoCheckIn = ref<Agendamento | null>(null)
+// Edição de paciente disparada de dentro do check-in: renderizada aqui (na
+// raiz da view) para não aninhar Dialogs do design-system — o DialogOverlay
+// é fixo em z-50, e dois portais sobrepostos fazem o backdrop sumir.
+const editarPacienteAberto = ref(false)
+const pacienteEmEdicao = ref<Paciente | null>(null)
+const pacienteAtualizadoCheckin = ref<Paciente | null>(null)
 
 function abrirCheckIn(a: Agendamento) {
     agendamentoCheckIn.value = a
+    pacienteAtualizadoCheckin.value = null
     modalCheckInAberto.value = true
 }
 
 async function onCheckInRealizado() {
     modalCheckInAberto.value = false
     agendamentoCheckIn.value = null
+    pacienteAtualizadoCheckin.value = null
     await recarregarSemCache()
+}
+
+function onSolicitarEdicaoPaciente(p: Paciente) {
+    pacienteEmEdicao.value = p
+    editarPacienteAberto.value = true
+}
+
+function onPacienteSalvoNoCheckin(p: Paciente) {
+    pacienteAtualizadoCheckin.value = p
+    editarPacienteAberto.value = false
+    pacienteEmEdicao.value = null
 }
 
 const modalCancelarAberto = ref(false)
@@ -623,8 +643,18 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :aberto="modalCheckInAberto"
         :agendamento="agendamentoCheckIn"
         :outros-agendamentos-do-dia="doDia"
-        @fechar="modalCheckInAberto = false; agendamentoCheckIn = null"
+        :paciente-atualizado="pacienteAtualizadoCheckin"
+        @fechar="modalCheckInAberto = false; agendamentoCheckIn = null; pacienteAtualizadoCheckin = null"
         @checkin-realizado="onCheckInRealizado"
+        @editar-paciente="onSolicitarEdicaoPaciente"
+    />
+
+    <PacienteFormModal
+        v-if="pacienteEmEdicao"
+        :aberto="editarPacienteAberto"
+        :paciente="pacienteEmEdicao"
+        @fechar="editarPacienteAberto = false; pacienteEmEdicao = null"
+        @salvo="onPacienteSalvoNoCheckin"
     />
 
     <CancelarAgendamentoModal
