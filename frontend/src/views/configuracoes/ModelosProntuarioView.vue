@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref } from "vue"
 import { useRouter } from "vue-router"
-import { prontuarioService, type ModeloProntuario, type SecaoModelo } from "@/services/prontuarioService"
+import { prontuarioService, type ModeloProntuario } from "@/services/prontuarioService"
 import { useTenantStore } from "@/stores/tenantStore"
 import {
-    AppBadge, AppButton, AppEmptyState, AppField, AppInput, AppPageHeader, AppTextarea,
+    AppBadge, AppButton, AppEmptyState, AppPageHeader, ModeloProntuarioBuilder,
 } from "@/components/ui"
 
 const router = useRouter()
@@ -14,45 +14,21 @@ if (tenant.papel !== "Dono") {
     router.replace({ name: "Home" })
 }
 
-const secoesList = [
-    { key: "queixa",                  label: "Queixa principal (QP)",            tipo: "texto_longo", info: "Motivo pelo qual o paciente procurou atendimento, descrito com suas próprias palavras." },
-    { key: "hda",                     label: "História da doença atual (HDA)",    tipo: "texto_longo", info: "Detalhamento cronológico dos sintomas e evolução da condição atual do paciente." },
-    { key: "hpp",                     label: "História pregressa (HPP)",           tipo: "texto_longo", info: "Doenças anteriores, cirurgias, internações, alergias e medicamentos em uso contínuo." },
-    { key: "h-familiar",              label: "História familiar",                  tipo: "texto_longo", info: "Doenças hereditárias ou de alta prevalência nos familiares diretos do paciente." },
-    { key: "h-social",                label: "História social e hábitos de vida",  tipo: "texto_longo", info: "Ocupação, hábitos, tabagismo, consumo de álcool, atividade física e condições socioeconômicas." },
-    { key: "exame-fisico",            label: "Exame físico",                       tipo: "texto_longo", info: "Dados vitais e avaliação clínica dos sistemas do organismo." },
-    { key: "exames-realizados",       label: "Exames realizados",                  tipo: "texto_longo", info: "Resultados de exames laboratoriais, de imagem e outros já realizados." },
-    { key: "procedimentos-indicados", label: "Procedimentos indicados",            tipo: "texto_longo", info: "Procedimentos, cirurgias ou intervenções recomendadas." },
-    { key: "evolucao-pos-op",         label: "Evolução pós-operatória",            tipo: "texto_longo", info: "Acompanhamento e recuperação do paciente após cirurgia ou procedimento." },
-    { key: "desc-cirurgica",          label: "Descrição cirúrgica",                tipo: "texto_longo", info: "Relato detalhado do ato cirúrgico realizado, incluindo técnica e intercorrências." },
-    { key: "procedimento-consultorio",label: "Procedimento em consultório",        tipo: "texto_longo", info: "Procedimentos menores realizados no consultório durante o atendimento." },
-    { key: "ficha-anestesica",        label: "Ficha anestésica",                   tipo: "texto_longo", info: "Avaliação pré-anestésica e execução da anestesia no procedimento." },
-    { key: "equipe-cirurgica",        label: "Equipe cirúrgica",                   tipo: "texto_longo", info: "Profissionais que participaram do procedimento cirúrgico." },
-    { key: "fotos-paciente",          label: "Fotos do paciente",                  tipo: "texto_longo", info: "Registro fotográfico do paciente (pré e pós-operatório)." },
-    { key: "anexos",                  label: "Anexos",                             tipo: "texto_longo", info: "Documentos e arquivos complementares ao prontuário." },
-    { key: "cid10",                   label: "CID-10",                             tipo: "texto",       info: "Classificação Internacional de Doenças para codificação do diagnóstico." },
-    { key: "conduta",                 label: "Conduta",                            tipo: "texto_longo", info: "Plano terapêutico definido pelo profissional." },
-]
-
 type FormState = {
     id: number | null
     nome: string
     descricao: string
-    secoes: Record<string, boolean>
-    ordem: string[]
+    estruturaJson: string
 }
-
-const emptySecoes = (): Record<string, boolean> =>
-    secoesList.reduce((acc, s) => { acc[s.key] = false; return acc }, {} as Record<string, boolean>)
 
 const form = reactive<FormState>({
     id: null,
     nome: "",
     descricao: "",
-    secoes: emptySecoes(),
-    ordem: [],
+    estruturaJson: "",
 })
 
+const builderValido = ref(false)
 const modelos = ref<ModeloProntuario[]>([])
 const carregando = ref(false)
 const carregandoModelos = ref(false)
@@ -61,57 +37,20 @@ const excluindoId = ref<number | null>(null)
 
 const modelosPadroes = computed(() => modelos.value.filter(m => m.ehPadraoSistema))
 const modelosPersonalizados = computed(() => modelos.value.filter(m => !m.ehPadraoSistema))
-const secoesAtivas = computed(() => form.ordem.filter(k => form.secoes[k]))
-
-watch(
-    () => ({ ...form.secoes }),
-    () => sincronizarOrdem(),
-    { deep: true },
-)
-
-function sincronizarOrdem() {
-    const ativas = new Set(secoesList.map(s => s.key).filter(k => form.secoes[k]))
-    const novaOrdem: string[] = []
-    form.ordem.forEach(k => { if (ativas.has(k)) { novaOrdem.push(k); ativas.delete(k) } })
-    ativas.forEach(k => novaOrdem.push(k))
-    form.ordem = novaOrdem
-}
 
 function resetarForm() {
     form.id = null
     form.nome = ""
     form.descricao = ""
-    secoesList.forEach(s => { form.secoes[s.key] = false })
-    form.ordem = []
+    form.estruturaJson = ""
 }
 
 function preencherForm(modelo: ModeloProntuario) {
     form.id = modelo.id
     form.nome = modelo.nome
     form.descricao = modelo.descricao ?? ""
-
-    const estrutura = Array.isArray(modelo.estrutura) ? modelo.estrutura as SecaoModelo[] : []
-    const chavesSelecionadas = new Set(estrutura.map(s => s.chave))
-
-    secoesList.forEach(s => { form.secoes[s.key] = chavesSelecionadas.has(s.key) })
-
-    if (estrutura.length > 0) {
-        const ordenados = [...estrutura].sort((a, b) => a.ordem - b.ordem)
-        form.ordem = ordenados.map(s => s.chave).filter(k => chavesSelecionadas.has(k))
-    } else {
-        form.ordem = secoesList.map(s => s.key).filter(k => chavesSelecionadas.has(k))
-    }
-}
-
-function moverSecao(key: string, direcao: "cima" | "baixo") {
-    const idx = form.ordem.indexOf(key)
-    if (idx === -1) return
-    const novoIdx = direcao === "cima" ? idx - 1 : idx + 1
-    if (novoIdx < 0 || novoIdx >= form.ordem.length) return
-    const arr = [...form.ordem]
-    const [item] = arr.splice(idx, 1)
-    arr.splice(novoIdx, 0, item)
-    form.ordem = arr
+    const estrutura = Array.isArray(modelo.estrutura) ? modelo.estrutura : []
+    form.estruturaJson = JSON.stringify(estrutura)
 }
 
 function editarModelo(modelo: ModeloProntuario) {
@@ -132,23 +71,12 @@ async function carregarModelos() {
 }
 
 async function salvar() {
-    if (!form.nome.trim()) return
-
-    const secoesPayload = secoesAtivas.value
-    if (secoesPayload.length === 0) {
-        alert("Selecione pelo menos uma seção para o modelo.")
-        return
-    }
-
-    const estrutura: SecaoModelo[] = secoesPayload.map((key, idx) => {
-        const def = secoesList.find(s => s.key === key)!
-        return { chave: key, titulo: def.label, tipo: def.tipo, ordem: idx }
-    })
+    if (!builderValido.value) return
 
     const payload = {
         nome: form.nome.trim(),
         descricao: form.descricao.trim() || undefined,
-        estruturaJson: JSON.stringify(estrutura),
+        estruturaJson: form.estruturaJson,
     }
 
     salvando.value = true
@@ -283,64 +211,19 @@ onMounted(async () => {
                 </h2>
 
                 <form class="form-corpo" @submit.prevent="salvar">
-                    <AppField label="Nome do modelo" required>
-                        <AppInput
-                            v-model="form.nome"
-                            placeholder="Ex.: Primeira consulta, Evolução pós-operatória"
-                        />
-                    </AppField>
-
-                    <AppField label="Descrição (opcional)">
-                        <AppTextarea
-                            v-model="form.descricao"
-                            placeholder="Descrição breve do objetivo deste modelo."
-                            :rows="3"
-                        />
-                    </AppField>
-
-                    <!-- Seções disponíveis -->
-                    <div class="secoes-bloco">
-                        <label class="secoes-label">Seções incluídas no modelo</label>
-                        <div class="secoes-grid">
-                            <label
-                                v-for="s in secoesList"
-                                :key="s.key"
-                                class="secao-item"
-                                :title="s.info"
-                            >
-                                <input
-                                    v-model="form.secoes[s.key]"
-                                    type="checkbox"
-                                    class="secao-check"
-                                />
-                                <span>{{ s.label }}</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Ordem das seções ativas -->
-                    <div v-if="secoesAtivas.length" class="ordem-bloco">
-                        <label class="secoes-label">Ordem das seções</label>
-                        <ul class="ordem-lista">
-                            <li
-                                v-for="key in secoesAtivas"
-                                :key="key"
-                                class="ordem-item"
-                            >
-                                <span>{{ secoesList.find(s => s.key === key)?.label ?? key }}</span>
-                                <div class="ordem-btns">
-                                    <button type="button" class="ordem-btn" @click="moverSecao(key, 'cima')">↑</button>
-                                    <button type="button" class="ordem-btn" @click="moverSecao(key, 'baixo')">↓</button>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
+                    <ModeloProntuarioBuilder
+                        v-model:nome="form.nome"
+                        v-model:descricao="form.descricao"
+                        v-model:estrutura-json="form.estruturaJson"
+                        :disabled="salvando"
+                        @update:valido="builderValido = $event"
+                    />
 
                     <div class="form-rodape">
                         <AppButton variant="ghost" type="button" @click="resetarForm">Cancelar</AppButton>
                         <AppButton
                             type="submit"
-                            :disabled="salvando || !form.nome.trim()"
+                            :disabled="salvando || !builderValido"
                             :loading="salvando"
                         >
                             {{ salvando ? "Salvando..." : "Salvar modelo" }}
@@ -460,75 +343,6 @@ onMounted(async () => {
 /* ── Formulário ── */
 .form-corpo { display: flex; flex-direction: column; gap: 1rem; }
 
-/* ── Seções ── */
-.secoes-bloco { display: flex; flex-direction: column; gap: 0.5rem; }
-
-.secoes-label {
-    font-size: 0.78em;
-    font-weight: 700;
-    color: var(--text-muted);
-}
-
-.secoes-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.35rem 1rem;
-}
-
-@media (max-width: 500px) {
-    .secoes-grid { grid-template-columns: 1fr; }
-}
-
-.secao-item {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.8em;
-    cursor: pointer;
-    color: var(--text);
-}
-
-.secao-check {
-    accent-color: var(--primary);
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    cursor: pointer;
-}
-
-/* ── Ordem ── */
-.ordem-bloco { display: flex; flex-direction: column; gap: 0.5rem; }
-
-.ordem-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.3rem; }
-
-.ordem-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.3rem 0.6rem;
-    border: 1px solid var(--border);
-    border-radius: calc(var(--radius) - 4px);
-    background: var(--bg);
-    font-size: 0.8em;
-    color: var(--text);
-}
-
-.ordem-btns { display: flex; gap: 0.2rem; }
-
-.ordem-btn {
-    border: none;
-    background: none;
-    cursor: pointer;
-    font-size: 0.85em;
-    color: var(--text-muted);
-    padding: 0.1rem 0.3rem;
-    border-radius: 3px;
-    transition: color 0.1s, background 0.1s;
-}
-
-.ordem-btn:hover { color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); }
-
 /* ── Rodapé ── */
 .form-rodape {
     display: flex;
@@ -536,5 +350,4 @@ onMounted(async () => {
     gap: 0.75rem;
     padding-top: 0.5rem;
 }
-
 </style>

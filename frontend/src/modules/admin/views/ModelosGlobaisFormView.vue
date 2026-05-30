@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
  * Formulário de criação/edição de modelo de prontuário global (Wave 4 live-link).
- * estruturaJson deve ser JSON válido — validado antes de salvar.
+ * Wave 5: textarea de JSON substituído por ModeloProntuarioBuilder visual.
  */
 import { ref, onMounted, computed } from "vue"
 import { useRouter } from "vue-router"
-import { AppPageHeader, AppCard, AppField, AppInput, AppTextarea, AppButton } from "@/components/ui"
+import { AppPageHeader, AppCard, AppField, AppInput, AppButton, ModeloProntuarioBuilder } from "@/components/ui"
 import { useModelosGlobaisStore } from "../stores/modelosGlobaisStore"
 
 const props = defineProps<{ id?: string }>()
@@ -17,8 +17,9 @@ const editando = computed(() => idNumerico.value !== null && !isNaN(idNumerico.v
 
 const nome = ref("")
 const descricao = ref("")
-const estruturaJson = ref("{\n  \n}")
+const estruturaJson = ref("")
 const motivo = ref("")
+const builderValido = ref(false)
 const erros = ref<Record<string, string>>({})
 const salvando = ref(false)
 const erroGeral = ref("")
@@ -34,15 +35,10 @@ onMounted(async () => {
     }
 })
 
-function validarJson(valor: string): boolean {
-    try { JSON.parse(valor); return true } catch { return false }
-}
-
 function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
-    if (!estruturaJson.value.trim()) e.estruturaJson = "Estrutura JSON é obrigatória."
-    else if (!validarJson(estruturaJson.value)) e.estruturaJson = "JSON inválido."
+    if (!builderValido.value) e.estrutura = "Selecione ao menos uma seção."
     if (motivo.value.trim().length < 10) e.motivo = "Motivo deve ter ao menos 10 caracteres."
     erros.value = e
     return Object.keys(e).length === 0
@@ -72,15 +68,6 @@ async function salvar() {
         salvando.value = false
     }
 }
-
-function formatarJson() {
-    try {
-        estruturaJson.value = JSON.stringify(JSON.parse(estruturaJson.value), null, 2)
-        if (erros.value.estruturaJson) delete erros.value.estruturaJson
-    } catch {
-        erros.value.estruturaJson = "JSON inválido."
-    }
-}
 </script>
 
 <template>
@@ -96,38 +83,17 @@ function formatarJson() {
 
         <AppCard v-else>
             <form @submit.prevent="salvar" class="form-campos">
-                <AppField label="Nome" required :hint="erros.nome">
-                    <AppInput
-                        v-model="nome"
-                        placeholder="Ex.: Consulta médica padrão"
-                        maxlength="200"
-                        :disabled="salvando"
-                    />
-                </AppField>
+                <ModeloProntuarioBuilder
+                    v-model:nome="nome"
+                    v-model:descricao="descricao"
+                    v-model:estrutura-json="estruturaJson"
+                    :disabled="salvando"
+                    @update:valido="builderValido = $event"
+                />
 
-                <AppField label="Descrição">
-                    <AppInput
-                        v-model="descricao"
-                        placeholder="Descrição opcional"
-                        maxlength="500"
-                        :disabled="salvando"
-                    />
-                </AppField>
+                <p v-if="erros.estrutura" class="campo-erro-inline">{{ erros.estrutura }}</p>
 
-                <AppField label="Estrutura JSON" required :hint="erros.estruturaJson || 'Cole a estrutura JSON do template de prontuário.'">
-                    <template #label-aside>
-                        <AppButton variant="ghost" size="sm" type="button" @click="formatarJson">Formatar</AppButton>
-                    </template>
-                    <AppTextarea
-                        v-model="estruturaJson"
-                        :rows="16"
-                        placeholder='{ "secoes": [] }'
-                        :disabled="salvando"
-                        style="font-family: monospace; font-size: 0.8125rem;"
-                    />
-                </AppField>
-
-                <AppField label="Motivo da alteração" required hint="Mínimo 10 caracteres.">
+                <AppField label="Motivo da alteração" required :hint="erros.motivo || 'Mínimo 10 caracteres.'">
                     <AppInput
                         v-model="motivo"
                         placeholder="Descreva o motivo..."
@@ -142,7 +108,7 @@ function formatarJson() {
                     <AppButton
                         type="submit"
                         :loading="salvando"
-                        :disabled="motivo.trim().length < 10"
+                        :disabled="salvando || motivo.trim().length < 10"
                     >
                         {{ editando ? "Salvar alterações" : "Criar modelo" }}
                     </AppButton>
@@ -156,15 +122,15 @@ function formatarJson() {
 .estado-info {
     text-align: center;
     padding: 2rem 0;
-    color: hsl(var(--muted-foreground));
+    color: var(--text-muted);
     font-size: 0.875rem;
 }
 
 .estado-erro {
     padding: 0.75rem 1rem;
-    background: hsl(var(--destructive) / 0.1);
-    color: hsl(var(--destructive));
-    border: 1px solid hsl(var(--destructive) / 0.3);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
     border-radius: calc(var(--radius) - 2px);
     font-size: 0.875rem;
 }
@@ -175,11 +141,17 @@ function formatarJson() {
     gap: 1.25rem;
 }
 
+.campo-erro-inline {
+    font-size: 0.8em;
+    color: var(--danger);
+    margin: -0.5rem 0 0;
+}
+
 .campo-erro {
     padding: 0.75rem 1rem;
-    background: hsl(var(--destructive) / 0.1);
-    color: hsl(var(--destructive));
-    border: 1px solid hsl(var(--destructive) / 0.3);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
     border-radius: calc(var(--radius) - 2px);
     font-size: 0.875rem;
     margin: 0;

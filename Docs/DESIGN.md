@@ -83,6 +83,9 @@ O isolamento físico do módulo é mantido: só importa de `@/components/ui/`, `
 **Componente exclusivo do módulo admin:**
 - `RegiaoTreeView.vue` em `modules/admin/components/regioes/` — render hierárquico expand/colapse para `regioes_anatomicas_catalogo`. Agrupamento por `vista` (anterior/posterior); aninhamento por `pai_codigo` até nível 3. Sem virtualização (volume baixo — 144 registros). Sem drag-and-drop; reordenação via input `ordem`. Emite eventos `select`, `criar-filho`, `editar`, `excluir`, `inativar`, `reativar`. Adicionado em Wave 4 (briefing `planejamentos/2026-05-30_004_admin-global-wave4-catalogos-livelink.md`).
 
+**Componentes de domínio compartilhados (tenant + admin):**
+- `ModeloProntuarioBuilder.vue` em `components/ui/` — builder visual de modelos de prontuário, compartilhado entre `ModelosProntuarioView` (tenant, `/configuracoes/modelos-prontuario`) e `ModelosGlobaisFormView` (admin global). Aceita `v-model:nome`, `v-model:descricao`, `v-model:estruturaJson` (string JSON, shape array `[{ chave, titulo, tipo, ordem }]`) e emite `update:valido`. A constante exportada `SECOES_MODELO_PRONTUARIO` é a **fonte única de verdade** das 17 seções suportadas pelo prontuário — nenhuma outra cópia desse catálogo deve existir no front. Reordenação via botões ↑/↓ (drag-and-drop é extensão futura). Retrocompatível com JSON manual criado antes do builder: seções com chaves fora das 17 conhecidas são preservadas intactas com aviso visual. Adicionado em Wave 5 (briefing `planejamentos/2026-05-30_005_admin-global-wave5-builder-visual.md`).
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.
