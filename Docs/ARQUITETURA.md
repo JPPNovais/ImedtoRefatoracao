@@ -133,6 +133,25 @@ Wave 2 entregou tabelas paralelas (`imedto_modelo_prontuario_global`, `imedto_va
 - Stores: `modelosGlobaisStore`, `variaveisGlobaisStore`, `regioesGlobaisStore` (este último carrega árvore completa).
 - Rotas sob `/admin/modelos-globais`, `/admin/variaveis-globais`, `/admin/regioes-globais`.
 
+### Dashboard Admin (Wave 6)
+
+`Application/Admin/Dashboard/` — 4 query handlers (singletons) servindo `/api/admin/dashboard/*`:
+
+- `ObterKpisDashboardAdminQueryHandler` → KPIs: estabelecimentos (ativos/inativos), admins ativos, trials em andamento + expirando em 7 dias, assinaturas vigentes + gratuitas.
+- `ObterCrescimentoMensalDashboardAdminQueryHandler` → 12 pontos fixos (mês corrente + 11 anteriores) de novos estabelecimentos por mês; meses zerados preenchidos via `generate_series`.
+- `ObterAlertasDashboardAdminQueryHandler` → trials expirando em 7 dias (LIMIT 10) + estabelecimentos ativos sem assinatura vigente (LIMIT 10 + total absoluto).
+- `ListarAuditLogDashboardAdminQueryHandler` → feed paginado de `imedto_admin_audit_log` com filtros opcionais (ação, admin_id, período preset: `hoje`/`7d`/`30d`/`90d`/`todos`).
+
+Read repository: `Infrastructure/Admin/QueryRepositories/DashboardAdminQueryRepository.cs` (Dapper sobre `AppReadConnectionString`). Sem joins em `pacientes`/`prontuarios` — só metadados de tenant/admin (LGPD: zero PII de paciente).
+
+Política: `ImedtoAdmin` no controller. **Leitura do dashboard não gera linha em `imedto_admin_audit_log`** (Wave 1 CA16 — só ações sensíveis com efeito de escrita ou exposição de dado sensível geram audit).
+
+Cache: 60s no store Pinia frontend (não no backend — Dapper direto). Botão "Atualizar" força refresh ignorando cache.
+
+Gráfico: SVG inline em `modules/admin/components/dashboard/CrescimentoChart.vue` (sem lib externa). Usa tokens HSL do design system (`--primary`, `--background`, `--muted-foreground`).
+
+Índices utilizados (existentes desde Wave 1): `ix_imedto_admin_audit_log_acao_criado`, `ix_imedto_admin_audit_log_admin_criado`, `ix_imedto_admin_audit_log_criado`, `ix_imedto_admin_audit_log_tenant_criado`.
+
 ### Isolamento e cross-blindagem (CA8 + CA9)
 
 - JWT de usuário comum em `/api/admin/*` → rejeitado pela policy `ImedtoAdmin` (sem claim `imedto_admin`) → 403.

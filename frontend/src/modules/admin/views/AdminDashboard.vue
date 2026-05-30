@@ -1,27 +1,54 @@
 <script setup lang="ts">
 /**
- * AdminDashboard.vue — placeholder de boas-vindas.
+ * AdminDashboard.vue — painel operacional do admin global (Wave 6).
  *
- * W3-CA7, W3-CA8, W3-CA9: app-page + AppPageHeader + AppCard.
- * Devs paralelos substituirão os placeholders por widgets reais.
+ * W6-CA1..CA26: KPIs, gráfico de crescimento, alertas, feed de audit log.
+ * W6-CA24: carregamento paralelo via Promise.allSettled no onMounted.
+ * W6-CA22: leitura não gera audit.
+ * W6-CA3: falha de um bloco não afeta os outros.
+ *
+ * Refatora o placeholder anterior (Wave 3) mantendo app-page + AppPageHeader.
  */
-import { AppPageHeader, AppCard } from "@/components/ui"
+import { onMounted } from "vue"
+import { AppPageHeader } from "@/components/ui"
 import { useAdminAuthStore } from "../stores/adminAuthStore"
+import { useDashboardStore } from "../stores/dashboardStore"
+import KpisGrid from "../components/dashboard/KpisGrid.vue"
+import CrescimentoChart from "../components/dashboard/CrescimentoChart.vue"
+import AlertasCard from "../components/dashboard/AlertasCard.vue"
+import AuditLogFeed from "../components/dashboard/AuditLogFeed.vue"
 
-const store = useAdminAuthStore()
+const authStore = useAdminAuthStore()
+const dashboardStore = useDashboardStore()
+
+// W6-CA24: todos os blocos em paralelo — falha de um não bloqueia os outros.
+onMounted(() => {
+    Promise.allSettled([
+        dashboardStore.carregarKpis(),
+        dashboardStore.carregarCrescimento(),
+        dashboardStore.carregarAlertas(),
+        dashboardStore.carregarAuditLog(),
+    ])
+})
 </script>
 
 <template>
     <main class="app-page">
         <AppPageHeader
-            :titulo="`Bem-vindo, ${store.admin?.nome ?? 'Administrador'}`"
-            subtitulo="Área administrativa do Imedto. Toda ação é registrada em audit log."
+            :titulo="`Bem-vindo, ${authStore.admin?.nome ?? 'Administrador'}`"
+            subtitulo="Painel operacional do Imedto. Toda ação sensível é registrada em audit log."
         />
 
-        <AppCard>
-            <p style="color:hsl(var(--muted-foreground));font-size:0.9rem;text-align:center;padding:1rem 0;">
-                Estabelecimentos, planos e admins serão listados aqui.
-            </p>
-        </AppCard>
+        <!-- Bloco 1: KPIs -->
+        <KpisGrid />
+
+        <!-- Bloco 2: Gráfico de crescimento mensal -->
+        <CrescimentoChart />
+
+        <!-- Bloco 3: Alertas acionáveis -->
+        <AlertasCard />
+
+        <!-- Bloco 4: Feed de audit log -->
+        <AuditLogFeed />
     </main>
 </template>

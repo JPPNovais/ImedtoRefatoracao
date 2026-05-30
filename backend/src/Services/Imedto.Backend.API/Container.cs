@@ -302,6 +302,14 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.AtualizarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.InativarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ExcluirRegiaoAdminCommandHandler>();
+
+        // Wave 6 — Dashboard admin (4 query handlers singleton + repositório Dapper)
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.IDashboardAdminQueryRepository,
+                              Imedto.Backend.Infrastructure.Admin.QueryRepositories.DashboardAdminQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ObterKpisDashboardAdminQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ObterCrescimentoMensalDashboardAdminQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ObterAlertasDashboardAdminQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ListarAuditLogDashboardAdminQueryHandler>();
     }
 
     /// <summary>
