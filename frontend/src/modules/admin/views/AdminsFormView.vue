@@ -52,7 +52,7 @@ function voltar() {
 </script>
 
 <template>
-    <div class="admins-form">
+    <main class="app-page admins-form">
         <AppPageHeader
             titulo="Novo administrador"
             subtitulo="Crie uma conta de acesso à área administrativa."
@@ -130,7 +130,7 @@ function voltar() {
                 </AppButton>
             </div>
         </template>
-    </div>
+    </main>
 </template>
 
 <style scoped>

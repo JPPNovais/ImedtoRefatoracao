@@ -101,7 +101,7 @@ function formatarData(iso: string | null): string {
 </script>
 
 <template>
-    <div>
+    <main class="app-page">
         <AppPageHeader titulo="Administradores" subtitulo="Contas com acesso à área administrativa global.">
             <template #acoes>
                 <AppButton icon="fa-solid fa-plus" @click="router.push({ name: 'AdminAdminsNovo' })">
@@ -254,7 +254,7 @@ function formatarData(iso: string | null): string {
                 </AppButton>
             </template>
         </AppModal>
-    </div>
+    </main>
 </template>
 
 <style scoped>
