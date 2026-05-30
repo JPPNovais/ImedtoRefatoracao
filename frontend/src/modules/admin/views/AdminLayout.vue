@@ -130,26 +130,19 @@ onUnmounted(() => {
 }
 
 /* ── Faixa de acento 2px warning entre banner e AppTopBar (W3-CA5) ── */
-/* AppTopBar fica à direita da sidebar (não em cima dela) e abaixo do banner */
+/* AppTopBar full-width abaixo do banner — cobre toda a largura no topo */
 .admin-topbar-wrap :deep(.topbar) {
     top: var(--admin-banner-h, 24px);
-    left: var(--sidebar-w-collapsed, 64px);
     border-top: 2px solid hsl(var(--warning));
-    transition: left 220ms cubic-bezier(.2,.8,.2,1);
-}
-:global(body.has-pinned-sidebar) .admin-topbar-wrap :deep(.topbar) {
-    left: var(--sidebar-w-expanded, 240px);
 }
 
-/* AppSidebar começa logo abaixo do banner — alinhada com o topbar à direita */
-/* z-index acima do topbar (DS=50) para que a sidebar expandida sobreponha o topbar e não fique misturada */
+/* AppSidebar começa abaixo do topbar (topbar cobre largura completa) */
 .admin-shell :deep(.side) {
-    top: var(--admin-banner-h, 24px);
-    height: calc(100vh - var(--admin-banner-h, 24px));
-    z-index: 60;
+    top: calc(var(--admin-banner-h, 24px) + var(--topbar-h, 64px));
+    height: calc(100vh - var(--admin-banner-h, 24px) - var(--topbar-h, 64px));
 }
 
-/* ── Shell (sidebar fixed à esquerda + conteúdo abaixo do topbar) ── */
+/* ── Shell (sidebar fixed abaixo do topbar + conteúdo com margem esquerda) ── */
 .admin-shell {
     flex: 1;
     padding-top: var(--topbar-h, 64px); /* abaixo do topbar (banner já compensado no .admin-layout) */
