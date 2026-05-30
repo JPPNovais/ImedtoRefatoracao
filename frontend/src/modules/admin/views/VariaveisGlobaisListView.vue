@@ -1,6 +1,16 @@
 <script setup lang="ts">
+/**
+ * VariaveisGlobaisListView — lista de variáveis pool globais.
+ *
+ * W3-CA7 a W3-CA15: app-page + AppPageHeader + AppCard + AppSearchInput
+ *   + AppEmptyState + AppPagination + AppButton + AppBadge + AppModal + AppField + AppTextarea.
+ */
 import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
+import {
+    AppPageHeader, AppCard, AppSearchInput, AppEmptyState,
+    AppPagination, AppButton, AppBadge, AppModal, AppField, AppTextarea,
+} from "@/components/ui"
 import { useVariaveisGlobaisStore } from "../stores/variaveisGlobaisStore"
 import type { VariavelGlobalListaItemDto } from "../services/catalogosService"
 
@@ -68,17 +78,13 @@ async function confirmarAcao() {
             await store.reativar(acaoItem.value.id, motivoTexto.value.trim())
         }
         fecharModal()
+        await carregar()
     } catch (err: unknown) {
         const msg = (err as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
         erroMotivo.value = msg ?? "Não foi possível realizar a operação."
     } finally {
         salvando.value = false
     }
-}
-
-function mudarPagina(p: number) {
-    store.pagina = p
-    carregar()
 }
 
 function formatarData(iso: string | null): string {
@@ -88,179 +94,234 @@ function formatarData(iso: string | null): string {
 
 function labelTipo(tipo: string): string {
     const map: Record<string, string> = {
-        texto: "Texto",
-        numerico: "Numérico",
-        data: "Data",
-        lista: "Lista",
-        booleano: "Booleano",
+        texto: "Texto", numerico: "Numérico", data: "Data", lista: "Lista", booleano: "Booleano",
     }
     return map[tipo] ?? tipo
 }
 </script>
 
 <template>
-    <div class="catalog-page">
-        <div class="page-header">
-            <div>
-                <h1 class="page-titulo">Variáveis pool globais</h1>
-                <p class="page-subtitulo">Variáveis de prontuário disponíveis como base para importação pelos estabelecimentos.</p>
-            </div>
-            <button class="btn-primario" @click="irParaForm()">+ Nova variável</button>
-        </div>
+    <main class="app-page">
+        <AppPageHeader
+            titulo="Variáveis pool globais"
+            subtitulo="Variáveis de prontuário disponíveis como base para importação pelos estabelecimentos."
+        >
+            <template #acoes>
+                <AppButton icon="fa-solid fa-plus" @click="irParaForm()">Nova variável</AppButton>
+            </template>
+        </AppPageHeader>
 
-        <div class="filtros">
-            <input
-                v-model="filtroBusca"
-                class="input-busca"
-                placeholder="Buscar por nome..."
-                @keyup.enter="carregar"
+        <AppCard>
+            <!-- Filtros -->
+            <div class="filtros-row">
+                <AppSearchInput v-model="filtroBusca" placeholder="Buscar por nome..." style="max-width:280px;" />
+                <select v-model="filtroTipo" class="select-filtro" @change="carregar">
+                    <option value="">Todos os tipos</option>
+                    <option v-for="t in TIPOS" :key="t" :value="t">{{ labelTipo(t) }}</option>
+                </select>
+                <label class="label-check">
+                    <input type="checkbox" v-model="filtroInativos" @change="carregar" />
+                    Incluir inativos
+                </label>
+                <AppButton variant="secondary" @click="carregar">Buscar</AppButton>
+            </div>
+
+            <div v-if="store.carregando" class="estado-info">
+                <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
+            </div>
+
+            <p v-else-if="store.erro" class="estado-erro" role="alert">{{ store.erro }}</p>
+
+            <AppEmptyState
+                v-else-if="store.lista.length === 0"
+                titulo="Nenhuma variável encontrada."
+                descricao="Crie a primeira variável usando o botão acima."
             />
-            <select v-model="filtroTipo" class="select-filtro" @change="carregar">
-                <option value="">Todos os tipos</option>
-                <option v-for="t in TIPOS" :key="t" :value="t">{{ labelTipo(t) }}</option>
-            </select>
-            <label class="label-checkbox">
-                <input type="checkbox" v-model="filtroInativos" @change="carregar" />
-                Incluir inativos
-            </label>
-            <button class="btn-secundario" @click="carregar">Buscar</button>
-        </div>
 
-        <div v-if="store.carregando" class="estado-centro">Carregando...</div>
-        <div v-else-if="store.erro" class="estado-erro" role="alert">{{ store.erro }}</div>
-        <div v-else>
-            <table class="tabela">
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>Tipo</th>
-                        <th>Descrição</th>
-                        <th>Status</th>
-                        <th>Atualizado em</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="item in store.lista" :key="item.id">
-                        <td class="col-nome">{{ item.nome }}</td>
-                        <td><span class="badge-tipo">{{ labelTipo(item.tipo) }}</span></td>
-                        <td class="col-desc">{{ item.descricao ?? "—" }}</td>
-                        <td>
-                            <span :class="item.ativo ? 'badge-ativo' : 'badge-inativo'">
-                                {{ item.ativo ? "Ativo" : "Inativo" }}
-                            </span>
-                        </td>
-                        <td>{{ formatarData(item.atualizadoEm) }}</td>
-                        <td class="col-acoes">
-                            <button class="btn-icon btn-icon-editar" title="Editar" @click="irParaForm(item.id)">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-                            <button
-                                v-if="item.ativo"
-                                class="btn-icon btn-icon-excluir"
-                                title="Desativar"
-                                @click="abrirAcao('desativar', item)"
-                            >
-                                <i class="fa-solid fa-ban"></i>
-                            </button>
-                            <button
-                                v-else
-                                class="btn-icon btn-icon-ver"
-                                title="Reativar"
-                                @click="abrirAcao('reativar', item)"
-                            >
-                                <i class="fa-solid fa-rotate-left"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    <tr v-if="store.lista.length === 0">
-                        <td colspan="6" class="estado-centro">Nenhuma variável encontrada.</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div v-if="store.total > store.tamanho" class="paginacao">
-                <button class="btn-secundario" :disabled="store.pagina <= 1" @click="mudarPagina(store.pagina - 1)">Anterior</button>
-                <span class="paginacao-info">Página {{ store.pagina }} de {{ Math.ceil(store.total / store.tamanho) }}</span>
-                <button class="btn-secundario" :disabled="store.pagina >= Math.ceil(store.total / store.tamanho)" @click="mudarPagina(store.pagina + 1)">Próxima</button>
-            </div>
-        </div>
-
-        <!-- Modal motivo -->
-        <div v-if="modalAcao" class="modal-overlay" @click.self="fecharModal">
-            <div class="modal">
-                <h2 class="modal-titulo">{{ acaoTipo === "desativar" ? "Desativar variável" : "Reativar variável" }}</h2>
-                <p class="modal-desc">{{ acaoItem?.nome }}</p>
-                <label class="campo-label">Motivo <span class="obrigatorio">*</span></label>
-                <textarea
-                    v-model="motivoTexto"
-                    class="campo-textarea"
-                    rows="3"
-                    placeholder="Descreva o motivo (mín. 10 caracteres)"
-                    :class="{ 'campo-erro': erroMotivo }"
-                />
-                <p v-if="erroMotivo" class="erro-msg">{{ erroMotivo }}</p>
-                <div class="modal-acoes">
-                    <button class="btn-secundario" @click="fecharModal">Cancelar</button>
-                    <button class="btn-primario" :disabled="salvando || motivoTexto.trim().length < 10" @click="confirmarAcao">
-                        {{ salvando ? "Salvando..." : "Confirmar" }}
-                    </button>
+            <template v-else>
+                <div class="tabela-wrap">
+                    <table class="tabela">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Descrição</th>
+                                <th>Status</th>
+                                <th>Atualizado em</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in store.lista" :key="item.id">
+                                <td class="td-nome">{{ item.nome }}</td>
+                                <td>
+                                    <AppBadge variant="info" :label="labelTipo(item.tipo)" />
+                                </td>
+                                <td class="td-desc">{{ item.descricao ?? "—" }}</td>
+                                <td>
+                                    <AppBadge :variant="item.ativo ? 'success' : 'muted'" :label="item.ativo ? 'Ativo' : 'Inativo'" />
+                                </td>
+                                <td>{{ formatarData(item.atualizadoEm) }}</td>
+                                <td class="td-acoes">
+                                    <button class="btn-icon btn-icon-editar" type="button" title="Editar" @click="irParaForm(item.id)">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button
+                                        v-if="item.ativo"
+                                        class="btn-icon btn-icon-excluir"
+                                        type="button"
+                                        title="Desativar"
+                                        @click="abrirAcao('desativar', item)"
+                                    >
+                                        <i class="fa-solid fa-ban"></i>
+                                    </button>
+                                    <button
+                                        v-else
+                                        class="btn-icon btn-icon-ver"
+                                        type="button"
+                                        title="Reativar"
+                                        @click="abrirAcao('reativar', item)"
+                                    >
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </div>
-    </div>
+
+                <AppPagination
+                    v-model:pagina="store.pagina"
+                    v-model:tamanho="store.tamanho"
+                    :total="store.total"
+                    rotulo-itens="variáveis"
+                    @update:pagina="carregar"
+                />
+            </template>
+        </AppCard>
+
+        <!-- Modal desativar/reativar -->
+        <AppModal
+            :aberto="modalAcao"
+            :titulo="acaoTipo === 'desativar' ? 'Desativar variável' : 'Reativar variável'"
+            @fechar="fecharModal"
+        >
+            <p class="modal-desc">{{ acaoItem?.nome }}</p>
+
+            <AppField label="Motivo" required hint="Mínimo 10 caracteres.">
+                <AppTextarea
+                    v-model="motivoTexto"
+                    :rows="3"
+                    placeholder="Descreva o motivo..."
+                    :disabled="salvando"
+                />
+            </AppField>
+
+            <p v-if="erroMotivo" class="campo-erro">{{ erroMotivo }}</p>
+
+            <template #rodape>
+                <AppButton variant="secondary" :disabled="salvando" @click="fecharModal">Cancelar</AppButton>
+                <AppButton
+                    :variant="acaoTipo === 'desativar' ? 'danger' : 'primary'"
+                    :loading="salvando"
+                    :disabled="motivoTexto.trim().length < 10"
+                    @click="confirmarAcao"
+                >
+                    Confirmar
+                </AppButton>
+            </template>
+        </AppModal>
+    </main>
 </template>
 
 <style scoped>
-.catalog-page { padding: 24px 32px; }
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 16px; }
-.page-titulo { font-size: 22px; font-weight: 700; margin: 0 0 4px; color: hsl(var(--foreground)); }
-.page-subtitulo { font-size: 13px; color: hsl(var(--muted-foreground)); margin: 0; }
-.filtros { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-.input-busca {
-    flex: 1; min-width: 180px;
-    padding: 7px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px;
-    font-size: 13px; background: hsl(var(--background)); color: hsl(var(--foreground));
+.filtros-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    align-items: center;
 }
+
 .select-filtro {
-    padding: 7px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px;
-    font-size: 13px; background: hsl(var(--background)); color: hsl(var(--foreground));
+    padding: 0.5rem 0.75rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.875rem;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
 }
-.label-checkbox { display: flex; align-items: center; gap: 6px; font-size: 13px; color: hsl(var(--foreground)); cursor: pointer; }
-.tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
-.tabela th, .tabela td { text-align: left; padding: 10px 12px; border-bottom: 1px solid hsl(var(--border)); }
-.tabela th { font-weight: 600; font-size: 12px; color: hsl(var(--muted-foreground)); text-transform: uppercase; letter-spacing: 0.04em; background: hsl(var(--muted) / 0.3); }
-.tabela tbody tr:hover { background: hsl(var(--muted) / 0.2); }
-.col-nome { font-weight: 600; color: hsl(var(--foreground)); }
-.col-desc { color: hsl(var(--muted-foreground)); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.col-acoes { display: flex; gap: 6px; }
-.badge-tipo {
-    display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;
-    background: hsl(var(--muted)); color: hsl(var(--muted-foreground));
+
+.label-check {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: hsl(var(--foreground));
+    cursor: pointer;
 }
-.badge-ativo { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: hsl(var(--success) / 0.15); color: hsl(var(--success)); }
-.badge-inativo { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; background: hsl(var(--destructive) / 0.12); color: hsl(var(--destructive)); }
-.estado-centro { text-align: center; padding: 48px; color: hsl(var(--muted-foreground)); font-size: 14px; }
-.estado-erro { text-align: center; padding: 48px; color: hsl(var(--destructive)); font-size: 14px; }
-.paginacao { display: flex; align-items: center; gap: 12px; padding: 16px 0; justify-content: flex-end; }
-.paginacao-info { font-size: 13px; color: hsl(var(--muted-foreground)); }
-.btn-primario { padding: 8px 18px; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.btn-primario:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-secundario { padding: 7px 14px; background: hsl(var(--muted)); color: hsl(var(--foreground)); border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
-.btn-secundario:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-icon { background: none; border: none; cursor: pointer; padding: 5px 7px; border-radius: 5px; font-size: 13px; color: hsl(var(--muted-foreground)); }
-.btn-icon:hover { background: hsl(var(--muted)); }
-.btn-icon-ver { color: hsl(var(--primary)); }
-.btn-icon-editar { color: hsl(220 80% 55%); }
-.btn-icon-excluir { color: hsl(var(--destructive)); }
-.modal-overlay { position: fixed; inset: 0; background: hsl(var(--foreground) / 0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 10px; padding: 24px; width: 100%; max-width: 440px; }
-.modal-titulo { font-size: 16px; font-weight: 700; margin: 0 0 4px; color: hsl(var(--foreground)); }
-.modal-desc { font-size: 13px; color: hsl(var(--muted-foreground)); margin: 0 0 16px; }
-.campo-label { display: block; font-size: 12px; font-weight: 600; color: hsl(var(--foreground)); margin-bottom: 6px; }
-.obrigatorio { color: hsl(var(--destructive)); }
-.campo-textarea { width: 100%; padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px; font-size: 13px; background: hsl(var(--background)); color: hsl(var(--foreground)); resize: vertical; box-sizing: border-box; }
-.campo-textarea.campo-erro { border-color: hsl(var(--destructive)); }
-.erro-msg { font-size: 12px; color: hsl(var(--destructive)); margin: 4px 0 0; }
-.modal-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+.estado-info {
+    text-align: center;
+    padding: 2rem 0;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+}
+
+.estado-erro {
+    padding: 0.75rem 1rem;
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    border-radius: calc(var(--radius) - 2px);
+    font-size: 0.875rem;
+}
+
+.tabela-wrap {
+    overflow-x: auto;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+}
+
+.tabela {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.tabela th,
+.tabela td {
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.tabela th {
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted) / 0.5);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.tabela tbody tr:last-child td { border-bottom: none; }
+.tabela tbody tr:hover { background: hsl(var(--muted) / 0.4); }
+
+.td-nome { font-weight: 600; }
+.td-desc { color: hsl(var(--muted-foreground)); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-acoes { display: flex; gap: 0.25rem; }
+
+.modal-desc {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.campo-erro {
+    color: hsl(var(--destructive));
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+}
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, computed } from "vue"
+import { AppModal, AppField, AppInput, AppTextarea, AppButton } from "@/components/ui"
 import { useAssinaturasStore } from "../../stores/assinaturasStore"
 import type { PlanoAdminDto } from "../../services/planosService"
 
@@ -22,13 +23,17 @@ const motivo = ref("")
 const erro = ref("")
 const salvando = ref(false)
 
+const planosOpcoes = computed(() =>
+    props.planos.map(p => ({ value: p.id, label: p.nome }))
+)
+
 async function salvar() {
     if (!planoId.value) {
         erro.value = "Selecione um plano."
         return
     }
-    if (!motivo.value.trim()) {
-        erro.value = "Motivo é obrigatório."
+    if (motivo.value.trim().length < 10) {
+        erro.value = "Motivo deve ter ao menos 10 caracteres."
         return
     }
 
@@ -52,141 +57,69 @@ async function salvar() {
 </script>
 
 <template>
-    <div class="admin-modal-overlay" @click.self="emit('fechar')">
-        <div class="admin-modal">
-            <h2 class="admin-modal-title">Trocar plano</h2>
-
-            <div class="admin-campo">
-                <label class="admin-label">Plano *</label>
-                <select v-model="planoId" class="admin-select">
+    <AppModal :aberto="true" titulo="Trocar plano" @fechar="emit('fechar')">
+        <div class="form-campos">
+            <AppField label="Plano" required>
+                <select v-model="planoId" class="select-campo" :disabled="salvando">
                     <option value="">Selecione...</option>
-                    <option v-for="p in planos" :key="p.id" :value="p.id">
-                        {{ p.nome }}
-                    </option>
+                    <option v-for="p in planos" :key="p.id" :value="p.id">{{ p.nome }}</option>
                 </select>
-            </div>
+            </AppField>
 
-            <div class="admin-campo">
-                <label class="admin-label">Data de início *</label>
-                <input v-model="inicio" type="date" class="admin-input" />
-            </div>
+            <AppField label="Data de início" required>
+                <AppInput v-model="inicio" type="date" :disabled="salvando" />
+            </AppField>
 
-            <div class="admin-campo">
-                <label class="admin-label">Data de fim (opcional)</label>
-                <input v-model="fimEm" type="date" class="admin-input" />
-            </div>
+            <AppField label="Data de fim (opcional)">
+                <AppInput v-model="fimEm" type="date" :disabled="salvando" />
+            </AppField>
 
-            <div class="admin-campo">
-                <label class="admin-label">Motivo *</label>
-                <textarea v-model="motivo" class="admin-textarea" rows="2" placeholder="Motivo da troca..." />
-            </div>
+            <AppField label="Motivo" required hint="Mínimo 10 caracteres.">
+                <AppTextarea
+                    v-model="motivo"
+                    :rows="2"
+                    placeholder="Motivo da troca..."
+                    :disabled="salvando"
+                />
+            </AppField>
 
-            <p v-if="erro" class="admin-campo-erro">{{ erro }}</p>
-
-            <div class="admin-modal-actions">
-                <button class="admin-btn-secondary" @click="emit('fechar')">Cancelar</button>
-                <button class="admin-btn-primary" :disabled="salvando || motivo.trim().length < 10" @click="salvar">
-                    {{ salvando ? "Salvando..." : "Confirmar" }}
-                </button>
-            </div>
+            <p v-if="erro" class="campo-erro">{{ erro }}</p>
         </div>
-    </div>
+
+        <template #rodape>
+            <AppButton variant="secondary" :disabled="salvando" @click="emit('fechar')">Cancelar</AppButton>
+            <AppButton
+                :loading="salvando"
+                :disabled="salvando || motivo.trim().length < 10 || !planoId"
+                @click="salvar"
+            >
+                Confirmar
+            </AppButton>
+        </template>
+    </AppModal>
 </template>
 
 <style scoped>
-.admin-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: hsl(var(--foreground) / 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.admin-modal {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 12px;
-    padding: 1.5rem;
-    width: 100%;
-    max-width: 480px;
+.form-campos {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-.admin-modal-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    margin: 0;
-}
-
-.admin-campo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-}
-
-.admin-label {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.8125rem;
-    font-weight: 600;
-}
-
-.admin-input,
-.admin-select,
-.admin-textarea {
-    background: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    color: hsl(var(--foreground));
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
+.select-campo {
     width: 100%;
-    box-sizing: border-box;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-size: 0.875rem;
+    font-family: inherit;
 }
 
-.admin-textarea {
-    resize: vertical;
-}
-
-.admin-campo-erro {
+.campo-erro {
     color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0;
-}
-
-.admin-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
-
-.admin-btn-primary {
-    background: hsl(var(--primary));
-    color: hsl(var(--card));
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.admin-btn-primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.admin-btn-secondary {
-    background: hsl(var(--border));
-    color: hsl(var(--foreground));
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    cursor: pointer;
 }
 </style>

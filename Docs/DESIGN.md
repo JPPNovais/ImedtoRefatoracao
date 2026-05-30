@@ -66,13 +66,19 @@ Se um conceito de domínio aparece em **duas operações diferentes** com a mesm
 
 ## Módulo Admin Global
 
-O módulo administrativo (`frontend/src/modules/admin/`) **reusa o design system do app principal** — mesma `AppSidebar`, `AppTopBar`, `AppPageHeader`, `AppCard`, mesmos tokens HSL (`hsl(var(--primary))`, `hsl(var(--border))`, etc). Zero hex code próprio no CSS scoped do módulo (validado por grep no QA — CA W2-CA31 do briefing 2026-05-30_002).
+O módulo administrativo (`frontend/src/modules/admin/`) **reusa integralmente o design system do app principal** — `AppTopBar`, `AppSidebar`, `AppPageHeader`, `AppCard`, `AppModal`, `AppButton`, `AppField`, `AppInput`, `AppTextarea`, `AppCheckbox`, `AppSelect`, `AppBadge`, `AppStatusPill`, `AppSearchInput`, `AppEmptyState`, `AppPagination`, `AppToast`. Zero hex code próprio no CSS scoped do módulo; zero classes `admin-*`, `secao-*`, `page-*`, `assinatura-*` (Wave 3 — briefing 2026-05-30_003).
 
 Marcação de zona privilegiada:
-- **Badge "Admin"** discreto no topbar usando `hsl(var(--destructive))`, ao lado do logo.
-- **Faixa de 2px** na borda superior do topbar com `hsl(var(--warning))` — sinal visual de que o usuário está em área administrativa sem poluir a UX.
+- **Badge "Admin"** discreto no topbar com `variant="error"` (AppBadge), ao lado do logo.
+- **Faixa de 2px** na borda superior do topbar com `hsl(var(--warning))` — sinal visual de área administrativa sem poluir a UX.
 
-O isolamento físico do módulo (sem imports cruzados com outros módulos do app) é mantido — só importa de `components/ui/`, `layouts/` e composables utilitários. Decisão consciente para preservar extração futura (briefing 2026-05-30_001 §10).
+Shell do módulo:
+- `AdminLayout.vue` — `AppTopBar` (slot `#brand` + slot `#perfil`) + `AppSidebar` (items estáticos). Sem `AppLayout` do app principal — o admin tem seu próprio shell.
+- Todas as views usam `<main class="app-page">` (ou `--narrow` para formulários) como raiz.
+
+Modais internos (assinatura, reset, revelar CPF) usam `AppModal` — sem `Teleport` manual nem overlay customizado.
+
+O isolamento físico do módulo é mantido: só importa de `@/components/ui/`, `@/composables/` e `@/assets/main.css`. Nenhum import cruzado com outros módulos do app. Decisão consciente para preservar extração futura (briefing 2026-05-30_001 §10).
 
 ## Documentos relacionados
 

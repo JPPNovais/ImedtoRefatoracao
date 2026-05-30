@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue"
+import { AppModal, AppField, AppTextarea, AppButton } from "@/components/ui"
 import { useAssinaturasStore } from "../../stores/assinaturasStore"
 
 const props = defineProps<{
@@ -19,8 +20,8 @@ const erro = ref("")
 const salvando = ref(false)
 
 async function confirmar() {
-    if (!motivo.value.trim()) {
-        erro.value = "Motivo é obrigatório."
+    if (motivo.value.trim().length < 10) {
+        erro.value = "Motivo deve ter ao menos 10 caracteres."
         return
     }
 
@@ -39,134 +40,44 @@ async function confirmar() {
 </script>
 
 <template>
-    <div class="admin-modal-overlay" @click.self="emit('fechar')">
-        <div class="admin-modal">
-            <h2 class="admin-modal-title">Encerrar assinatura</h2>
-            <p class="admin-modal-desc">
-                Esta ação encerrará a vigência atual. O histórico é preservado.
-            </p>
+    <AppModal :aberto="true" titulo="Encerrar assinatura" @fechar="emit('fechar')">
+        <p class="modal-desc">Esta ação encerrará a vigência atual. O histórico é preservado.</p>
 
-            <div class="admin-campo">
-                <label class="admin-label">Motivo *</label>
-                <textarea
-                    v-model="motivo"
-                    class="admin-textarea"
-                    rows="3"
-                    placeholder="Motivo do encerramento..."
-                />
-            </div>
+        <AppField label="Motivo" required hint="Mínimo 10 caracteres.">
+            <AppTextarea
+                v-model="motivo"
+                :rows="3"
+                placeholder="Motivo do encerramento..."
+                :disabled="salvando"
+            />
+        </AppField>
 
-            <p v-if="erro" class="admin-campo-erro">{{ erro }}</p>
+        <p v-if="erro" class="campo-erro">{{ erro }}</p>
 
-            <div class="admin-modal-actions">
-                <button class="admin-btn-secondary" @click="emit('fechar')">Cancelar</button>
-                <button class="admin-btn-danger" :disabled="salvando || motivo.trim().length < 10" @click="confirmar">
-                    {{ salvando ? "Encerrando..." : "Encerrar" }}
-                </button>
-            </div>
-        </div>
-    </div>
+        <template #rodape>
+            <AppButton variant="secondary" :disabled="salvando" @click="emit('fechar')">Cancelar</AppButton>
+            <AppButton
+                variant="danger"
+                :loading="salvando"
+                :disabled="salvando || motivo.trim().length < 10"
+                @click="confirmar"
+            >
+                Encerrar
+            </AppButton>
+        </template>
+    </AppModal>
 </template>
 
 <style scoped>
-.admin-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: hsl(var(--foreground) / 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.admin-modal {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 12px;
-    padding: 1.5rem;
-    width: 100%;
-    max-width: 440px;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.admin-modal-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    margin: 0;
-}
-
-.admin-modal-desc {
+.modal-desc {
     color: hsl(var(--muted-foreground));
     font-size: 0.875rem;
-    margin: 0;
+    margin-bottom: 1rem;
 }
 
-.admin-campo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-}
-
-.admin-label {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.8125rem;
-    font-weight: 600;
-}
-
-.admin-textarea {
-    background: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    color: hsl(var(--foreground));
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    width: 100%;
-    box-sizing: border-box;
-    resize: vertical;
-}
-
-.admin-campo-erro {
+.campo-erro {
     color: hsl(var(--destructive));
     font-size: 0.8125rem;
-    margin: 0;
-}
-
-.admin-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
-
-.admin-btn-danger {
-    background: hsl(var(--destructive));
-    color: hsl(var(--card));
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.admin-btn-danger:hover:not(:disabled) {
-    background: hsl(var(--destructive));
-}
-
-.admin-btn-danger:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.admin-btn-secondary {
-    background: hsl(var(--border));
-    color: hsl(var(--foreground));
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    cursor: pointer;
+    margin-top: 0.5rem;
 }
 </style>

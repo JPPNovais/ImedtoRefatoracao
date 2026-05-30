@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue"
+import { AppModal, AppField, AppInput, AppTextarea, AppButton } from "@/components/ui"
 import { useAssinaturasStore } from "../../stores/assinaturasStore"
 
 const props = defineProps<{
@@ -27,8 +28,8 @@ async function salvar() {
         erro.value = "Motivo da gratuidade deve ter pelo menos 20 caracteres."
         return
     }
-    if (!motivo.value.trim()) {
-        erro.value = "Motivo administrativo é obrigatório."
+    if (motivo.value.trim().length < 10) {
+        erro.value = "Motivo administrativo é obrigatório (mín. 10 caracteres)."
         return
     }
 
@@ -51,167 +52,63 @@ async function salvar() {
 </script>
 
 <template>
-    <div class="admin-modal-overlay" @click.self="emit('fechar')">
-        <div class="admin-modal">
-            <h2 class="admin-modal-title">Conceder Gratuidade Vitalícia</h2>
-
-            <div class="admin-campo">
-                <label class="admin-label">
-                    Motivo da gratuidade *
-                    <span class="admin-contador" :class="{ 'admin-contador--ok': gratuidadeMotivoValido }">
-                        {{ gratuidadeMotivo.trim().length }}/20 mín.
-                    </span>
-                </label>
-                <textarea
+    <AppModal :aberto="true" titulo="Conceder Gratuidade Vitalícia" @fechar="emit('fechar')">
+        <div class="form-campos">
+            <AppField
+                label="Motivo da gratuidade"
+                required
+                :hint="gratuidadeMotivo.trim().length > 0 && !gratuidadeMotivoValido
+                    ? 'Mínimo de 20 caracteres.'
+                    : `${gratuidadeMotivo.trim().length}/20 mín.`"
+            >
+                <AppTextarea
                     v-model="gratuidadeMotivo"
-                    class="admin-textarea"
-                    rows="3"
+                    :rows="3"
                     placeholder="Ex: Parceiro estratégico beta tester (mínimo 20 caracteres)"
+                    :disabled="salvando"
                 />
-                <p v-if="gratuidadeMotivo.trim().length > 0 && !gratuidadeMotivoValido" class="admin-campo-erro">
-                    Mínimo de 20 caracteres.
-                </p>
-            </div>
+            </AppField>
 
-            <div class="admin-campo">
-                <label class="admin-label">Data de fim da gratuidade (opcional)</label>
-                <input v-model="fimEm" type="date" class="admin-input" />
-                <p class="admin-campo-hint">Deixe vazio para gratuidade vitalícia sem expiração.</p>
-            </div>
+            <AppField label="Data de fim da gratuidade (opcional)" hint="Deixe vazio para gratuidade vitalícia sem expiração.">
+                <AppInput v-model="fimEm" type="date" :disabled="salvando" />
+            </AppField>
 
-            <div class="admin-campo">
-                <label class="admin-label">Motivo administrativo *</label>
-                <textarea v-model="motivo" class="admin-textarea" rows="2" placeholder="Motivo para registro de auditoria..." />
-            </div>
+            <AppField label="Motivo administrativo" required hint="Mínimo 10 caracteres.">
+                <AppTextarea
+                    v-model="motivo"
+                    :rows="2"
+                    placeholder="Motivo para registro de auditoria..."
+                    :disabled="salvando"
+                />
+            </AppField>
 
-            <p v-if="erro" class="admin-campo-erro">{{ erro }}</p>
-
-            <div class="admin-modal-actions">
-                <button class="admin-btn-secondary" @click="emit('fechar')">Cancelar</button>
-                <button class="admin-btn-gratuidade" :disabled="salvando || !gratuidadeMotivoValido || motivo.trim().length < 10" @click="salvar">
-                    {{ salvando ? "Salvando..." : "Conceder gratuidade" }}
-                </button>
-            </div>
+            <p v-if="erro" class="campo-erro">{{ erro }}</p>
         </div>
-    </div>
+
+        <template #rodape>
+            <AppButton variant="secondary" :disabled="salvando" @click="emit('fechar')">Cancelar</AppButton>
+            <AppButton
+                variant="success"
+                :loading="salvando"
+                :disabled="salvando || !gratuidadeMotivoValido || motivo.trim().length < 10"
+                @click="salvar"
+            >
+                Conceder gratuidade
+            </AppButton>
+        </template>
+    </AppModal>
 </template>
 
 <style scoped>
-.admin-modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: hsl(var(--foreground) / 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.admin-modal {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 12px;
-    padding: 1.5rem;
-    width: 100%;
-    max-width: 480px;
+.form-campos {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-.admin-modal-title {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: hsl(var(--foreground));
-    margin: 0;
-}
-
-.admin-campo {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-}
-
-.admin-label {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.8125rem;
-    font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.admin-contador {
-    font-size: 0.75rem;
-    color: hsl(var(--destructive));
-    font-weight: 400;
-}
-
-.admin-contador--ok {
-    color: hsl(var(--success));
-}
-
-.admin-input,
-.admin-textarea {
-    background: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    color: hsl(var(--foreground));
-    border-radius: 6px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.admin-textarea {
-    resize: vertical;
-}
-
-.admin-campo-erro {
+.campo-erro {
     color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0;
-}
-
-.admin-campo-hint {
-    color: hsl(var(--muted-foreground));
-    font-size: 0.75rem;
-    margin: 0;
-}
-
-.admin-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-}
-
-.admin-btn-gratuidade {
-    background: hsl(var(--success) / 0.15);
-    color: hsl(var(--success));
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.admin-btn-gratuidade:hover:not(:disabled) {
-    background: hsl(var(--success));
-}
-
-.admin-btn-gratuidade:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.admin-btn-secondary {
-    background: hsl(var(--border));
-    color: hsl(var(--foreground));
-    border: none;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    cursor: pointer;
 }
 </style>

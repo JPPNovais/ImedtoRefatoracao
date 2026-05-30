@@ -2,11 +2,14 @@
 /**
  * AdminChangePassword.vue — troca de senha obrigatória no primeiro login.
  *
+ * Fora do shell (sem sidebar/topbar) — padrão auth, como LoginView do app.
+ * W3-CA11: usa AppCard + AppField + AppInput + AppButton do DS.
  * Acessível mesmo com must_reset_password = true (policy ImedtoAdminChangePassword).
  * Após troca bem-sucedida, redireciona para dashboard.
  */
 import { ref } from "vue"
 import { useRouter } from "vue-router"
+import { AppCard, AppField, AppInput, AppButton } from "@/components/ui"
 import { useAdminAuthStore } from "../stores/adminAuthStore"
 
 const router = useRouter()
@@ -48,16 +51,16 @@ async function handleSubmit() {
 </script>
 
 <template>
-    <div class="admin-change-pwd-page">
-        <div class="admin-change-pwd-card">
-            <h1>Redefinição de Senha Obrigatória</h1>
-            <p class="admin-change-pwd-info">
+    <div class="change-pwd-page">
+        <AppCard style="width:100%;max-width:480px;">
+            <h1 class="change-pwd-titulo">Redefinição de Senha Obrigatória</h1>
+            <p class="change-pwd-info">
                 Por segurança, defina uma nova senha antes de continuar.
             </p>
 
-            <div class="admin-policy">
-                <p class="admin-policy-title">Requisitos da senha:</p>
-                <ul>
+            <div class="change-pwd-policy">
+                <p class="policy-titulo">Requisitos da senha:</p>
+                <ul class="policy-lista">
                     <li v-if="isProd">Mínimo de 10 caracteres</li>
                     <li v-if="isProd">Pelo menos uma letra maiúscula</li>
                     <li v-if="isProd">Pelo menos uma letra minúscula</li>
@@ -67,170 +70,110 @@ async function handleSubmit() {
                 </ul>
             </div>
 
-            <form @submit.prevent="handleSubmit" novalidate>
-                <div class="admin-field">
-                    <label for="nova-senha">Nova Senha</label>
-                    <input
-                        id="nova-senha"
+            <form @submit.prevent="handleSubmit" novalidate class="change-pwd-form">
+                <AppField label="Nova Senha" required>
+                    <AppInput
                         v-model="novaSenha"
                         type="password"
                         autocomplete="new-password"
                         :disabled="carregando || sucesso"
-                        required
                     />
-                </div>
+                </AppField>
 
-                <div class="admin-field">
-                    <label for="confirm">Confirmar Senha</label>
-                    <input
-                        id="confirm"
+                <AppField label="Confirmar Senha" required>
+                    <AppInput
                         v-model="confirmacao"
                         type="password"
                         autocomplete="new-password"
                         :disabled="carregando || sucesso"
-                        required
                     />
-                </div>
+                </AppField>
 
-                <p v-if="erro" class="admin-erro" role="alert">{{ erro }}</p>
-                <p v-if="sucesso" class="admin-sucesso" role="status">
+                <p v-if="erro" class="change-pwd-erro" role="alert">{{ erro }}</p>
+                <p v-if="sucesso" class="change-pwd-sucesso" role="status">
                     Senha alterada com sucesso! Redirecionando...
                 </p>
 
-                <button type="submit" :disabled="carregando || sucesso">
-                    {{ carregando ? "Salvando..." : "Alterar Senha" }}
-                </button>
+                <AppButton type="submit" :loading="carregando" :disabled="sucesso" block>
+                    Alterar Senha
+                </AppButton>
             </form>
-        </div>
+        </AppCard>
     </div>
 </template>
 
 <style scoped>
-.admin-change-pwd-page {
+.change-pwd-page {
+    min-height: 100vh;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding-top: 2rem;
+    background: hsl(var(--background));
+    padding: 1.5rem;
 }
 
-.admin-change-pwd-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 12px;
-    padding: 2rem;
-    width: 100%;
-    max-width: 480px;
-}
-
-h1 {
+.change-pwd-titulo {
     font-size: 1.375rem;
     font-weight: 700;
     color: hsl(var(--foreground));
     margin: 0 0 0.5rem;
 }
 
-.admin-change-pwd-info {
+.change-pwd-info {
     color: hsl(var(--muted-foreground));
     font-size: 0.9rem;
-    margin: 0 0 1.5rem;
+    margin: 0 0 1.25rem;
 }
 
-.admin-policy {
-    background: rgba(59, 130, 246, 0.08);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
+.change-pwd-policy {
+    background: hsl(var(--primary) / 0.06);
+    border: 1px solid hsl(var(--primary) / 0.18);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.875rem 1rem;
+    margin-bottom: 1.25rem;
 }
 
-.admin-policy-title {
+.policy-titulo {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: hsl(var(--primary) / 0.8);
+    color: hsl(var(--primary));
     margin: 0 0 0.5rem;
 }
 
-.admin-policy ul {
+.policy-lista {
     margin: 0;
     padding-left: 1.25rem;
 }
 
-.admin-policy li {
+.policy-lista li {
     font-size: 0.825rem;
     color: hsl(var(--muted-foreground));
     margin-bottom: 0.2rem;
 }
 
-form {
+.change-pwd-form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-.admin-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-}
-
-.admin-field label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: hsl(var(--foreground));
-}
-
-.admin-field input {
-    background: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    border-radius: 8px;
+.change-pwd-erro {
     padding: 0.625rem 0.875rem;
-    font-size: 0.9375rem;
-    color: hsl(var(--foreground));
-    outline: none;
-}
-
-.admin-field input:focus {
-    border-color: hsl(var(--primary));
-}
-
-.admin-field input:disabled {
-    opacity: 0.6;
-}
-
-.admin-erro {
-    background: rgba(220, 38, 38, 0.1);
-    border: 1px solid rgba(220, 38, 38, 0.3);
-    border-radius: 6px;
-    padding: 0.625rem;
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    border-radius: calc(var(--radius) - 2px);
     font-size: 0.875rem;
-    color: hsl(var(--destructive) / 0.7);
     margin: 0;
 }
 
-.admin-sucesso {
-    background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    border-radius: 6px;
-    padding: 0.625rem;
+.change-pwd-sucesso {
+    padding: 0.625rem 0.875rem;
+    background: hsl(var(--success) / 0.1);
+    color: hsl(142 60% 30%);
+    border: 1px solid hsl(var(--success) / 0.3);
+    border-radius: calc(var(--radius) - 2px);
     font-size: 0.875rem;
-    color: hsl(var(--success) / 0.8);
     margin: 0;
-}
-
-button[type="submit"] {
-    background: hsl(var(--primary));
-    color: hsl(var(--card));
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 0.25rem;
-}
-
-button[type="submit"]:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
 }
 </style>

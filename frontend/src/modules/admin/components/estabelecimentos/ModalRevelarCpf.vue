@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
- * ModalRevelarCpf — modal que pede motivo (mín. 10 chars) antes de revelar o CPF do dono.
+ * ModalRevelarCpf — modal que pede motivo antes de revelar o CPF do dono.
+ * W3-CA12: usa AppModal + AppField + AppTextarea + AppButton do DS.
  * CA17–CA19: motivo obrigatório, audit gerado no backend, resultado exibido inline.
  */
 import { ref, computed } from "vue"
+import { AppModal, AppField, AppTextarea, AppButton } from "@/components/ui"
 
 const props = defineProps<{
     estabelecimentoId: number
@@ -38,74 +40,45 @@ async function confirmar() {
 </script>
 
 <template>
-    <Teleport to="body">
-        <div v-if="open" class="modal-overlay" @click.self="fechar">
-            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-revelar-titulo">
-                <h2 id="modal-revelar-titulo" class="modal-titulo">Revelar CPF do dono</h2>
-                <p class="modal-desc">
-                    Esta ação fica registrada em audit. Informe o motivo da consulta.
-                </p>
+    <AppModal :aberto="open" titulo="Revelar CPF do dono" @fechar="fechar">
+        <p class="modal-desc">
+            Esta ação fica registrada em audit. Informe o motivo da consulta.
+        </p>
 
-                <div class="modal-campo">
-                    <label for="motivo-revelar" class="modal-label">Motivo <span class="req">*</span></label>
-                    <textarea
-                        id="motivo-revelar"
-                        v-model="motivo"
-                        class="modal-textarea"
-                        rows="3"
-                        placeholder="Ex: Validação de cadastro do parceiro (mín. 10 caracteres)"
-                        :disabled="carregando"
-                    />
-                    <p v-if="erro" class="modal-erro">{{ erro }}</p>
-                </div>
+        <AppField label="Motivo" required hint="Mínimo 10 caracteres.">
+            <AppTextarea
+                v-model="motivo"
+                :rows="3"
+                placeholder="Ex: Validação de cadastro do parceiro (mín. 10 caracteres)"
+                :disabled="carregando"
+            />
+        </AppField>
 
-                <div class="modal-acoes">
-                    <button class="btn-cancelar" type="button" @click="fechar" :disabled="carregando">Cancelar</button>
-                    <button
-                        class="btn-confirmar"
-                        type="button"
-                        @click="confirmar"
-                        :disabled="!motivoValido || carregando"
-                    >
-                        Revelar CPF
-                    </button>
-                </div>
-            </div>
-        </div>
-    </Teleport>
+        <p v-if="erro" class="campo-erro">{{ erro }}</p>
+
+        <template #rodape>
+            <AppButton variant="secondary" :disabled="carregando" @click="fechar">Cancelar</AppButton>
+            <AppButton
+                :loading="carregando"
+                :disabled="!motivoValido"
+                @click="confirmar"
+            >
+                Revelar CPF
+            </AppButton>
+        </template>
+    </AppModal>
 </template>
 
 <style scoped>
-.modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.55);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000;
+.modal-desc {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
 }
-.modal-box {
-    background: hsl(var(--card)); border-radius: 10px; padding: 28px;
-    max-width: 440px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+
+.campo-erro {
+    color: hsl(var(--destructive));
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
 }
-.modal-titulo { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
-.modal-desc { font-size: 13px; color: hsl(var(--muted-foreground)); margin: 0 0 18px; }
-.modal-campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
-.modal-label { font-size: 13px; font-weight: 600; }
-.req { color: hsl(var(--destructive)); }
-.modal-textarea {
-    padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px;
-    font-size: 13px; resize: vertical; font-family: inherit;
-}
-.modal-textarea:focus { outline: none; border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px hsl(var(--primary))33; }
-.modal-erro { color: hsl(var(--destructive)); font-size: 12px; margin: 0; }
-.modal-acoes { display: flex; justify-content: flex-end; gap: 10px; }
-.btn-cancelar {
-    padding: 8px 16px; border: 1px solid hsl(var(--border)); border-radius: 6px;
-    background: hsl(var(--card)); font-size: 13px; cursor: pointer;
-}
-.btn-confirmar {
-    padding: 8px 16px; border: none; border-radius: 6px;
-    background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-size: 13px;
-    font-weight: 600; cursor: pointer;
-}
-.btn-confirmar:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
