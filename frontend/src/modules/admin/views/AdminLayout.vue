@@ -130,24 +130,38 @@ onUnmounted(() => {
 }
 
 /* ── Faixa de acento 2px warning entre banner e AppTopBar (W3-CA5) ── */
-/* AppTopBar é position:fixed top:0 (hardcoded no DS) — sobrescreve via :deep para empurrar abaixo do banner */
+/* AppTopBar fica à direita da sidebar (não em cima dela) e abaixo do banner */
 .admin-topbar-wrap :deep(.topbar) {
     top: var(--admin-banner-h, 24px);
+    left: var(--sidebar-w-collapsed, 64px);
     border-top: 2px solid hsl(var(--warning));
+    transition: left 220ms cubic-bezier(.2,.8,.2,1);
+}
+:global(body.has-pinned-sidebar) .admin-topbar-wrap :deep(.topbar) {
+    left: var(--sidebar-w-expanded, 240px);
 }
 
-/* ── Shell (sidebar + conteúdo) ── */
+/* AppSidebar começa logo abaixo do banner — alinhada com o topbar à direita */
+.admin-shell :deep(.side) {
+    top: var(--admin-banner-h, 24px);
+    height: calc(100vh - var(--admin-banner-h, 24px));
+}
+
+/* ── Shell (sidebar fixed à esquerda + conteúdo abaixo do topbar) ── */
 .admin-shell {
-    display: flex;
     flex: 1;
-    padding-top: 64px; /* altura do topbar */
+    padding-top: var(--topbar-h, 64px); /* abaixo do topbar (banner já compensado no .admin-layout) */
 }
 
 /* ── Main — recebe app-page de cada view ── */
 .admin-main {
     flex: 1;
     min-width: 0;
-    padding-left: 64px; /* largura collapsed do AppSidebar */
+    margin-left: var(--sidebar-w-collapsed, 64px);
+    transition: margin-left 220ms cubic-bezier(.2,.8,.2,1);
     overflow-y: auto;
+}
+:global(body.has-pinned-sidebar) .admin-main {
+    margin-left: var(--sidebar-w-expanded, 240px);
 }
 </style>
