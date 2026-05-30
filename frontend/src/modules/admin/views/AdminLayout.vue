@@ -142,9 +142,11 @@ onUnmounted(() => {
 }
 
 /* AppSidebar começa logo abaixo do banner — alinhada com o topbar à direita */
+/* z-index acima do topbar (DS=50) para que a sidebar expandida sobreponha o topbar e não fique misturada */
 .admin-shell :deep(.side) {
     top: var(--admin-banner-h, 24px);
     height: calc(100vh - var(--admin-banner-h, 24px));
+    z-index: 60;
 }
 
 /* ── Shell (sidebar fixed à esquerda + conteúdo abaixo do topbar) ── */
