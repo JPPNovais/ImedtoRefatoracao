@@ -46,6 +46,15 @@ public class OnboardingCompletadoFilter : IAsyncActionFilter
             return;
         }
 
+        // Admin global (claim imedto_admin = "true") não passa pelo gate de onboarding:
+        // não é usuário de estabelecimento; vive em universo separado.
+        var isAdminGlobal = context.HttpContext.User.FindFirst("imedto_admin")?.Value == "true";
+        if (isAdminGlobal)
+        {
+            await next();
+            return;
+        }
+
         var sub = context.HttpContext.User.FindFirst("sub")?.Value;
         if (sub is null || !Guid.TryParse(sub, out var usuarioId))
         {

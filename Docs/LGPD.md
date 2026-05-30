@@ -33,6 +33,18 @@ Sistema de saúde → dados pessoais sensíveis (Art. 5º II e Art. 11 LGPD). LG
 - Os componentes do front precisam estar padronizados e reutilizados como um todo de acordo com sua necessidade — design system primeiro.
 - As regras de negócio devem estar todas no backend, transparente para o front, a fim de evitar problemas de segurança também.
 
+## Acesso de admin global — regras de privacidade e isolamento
+
+O admin global (`imedto_admin`) opera fora do contexto de tenant. Regras específicas:
+
+- **Sem `estabelecimento_id` no JWT admin** — o token nunca carrega claim de tenant. Qualquer rota de domínio que leia `estabelecimento_id` do token vai negar acesso automaticamente (falha-fechada).
+- **Auditoria obrigatória** — toda ação sensível do admin (login, falha de login, troca de senha, criação/desativação de admin) registra linha em `imedto_admin_audit_logs` via `ImedtoAdminAuditWriter`. Log inclui `admin_id`, `acao`, `recurso_tipo`, `recurso_id`, `ip`, `user_agent`, `motivo` e `criado_em`. Nunca PII de paciente.
+- **Mensagem genérica em credenciais inválidas** — "Credenciais inválidas." independentemente de o e-mail existir ou não. Não revelar existência do registro.
+- **Sem PII em logs do admin** — nenhum dado de paciente, CPF, telefone ou dado de estabelecimento em `_logger.*`. Apenas IDs e ações.
+- **Refresh token admin** — TTL 2h, armazenado como hash SHA-256 em `imedto_admin_refresh_tokens`. Token cru nunca persistido.
+- **Inatividade** — sessão admin expira automaticamente após 15 min de inatividade no frontend (`adminAuthStore`).
+- **Cross-blindagem** — admin não acessa endpoints de tenant (policy + filtro global `AdminBlindagemFilter`). Usuário de tenant não acessa `/api/admin/*` (policy `ImedtoAdmin`).
+
 ## Checklist multi-tenant — premissa não-negociável
 
 Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento), valide:

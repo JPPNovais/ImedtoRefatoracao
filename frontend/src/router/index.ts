@@ -4,6 +4,7 @@ import { useTenantStore } from "@/stores/tenantStore"
 import { useAssinaturaStore } from "@/stores/assinaturaStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { podeAcessarRota, rotaRestrita } from "./routePermissions"
+import { adminRoutes } from "@/modules/admin/router"
 
 /**
  * Rotas isentas do bloqueio por assinatura — necessárias para o fluxo de
@@ -346,10 +347,28 @@ const router = createRouter({
 
         // 404
         { path: "/:pathMatch(.*)*", redirect: "/" },
+
+        // Módulo admin global (CA47/CA48) — lazy load completo.
+        // O guard adminRouteGuard protege as rotas filhas.
+        ...adminRoutes,
     ],
 })
 
 router.beforeEach(async (to) => {
+    // Guard do módulo admin — rotas /admin/* são completamente independentes.
+    // Retorna antes de entrar na lógica de auth do app principal.
+    if (to.path.startsWith("/admin")) {
+        // Rotas públicas do admin (ex: /admin/login) passam sem verificação.
+        if (to.meta.adminPublica) return true
+
+        const { useAdminAuthStore } = await import("@/modules/admin/stores/adminAuthStore")
+        const adminStore = useAdminAuthStore()
+
+        if (!adminStore.isAuthenticated) return { name: "AdminLogin" }
+        if (adminStore.mustResetPassword && !to.meta.allowMustReset) return { name: "AdminChangePassword" }
+        return true
+    }
+
     const auth = useAuthStore()
     const tenant = useTenantStore()
 

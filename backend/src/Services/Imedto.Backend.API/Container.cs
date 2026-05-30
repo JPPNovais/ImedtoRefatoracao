@@ -213,6 +213,7 @@ public static class Container
 
         // Admin
         services.AddScoped<Domain.Admin.IAdminResetService, AdminResetService>();
+        RegistrarAdminFatias(services);
 
         // Idempotência
         services.AddScoped<IIdempotencyRepository, IdempotencyRepository>();
@@ -232,6 +233,41 @@ public static class Container
         services.AddHostedService<SeedPlanosHostedService>();
 
         return services;
+    }
+
+    private static void RegistrarAdminFatias(IServiceCollection services)
+    {
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.AdminQueryRepository>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Admins.Queries.ListarAdminsQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Admins.Queries.ObterAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Admins.Commands.CriarAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Admins.Commands.DesativarAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Admins.Commands.ReativarAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Admins.Commands.ResetSenhaAdminCommandHandler>();
+
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.IAdminEstabelecimentosQueryRepository,
+                              Imedto.Backend.Infrastructure.Admin.AdminEstabelecimentosQueryRepository>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Estabelecimentos.Queries.ListarEstabelecimentosAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Estabelecimentos.Queries.ObterEstabelecimentoAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Estabelecimentos.Queries.RevelarCpfDonoQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Estabelecimentos.Commands.ResetTenantCommandHandler>();
+
+        services.AddScoped<Imedto.Backend.Domain.Admin.IImedtoPlanoRepository,
+                           Imedto.Backend.Infrastructure.Admin.ImedtoPlanoRepository>();
+        services.AddScoped<Imedto.Backend.Domain.Admin.IImedtoAssinaturaRepository,
+                           Imedto.Backend.Infrastructure.Admin.ImedtoAssinaturaRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoPlanoQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoAssinaturaQueryRepository>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Planos.CriarPlanoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Planos.AtualizarPlanoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Planos.AtivarPlanoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Planos.DesativarPlanoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Planos.ListarPlanosAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Planos.ObterPlanoAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.TrocarPlanoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.ConcederGratuidadeAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.EncerrarAssinaturaAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.ListarHistoricoAssinaturasAdminQueryHandler>();
     }
 
     /// <summary>

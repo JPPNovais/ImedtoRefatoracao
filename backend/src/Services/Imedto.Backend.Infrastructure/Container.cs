@@ -132,8 +132,19 @@ public static class InfrastructureExtensions
         services.AddScoped<ITenantAccessResolver, TenantAccessResolver>();
 
         RegistrarAuth(services, configuration);
+        RegistrarAdmin(services);
 
         return services;
+    }
+
+    private static void RegistrarAdmin(IServiceCollection services)
+    {
+        // Área Admin Global — serviços scoped (dependem de AppDbContext scoped).
+        services.AddScoped<Admin.ImedtoAdminTokenIssuer>();
+        services.AddScoped<Admin.ImedtoAdminAuditWriter>();
+        services.AddScoped<Admin.ImedtoAdminRepository>();
+        services.AddScoped<Admin.ImedtoAdminRefreshTokenRepository>();
+        services.AddScoped<Domain.Admin.IAdminResetService, Admin.AdminResetService>();
     }
 
     private static void RegistrarAuth(IServiceCollection services, IConfiguration configuration)

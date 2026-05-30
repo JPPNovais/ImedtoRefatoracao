@@ -24,6 +24,338 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAdmin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTimeOffset?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid?>("CriadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_admin_id");
+
+                    b.Property<DateTimeOffset?>("DesativadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("desativado_em");
+
+                    b.Property<Guid?>("DesativadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("desativado_por_admin_id");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("citext")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("ForcePasswordReset")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("force_password_reset");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("SenhaHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("senha_hash");
+
+                    b.Property<DateTimeOffset?>("UltimoLoginEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ultimo_login_em");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Ativo")
+                        .HasDatabaseName("ix_imedto_admins_ativo");
+
+                    b.HasIndex("CriadoPorAdminId");
+
+                    b.HasIndex("DesativadoPorAdminId");
+
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imedto_admins_email");
+
+                    b.ToTable("imedto_admins", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAdminAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Acao")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("acao");
+
+                    b.Property<Guid?>("AdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("admin_id");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<string>("Ip")
+                        .HasColumnType("text")
+                        .HasColumnName("ip");
+
+                    b.Property<string>("Motivo")
+                        .HasColumnType("text")
+                        .HasColumnName("motivo");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("payload_json");
+
+                    b.Property<string>("RecursoId")
+                        .HasColumnType("text")
+                        .HasColumnName("recurso_id");
+
+                    b.Property<string>("RecursoTipo")
+                        .HasColumnType("text")
+                        .HasColumnName("recurso_tipo");
+
+                    b.Property<long?>("TenantAfetadoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("tenant_afetado_id");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriadoEm")
+                        .HasDatabaseName("ix_imedto_admin_audit_log_criado_em");
+
+                    b.HasIndex("Acao", "CriadoEm")
+                        .HasDatabaseName("ix_imedto_admin_audit_log_acao_criado");
+
+                    b.HasIndex("AdminId", "CriadoEm")
+                        .HasDatabaseName("ix_imedto_admin_audit_log_admin_criado");
+
+                    b.HasIndex("TenantAfetadoId", "CriadoEm")
+                        .HasDatabaseName("ix_imedto_admin_audit_log_tenant_criado")
+                        .HasFilter("tenant_afetado_id IS NOT NULL");
+
+                    b.ToTable("imedto_admin_audit_log", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAdminRefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("admin_id");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateTimeOffset>("ExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em");
+
+                    b.Property<string>("IpOrigem")
+                        .HasColumnType("text")
+                        .HasColumnName("ip_origem");
+
+                    b.Property<DateTimeOffset?>("RevogadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revogado_em");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token_hash");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imedto_admin_refresh_tokens_hash");
+
+                    b.HasIndex("AdminId", "ExpiraEm")
+                        .HasDatabaseName("ix_imedto_admin_refresh_tokens_admin_expira");
+
+                    b.ToTable("imedto_admin_refresh_tokens", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAssinatura", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CriadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criada_em");
+
+                    b.Property<Guid?>("CriadaPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criada_por_admin_id");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<DateTimeOffset?>("FimEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fim_em");
+
+                    b.Property<bool>("Gratuita")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("gratuita");
+
+                    b.Property<DateTimeOffset>("IniciadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("iniciada_em");
+
+                    b.Property<string>("Motivo")
+                        .HasColumnType("text")
+                        .HasColumnName("motivo");
+
+                    b.Property<Guid>("PlanoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plano_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriadaPorAdminId");
+
+                    b.HasIndex("PlanoId")
+                        .HasDatabaseName("ix_imedto_assinaturas_plano");
+
+                    b.HasIndex("EstabelecimentoId", "FimEm")
+                        .HasDatabaseName("ix_imedto_assinaturas_estabelecimento_fim");
+
+                    b.ToTable("imedto_assinaturas", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoConfig", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text")
+                        .HasColumnName("chave");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid?>("AtualizadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizado_por_admin_id");
+
+                    b.Property<string>("Descricao")
+                        .HasColumnType("text")
+                        .HasColumnName("descricao");
+
+                    b.Property<string>("Valor")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("valor");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtualizadoPorAdminId");
+
+                    b.ToTable("imedto_config", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoPlano", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTimeOffset?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid?>("CriadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_admin_id");
+
+                    b.Property<string>("DescricaoCurta")
+                        .HasColumnType("text")
+                        .HasColumnName("descricao_curta");
+
+                    b.Property<bool>("Gratuito")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("gratuito");
+
+                    b.Property<string>("LimitesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("limites_json")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<int?>("PrecoMensalCentavos")
+                        .HasColumnType("integer")
+                        .HasColumnName("preco_mensal_centavos");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Ativo")
+                        .HasDatabaseName("ix_imedto_planos_ativo");
+
+                    b.HasIndex("CriadoPorAdminId");
+
+                    b.HasIndex("Nome")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imedto_planos_nome");
+
+                    b.ToTable("imedto_planos", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Agendamentos.Agendamento", b =>
                 {
                     b.Property<long>("Id")
@@ -5239,6 +5571,72 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_vinculo_profissional_status");
 
                     b.ToTable("vinculo_profissional_estabelecimento", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAdmin", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("CriadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("DesativadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAdminAuditLog", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAdminRefreshToken", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoAssinatura", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("CriadaPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoPlano", null)
+                        .WithMany()
+                        .HasForeignKey("PlanoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoConfig", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoPlano", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("CriadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Agendamentos.Agendamento", b =>

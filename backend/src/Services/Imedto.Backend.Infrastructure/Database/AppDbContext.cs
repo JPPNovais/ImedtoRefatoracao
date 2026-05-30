@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Imedto.Backend.Domain.Admin;
 using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Atestados;
@@ -132,6 +133,14 @@ public class AppDbContext : DbContext
     public DbSet<AuthCredencial> AuthCredenciais => Set<AuthCredencial>();
     public DbSet<AuthRefreshToken> AuthRefreshTokens => Set<AuthRefreshToken>();
     public DbSet<AuthEmailToken> AuthEmailTokens => Set<AuthEmailToken>();
+
+    // Área Admin Global (2026-05-30).
+    public DbSet<ImedtoAdmin> ImedtoAdmins => Set<ImedtoAdmin>();
+    public DbSet<ImedtoAdminRefreshToken> ImedtoAdminRefreshTokens => Set<ImedtoAdminRefreshToken>();
+    public DbSet<ImedtoAdminAuditLog> ImedtoAdminAuditLogs => Set<ImedtoAdminAuditLog>();
+    public DbSet<ImedtoPlano> ImedtoPlanos => Set<ImedtoPlano>();
+    public DbSet<ImedtoAssinatura> ImedtoAssinaturas => Set<ImedtoAssinatura>();
+    public DbSet<ImedtoConfig> ImedtoConfigs => Set<ImedtoConfig>();
 
     // Termos de consentimento (Fase 1 — 2026-05-19).
     public DbSet<TermoModelo> TermosModelo => Set<TermoModelo>();

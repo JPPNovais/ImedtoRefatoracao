@@ -69,6 +69,40 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 
 ---
 
+## Área Admin Global
+
+Módulo separado para operação interna do Imedto (não é tenant/usuário final). Acessa `/api/admin/*` e `/admin/*`.
+
+### Backend
+
+- **`ImedtoAdmin`** — aggregate root em `Domain.Admin`. Sem `estabelecimento_id` — é global.
+- **`ImedtoAdminTokenIssuer`** — emite JWT admin com claims `imedto_admin = "true"`, `sub`, `email`. Nunca carrega `estabelecimento_id`. Usa a mesma chave ECDSA P-256 do app (`Auth:Jwt:PrivateKeyPem`).
+- **`ImedtoAdminAuditWriter`** — caminho único de auditoria. Salva via `db.SaveChangesAsync()` direto (independente de UnitOfWork). Captura IP por X-Forwarded-For > RemoteIpAddress.
+- **`AdminAuthController`** — endpoints em `/api/admin/auth/*` (login, refresh, logout, me, change-password). Cookies: `admin-access-token` (path `/api/admin`) e `admin-refresh-token` (path `/api/admin/auth/refresh`).
+- **Políticas de autorização**:
+  - `ImedtoAdmin` — requer `imedto_admin = "true"` **e** ausência de `must_reset_password = "true"`.
+  - `ImedtoAdminChangePassword` — requer `imedto_admin = "true"` (permite `must_reset_password`).
+- **`AdminBlindagemFilter`** — filtro MVC global. Se rota não começa com `/api/admin/` e JWT tem `imedto_admin = "true"` → 403. Impede que admin acesse endpoints de tenant.
+- **`SeedAdminCommand`** — CLI interceptado antes de `WebApplication.Build`. Uso: `dotnet run -- seed-admin --email <email>`. Cria admin com senha temporária de 20 chars e `force_password_reset = true`.
+- **`AdminSenhaPolicy`** — dev: ≥ 6 chars. Prod: ≥ 10 chars + maiúscula + minúscula + número + especial.
+- **Refresh token admin** — TTL 2h (mais curto que usuário). Armazenado como hash SHA-256 em `imedto_admin_refresh_tokens` — nunca o token cru.
+
+### Frontend
+
+Módulo autocontido em `frontend/src/modules/admin/`. **Zero import cruzado** com outras stores/services do app principal — exceto `@/components/ui/*` e `@/utils/*`.
+
+- **`adminApi.ts`** — axios isolado com `baseURL: /api/admin`. Interceptor de 401: tenta refresh automático, falha → limpa sessão + redirect `/admin/login`.
+- **`adminAuthStore.ts`** — Pinia store `adminAuth`. Reidrata via `GET /api/admin/auth/me`. Timer de inatividade de 15min (logout automático).
+- **Router guard** — embutido no `beforeEach` global: rotas `/admin/*` são interceptadas antes das rotas normais. Redireciona para `/admin/login` se não autenticado; para `/admin/change-password` se `mustResetPassword = true`.
+
+### Isolamento e cross-blindagem (CA8 + CA9)
+
+- JWT de usuário comum em `/api/admin/*` → rejeitado pela policy `ImedtoAdmin` (sem claim `imedto_admin`) → 403.
+- JWT admin em rota normal → rejeitado por `AdminBlindagemFilter` → 403.
+- As duas direções são garantidas sem sobreposição de roles.
+
+---
+
 ## Conexão Postgres (RDS)
 
 - Connection string normal Npgsql em `ConnectionStrings:Default` (runtime) e `ConnectionStrings:Migrations` (autoria de migrations via `dotnet ef`).

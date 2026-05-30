@@ -138,6 +138,61 @@ Imagens publicadas:
 - `ghcr.io/jppnovais/imedto-backend:<sha7>` + `:latest`
 - `ghcr.io/jppnovais/imedto-frontend:<sha7>` + `:latest`
 
+## Área Admin Global — Schema e Bootstrap
+
+### Tabelas criadas (migration `20260530034709`)
+
+Todas globais — sem `estabelecimento_id`. Prefixo `imedto_` para distinguir das tabelas legado.
+
+| Tabela | Propósito |
+|---|---|
+| `imedto_admins` | Admins globais do SaaS (separados de `usuarios`). Email via `citext`. UUID PK. |
+| `imedto_admin_refresh_tokens` | Refresh tokens admin. Armazena SHA-256 hash do token, nunca o token em claro. |
+| `imedto_admin_audit_log` | Audit append-only. Retenção 2 anos (ver LGPD.md). `tenant_afetado_id` é bigint nullable sem FK física (log permanece se tenant for excluído). |
+| `imedto_planos` | Catálogo de planos admin. **Diferente de `planos` (bigint, domínio cliente legado)**. UUID PK, preço em centavos inteiros nullable. |
+| `imedto_assinaturas` | Histórico imutável de assinaturas. **Diferente de `assinaturas` (bigint 1:1)**. INSERT nova linha ao trocar plano, nunca UPDATE. |
+| `imedto_config` | Key-value global. PK é a chave text. Valor JSONB. |
+
+### Seed de plano "Gratuidade Vitalícia"
+
+ID fixo: `00000000-0000-0000-0000-000000000001`. Inserido em todos os ambientes via `20260530034800_seed_admin_dev_e_plano_gratuidade.sql`. Idempotente (ON CONFLICT DO NOTHING).
+
+### Bootstrap de admin
+
+**Development**: seed automático via `app.environment = 'Development'` setado no startup da API. Insere `admin@imedto.com / 123123`. Migration: `20260530034800_seed_admin_dev_e_plano_gratuidade.sql`.
+
+**Produção**: comando CLI a ser implementado pelo `imedto-developer`:
+```bash
+dotnet run --project backend/src/Services/Imedto.Backend.API -- seed-admin --email contato.imedto@gmail.com
+# Imprime: Senha temporária: <random 20 chars>
+# Insere admin com force_password_reset = true
+# Gera linha CRIAR_ADMIN em imedto_admin_audit_log
+```
+
+### Hash de senha admin
+
+Mesmo algoritmo do `BcryptPasswordHasher` (usuários comuns):
+1. `HMAC-SHA256(pepper_bytes, senha_bytes)` → base64
+2. `BCrypt.HashPassword(peppered, workFactor=12)`
+
+Pepper vem de `Auth:Bcrypt:Pepper` (dev: `appsettings.Development.json`; prod: SSM `/imedto/dev/bcrypt/pepper`).
+
+### Extensões Postgres relevantes para admin
+
+`pg_trgm` já instalado e ativo. Usado nos índices GIN trigram em `estabelecimentos.nome_fantasia` (busca ILIKE na lista admin). Arquivo de índices CONCURRENTLY: `20260530034900_indices_admin_concurrently.sql`.
+
+### FKs e regras de deleção
+
+| FK | Regra | Justificativa |
+|---|---|---|
+| `refresh_tokens.admin_id` → `imedto_admins` | CASCADE | Tokens sem admin são inválidos |
+| `audit_log.admin_id` → `imedto_admins` | SET NULL | Log histórico permanece |
+| `assinaturas.estabelecimento_id` → `estabelecimentos` | RESTRICT | Não perder histórico financeiro |
+| `assinaturas.plano_id` → `imedto_planos` | RESTRICT | Não deletar plano em uso |
+| demais FK de admin_id | SET NULL | Audit e integridade sem cascata destrutiva |
+
+---
+
 ## Decisões já tomadas (não reabrir sem motivo forte)
 
 1. **Free Tier first**: 1 EC2 + 1 RDS + S3, tudo em sa-east-1. Próximo upgrade: Multi-AZ + ECS Fargate quando sair de teste.

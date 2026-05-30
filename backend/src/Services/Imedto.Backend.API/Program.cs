@@ -25,6 +25,15 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
 
+// --- Comando CLI seed-admin (CA46) ---
+// Antes de construir o WebApplication para não iniciar HTTP desnecessariamente.
+// Uso: dotnet run --project backend/src/Services/Imedto.Backend.API -- seed-admin --email X
+if (args.Length >= 3 && args[0] == "seed-admin" && args[1] == "--email")
+{
+    await Imedto.Backend.API.Cli.SeedAdminCommand.ExecutarAsync(args);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Cultura pt-BR global
@@ -106,6 +115,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = ctx =>
             {
+                var path = ctx.HttpContext.Request.Path;
+
+                // Rotas admin: cookie admin-access-token tem prioridade.
+                if (path.StartsWithSegments("/api/admin"))
+                {
+                    var adminCookie = ctx.Request.Cookies["admin-access-token"];
+                    if (!string.IsNullOrEmpty(adminCookie))
+                    {
+                        ctx.Token = adminCookie;
+                        return Task.CompletedTask;
+                    }
+                }
+
                 // Cookie HttpOnly tem prioridade (frontend / produção)
                 var cookie = ctx.Request.Cookies["access-token"];
                 if (!string.IsNullOrEmpty(cookie))
@@ -125,7 +147,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 // Fallback 2: query string em conexões SignalR/WebSocket — padrão oficial
                 // do framework, já que alguns clientes WS não propagam cookie/header de auth no
                 // handshake. Restrito a /hubs/* para evitar expor tokens em URL de endpoints REST.
-                var path = ctx.HttpContext.Request.Path;
                 if (path.StartsWithSegments("/hubs"))
                 {
                     var qs = ctx.Request.Query["access_token"].ToString();
@@ -156,7 +177,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(opts =>
+{
+    // Policy principal: exige claim imedto_admin = "true" e NÃO must_reset_password.
+    // Toda rota /api/admin/* (exceto login, refresh e change-password) usa essa policy.
+    opts.AddPolicy("ImedtoAdmin", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireClaim(Imedto.Backend.Infrastructure.Admin.ImedtoAdminTokenIssuer.AdminClaim, "true")
+              .RequireAssertion(ctx =>
+                  ctx.User.FindFirst(Imedto.Backend.Infrastructure.Admin.ImedtoAdminTokenIssuer.MustResetPasswordClaim)?.Value != "true"));
+
+    // Policy mais permissiva: exige imedto_admin = "true" MAS aceita must_reset_password.
+    // Usada apenas em change-password, para que o admin possa trocar senha no primeiro login.
+    opts.AddPolicy("ImedtoAdminChangePassword", policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireClaim(Imedto.Backend.Infrastructure.Admin.ImedtoAdminTokenIssuer.AdminClaim, "true"));
+});
 builder.Services.AddMemoryCache();
 
 // --- Controllers com filtros globais ---
@@ -166,6 +202,8 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<UnitOfWorkFilter>();
     options.Filters.Add<IdempotencyFilter>();
     options.Filters.Add<OnboardingCompletadoFilter>();
+    // Blindagem cruzada CA9: admin JWT em rota normal = 403.
+    options.Filters.Add<AdminBlindagemFilter>();
 }).AddJsonOptions(opts =>
 {
     // Normaliza DateTime/DateTime? para UTC ao deserializar — colunas Postgres
