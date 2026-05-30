@@ -99,20 +99,26 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     background: hsl(var(--background));
+    /* compensa o banner fixed (24px) — empurra todo conteúdo pra baixo */
+    padding-top: var(--admin-banner-h, 24px);
 }
 
 /* ── Banner (única CSS custom além do acento) ── */
 .admin-banner {
-    width: 100%;
-    padding: 0.35rem 1.5rem;
-    text-align: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--admin-banner-h, 24px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1.5rem;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 60;
+    z-index: 100; /* acima do AppTopBar interno (z:50) */
 }
 .admin-banner--prod {
     background: hsl(var(--destructive));
@@ -123,12 +129,11 @@ onUnmounted(() => {
     color: hsl(var(--warning-foreground, var(--foreground)));
 }
 
-/* ── Faixa de acento 2px warning sobre o AppTopBar (W3-CA5) ── */
-.admin-topbar-wrap {
+/* ── Faixa de acento 2px warning entre banner e AppTopBar (W3-CA5) ── */
+/* AppTopBar é position:fixed top:0 (hardcoded no DS) — sobrescreve via :deep para empurrar abaixo do banner */
+.admin-topbar-wrap :deep(.topbar) {
+    top: var(--admin-banner-h, 24px);
     border-top: 2px solid hsl(var(--warning));
-    position: sticky;
-    top: 0;
-    z-index: 50;
 }
 
 /* ── Shell (sidebar + conteúdo) ── */
