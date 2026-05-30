@@ -275,39 +275,33 @@ public static class Container
         services.AddSingleton<Imedto.Backend.Application.Admin.Configs.ListarConfigsAdminQueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Configs.AtualizarConfigAdminCommandHandler>();
 
-        // Frente 3 — Catálogos globais (modelos de prontuário)
-        services.AddScoped<Imedto.Backend.Infrastructure.Admin.ImedtoModeloProntuarioGlobalRepository>();
-        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoModeloProntuarioGlobalQueryRepository>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.CriarModeloGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.AtualizarModeloGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.DesativarModeloGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.ReativarModeloGlobalCommandHandler>();
-        services.AddSingleton<Imedto.Backend.Application.Admin.Catalogos.Modelos.ListarModelosGlobaisQueryHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.ObterModeloGlobalQueryHandler>();
+        // Wave 4 — Modelos padrão sistema (live-link: EhPadraoSistema=true)
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.ModeloPadraoSistemaQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.ModelosPadraoSistema.ListarModelosPadraoSistemaQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.ModelosPadraoSistema.ObterModeloPadraoSistemaQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPadraoSistema.CriarModeloPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPadraoSistema.AtualizarModeloPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPadraoSistema.InativarModeloPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPadraoSistema.ReativarModeloPadraoSistemaCommandHandler>();
 
-        // Frente 3 — Catálogos globais (variáveis pool)
-        services.AddScoped<Imedto.Backend.Infrastructure.Admin.ImedtoVariavelPoolGlobalRepository>();
-        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoVariavelPoolGlobalQueryRepository>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.CriarVariavelGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.AtualizarVariavelGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.DesativarVariavelGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.ReativarVariavelGlobalCommandHandler>();
-        services.AddSingleton<Imedto.Backend.Application.Admin.Catalogos.Variaveis.ListarVariaveisGlobaisQueryHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.ObterVariavelGlobalQueryHandler>();
+        // Wave 4 — Variáveis pool padrão sistema
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.VariavelPadraoSistemaQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.VariaveisPadraoSistema.ListarVariaveisPadraoSistemaQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.VariaveisPadraoSistema.ObterVariavelPadraoSistemaQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.VariaveisPadraoSistema.CriarVariavelPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.VariaveisPadraoSistema.AtualizarVariavelPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.VariaveisPadraoSistema.InativarVariavelPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.VariaveisPadraoSistema.ReativarVariavelPadraoSistemaCommandHandler>();
 
-        // Frente 3 — Catálogos globais (regiões anatômicas)
-        services.AddScoped<Imedto.Backend.Infrastructure.Admin.ImedtoRegiaoAnatomicaGlobalRepository>();
-        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoRegiaoAnatomicaGlobalQueryRepository>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.CriarRegiaoGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.AtualizarRegiaoGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.DesativarRegiaoGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.ReativarRegiaoGlobalCommandHandler>();
-        services.AddSingleton<Imedto.Backend.Application.Admin.Catalogos.Regioes.ListarRegioesGlobaisQueryHandler>();
-        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.ObterRegiaoGlobalQueryHandler>();
-
-        // Frente 3 — Importação tenant
-        services.AddScoped<Imedto.Backend.Application.Prontuarios.ImportarModeloDoGlobalCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Prontuarios.ImportarVariavelDoGlobalCommandHandler>();
+        // Wave 4 — Regiões anatômicas (catálogo global)
+        services.AddScoped<Imedto.Backend.Infrastructure.Admin.RegiaoAnatomicaCatalogoRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.RegiaoAnatomicaAdminQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Regioes.ListarArvoreRegioesAdminQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Regioes.ObterRegiaoAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Regioes.CriarRegiaoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Regioes.AtualizarRegiaoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Regioes.InativarRegiaoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ExcluirRegiaoAdminCommandHandler>();
     }
 
     /// <summary>

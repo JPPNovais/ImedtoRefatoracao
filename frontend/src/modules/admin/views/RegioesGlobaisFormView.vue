@@ -1,54 +1,70 @@
 <script setup lang="ts">
 /**
- * Formulário de criação/edição de região anatômica global.
- * Sinônimos via tag input — cada Enter adiciona uma tag.
- * W3-CA7 a W3-CA11: app-page--narrow + AppPageHeader + AppCard + AppField + AppInput + AppButton.
+ * RegioesGlobaisFormView — criação/edição de região anatômica (Wave 4 live-link).
+ * Criação: codigo, nome, vista, paiCodigo, nivel, templateTexto, ordem, lateralidade, motivo.
+ * Edição: apenas nome, templateTexto, motivo (estrutura não muda).
  */
 import { ref, onMounted, computed } from "vue"
 import { useRouter } from "vue-router"
-import { AppPageHeader, AppCard, AppField, AppInput, AppButton } from "@/components/ui"
+import { AppPageHeader, AppCard, AppField, AppInput, AppTextarea, AppButton, AppSelect } from "@/components/ui"
 import { useRegioesGlobaisStore } from "../stores/regioesGlobaisStore"
 
 const props = defineProps<{ id?: string }>()
 const router = useRouter()
 const store = useRegioesGlobaisStore()
 
-const editando = computed(() => !!props.id)
+const idNumerico = computed(() => props.id ? Number(props.id) : null)
+const editando = computed(() => idNumerico.value !== null && !isNaN(idNumerico.value))
 
+const OPCOES_VISTA = [
+    { value: "", label: "Sem vista (raiz ou neutra)" },
+    { value: "anterior", label: "Anterior" },
+    { value: "posterior", label: "Posterior" },
+    { value: "lateral_direita", label: "Lateral direita" },
+    { value: "lateral_esquerda", label: "Lateral esquerda" },
+]
+
+// campos de criação (imutáveis após criar)
+const codigo = ref("")
+const vista = ref("")
+const paiCodigo = ref("")
+const nivel = ref<number>(1)
+const ordem = ref<number>(1)
+const lateralidade = ref(false)
+
+// campos editáveis sempre
 const nome = ref("")
-const sistemaCorporal = ref("")
+const templateTexto = ref("")
 const motivo = ref("")
-const sinonimos = ref<string[]>([])
-const tagInput = ref("")
 const erros = ref<Record<string, string>>({})
 const salvando = ref(false)
 const erroGeral = ref("")
 
 onMounted(async () => {
-    if (props.id) {
-        await store.carregarItem(props.id)
+    if (editando.value && idNumerico.value !== null) {
+        await store.carregarItem(idNumerico.value)
         if (store.itemAtual) {
             nome.value = store.itemAtual.nome
-            sistemaCorporal.value = store.itemAtual.sistemaCorporal ?? ""
-            sinonimos.value = store.itemAtual.sinonimos ? [...store.itemAtual.sinonimos] : []
+            templateTexto.value = store.itemAtual.templateTexto ?? ""
+            // somente leitura no modo edição:
+            codigo.value = store.itemAtual.codigo
+            vista.value = store.itemAtual.vista ?? ""
+            paiCodigo.value = store.itemAtual.paiCodigo ?? ""
+            nivel.value = store.itemAtual.nivel
+            ordem.value = store.itemAtual.ordem
+            lateralidade.value = store.itemAtual.lateralidade
         }
     }
 })
 
-function adicionarSinonimo() {
-    const val = tagInput.value.trim()
-    if (!val || sinonimos.value.includes(val)) { tagInput.value = ""; return }
-    sinonimos.value.push(val)
-    tagInput.value = ""
-}
-
-function removerSinonimo(idx: number) {
-    sinonimos.value.splice(idx, 1)
-}
-
 function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
+    if (!editando.value) {
+        if (!codigo.value.trim()) e.codigo = "Código é obrigatório."
+        else if (codigo.value.trim().length > 60) e.codigo = "Código deve ter no máximo 60 caracteres."
+        if (nivel.value < 1 || nivel.value > 3) e.nivel = "Nível deve ser entre 1 e 3."
+    }
     if (motivo.value.trim().length < 10) e.motivo = "Motivo deve ter ao menos 10 caracteres."
     erros.value = e
     return Object.keys(e).length === 0
@@ -59,16 +75,24 @@ async function salvar() {
     salvando.value = true
     erroGeral.value = ""
     try {
-        const payload = {
-            nome: nome.value.trim(),
-            sistemaCorporal: sistemaCorporal.value.trim() || null,
-            sinonimos: sinonimos.value.length > 0 ? sinonimos.value : null,
-            motivo: motivo.value.trim(),
-        }
-        if (editando.value && props.id) {
-            await store.atualizar(props.id, payload)
+        if (editando.value && idNumerico.value !== null) {
+            await store.atualizar(idNumerico.value, {
+                nome: nome.value.trim(),
+                templateTexto: templateTexto.value.trim() || null,
+                motivo: motivo.value.trim(),
+            })
         } else {
-            await store.criar(payload)
+            await store.criar({
+                codigo: codigo.value.trim(),
+                nome: nome.value.trim(),
+                paiCodigo: paiCodigo.value.trim() || null,
+                nivel: nivel.value,
+                vista: vista.value || null,
+                templateTexto: templateTexto.value.trim() || null,
+                ordem: ordem.value,
+                lateralidade: lateralidade.value,
+                motivo: motivo.value.trim(),
+            })
         }
         router.push({ name: "AdminRegioesGlobais" })
     } catch (err: unknown) {
@@ -93,38 +117,77 @@ async function salvar() {
 
         <AppCard v-else>
             <form @submit.prevent="salvar" class="form-campos">
+
+                <!-- Campos somente criação -->
+                <template v-if="!editando">
+                    <AppField label="Código" required :hint="erros.codigo || 'Identificador único da região (ex.: ABD-SUP-D). Imutável após criação.'">
+                        <AppInput
+                            v-model="codigo"
+                            placeholder="Ex.: ABD-SUP-D"
+                            maxlength="60"
+                            :disabled="salvando"
+                        />
+                    </AppField>
+
+                    <AppField label="Vista" hint="Vista corporal onde a região aparece no mapa.">
+                        <AppSelect v-model="vista" :options="OPCOES_VISTA" :disabled="salvando" />
+                    </AppField>
+
+                    <AppField label="Código do pai" hint="Código da região pai (deixe em branco para nó raiz).">
+                        <AppInput
+                            v-model="paiCodigo"
+                            placeholder="Ex.: ABD"
+                            maxlength="60"
+                            :disabled="salvando"
+                        />
+                    </AppField>
+
+                    <div class="row-2col">
+                        <AppField label="Nível" required :hint="erros.nivel || '1=Raiz, 2=Sub-região, 3=Detalhe'">
+                            <AppInput v-model.number="nivel" type="number" min="1" max="3" :disabled="salvando" />
+                        </AppField>
+                        <AppField label="Ordem" hint="Ordem de exibição dentro do mesmo pai.">
+                            <AppInput v-model.number="ordem" type="number" min="1" max="9999" :disabled="salvando" />
+                        </AppField>
+                    </div>
+
+                    <AppField label="Lateralidade">
+                        <label class="label-check">
+                            <input type="checkbox" v-model="lateralidade" :disabled="salvando" />
+                            Esta região possui distinção esquerda/direita
+                        </label>
+                    </AppField>
+                </template>
+
+                <!-- Campos somente leitura no modo edição -->
+                <template v-else>
+                    <div class="info-somente-leitura">
+                        <span class="info-label">Código</span>
+                        <code class="info-valor">{{ codigo }}</code>
+                        <span class="info-label">Nível</span>
+                        <span class="info-valor">{{ nivel }}</span>
+                        <span class="info-label">Vista</span>
+                        <span class="info-valor">{{ vista || "—" }}</span>
+                    </div>
+                </template>
+
+                <!-- Campos sempre editáveis -->
                 <AppField label="Nome" required :hint="erros.nome">
                     <AppInput
                         v-model="nome"
-                        placeholder="Ex.: Abdômen"
-                        maxlength="200"
+                        placeholder="Ex.: Quadrante superior direito"
+                        maxlength="120"
                         :disabled="salvando"
                     />
                 </AppField>
 
-                <AppField label="Sistema corporal">
-                    <AppInput
-                        v-model="sistemaCorporal"
-                        placeholder="Ex.: Digestivo, Cardiovascular..."
-                        maxlength="100"
+                <AppField label="Template de texto" hint="Texto padrão sugerido ao registrar achados nesta região.">
+                    <AppTextarea
+                        v-model="templateTexto"
+                        :rows="4"
+                        placeholder="Ex.: Sem alterações..."
                         :disabled="salvando"
                     />
-                </AppField>
-
-                <AppField label="Sinônimos" hint="Pressione Enter para adicionar cada sinônimo.">
-                    <div class="tags-container">
-                        <span v-for="(s, idx) in sinonimos" :key="idx" class="tag">
-                            {{ s }}
-                            <button type="button" class="tag-remover" @click="removerSinonimo(idx)" title="Remover">×</button>
-                        </span>
-                        <input
-                            v-model="tagInput"
-                            type="text"
-                            class="tag-input"
-                            placeholder="Digite e pressione Enter"
-                            @keydown.enter.prevent="adicionarSinonimo"
-                        />
-                    </div>
                 </AppField>
 
                 <AppField label="Motivo da alteração" required :hint="erros.motivo || 'Mínimo 10 caracteres.'">
@@ -175,6 +238,44 @@ async function salvar() {
     gap: 1.25rem;
 }
 
+.row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.label-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    color: hsl(var(--foreground));
+}
+
+.info-somente-leitura {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.375rem 0.75rem;
+    align-items: center;
+    padding: 0.75rem;
+    background: hsl(var(--muted) / 0.4);
+    border-radius: var(--radius);
+    font-size: 0.8125rem;
+}
+
+.info-label {
+    color: hsl(var(--muted-foreground));
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.info-valor {
+    color: hsl(var(--foreground));
+}
+
 .campo-erro {
     padding: 0.75rem 1rem;
     background: hsl(var(--destructive) / 0.1);
@@ -190,52 +291,5 @@ async function salvar() {
     gap: 0.75rem;
     justify-content: flex-end;
     padding-top: 0.5rem;
-}
-
-.tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    align-items: center;
-    padding: 0.5rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) - 2px);
-    background: hsl(var(--background));
-    min-height: 42px;
-}
-
-.tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: hsl(var(--muted));
-    color: hsl(var(--foreground));
-    padding: 0.1875rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-}
-
-.tag-remover {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: hsl(var(--muted-foreground));
-    font-size: 0.875rem;
-    line-height: 1;
-    padding: 0;
-    display: flex;
-    align-items: center;
-}
-.tag-remover:hover { color: hsl(var(--destructive)); }
-
-.tag-input {
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 0.8125rem;
-    color: hsl(var(--foreground));
-    flex: 1;
-    min-width: 120px;
-    font-family: inherit;
 }
 </style>

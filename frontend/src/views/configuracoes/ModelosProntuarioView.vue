@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import { prontuarioService, type ModeloProntuario, type SecaoModelo, type ModeloGlobalDto } from "@/services/prontuarioService"
+import { prontuarioService, type ModeloProntuario, type SecaoModelo } from "@/services/prontuarioService"
 import { useTenantStore } from "@/stores/tenantStore"
 import {
     AppBadge, AppButton, AppEmptyState, AppField, AppInput, AppPageHeader, AppTextarea,
@@ -183,49 +183,6 @@ async function excluir(modelo: ModeloProntuario) {
     }
 }
 
-// ── Templates do sistema (W2-CA24/25) ───────────────────────────────────────
-
-const abaAtiva = ref<"meus" | "globais">("meus")
-const modelosGlobais = ref<ModeloGlobalDto[]>([])
-const carregandoGlobais = ref(false)
-const importandoId = ref<string | null>(null)
-const msgImportacao = ref<string | null>(null)
-
-async function carregarGlobais() {
-    if (carregandoGlobais.value) return
-    carregandoGlobais.value = true
-    try {
-        const result = await prontuarioService.listarModelosGlobais({ tamanhoPagina: 100 })
-        modelosGlobais.value = result.itens
-    } catch {
-        // lista vazia silenciosa
-    } finally {
-        carregandoGlobais.value = false
-    }
-}
-
-async function importarGlobal(id: string) {
-    importandoId.value = id
-    msgImportacao.value = null
-    try {
-        await prontuarioService.importarModeloDoGlobal(id)
-        msgImportacao.value = "Modelo importado com sucesso! Esta é uma cópia editável independente."
-        await carregarModelos()
-        abaAtiva.value = "meus"
-    } catch (e: unknown) {
-        const msg = (e as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
-        msgImportacao.value = msg ?? "Erro ao importar modelo."
-    } finally {
-        importandoId.value = null
-    }
-}
-
-watch(abaAtiva, (val) => {
-    if (val === "globais" && modelosGlobais.value.length === 0) {
-        void carregarGlobais()
-    }
-})
-
 onMounted(async () => {
     carregando.value = true
     try {
@@ -253,52 +210,6 @@ onMounted(async () => {
                     <AppButton variant="ghost" size="sm" @click="resetarForm">+ Novo modelo</AppButton>
                 </div>
 
-                <!-- Abas -->
-                <div class="abas-nav">
-                    <button
-                        class="aba-btn"
-                        :class="{ 'aba-btn--ativa': abaAtiva === 'meus' }"
-                        @click="abaAtiva = 'meus'"
-                    >Meus modelos</button>
-                    <button
-                        class="aba-btn"
-                        :class="{ 'aba-btn--ativa': abaAtiva === 'globais' }"
-                        @click="abaAtiva = 'globais'"
-                    >Templates do sistema</button>
-                </div>
-
-                <!-- Aba: Templates do sistema -->
-                <div v-if="abaAtiva === 'globais'" class="aba-globais">
-                    <p class="aba-globais-info">
-                        Templates criados pela equipe Imedto. Clique em "Importar" para criar uma cópia editável independente na sua clínica.
-                    </p>
-                    <div v-if="carregandoGlobais" class="estado-loading-sm">Carregando templates...</div>
-                    <div v-else-if="!modelosGlobais.length" class="estado-loading-sm">Nenhum template disponível.</div>
-                    <div v-else class="lista-globais">
-                        <div
-                            v-for="g in modelosGlobais"
-                            :key="g.id"
-                            class="item-global"
-                        >
-                            <div class="item-global-info">
-                                <span class="item-nome">{{ g.nome }}</span>
-                                <span v-if="g.descricao" class="item-desc">{{ g.descricao }}</span>
-                            </div>
-                            <AppButton
-                                variant="secondary"
-                                size="sm"
-                                :disabled="importandoId === g.id"
-                                @click="importarGlobal(g.id)"
-                            >
-                                {{ importandoId === g.id ? "Importando..." : "Importar" }}
-                            </AppButton>
-                        </div>
-                    </div>
-                    <p v-if="msgImportacao" class="msg-importacao">{{ msgImportacao }}</p>
-                </div>
-
-                <!-- Aba: Meus modelos -->
-                <template v-if="abaAtiva === 'meus'">
                 <div v-if="carregandoModelos" class="estado-loading-sm">Carregando modelos...</div>
 
                 <div v-else-if="!modelos.length">
@@ -363,7 +274,6 @@ onMounted(async () => {
                         </ul>
                     </div>
                 </div>
-                </template>
             </aside>
 
             <!-- ── Painel direito: formulário ── -->
@@ -627,63 +537,4 @@ onMounted(async () => {
     padding-top: 0.5rem;
 }
 
-/* ── Abas Templates do sistema ── */
-.abas-nav {
-    display: flex;
-    gap: 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.5rem;
-}
-
-.aba-btn {
-    background: none;
-    border: none;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.82em;
-    font-weight: 600;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    transition: color 0.15s, border-color 0.15s;
-}
-
-.aba-btn--ativa {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-}
-
-.aba-globais-info {
-    font-size: 0.8em;
-    color: var(--text-muted);
-    margin: 0 0 0.75rem;
-    line-height: 1.5;
-}
-
-.lista-globais { display: flex; flex-direction: column; gap: 0.5rem; }
-
-.item-global {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: 0.5rem 0.6rem;
-    border: 1px solid var(--border);
-    border-radius: calc(var(--radius) - 2px);
-    background: var(--bg);
-}
-
-.item-global-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    min-width: 0;
-}
-
-.msg-importacao {
-    font-size: 0.8em;
-    color: var(--success, var(--primary));
-    margin: 0.5rem 0 0;
-}
 </style>

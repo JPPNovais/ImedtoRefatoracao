@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.API.Filters;
-using Imedto.Backend.Application.Prontuarios;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
@@ -14,11 +13,11 @@ namespace Imedto.Backend.API.Controllers;
 /// <summary>
 /// Templates de prontuário (modelos) + pool de variáveis (alergias, medicamentos, etc.).
 /// Todos os endpoints são escopados pelo tenant via <see cref="RequiresEstabelecimentoAttribute"/>.
-/// A ferramenta admin gerencia padrão-sistema por canal separado.
+/// A ferramenta admin gerencia padrão-sistema por canal separado (live-link — Wave 4).
 /// </summary>
 [Authorize]
 [RequiresEstabelecimento]
-[RequiresAssinaturaAtiva]  // modelos de prontuário são mutação do estabelecimento; bloqueia inativos
+[RequiresAssinaturaAtiva]
 [ApiController]
 [Route("api/prontuario")]
 [Produces("application/json")]
@@ -27,79 +26,15 @@ public class ProntuarioTemplateController : ControllerBase
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
     private readonly ICurrentTenantAccessor _tenant;
-    private readonly ImportarModeloDoGlobalCommandHandler _importarModelo;
-    private readonly ImportarVariavelDoGlobalCommandHandler _importarVariavel;
 
     public ProntuarioTemplateController(
         ICommandBus commandBus,
         IRequestBus requestBus,
-        ICurrentTenantAccessor tenant,
-        ImportarModeloDoGlobalCommandHandler importarModelo,
-        ImportarVariavelDoGlobalCommandHandler importarVariavel)
+        ICurrentTenantAccessor tenant)
     {
         _commandBus = commandBus;
-        _importarModelo = importarModelo;
-        _importarVariavel = importarVariavel;
         _requestBus = requestBus;
         _tenant = tenant;
-    }
-
-    /// <summary>
-    /// Lista modelos globais do sistema ativos (aba "Templates do sistema" — W2-CA24).
-    /// Não requer policy admin — é o tenant acessando o catálogo global.
-    /// </summary>
-    [HttpGet("modelos/globais")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListarModelosGlobais(
-        [FromQuery] string? busca = null,
-        [FromQuery] int pagina = 1,
-        [FromQuery] int tamanhoPagina = 20,
-        CancellationToken ct = default)
-    {
-        var repo = HttpContext.RequestServices
-            .GetRequiredService<Imedto.Backend.Infrastructure.Admin.ImedtoModeloProntuarioGlobalQueryRepository>();
-        var (itens, total) = await repo.ListarAsync(false, busca, pagina, tamanhoPagina, ct);
-        return Ok(new { itens, total, pagina, tamanhoPagina });
-    }
-
-    /// <summary>Importa modelo global para o estabelecimento (cópia independente — W2-CA25).</summary>
-    [HttpPost("modelos/importar-do-global/{idGlobal:guid}")]
-    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ImportarModeloDoGlobal(Guid idGlobal, CancellationToken ct = default)
-    {
-        var id = await _importarModelo.Handle(
-            new ImportarModeloDoGlobalCommand(idGlobal, _tenant.EstabelecimentoId), ct);
-        return CreatedAtAction(nameof(ObterModelo), new { id }, new { id });
-    }
-
-    /// <summary>Lista variáveis pool globais do sistema ativas (aba "Templates do sistema" — W2-CA28).</summary>
-    [HttpGet("pool/globais")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListarVariaveisGlobais(
-        [FromQuery] string? busca = null,
-        [FromQuery] string? tipo = null,
-        [FromQuery] int pagina = 1,
-        [FromQuery] int tamanhoPagina = 20,
-        CancellationToken ct = default)
-    {
-        var repo = HttpContext.RequestServices
-            .GetRequiredService<Imedto.Backend.Infrastructure.Admin.ImedtoVariavelPoolGlobalQueryRepository>();
-        var (itens, total) = await repo.ListarAsync(false, busca, tipo, pagina, tamanhoPagina, ct);
-        return Ok(new { itens, total, pagina, tamanhoPagina });
-    }
-
-    /// <summary>Importa variável pool global para o estabelecimento (cópia independente — W2-CA28).</summary>
-    [HttpPost("pool/importar-do-global/{idGlobal:guid}")]
-    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ImportarVariavelDoGlobal(Guid idGlobal, CancellationToken ct = default)
-    {
-        var id = await _importarVariavel.Handle(
-            new ImportarVariavelDoGlobalCommand(idGlobal, _tenant.EstabelecimentoId), ct);
-        return CreatedAtAction(nameof(ListarPool), null, new { id });
     }
 
     /// <summary>Lista modelos disponíveis (padrão-sistema + do estabelecimento).</summary>

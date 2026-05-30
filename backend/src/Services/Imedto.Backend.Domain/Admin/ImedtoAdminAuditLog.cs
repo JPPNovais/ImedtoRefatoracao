@@ -101,21 +101,21 @@ public static class AcoesAuditAdmin
     // Frente 2 — Configs globais
     public const string AtualizarConfig = "ATUALIZAR_CONFIG";
 
-    // Frente 3 — Catálogos globais (modelos de prontuário)
-    public const string CriarModeloGlobal = "CRIAR_MODELO_PRONTUARIO_GLOBAL";
-    public const string AtualizarModeloGlobal = "ATUALIZAR_MODELO_PRONTUARIO_GLOBAL";
-    public const string DesativarModeloGlobal = "DESATIVAR_MODELO_PRONTUARIO_GLOBAL";
-    public const string ReativarModeloGlobal = "REATIVAR_MODELO_PRONTUARIO_GLOBAL";
+    // Wave 4 — Modelos de prontuário padrão-sistema (live-link)
+    public const string CriarModeloPadraoSistema = "CRIAR_MODELO_PADRAO_SISTEMA";
+    public const string AtualizarModeloPadraoSistema = "ATUALIZAR_MODELO_PADRAO_SISTEMA";
+    public const string InativarModeloPadraoSistema = "INATIVAR_MODELO_PADRAO_SISTEMA";
+    public const string ReativarModeloPadraoSistema = "REATIVAR_MODELO_PADRAO_SISTEMA";
 
-    // Frente 3 — Catálogos globais (variáveis pool)
-    public const string CriarVariavelGlobal = "CRIAR_VARIAVEL_POOL_GLOBAL";
-    public const string AtualizarVariavelGlobal = "ATUALIZAR_VARIAVEL_POOL_GLOBAL";
-    public const string DesativarVariavelGlobal = "DESATIVAR_VARIAVEL_POOL_GLOBAL";
-    public const string ReativarVariavelGlobal = "REATIVAR_VARIAVEL_POOL_GLOBAL";
+    // Wave 4 — Variáveis pool padrão-sistema (live-link)
+    public const string CriarVariavelPadraoSistema = "CRIAR_VARIAVEL_PADRAO_SISTEMA";
+    public const string AtualizarVariavelPadraoSistema = "ATUALIZAR_VARIAVEL_PADRAO_SISTEMA";
+    public const string InativarVariavelPadraoSistema = "INATIVAR_VARIAVEL_PADRAO_SISTEMA";
+    public const string ReativarVariavelPadraoSistema = "REATIVAR_VARIAVEL_PADRAO_SISTEMA";
 
-    // Frente 3 — Catálogos globais (regiões anatômicas)
-    public const string CriarRegiaoGlobal = "CRIAR_REGIAO_ANATOMICA_GLOBAL";
-    public const string AtualizarRegiaoGlobal = "ATUALIZAR_REGIAO_ANATOMICA_GLOBAL";
-    public const string DesativarRegiaoGlobal = "DESATIVAR_REGIAO_ANATOMICA_GLOBAL";
-    public const string ReativarRegiaoGlobal = "REATIVAR_REGIAO_ANATOMICA_GLOBAL";
+    // Wave 4 — Regiões anatômicas (tabela global por construção)
+    public const string CriarRegiaoAnatomica = "CRIAR_REGIAO_ANATOMICA";
+    public const string AtualizarRegiaoAnatomica = "ATUALIZAR_REGIAO_ANATOMICA";
+    public const string InativarRegiaoAnatomica = "INATIVAR_REGIAO_ANATOMICA";
+    public const string ExcluirRegiaoAnatomica = "EXCLUIR_REGIAO_ANATOMICA";
 }

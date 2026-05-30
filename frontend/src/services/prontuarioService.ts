@@ -70,18 +70,6 @@ export interface AnexoUrl {
     expiraEm: string
 }
 
-export interface ModeloGlobalDto {
-    id: string
-    nome: string
-    descricao: string | null
-}
-
-export interface VariavelGlobalTenantDto {
-    id: string
-    nome: string
-    tipo: string
-    descricao: string | null
-}
 
 export const prontuarioService = {
     async listarModelos(): Promise<ModeloProntuario[]> {
@@ -181,26 +169,6 @@ export const prontuarioService = {
             `/paciente/${pacienteId}/prontuario/anexos/${anexoId}/url`,
         )
         return data
-    },
-
-    // ── Templates do sistema (importação de globais) ─────────────────────────
-
-    async listarModelosGlobais(params: { busca?: string; pagina?: number; tamanhoPagina?: number } = {}): Promise<{ itens: ModeloGlobalDto[]; total: number }> {
-        const { data } = await httpClient.get<{ itens: ModeloGlobalDto[]; total: number }>("/prontuario/modelos/globais", { params })
-        return data
-    },
-
-    async importarModeloDoGlobal(globalId: string): Promise<void> {
-        await httpClient.post(`/prontuario/modelos/importar-do-global/${globalId}`)
-    },
-
-    async listarVariaveisGlobais(params: { busca?: string; tipo?: string; pagina?: number; tamanhoPagina?: number } = {}): Promise<{ itens: VariavelGlobalTenantDto[]; total: number }> {
-        const { data } = await httpClient.get<{ itens: VariavelGlobalTenantDto[]; total: number }>("/prontuario/pool/globais", { params })
-        return data
-    },
-
-    async importarVariavelDoGlobal(globalId: string): Promise<void> {
-        await httpClient.post(`/prontuario/pool/importar-do-global/${globalId}`)
     },
 
     /**

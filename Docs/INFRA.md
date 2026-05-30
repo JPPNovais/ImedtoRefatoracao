@@ -153,29 +153,33 @@ Todas globais — sem `estabelecimento_id`. Prefixo `imedto_` para distinguir da
 | `imedto_assinaturas` | Histórico imutável de assinaturas. **Diferente de `assinaturas` (bigint 1:1)**. INSERT nova linha ao trocar plano, nunca UPDATE. |
 | `imedto_config` | Key-value global. PK é a chave text. Valor JSONB. Colunas `tipo` e `secao` adicionadas na Wave 2. |
 
-### Tabelas criadas (migration `20260530131404` — Wave 2: catálogos globais)
+### Tabelas criadas (migration `20260530131404` — Wave 2: catálogos globais) — REMOVIDAS EM WAVE 4
 
-Todas globais — sem `estabelecimento_id`. A tentativa de inserir `estabelecimento_id` nessas tabelas falha por coluna inexistente (CA W2-CA38).
+> **Wave 4 (2026-05-30 — briefing 2026-05-30_004)**: as 3 tabelas paralelas abaixo foram **removidas**
+> via migration `20260530200000_drop_catalogos_globais_wave2.sql`. O modelo de catálogos globais
+> mudou de "cópia por importação" para **live-link nativo** via `EhPadraoSistema=true` nas tabelas
+> legado (`modelo_de_prontuario`, `prontuario_variaveis_pool`). `regioes_anatomicas_catalogo` já era
+> global por construção. Admin opera diretamente nessas tabelas. Zero duplicação de schema.
 
-| Tabela | Propósito |
+| Tabela | Status |
 |---|---|
-| `imedto_modelo_prontuario_global` | Catálogo de modelos de prontuário do sistema. Admin edita; tenants importam como cópia independente. Sem live-link (R11). |
-| `imedto_variavel_pool_global` | Catálogo de variáveis pool do sistema. Tipos: `texto`, `numerico`, `data`, `lista`, `booleano`. |
-| `imedto_regiao_anatomica_global` | Catálogo de regiões anatômicas de alto nível. Distinto de `regioes_anatomicas_catalogo` (hierárquico, exame físico interativo). `sinonimos` é `text[]` com índice GIN. |
+| `imedto_modelo_prontuario_global` | **REMOVIDA** em Wave 4. Admin usa `modelo_de_prontuario` com `EhPadraoSistema=true`. |
+| `imedto_variavel_pool_global` | **REMOVIDA** em Wave 4. Admin usa `prontuario_variaveis_pool` com `EhPadraoSistema=true`. |
+| `imedto_regiao_anatomica_global` | **REMOVIDA** em Wave 4. Admin usa `regioes_anatomicas_catalogo` (já global por construção). |
 
-**Índices estratégicos das tabelas Wave 2**:
-- `uq_imedto_*_nome_lower` — unique parcial sobre `LOWER(nome) WHERE ativo = true` (case-insensitive, criado com CONCURRENTLY).
-- `ix_imedto_modelo_prontuario_global_ativo_nome` — listagem filtrada.
-- `ix_imedto_variavel_pool_global_ativo_tipo_nome` — listagem filtrada por tipo.
-- `ix_imedto_regiao_anatomica_global_ativo_sistema_nome` — listagem filtrada por sistema corporal.
-- `ix_imedto_regiao_anatomica_global_sinonimos_gin` — busca por array de sinônimos.
+### Catálogos globais — modelo atual (Wave 4 em diante)
 
-### Decisão sobre regiões anatômicas (Wave 2)
+Live-link nativo: admin global edita as tabelas legado com `EhPadraoSistema=true` + `EstabelecimentoId=NULL`. A mudança reflete em todos os tenants no próximo refresh, sem fluxo de importação.
 
-Cenário aplicado: **Cenário 2 — nova tabela global ao lado da existente**.
-- `regioes_anatomicas_catalogo` — tabela hierárquica com 144+ itens (codigo, pai_codigo, nivel, vista, svg). Serve o exame físico interativo (componente SVG do prontuário). Mantida intacta.
-- `imedto_regiao_anatomica_global` — nova tabela de alto nível (nome, sistema_corporal, sinonimos). Serve o CRUD admin e formulários clínicos genéricos dos tenants. Seedada com 15 regiões básicas.
-- As duas coexistem com propósitos distintos. Sem migração de dados entre elas.
+| Tabela | Colunas-chave admin | Query tenant |
+|---|---|---|
+| `modelo_de_prontuario` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | `WHERE (eh_padrao_sistema=true OR estabelecimento_id=@X) AND ativo=true AND deletado_em IS NULL` |
+| `prontuario_variaveis_pool` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL`, `tipo` (enum 8 categorias) | `WHERE (eh_padrao_sistema=true OR estabelecimento_id=@X) AND ativo=true` |
+| `regioes_anatomicas_catalogo` | global por construção (sem `estabelecimento_id`) — hierárquico (`codigo/pai_codigo/nivel/vista`) | `WHERE ativo=true` |
+
+### Decisão sobre regiões anatômicas (Wave 4)
+
+`regioes_anatomicas_catalogo` — tabela hierárquica com 144 registros ativos (codigo, pai_codigo, nivel, vista, template_texto, svg_coords, ordem, lateralidade, ativo). Serve o exame físico interativo e o CRUD admin de regiões. Global por construção — sem `estabelecimento_id`. Admin global edita diretamente via endpoints `/api/admin/catalogos/regioes-anatomicas`.
 
 ### Configs default em `imedto_config` (Wave 2 — seeds)
 

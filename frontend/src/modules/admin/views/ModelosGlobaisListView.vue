@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * ModelosGlobaisListView — lista de modelos de prontuário globais.
- *
- * W3-CA7 a W3-CA15: app-page + AppPageHeader + AppCard + AppSearchInput
- *   + AppEmptyState + AppPagination + AppButton + AppBadge + AppModal + AppField + AppTextarea.
+ * ModelosGlobaisListView — lista de modelos de prontuário padrão sistema (Wave 4 live-link).
  */
 import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
@@ -12,7 +9,7 @@ import {
     AppPagination, AppButton, AppBadge, AppModal, AppField, AppTextarea,
 } from "@/components/ui"
 import { useModelosGlobaisStore } from "../stores/modelosGlobaisStore"
-import type { ModeloGlobalListaItemDto } from "../services/catalogosService"
+import type { ModeloPadraoSistemaListaItemDto } from "../services/catalogosService"
 
 const router = useRouter()
 const store = useModelosGlobaisStore()
@@ -21,8 +18,8 @@ const filtroInativos = ref(false)
 const filtroBusca = ref("")
 
 const modalAcao = ref(false)
-const acaoTipo = ref<"desativar" | "reativar">("desativar")
-const acaoItem = ref<ModeloGlobalListaItemDto | null>(null)
+const acaoTipo = ref<"inativar" | "reativar">("inativar")
+const acaoItem = ref<ModeloPadraoSistemaListaItemDto | null>(null)
 const motivoTexto = ref("")
 const erroMotivo = ref("")
 const salvando = ref(false)
@@ -38,15 +35,15 @@ async function carregar() {
     })
 }
 
-function irParaForm(id?: string) {
-    if (id) {
+function irParaForm(id?: number) {
+    if (id !== undefined) {
         router.push({ name: "AdminModelosGlobaisEditar", params: { id } })
     } else {
         router.push({ name: "AdminModelosGlobaisNovo" })
     }
 }
 
-function abrirAcao(tipo: "desativar" | "reativar", item: ModeloGlobalListaItemDto) {
+function abrirAcao(tipo: "inativar" | "reativar", item: ModeloPadraoSistemaListaItemDto) {
     acaoTipo.value = tipo
     acaoItem.value = item
     motivoTexto.value = ""
@@ -68,8 +65,8 @@ async function confirmarAcao() {
     salvando.value = true
     erroMotivo.value = ""
     try {
-        if (acaoTipo.value === "desativar") {
-            await store.desativar(acaoItem.value.id, motivoTexto.value.trim())
+        if (acaoTipo.value === "inativar") {
+            await store.inativar(acaoItem.value.id, motivoTexto.value.trim())
         } else {
             await store.reativar(acaoItem.value.id, motivoTexto.value.trim())
         }
@@ -93,7 +90,7 @@ function formatarData(iso: string | null): string {
     <main class="app-page">
         <AppPageHeader
             titulo="Modelos de prontuário globais"
-            subtitulo="Templates de estrutura de prontuário disponíveis para importação pelos estabelecimentos."
+            subtitulo="Templates de estrutura de prontuário disponíveis para todos os estabelecimentos."
         >
             <template #acoes>
                 <AppButton icon="fa-solid fa-plus" @click="irParaForm()">Novo modelo</AppButton>
@@ -151,8 +148,8 @@ function formatarData(iso: string | null): string {
                                         v-if="item.ativo"
                                         class="btn-icon btn-icon-excluir"
                                         type="button"
-                                        title="Desativar"
-                                        @click="abrirAcao('desativar', item)"
+                                        title="Inativar"
+                                        @click="abrirAcao('inativar', item)"
                                     >
                                         <i class="fa-solid fa-ban"></i>
                                     </button>
@@ -181,10 +178,10 @@ function formatarData(iso: string | null): string {
             </template>
         </AppCard>
 
-        <!-- Modal desativar/reativar -->
+        <!-- Modal inativar/reativar -->
         <AppModal
             :aberto="modalAcao"
-            :titulo="acaoTipo === 'desativar' ? 'Desativar modelo' : 'Reativar modelo'"
+            :titulo="acaoTipo === 'inativar' ? 'Inativar modelo' : 'Reativar modelo'"
             @fechar="fecharModal"
         >
             <p class="modal-desc">{{ acaoItem?.nome }}</p>
@@ -203,7 +200,7 @@ function formatarData(iso: string | null): string {
             <template #rodape>
                 <AppButton variant="secondary" :disabled="salvando" @click="fecharModal">Cancelar</AppButton>
                 <AppButton
-                    :variant="acaoTipo === 'desativar' ? 'danger' : 'primary'"
+                    :variant="acaoTipo === 'inativar' ? 'danger' : 'primary'"
                     :loading="salvando"
                     :disabled="motivoTexto.trim().length < 10"
                     @click="confirmarAcao"

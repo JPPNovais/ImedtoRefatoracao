@@ -6,7 +6,6 @@ import {
     type TipoVariavelPool,
     type VariavelPool,
 } from "@/services/variavelPoolService"
-import { prontuarioService, type VariavelGlobalTenantDto } from "@/services/prontuarioService"
 
 defineProps<{
     podeEditar: boolean
@@ -127,49 +126,6 @@ async function excluir(item: VariavelPool) {
     }
 }
 
-// ── Templates do sistema (W2-CA28) ──────────────────────────────────────────
-
-const mostrarGlobais = ref(false)
-const variaveisGlobais = ref<VariavelGlobalTenantDto[]>([])
-const carregandoGlobais = ref(false)
-const importandoIdGlobal = ref<string | null>(null)
-const msgGlobal = ref<string | null>(null)
-
-async function carregarGlobais() {
-    if (carregandoGlobais.value) return
-    carregandoGlobais.value = true
-    try {
-        const result = await prontuarioService.listarVariaveisGlobais({ tamanhoPagina: 100 })
-        variaveisGlobais.value = result.itens
-    } catch {
-        // silencioso
-    } finally {
-        carregandoGlobais.value = false
-    }
-}
-
-async function importarGlobal(id: string) {
-    importandoIdGlobal.value = id
-    msgGlobal.value = null
-    try {
-        await prontuarioService.importarVariavelDoGlobal(id)
-        msgGlobal.value = "Variável importada! Esta é uma cópia editável independente."
-        await carregar()
-        mostrarGlobais.value = false
-    } catch (e: unknown) {
-        const msg = (e as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
-        msgGlobal.value = msg ?? "Erro ao importar variável."
-    } finally {
-        importandoIdGlobal.value = null
-    }
-}
-
-watch(mostrarGlobais, (val) => {
-    if (val && variaveisGlobais.value.length === 0) {
-        void carregarGlobais()
-    }
-})
-
 onMounted(carregar)
 </script>
 
@@ -182,48 +138,8 @@ onMounted(carregar)
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
         <p v-if="msgOk" class="msg-ok">{{ msgOk }}</p>
 
-        <!-- ── Abas ── -->
-        <div class="abas-nav">
-            <button
-                class="aba-btn"
-                :class="{ 'aba-btn--ativa': !mostrarGlobais }"
-                @click="mostrarGlobais = false"
-            >Minhas listas</button>
-            <button
-                class="aba-btn"
-                :class="{ 'aba-btn--ativa': mostrarGlobais }"
-                @click="mostrarGlobais = true"
-            >Templates do sistema</button>
-        </div>
-
-        <!-- ── Templates do sistema ── -->
-        <template v-if="mostrarGlobais">
-            <p class="aba-globais-info">
-                Variáveis criadas pela equipe Imedto. Clique em "Importar" para criar uma cópia na sua lista.
-            </p>
-            <div v-if="carregandoGlobais" class="estado-msg">Carregando templates...</div>
-            <div v-else-if="!variaveisGlobais.length" class="estado-msg">Nenhum template disponível.</div>
-            <AppCard v-else padding="md">
-                <ul class="lista">
-                    <li v-for="g in variaveisGlobais" :key="g.id" class="item">
-                        <div class="item-info">
-                            <span class="item-nome">{{ g.nome }}</span>
-                            <span class="badge-padrao">{{ g.tipo }}</span>
-                        </div>
-                        <AppButton
-                            variant="secondary"
-                            size="sm"
-                            :disabled="importandoIdGlobal === g.id"
-                            @click="importarGlobal(g.id)"
-                        >{{ importandoIdGlobal === g.id ? "Importando..." : "Importar" }}</AppButton>
-                    </li>
-                </ul>
-            </AppCard>
-            <p v-if="msgGlobal" class="msg-ok">{{ msgGlobal }}</p>
-        </template>
-
-        <!-- ── Pills de tipo (apenas aba Minhas listas) ── -->
-        <template v-if="!mostrarGlobais">
+        <!-- ── Pills de tipo ── -->
+        <template v-if="true">
         <div class="pills-row">
             <AppPillToggle
                 v-model="tipoAtivo"
@@ -393,18 +309,4 @@ onMounted(carregar)
 .msg-erro { color: var(--danger); font-size: 0.85em; margin: 0; }
 .msg-ok   { color: #15803d;       font-size: 0.85em; margin: 0; }
 
-/* ── Abas Templates do sistema ── */
-.abas-nav {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0.25rem;
-}
-.aba-btn {
-    background: none; border: none; padding: 0.45rem 0.75rem;
-    font-size: 0.82em; font-weight: 600; color: var(--text-muted);
-    cursor: pointer; border-bottom: 2px solid transparent;
-    margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
-}
-.aba-btn--ativa { color: var(--primary); border-bottom-color: var(--primary); }
-.aba-globais-info { font-size: 0.8em; color: var(--text-muted); margin: 0 0 0.75rem; line-height: 1.5; }
 </style>

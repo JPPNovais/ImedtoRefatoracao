@@ -103,29 +103,35 @@ Módulo autocontido em `frontend/src/modules/admin/`. **Zero import cruzado** co
 - CRUD admin em `/api/admin/configs` (GET lista agrupada por seção, PUT atualiza com motivo ≥10 chars + audit).
 - `IniciarTrialAoCriarEstabelecimentoHandler` lê `trial.dias_padrao` via `IConfigGlobalReader` (fallback 14 dias).
 
-### Catálogos Globais (`imedto_*_global` — Wave 2)
+### Catálogos Globais (live-link via `EhPadraoSistema=true` — Wave 4)
 
-Três entidades **sem `estabelecimento_id`** — são do sistema, não de um tenant:
+Wave 2 entregou tabelas paralelas (`imedto_modelo_prontuario_global`, `imedto_variavel_pool_global`, `imedto_regiao_anatomica_global`) com modelo de cópia (tenant importa, edita independente). Wave 4 (2026-05-30, briefing `planejamentos/2026-05-30_004_admin-global-wave4-catalogos-livelink.md`) descobriu que o sistema **já tinha live-link nativo** via flag `EhPadraoSistema=true` nas tabelas legado — tabelas paralelas viraram código órfão e foram dropadas.
 
-| Entidade | Tabela | Endpoint admin | Endpoint tenant |
+**Modelo atual — live-link puro:**
+
+| Entidade | Tabela legado | Endpoint admin | Como tenant consome |
 |---|---|---|---|
-| Modelo de prontuário global | `imedto_modelo_prontuario_global` | `/api/admin/catalogos/modelos-prontuario` | leitura em `GET /api/prontuario/modelos/globais` |
-| Variável pool global | `imedto_variavel_pool_global` | `/api/admin/catalogos/variaveis-pool` | leitura em `GET /api/prontuario/pool/globais` |
-| Região anatômica global | `imedto_regiao_anatomica_global` | `/api/admin/catalogos/regioes-anatomicas` | — |
+| Modelo de prontuário | `modelo_de_prontuario` (`eh_padrao_sistema=true`, `estabelecimento_id=NULL`) | `/api/admin/modelos-globais` | Queries do tenant fazem `WHERE (eh_padrao_sistema=true OR estabelecimento_id=@X)` — padrão-sistema aparece automaticamente |
+| Variável pool | `prontuario_variaveis_pool` (`eh_padrao_sistema=true`, `estabelecimento_id=NULL`) | `/api/admin/variaveis-globais` (filtro `?categoria=`) | Idem — categorias clínicas via enum `TipoVariavelPool` (Alergia/Medicamento/Doenca/Cirurgia/Droga/RelacaoFamiliar/Expectativa/AtividadeFisica) |
+| Região anatômica | `regioes_anatomicas_catalogo` (sem `estabelecimento_id` — global por construção, 144 registros hierárquicos) | `/api/admin/regioes-globais` | Exame físico consome direto da tabela; admin edita via tree view |
 
-**Modelo de cópia (importação):**
-- `POST /api/prontuario/modelos/importar-do-global/{id}` — cria cópia independente na tabela tenant. Sem live-link.
-- `POST /api/prontuario/pool/importar-do-global/{id}` — idem para variável pool.
-- Mapping best-effort do tipo global para `TipoVariavelPool` tenant (lista→Medicamento, outros→Doenca).
+**Consequências:**
+- Mudança feita pelo admin reflete em TODOS os tenants imediatamente (sem importação, sem cópia).
+- Endpoints `*/importar-do-global/{id}` removidos.
+- Aba "Templates do sistema" no tenant removida — padrão-sistema aparece direto nas listagens normais.
+- Operações admin (criar/editar/inativar) gravam com `EhPadraoSistema=true` + `EstabelecimentoId=NULL`.
+- Soft delete via `Ativo=false` (não exclui físico — preserva audit + histórico do tenant).
 
-**Frontend (admin):**
+**Hierarquia de regiões anatômicas** (`regioes_anatomicas_catalogo`):
+- Estrutura: `codigo` (PK lógico) + `pai_codigo` (FK self) + `nivel` (1-3) + `vista` (anterior/posterior).
+- Validações ao criar/editar subgrupo: `nivel = pai.nivel + 1` e `vista = pai.vista` (BusinessException 422).
+- Exclusão: só folhas (sem filhos). Região com filhos → 422 `"Esta região tem subgrupos. Inative em vez de excluir, ou remova os subgrupos primeiro."`.
+
+**Frontend admin:**
 - Views em `modules/admin/views/`: `ModelosGlobaisListView`, `ModelosGlobaisFormView`, `VariaveisGlobaisListView`, `VariaveisGlobaisFormView`, `RegioesGlobaisListView`, `RegioesGlobaisFormView`.
-- Stores: `modelosGlobaisStore`, `variaveisGlobaisStore`, `regioesGlobaisStore`.
-- Rotas sob `/admin/catalogos/*`.
-
-**Frontend (tenant):**
-- Aba "Templates do sistema" em `ModelosProntuarioView.vue` (aba via toggle, lazy-load ao primeiro clique).
-- Aba "Templates do sistema" em `ListasVariaveisTab.vue` (idem).
+- Componente novo: `modules/admin/components/regioes/RegiaoTreeView.vue` (tree view recursivo expand/collapse por vista → nível 1 → 2 → 3).
+- Stores: `modelosGlobaisStore`, `variaveisGlobaisStore`, `regioesGlobaisStore` (este último carrega árvore completa).
+- Rotas sob `/admin/modelos-globais`, `/admin/variaveis-globais`, `/admin/regioes-globais`.
 
 ### Isolamento e cross-blindagem (CA8 + CA9)
 

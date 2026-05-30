@@ -2,39 +2,20 @@ import { defineStore } from "pinia"
 import { ref } from "vue"
 import {
     regioesGlobaisService,
-    type RegiaoGlobalListaItemDto,
+    type RegiaoAnatomicaNoDto,
 } from "../services/catalogosService"
 
 export const useRegioesGlobaisStore = defineStore("adminRegioesGlobais", () => {
-    const lista = ref<RegiaoGlobalListaItemDto[]>([])
-    const total = ref(0)
-    const pagina = ref(1)
-    const tamanho = ref(20)
+    const arvore = ref<RegiaoAnatomicaNoDto[]>([])
     const carregando = ref(false)
     const erro = ref<string | null>(null)
-    const itemAtual = ref<RegiaoGlobalListaItemDto | null>(null)
+    const itemAtual = ref<RegiaoAnatomicaNoDto | null>(null)
 
-    async function carregar(filtros: {
-        incluirInativos?: boolean
-        busca?: string
-        sistemaCorporal?: string
-        page?: number
-        size?: number
-    } = {}): Promise<void> {
+    async function carregarArvore(incluirInativas = false): Promise<void> {
         carregando.value = true
         erro.value = null
         try {
-            const result = await regioesGlobaisService.listar({
-                incluirInativos: filtros.incluirInativos ?? false,
-                busca: filtros.busca || undefined,
-                sistemaCorporal: filtros.sistemaCorporal || undefined,
-                pagina: filtros.page ?? pagina.value,
-                tamanhoPagina: filtros.size ?? tamanho.value,
-            })
-            lista.value = result.itens
-            total.value = result.total
-            pagina.value = result.pagina
-            tamanho.value = result.tamanhoPagina
+            arvore.value = await regioesGlobaisService.listarArvore(incluirInativas)
         } catch {
             erro.value = "Não foi possível carregar as regiões anatômicas."
         } finally {
@@ -42,7 +23,7 @@ export const useRegioesGlobaisStore = defineStore("adminRegioesGlobais", () => {
         }
     }
 
-    async function carregarItem(id: string): Promise<void> {
+    async function carregarItem(id: number): Promise<void> {
         carregando.value = true
         erro.value = null
         itemAtual.value = null
@@ -55,26 +36,32 @@ export const useRegioesGlobaisStore = defineStore("adminRegioesGlobais", () => {
         }
     }
 
-    async function criar(payload: { nome: string; sinonimos: string[] | null; sistemaCorporal: string | null; motivo: string }): Promise<string> {
+    async function criar(payload: {
+        codigo: string
+        nome: string
+        paiCodigo: string | null
+        nivel: number
+        vista: string | null
+        templateTexto: string | null
+        ordem: number
+        lateralidade: boolean
+        motivo: string
+    }): Promise<number> {
         const { id } = await regioesGlobaisService.criar(payload)
         return id
     }
 
-    async function atualizar(id: string, payload: { nome: string; sinonimos: string[] | null; sistemaCorporal: string | null; motivo: string }): Promise<void> {
+    async function atualizar(id: number, payload: { nome: string; templateTexto: string | null; motivo: string }): Promise<void> {
         await regioesGlobaisService.atualizar(id, payload)
     }
 
-    async function desativar(id: string, motivo: string): Promise<void> {
-        await regioesGlobaisService.desativar(id, motivo)
-        const item = lista.value.find((r) => r.id === id)
-        if (item) item.ativo = false
+    async function inativar(id: number, motivo: string): Promise<void> {
+        await regioesGlobaisService.inativar(id, motivo)
     }
 
-    async function reativar(id: string, motivo: string): Promise<void> {
-        await regioesGlobaisService.reativar(id, motivo)
-        const item = lista.value.find((r) => r.id === id)
-        if (item) item.ativo = true
+    async function excluir(id: number, motivo: string): Promise<void> {
+        await regioesGlobaisService.excluir(id, motivo)
     }
 
-    return { lista, total, pagina, tamanho, carregando, erro, itemAtual, carregar, carregarItem, criar, atualizar, desativar, reativar }
+    return { arvore, carregando, erro, itemAtual, carregarArvore, carregarItem, criar, atualizar, inativar, excluir }
 })

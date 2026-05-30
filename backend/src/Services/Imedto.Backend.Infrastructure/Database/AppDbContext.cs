@@ -142,11 +142,6 @@ public class AppDbContext : DbContext
     public DbSet<ImedtoAssinatura> ImedtoAssinaturas => Set<ImedtoAssinatura>();
     public DbSet<ImedtoConfig> ImedtoConfigs => Set<ImedtoConfig>();
 
-    // Catálogos Globais — Wave 2 (2026-05-30).
-    public DbSet<ImedtoModeloProntuarioGlobal> ImedtoModelosProntuarioGlobal => Set<ImedtoModeloProntuarioGlobal>();
-    public DbSet<ImedtoVariavelPoolGlobal> ImedtoVariaveisPoolGlobal => Set<ImedtoVariavelPoolGlobal>();
-    public DbSet<ImedtoRegiaoAnatomicaGlobal> ImedtoRegioesAnatomicasGlobal => Set<ImedtoRegiaoAnatomicaGlobal>();
-
     // Termos de consentimento (Fase 1 — 2026-05-19).
     public DbSet<TermoModelo> TermosModelo => Set<TermoModelo>();
     public DbSet<TermoModeloVersao> TermosModeloVersao => Set<TermoModeloVersao>();

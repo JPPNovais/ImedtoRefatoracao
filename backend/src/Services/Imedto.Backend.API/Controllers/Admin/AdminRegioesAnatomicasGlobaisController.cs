@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Imedto.Backend.Application.Admin.Catalogos.Regioes;
-using Imedto.Backend.Contracts.Admin.Catalogos.Regioes.Commands;
-using Imedto.Backend.Contracts.Admin.Catalogos.Regioes.Queries;
+using Imedto.Backend.Application.Admin.Regioes;
 using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers.Admin;
@@ -12,96 +10,115 @@ namespace Imedto.Backend.API.Controllers.Admin;
 [Authorize(Policy = "ImedtoAdmin")]
 public class AdminRegioesAnatomicasGlobaisController : ControllerBase
 {
-    private readonly ListarRegioesGlobaisQueryHandler _listar;
-    private readonly ObterRegiaoGlobalQueryHandler _obter;
-    private readonly CriarRegiaoGlobalCommandHandler _criar;
-    private readonly AtualizarRegiaoGlobalCommandHandler _atualizar;
-    private readonly DesativarRegiaoGlobalCommandHandler _desativar;
-    private readonly ReativarRegiaoGlobalCommandHandler _reativar;
+    private readonly ListarArvoreRegioesAdminQueryHandler _listar;
+    private readonly ObterRegiaoAdminQueryHandler _obter;
+    private readonly CriarRegiaoAdminCommandHandler _criar;
+    private readonly AtualizarRegiaoAdminCommandHandler _atualizar;
+    private readonly InativarRegiaoAdminCommandHandler _inativar;
+    private readonly ExcluirRegiaoAdminCommandHandler _excluir;
 
     public AdminRegioesAnatomicasGlobaisController(
-        ListarRegioesGlobaisQueryHandler listar,
-        ObterRegiaoGlobalQueryHandler obter,
-        CriarRegiaoGlobalCommandHandler criar,
-        AtualizarRegiaoGlobalCommandHandler atualizar,
-        DesativarRegiaoGlobalCommandHandler desativar,
-        ReativarRegiaoGlobalCommandHandler reativar)
+        ListarArvoreRegioesAdminQueryHandler listar,
+        ObterRegiaoAdminQueryHandler obter,
+        CriarRegiaoAdminCommandHandler criar,
+        AtualizarRegiaoAdminCommandHandler atualizar,
+        InativarRegiaoAdminCommandHandler inativar,
+        ExcluirRegiaoAdminCommandHandler excluir)
     {
         _listar = listar;
         _obter = obter;
         _criar = criar;
         _atualizar = atualizar;
-        _desativar = desativar;
-        _reativar = reativar;
+        _inativar = inativar;
+        _excluir = excluir;
     }
 
     [HttpGet("api/admin/catalogos/regioes-anatomicas")]
-    public async Task<IActionResult> Listar(
-        [FromQuery] bool incluirInativos = false,
-        [FromQuery] string? busca = null,
-        [FromQuery] string? sistemaCorporal = null,
-        [FromQuery] int pagina = 1,
-        [FromQuery] int tamanhoPagina = 20,
+    public async Task<IActionResult> ListarArvore(
+        [FromQuery] bool incluirInativas = false,
         CancellationToken ct = default)
     {
-        var (itens, total) = await _listar.Handle(
-            new ListarRegioesGlobaisQuery(incluirInativos, busca, sistemaCorporal, pagina, tamanhoPagina), ct);
-        return Ok(new { itens, total, pagina, tamanhoPagina });
+        var arvore = await _listar.Handle(incluirInativas, ct);
+        return Ok(arvore);
     }
 
-    [HttpGet("api/admin/catalogos/regioes-anatomicas/{id:guid}")]
-    public async Task<IActionResult> Obter(Guid id, CancellationToken ct = default)
+    [HttpGet("api/admin/catalogos/regioes-anatomicas/{id:long}")]
+    public async Task<IActionResult> Obter(long id, CancellationToken ct = default)
     {
-        var dto = await _obter.Handle(new ObterRegiaoGlobalQuery(id), ct);
+        var dto = await _obter.Handle(id, ct);
         return dto is null ? NotFound() : Ok(dto);
     }
 
     [HttpPost("api/admin/catalogos/regioes-anatomicas")]
     [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<IActionResult> Criar([FromBody] CriarRegiaoGlobalRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Criar([FromBody] CriarRegiaoAdminRequest request, CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        var id = await _criar.Handle(new CriarRegiaoGlobalCommand(
-            request.Nome, request.Sinonimos, request.SistemaCorporal, request.Motivo, adminId), ct);
+        var id = await _criar.Handle(new CriarRegiaoAdminCommand(
+            request.Codigo,
+            request.Nome,
+            request.PaiCodigo,
+            request.Nivel,
+            request.Vista,
+            request.TemplateTexto,
+            request.Ordem,
+            request.Lateralidade,
+            request.Motivo,
+            adminId), ct);
         return CreatedAtAction(nameof(Obter), new { id }, new { id });
     }
 
-    [HttpPut("api/admin/catalogos/regioes-anatomicas/{id:guid}")]
+    [HttpPut("api/admin/catalogos/regioes-anatomicas/{id:long}")]
     public async Task<IActionResult> Atualizar(
-        Guid id,
-        [FromBody] AtualizarRegiaoGlobalRequest request,
+        long id,
+        [FromBody] AtualizarRegiaoAdminRequest request,
         CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        await _atualizar.Handle(new AtualizarRegiaoGlobalCommand(
-            id, request.Nome, request.Sinonimos, request.SistemaCorporal, request.Motivo, adminId), ct);
+        await _atualizar.Handle(new AtualizarRegiaoAdminCommand(
+            id, request.Nome, request.TemplateTexto, request.Motivo, adminId), ct);
         return NoContent();
     }
 
-    [HttpPost("api/admin/catalogos/regioes-anatomicas/{id:guid}/desativar")]
-    public async Task<IActionResult> Desativar(Guid id, [FromBody] AdminMotivoRequest request, CancellationToken ct = default)
+    [HttpPost("api/admin/catalogos/regioes-anatomicas/{id:long}/inativar")]
+    public async Task<IActionResult> Inativar(long id, [FromBody] AdminMotivoRequest request, CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        await _desativar.Handle(new DesativarRegiaoGlobalCommand(id, request.Motivo, adminId), ct);
+        await _inativar.Handle(new InativarRegiaoAdminCommand(id, request.Motivo, adminId), ct);
         return NoContent();
     }
 
-    [HttpPost("api/admin/catalogos/regioes-anatomicas/{id:guid}/reativar")]
-    public async Task<IActionResult> Reativar(Guid id, [FromBody] AdminMotivoRequest request, CancellationToken ct = default)
+    [HttpDelete("api/admin/catalogos/regioes-anatomicas/{id:long}")]
+    public async Task<IActionResult> Excluir(long id, [FromBody] AdminMotivoRequest request, CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        await _reativar.Handle(new ReativarRegiaoGlobalCommand(id, request.Motivo, adminId), ct);
+        await _excluir.Handle(new ExcluirRegiaoAdminCommand(id, request.Motivo, adminId), ct);
         return NoContent();
     }
 
-    private Guid ObterAdminId()
+    private Guid? ObterAdminId()
     {
         var sub = User.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var id))
-            throw new BusinessException("Sessão de administrador inválida.");
-        return id;
+        return Guid.TryParse(sub, out var id) ? id : null;
     }
 }
 
-public record CriarRegiaoGlobalRequest(string Nome, string[]? Sinonimos, string? SistemaCorporal, string Motivo);
-public record AtualizarRegiaoGlobalRequest(string Nome, string[]? Sinonimos, string? SistemaCorporal, string Motivo);
+public class CriarRegiaoAdminRequest
+{
+    public string Codigo { get; init; } = string.Empty;
+    public string Nome { get; init; } = string.Empty;
+    public string? PaiCodigo { get; init; }
+    public short Nivel { get; init; }
+    public string? Vista { get; init; }
+    public string? TemplateTexto { get; init; }
+    public short Ordem { get; init; }
+    public bool Lateralidade { get; init; }
+    public string Motivo { get; init; } = string.Empty;
+}
+
+public class AtualizarRegiaoAdminRequest
+{
+    public string Nome { get; init; } = string.Empty;
+    public string? TemplateTexto { get; init; }
+    public string Motivo { get; init; } = string.Empty;
+}

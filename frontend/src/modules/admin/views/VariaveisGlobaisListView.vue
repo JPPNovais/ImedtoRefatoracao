@@ -1,9 +1,6 @@
 <script setup lang="ts">
 /**
- * VariaveisGlobaisListView — lista de variáveis pool globais.
- *
- * W3-CA7 a W3-CA15: app-page + AppPageHeader + AppCard + AppSearchInput
- *   + AppEmptyState + AppPagination + AppButton + AppBadge + AppModal + AppField + AppTextarea.
+ * VariaveisGlobaisListView — variáveis pool padrão sistema (Wave 4 live-link).
  */
 import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
@@ -12,20 +9,18 @@ import {
     AppPagination, AppButton, AppBadge, AppModal, AppField, AppTextarea,
 } from "@/components/ui"
 import { useVariaveisGlobaisStore } from "../stores/variaveisGlobaisStore"
-import type { VariavelGlobalListaItemDto } from "../services/catalogosService"
+import { TIPOS_VARIAVEL_POOL, type VariavelPadraoSistemaListaItemDto } from "../services/catalogosService"
 
 const router = useRouter()
 const store = useVariaveisGlobaisStore()
 
 const filtroInativos = ref(false)
 const filtroBusca = ref("")
-const filtroTipo = ref("")
-
-const TIPOS = ["texto", "numerico", "data", "lista", "booleano"]
+const filtroCategoria = ref("")
 
 const modalAcao = ref(false)
-const acaoTipo = ref<"desativar" | "reativar">("desativar")
-const acaoItem = ref<VariavelGlobalListaItemDto | null>(null)
+const acaoTipo = ref<"inativar" | "reativar">("inativar")
+const acaoItem = ref<VariavelPadraoSistemaListaItemDto | null>(null)
 const motivoTexto = ref("")
 const erroMotivo = ref("")
 const salvando = ref(false)
@@ -36,21 +31,21 @@ async function carregar() {
     await store.carregar({
         incluirInativos: filtroInativos.value,
         busca: filtroBusca.value || undefined,
-        tipo: filtroTipo.value || undefined,
+        categoria: filtroCategoria.value || undefined,
         page: store.pagina,
         size: store.tamanho,
     })
 }
 
-function irParaForm(id?: string) {
-    if (id) {
+function irParaForm(id?: number) {
+    if (id !== undefined) {
         router.push({ name: "AdminVariaveisGlobaisEditar", params: { id } })
     } else {
         router.push({ name: "AdminVariaveisGlobaisNovo" })
     }
 }
 
-function abrirAcao(tipo: "desativar" | "reativar", item: VariavelGlobalListaItemDto) {
+function abrirAcao(tipo: "inativar" | "reativar", item: VariavelPadraoSistemaListaItemDto) {
     acaoTipo.value = tipo
     acaoItem.value = item
     motivoTexto.value = ""
@@ -72,8 +67,8 @@ async function confirmarAcao() {
     salvando.value = true
     erroMotivo.value = ""
     try {
-        if (acaoTipo.value === "desativar") {
-            await store.desativar(acaoItem.value.id, motivoTexto.value.trim())
+        if (acaoTipo.value === "inativar") {
+            await store.inativar(acaoItem.value.id, motivoTexto.value.trim())
         } else {
             await store.reativar(acaoItem.value.id, motivoTexto.value.trim())
         }
@@ -93,10 +88,7 @@ function formatarData(iso: string | null): string {
 }
 
 function labelTipo(tipo: string): string {
-    const map: Record<string, string> = {
-        texto: "Texto", numerico: "Numérico", data: "Data", lista: "Lista", booleano: "Booleano",
-    }
-    return map[tipo] ?? tipo
+    return TIPOS_VARIAVEL_POOL[tipo] ?? tipo
 }
 </script>
 
@@ -104,7 +96,7 @@ function labelTipo(tipo: string): string {
     <main class="app-page">
         <AppPageHeader
             titulo="Variáveis pool globais"
-            subtitulo="Variáveis de prontuário disponíveis como base para importação pelos estabelecimentos."
+            subtitulo="Itens pré-cadastrados disponíveis para todos os estabelecimentos nas seções de prontuário."
         >
             <template #acoes>
                 <AppButton icon="fa-solid fa-plus" @click="irParaForm()">Nova variável</AppButton>
@@ -114,10 +106,10 @@ function labelTipo(tipo: string): string {
         <AppCard>
             <!-- Filtros -->
             <div class="filtros-row">
-                <AppSearchInput v-model="filtroBusca" placeholder="Buscar por nome..." style="max-width:280px;" />
-                <select v-model="filtroTipo" class="select-filtro" @change="carregar">
-                    <option value="">Todos os tipos</option>
-                    <option v-for="t in TIPOS" :key="t" :value="t">{{ labelTipo(t) }}</option>
+                <AppSearchInput v-model="filtroBusca" placeholder="Buscar por nome..." style="max-width:260px;" />
+                <select v-model="filtroCategoria" class="select-filtro" @change="carregar">
+                    <option value="">Todas as categorias</option>
+                    <option v-for="(label, key) in TIPOS_VARIAVEL_POOL" :key="key" :value="key">{{ label }}</option>
                 </select>
                 <label class="label-check">
                     <input type="checkbox" v-model="filtroInativos" @change="carregar" />
@@ -144,8 +136,7 @@ function labelTipo(tipo: string): string {
                         <thead>
                             <tr>
                                 <th>Nome</th>
-                                <th>Tipo</th>
-                                <th>Descrição</th>
+                                <th>Categoria</th>
                                 <th>Status</th>
                                 <th>Atualizado em</th>
                                 <th>Ações</th>
@@ -157,7 +148,6 @@ function labelTipo(tipo: string): string {
                                 <td>
                                     <AppBadge variant="info" :label="labelTipo(item.tipo)" />
                                 </td>
-                                <td class="td-desc">{{ item.descricao ?? "—" }}</td>
                                 <td>
                                     <AppBadge :variant="item.ativo ? 'success' : 'muted'" :label="item.ativo ? 'Ativo' : 'Inativo'" />
                                 </td>
@@ -170,8 +160,8 @@ function labelTipo(tipo: string): string {
                                         v-if="item.ativo"
                                         class="btn-icon btn-icon-excluir"
                                         type="button"
-                                        title="Desativar"
-                                        @click="abrirAcao('desativar', item)"
+                                        title="Inativar"
+                                        @click="abrirAcao('inativar', item)"
                                     >
                                         <i class="fa-solid fa-ban"></i>
                                     </button>
@@ -200,10 +190,10 @@ function labelTipo(tipo: string): string {
             </template>
         </AppCard>
 
-        <!-- Modal desativar/reativar -->
+        <!-- Modal inativar/reativar -->
         <AppModal
             :aberto="modalAcao"
-            :titulo="acaoTipo === 'desativar' ? 'Desativar variável' : 'Reativar variável'"
+            :titulo="acaoTipo === 'inativar' ? 'Inativar variável' : 'Reativar variável'"
             @fechar="fecharModal"
         >
             <p class="modal-desc">{{ acaoItem?.nome }}</p>
@@ -222,7 +212,7 @@ function labelTipo(tipo: string): string {
             <template #rodape>
                 <AppButton variant="secondary" :disabled="salvando" @click="fecharModal">Cancelar</AppButton>
                 <AppButton
-                    :variant="acaoTipo === 'desativar' ? 'danger' : 'primary'"
+                    :variant="acaoTipo === 'inativar' ? 'danger' : 'primary'"
                     :loading="salvando"
                     :disabled="motivoTexto.trim().length < 10"
                     @click="confirmarAcao"
@@ -310,7 +300,6 @@ function labelTipo(tipo: string): string {
 .tabela tbody tr:hover { background: hsl(var(--muted) / 0.4); }
 
 .td-nome { font-weight: 600; }
-.td-desc { color: hsl(var(--muted-foreground)); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-acoes { display: flex; gap: 0.25rem; }
 
 .modal-desc {

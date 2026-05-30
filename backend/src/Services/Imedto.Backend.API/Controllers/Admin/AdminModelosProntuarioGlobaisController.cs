@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Imedto.Backend.Application.Admin.Catalogos.Modelos;
-using Imedto.Backend.Contracts.Admin.Catalogos.Modelos.Commands;
-using Imedto.Backend.Contracts.Admin.Catalogos.Modelos.Queries;
-using Imedto.Backend.Contracts.Admin.Catalogos.Modelos.Queries.Results;
+using Imedto.Backend.Application.Admin.ModelosPadraoSistema;
 using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers.Admin;
@@ -13,26 +10,26 @@ namespace Imedto.Backend.API.Controllers.Admin;
 [Authorize(Policy = "ImedtoAdmin")]
 public class AdminModelosProntuarioGlobaisController : ControllerBase
 {
-    private readonly ListarModelosGlobaisQueryHandler _listar;
-    private readonly ObterModeloGlobalQueryHandler _obter;
-    private readonly CriarModeloGlobalCommandHandler _criar;
-    private readonly AtualizarModeloGlobalCommandHandler _atualizar;
-    private readonly DesativarModeloGlobalCommandHandler _desativar;
-    private readonly ReativarModeloGlobalCommandHandler _reativar;
+    private readonly ListarModelosPadraoSistemaQueryHandler _listar;
+    private readonly ObterModeloPadraoSistemaQueryHandler _obter;
+    private readonly CriarModeloPadraoSistemaCommandHandler _criar;
+    private readonly AtualizarModeloPadraoSistemaCommandHandler _atualizar;
+    private readonly InativarModeloPadraoSistemaCommandHandler _inativar;
+    private readonly ReativarModeloPadraoSistemaCommandHandler _reativar;
 
     public AdminModelosProntuarioGlobaisController(
-        ListarModelosGlobaisQueryHandler listar,
-        ObterModeloGlobalQueryHandler obter,
-        CriarModeloGlobalCommandHandler criar,
-        AtualizarModeloGlobalCommandHandler atualizar,
-        DesativarModeloGlobalCommandHandler desativar,
-        ReativarModeloGlobalCommandHandler reativar)
+        ListarModelosPadraoSistemaQueryHandler listar,
+        ObterModeloPadraoSistemaQueryHandler obter,
+        CriarModeloPadraoSistemaCommandHandler criar,
+        AtualizarModeloPadraoSistemaCommandHandler atualizar,
+        InativarModeloPadraoSistemaCommandHandler inativar,
+        ReativarModeloPadraoSistemaCommandHandler reativar)
     {
         _listar = listar;
         _obter = obter;
         _criar = criar;
         _atualizar = atualizar;
-        _desativar = desativar;
+        _inativar = inativar;
         _reativar = reativar;
     }
 
@@ -44,71 +41,85 @@ public class AdminModelosProntuarioGlobaisController : ControllerBase
         [FromQuery] int tamanhoPagina = 20,
         CancellationToken ct = default)
     {
-        var (itens, total) = await _listar.Handle(
-            new ListarModelosGlobaisQuery(incluirInativos, busca, pagina, tamanhoPagina), ct);
+        var (itens, total) = await _listar.Handle(incluirInativos, busca, pagina, tamanhoPagina, ct);
         return Ok(new { itens, total, pagina, tamanhoPagina });
     }
 
-    [HttpGet("api/admin/catalogos/modelos-prontuario/{id:guid}")]
-    public async Task<IActionResult> Obter(Guid id, CancellationToken ct = default)
+    [HttpGet("api/admin/catalogos/modelos-prontuario/{id:long}")]
+    public async Task<IActionResult> Obter(long id, CancellationToken ct = default)
     {
-        var dto = await _obter.Handle(new ObterModeloGlobalQuery(id), ct);
+        var dto = await _obter.Handle(id, ct);
         return dto is null ? NotFound() : Ok(dto);
     }
 
     [HttpPost("api/admin/catalogos/modelos-prontuario")]
     [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<IActionResult> Criar([FromBody] CriarModeloGlobalRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Criar([FromBody] CriarModeloPadraoSistemaRequest request, CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        var id = await _criar.Handle(new CriarModeloGlobalCommand(
-            request.Nome, request.Descricao, request.ConteudoJson, request.Motivo, adminId), ct);
+        var id = await _criar.Handle(new CriarModeloPadraoSistemaCommand(
+            request.Nome, request.Descricao, request.EstruturaJson, request.Motivo, adminId), ct);
         return CreatedAtAction(nameof(Obter), new { id }, new { id });
     }
 
-    [HttpPut("api/admin/catalogos/modelos-prontuario/{id:guid}")]
+    [HttpPut("api/admin/catalogos/modelos-prontuario/{id:long}")]
     public async Task<IActionResult> Atualizar(
-        Guid id,
-        [FromBody] AtualizarModeloGlobalRequest request,
+        long id,
+        [FromBody] AtualizarModeloPadraoSistemaRequest request,
         CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        await _atualizar.Handle(new AtualizarModeloGlobalCommand(
-            id, request.Nome, request.Descricao, request.ConteudoJson, request.Motivo, adminId), ct);
+        await _atualizar.Handle(new AtualizarModeloPadraoSistemaCommand(
+            id, request.Nome, request.Descricao, request.EstruturaJson, request.Motivo, adminId), ct);
         return NoContent();
     }
 
-    [HttpPost("api/admin/catalogos/modelos-prontuario/{id:guid}/desativar")]
-    public async Task<IActionResult> Desativar(
-        Guid id,
+    [HttpPost("api/admin/catalogos/modelos-prontuario/{id:long}/inativar")]
+    public async Task<IActionResult> Inativar(
+        long id,
         [FromBody] AdminMotivoRequest request,
         CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        await _desativar.Handle(new DesativarModeloGlobalCommand(id, request.Motivo, adminId), ct);
+        await _inativar.Handle(new InativarModeloPadraoSistemaCommand(id, request.Motivo, adminId), ct);
         return NoContent();
     }
 
-    [HttpPost("api/admin/catalogos/modelos-prontuario/{id:guid}/reativar")]
+    [HttpPost("api/admin/catalogos/modelos-prontuario/{id:long}/reativar")]
     public async Task<IActionResult> Reativar(
-        Guid id,
+        long id,
         [FromBody] AdminMotivoRequest request,
         CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
-        await _reativar.Handle(new ReativarModeloGlobalCommand(id, request.Motivo, adminId), ct);
+        await _reativar.Handle(new ReativarModeloPadraoSistemaCommand(id, request.Motivo, adminId), ct);
         return NoContent();
     }
 
-    private Guid ObterAdminId()
+    private Guid? ObterAdminId()
     {
         var sub = User.FindFirst("sub")?.Value;
-        if (!Guid.TryParse(sub, out var id))
-            throw new BusinessException("Sessão de administrador inválida.");
-        return id;
+        return Guid.TryParse(sub, out var id) ? id : null;
     }
 }
 
-public record CriarModeloGlobalRequest(string Nome, string? Descricao, string ConteudoJson, string Motivo);
-public record AtualizarModeloGlobalRequest(string Nome, string? Descricao, string ConteudoJson, string Motivo);
-public record AdminMotivoRequest(string Motivo);
+public class CriarModeloPadraoSistemaRequest
+{
+    public string Nome { get; init; } = string.Empty;
+    public string? Descricao { get; init; }
+    public string EstruturaJson { get; init; } = string.Empty;
+    public string Motivo { get; init; } = string.Empty;
+}
+
+public class AtualizarModeloPadraoSistemaRequest
+{
+    public string Nome { get; init; } = string.Empty;
+    public string? Descricao { get; init; }
+    public string EstruturaJson { get; init; } = string.Empty;
+    public string Motivo { get; init; } = string.Empty;
+}
+
+public class AdminMotivoRequest
+{
+    public string Motivo { get; init; } = string.Empty;
+}

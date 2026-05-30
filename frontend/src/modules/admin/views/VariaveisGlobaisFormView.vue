@@ -1,71 +1,36 @@
 <script setup lang="ts">
 /**
- * Formulário de criação/edição de variável pool global.
- * Para tipo "lista", exibe campo de valores (tag input).
- * W3-CA7 a W3-CA11: app-page--narrow + AppPageHeader + AppCard + AppField
- *   + AppInput + AppSelect + AppButton.
+ * Formulário de criação/edição de variável pool global (Wave 4 live-link).
+ * Campos: nome + categoria (TipoVariavelPool) + motivo.
  */
-import { ref, onMounted, computed, watch } from "vue"
+import { ref, onMounted, computed } from "vue"
 import { useRouter } from "vue-router"
 import { AppPageHeader, AppCard, AppField, AppInput, AppSelect, AppButton } from "@/components/ui"
 import { useVariaveisGlobaisStore } from "../stores/variaveisGlobaisStore"
+import { TIPOS_VARIAVEL_POOL } from "../services/catalogosService"
 
 const props = defineProps<{ id?: string }>()
 const router = useRouter()
 const store = useVariaveisGlobaisStore()
 
-const editando = computed(() => !!props.id)
+const idNumerico = computed(() => props.id ? Number(props.id) : null)
+const editando = computed(() => idNumerico.value !== null && !isNaN(idNumerico.value))
 
-const TIPOS_OPCOES = [
-    { value: "texto",    label: "Texto livre" },
-    { value: "numerico", label: "Numérico" },
-    { value: "data",     label: "Data" },
-    { value: "lista",    label: "Lista de opções" },
-    { value: "booleano", label: "Sim/Não" },
-]
+const TIPOS_OPCOES = Object.entries(TIPOS_VARIAVEL_POOL).map(([value, label]) => ({ value, label }))
 
 const nome = ref("")
-const tipo = ref("texto")
-const descricao = ref("")
-const valoresRaw = ref("")
+const tipo = ref(TIPOS_OPCOES[0].value)
 const motivo = ref("")
 const erros = ref<Record<string, string>>({})
 const salvando = ref(false)
 const erroGeral = ref("")
 
-const tagInput = ref("")
-
-function valoresArray(): string[] {
-    try {
-        const parsed = JSON.parse(valoresRaw.value || "[]")
-        return Array.isArray(parsed) ? parsed : []
-    } catch { return [] }
-}
-
-function adicionarTag() {
-    const val = tagInput.value.trim()
-    if (!val) return
-    const arr = valoresArray()
-    if (!arr.includes(val)) { arr.push(val); valoresRaw.value = JSON.stringify(arr) }
-    tagInput.value = ""
-}
-
-function removerTag(idx: number) {
-    const arr = valoresArray()
-    arr.splice(idx, 1)
-    valoresRaw.value = arr.length ? JSON.stringify(arr) : ""
-}
-
-watch(tipo, () => { valoresRaw.value = ""; tagInput.value = "" })
-
 onMounted(async () => {
-    if (props.id) {
-        await store.carregarItem(props.id)
+    if (editando.value && idNumerico.value !== null) {
+        await store.carregarItem(idNumerico.value)
         if (store.itemAtual) {
             nome.value = store.itemAtual.nome
             tipo.value = store.itemAtual.tipo
-            descricao.value = store.itemAtual.descricao ?? ""
-            valoresRaw.value = store.itemAtual.valoresJson ?? ""
         }
     }
 })
@@ -73,10 +38,7 @@ onMounted(async () => {
 function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
-    if (!tipo.value) e.tipo = "Tipo é obrigatório."
-    if (tipo.value === "lista" && valoresArray().length === 0) {
-        e.valores = "Adicione ao menos um valor para tipo Lista."
-    }
+    if (!tipo.value) e.tipo = "Categoria é obrigatória."
     if (motivo.value.trim().length < 10) e.motivo = "Motivo deve ter ao menos 10 caracteres."
     erros.value = e
     return Object.keys(e).length === 0
@@ -90,12 +52,10 @@ async function salvar() {
         const payload = {
             nome: nome.value.trim(),
             tipo: tipo.value,
-            descricao: descricao.value.trim() || null,
-            valoresJson: tipo.value === "lista" && valoresRaw.value ? valoresRaw.value : null,
             motivo: motivo.value.trim(),
         }
-        if (editando.value && props.id) {
-            await store.atualizar(props.id, payload)
+        if (editando.value && idNumerico.value !== null) {
+            await store.atualizar(idNumerico.value, payload)
         } else {
             await store.criar(payload)
         }
@@ -125,43 +85,17 @@ async function salvar() {
                 <AppField label="Nome" required :hint="erros.nome">
                     <AppInput
                         v-model="nome"
-                        placeholder="Ex.: Alergias alimentares"
+                        placeholder="Ex.: Dipirona Sódica"
                         maxlength="200"
                         :disabled="salvando"
                     />
                 </AppField>
 
-                <AppField label="Tipo" required :hint="editando ? 'O tipo não pode ser alterado após a criação.' : erros.tipo">
+                <AppField label="Categoria" required :hint="editando ? 'A categoria não pode ser alterada após a criação.' : erros.tipo">
                     <AppSelect
                         v-model="tipo"
                         :options="TIPOS_OPCOES"
                         :disabled="editando || salvando"
-                    />
-                </AppField>
-
-                <!-- Valores para tipo lista -->
-                <AppField v-if="tipo === 'lista'" label="Opções da lista" required :hint="erros.valores || 'Pressione Enter para adicionar cada opção.'">
-                    <div class="tags-container">
-                        <span v-for="(val, idx) in valoresArray()" :key="idx" class="tag">
-                            {{ val }}
-                            <button type="button" class="tag-remover" @click="removerTag(idx)" title="Remover">×</button>
-                        </span>
-                        <input
-                            v-model="tagInput"
-                            type="text"
-                            class="tag-input"
-                            placeholder="Digite e pressione Enter"
-                            @keydown.enter.prevent="adicionarTag"
-                        />
-                    </div>
-                </AppField>
-
-                <AppField label="Descrição">
-                    <AppInput
-                        v-model="descricao"
-                        placeholder="Descrição opcional"
-                        maxlength="500"
-                        :disabled="salvando"
                     />
                 </AppField>
 
@@ -228,53 +162,5 @@ async function salvar() {
     gap: 0.75rem;
     justify-content: flex-end;
     padding-top: 0.5rem;
-}
-
-.tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-    align-items: center;
-    padding: 0.5rem;
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) - 2px);
-    background: hsl(var(--background));
-    min-height: 42px;
-}
-
-.tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--primary));
-    padding: 0.1875rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.tag-remover {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: hsl(var(--primary));
-    font-size: 0.875rem;
-    line-height: 1;
-    padding: 0;
-    display: flex;
-    align-items: center;
-}
-.tag-remover:hover { color: hsl(var(--destructive)); }
-
-.tag-input {
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 0.8125rem;
-    color: hsl(var(--foreground));
-    flex: 1;
-    min-width: 120px;
-    font-family: inherit;
 }
 </style>

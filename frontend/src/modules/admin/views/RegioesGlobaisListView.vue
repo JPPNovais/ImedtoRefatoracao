@@ -1,99 +1,82 @@
 <script setup lang="ts">
 /**
- * RegioesGlobaisListView — lista de regiões anatômicas globais.
- *
- * W3-CA7 a W3-CA15: app-page + AppPageHeader + AppCard + AppSearchInput
- *   + AppEmptyState + AppPagination + AppButton + AppBadge + AppModal + AppField + AppTextarea.
+ * RegioesGlobaisListView — árvore de regiões anatômicas (Wave 4 live-link).
+ * Renderiza a estrutura hierárquica via RegiaoTreeView recursivo.
  */
 import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import {
-    AppPageHeader, AppCard, AppSearchInput, AppEmptyState,
-    AppPagination, AppButton, AppBadge, AppModal, AppField, AppTextarea,
+    AppPageHeader, AppCard, AppEmptyState,
+    AppButton, AppModal, AppField, AppTextarea,
 } from "@/components/ui"
 import { useRegioesGlobaisStore } from "../stores/regioesGlobaisStore"
-import type { RegiaoGlobalListaItemDto } from "../services/catalogosService"
+import RegiaoTreeView from "../components/regioes/RegiaoTreeView.vue"
+import type { RegiaoAnatomicaNoDto } from "../services/catalogosService"
 
 const router = useRouter()
 const store = useRegioesGlobaisStore()
 
 const filtroInativos = ref(false)
-const filtroBusca = ref("")
 
-const modalAcao = ref(false)
-const acaoTipo = ref<"desativar" | "reativar">("desativar")
-const acaoItem = ref<RegiaoGlobalListaItemDto | null>(null)
-const motivoTexto = ref("")
-const erroMotivo = ref("")
-const salvando = ref(false)
+// Modal de exclusão
+const modalExcluir = ref(false)
+const excluirItem = ref<RegiaoAnatomicaNoDto | null>(null)
+const motivoExclusao = ref("")
+const erroExclusao = ref("")
+const excluindo = ref(false)
 
 onMounted(() => carregar())
 
 async function carregar() {
-    await store.carregar({
-        incluirInativos: filtroInativos.value,
-        busca: filtroBusca.value || undefined,
-        page: store.pagina,
-        size: store.tamanho,
-    })
+    await store.carregarArvore(filtroInativos.value)
 }
 
-function irParaForm(id?: string) {
-    if (id) {
+function irParaForm(id?: number) {
+    if (id !== undefined) {
         router.push({ name: "AdminRegioesGlobaisEditar", params: { id } })
     } else {
         router.push({ name: "AdminRegioesGlobaisNovo" })
     }
 }
 
-function abrirAcao(tipo: "desativar" | "reativar", item: RegiaoGlobalListaItemDto) {
-    acaoTipo.value = tipo
-    acaoItem.value = item
-    motivoTexto.value = ""
-    erroMotivo.value = ""
-    modalAcao.value = true
+function abrirExcluir(no: RegiaoAnatomicaNoDto) {
+    excluirItem.value = no
+    motivoExclusao.value = ""
+    erroExclusao.value = ""
+    modalExcluir.value = true
 }
 
 function fecharModal() {
-    modalAcao.value = false
-    acaoItem.value = null
+    modalExcluir.value = false
+    excluirItem.value = null
 }
 
-async function confirmarAcao() {
-    if (!acaoItem.value) return
-    if (motivoTexto.value.trim().length < 10) {
-        erroMotivo.value = "Motivo deve ter ao menos 10 caracteres."
+async function confirmarExclusao() {
+    if (!excluirItem.value) return
+    if (motivoExclusao.value.trim().length < 10) {
+        erroExclusao.value = "Motivo deve ter ao menos 10 caracteres."
         return
     }
-    salvando.value = true
-    erroMotivo.value = ""
+    excluindo.value = true
+    erroExclusao.value = ""
     try {
-        if (acaoTipo.value === "desativar") {
-            await store.desativar(acaoItem.value.id, motivoTexto.value.trim())
-        } else {
-            await store.reativar(acaoItem.value.id, motivoTexto.value.trim())
-        }
+        await store.excluir(excluirItem.value.id, motivoExclusao.value.trim())
         fecharModal()
         await carregar()
     } catch (err: unknown) {
         const msg = (err as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
-        erroMotivo.value = msg ?? "Não foi possível realizar a operação."
+        erroExclusao.value = msg ?? "Não foi possível excluir a região."
     } finally {
-        salvando.value = false
+        excluindo.value = false
     }
-}
-
-function formatarData(iso: string | null): string {
-    if (!iso) return "—"
-    return new Date(iso).toLocaleDateString("pt-BR")
 }
 </script>
 
 <template>
     <main class="app-page">
         <AppPageHeader
-            titulo="Regiões anatômicas globais"
-            subtitulo="Catálogo de regiões anatômicas disponíveis para o exame físico."
+            titulo="Regiões anatômicas"
+            subtitulo="Catálogo hierárquico de regiões anatômicas disponível para o exame físico."
         >
             <template #acoes>
                 <AppButton icon="fa-solid fa-plus" @click="irParaForm()">Nova região</AppButton>
@@ -103,12 +86,11 @@ function formatarData(iso: string | null): string {
         <AppCard>
             <!-- Filtros -->
             <div class="filtros-row">
-                <AppSearchInput v-model="filtroBusca" placeholder="Buscar por nome ou sinônimo..." style="max-width:320px;" />
                 <label class="label-check">
                     <input type="checkbox" v-model="filtroInativos" @change="carregar" />
-                    Incluir inativos
+                    Incluir inativas
                 </label>
-                <AppButton variant="secondary" @click="carregar">Buscar</AppButton>
+                <AppButton variant="secondary" @click="carregar">Atualizar</AppButton>
             </div>
 
             <div v-if="store.carregando" class="estado-info">
@@ -118,105 +100,50 @@ function formatarData(iso: string | null): string {
             <p v-else-if="store.erro" class="estado-erro" role="alert">{{ store.erro }}</p>
 
             <AppEmptyState
-                v-else-if="store.lista.length === 0"
-                titulo="Nenhuma região encontrada."
+                v-else-if="store.arvore.length === 0"
+                titulo="Nenhuma região cadastrada."
                 descricao="Crie a primeira região usando o botão acima."
             />
 
-            <template v-else>
-                <div class="tabela-wrap">
-                    <table class="tabela">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Sistema corporal</th>
-                                <th>Sinônimos</th>
-                                <th>Status</th>
-                                <th>Atualizado em</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="item in store.lista" :key="item.id">
-                                <td class="td-nome">{{ item.nome }}</td>
-                                <td>{{ item.sistemaCorporal ?? "—" }}</td>
-                                <td class="td-sinonimos">
-                                    <span v-if="!item.sinonimos || item.sinonimos.length === 0" class="texto-muted">—</span>
-                                    <span v-else class="sinonimos-lista">
-                                        <span v-for="(s, idx) in item.sinonimos.slice(0, 3)" :key="idx" class="tag-sinonimo">{{ s }}</span>
-                                        <span v-if="item.sinonimos.length > 3" class="texto-muted">+{{ item.sinonimos.length - 3 }}</span>
-                                    </span>
-                                </td>
-                                <td>
-                                    <AppBadge :variant="item.ativo ? 'success' : 'muted'" :label="item.ativo ? 'Ativo' : 'Inativo'" />
-                                </td>
-                                <td>{{ formatarData(item.atualizadoEm) }}</td>
-                                <td class="td-acoes">
-                                    <button class="btn-icon btn-icon-editar" type="button" title="Editar" @click="irParaForm(item.id)">
-                                        <i class="fa-solid fa-pen"></i>
-                                    </button>
-                                    <button
-                                        v-if="item.ativo"
-                                        class="btn-icon btn-icon-excluir"
-                                        type="button"
-                                        title="Desativar"
-                                        @click="abrirAcao('desativar', item)"
-                                    >
-                                        <i class="fa-solid fa-ban"></i>
-                                    </button>
-                                    <button
-                                        v-else
-                                        class="btn-icon btn-icon-ver"
-                                        type="button"
-                                        title="Reativar"
-                                        @click="abrirAcao('reativar', item)"
-                                    >
-                                        <i class="fa-solid fa-rotate-left"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <AppPagination
-                    v-model:pagina="store.pagina"
-                    v-model:tamanho="store.tamanho"
-                    :total="store.total"
-                    rotulo-itens="regiões"
-                    @update:pagina="carregar"
-                />
-            </template>
+            <RegiaoTreeView
+                v-else
+                :nos="store.arvore"
+                @editar="irParaForm($event)"
+                @excluir="abrirExcluir($event)"
+            />
         </AppCard>
 
-        <!-- Modal desativar/reativar -->
+        <!-- Modal de exclusão -->
         <AppModal
-            :aberto="modalAcao"
-            :titulo="acaoTipo === 'desativar' ? 'Desativar região' : 'Reativar região'"
+            :aberto="modalExcluir"
+            titulo="Excluir região anatômica"
             @fechar="fecharModal"
         >
-            <p class="modal-desc">{{ acaoItem?.nome }}</p>
+            <p class="modal-desc">
+                Excluir permanentemente <strong>{{ excluirItem?.codigo }}</strong> — {{ excluirItem?.nome }}?
+                <br><span class="modal-aviso">Esta ação não pode ser desfeita.</span>
+            </p>
 
             <AppField label="Motivo" required hint="Mínimo 10 caracteres.">
                 <AppTextarea
-                    v-model="motivoTexto"
+                    v-model="motivoExclusao"
                     :rows="3"
                     placeholder="Descreva o motivo..."
-                    :disabled="salvando"
+                    :disabled="excluindo"
                 />
             </AppField>
 
-            <p v-if="erroMotivo" class="campo-erro">{{ erroMotivo }}</p>
+            <p v-if="erroExclusao" class="campo-erro">{{ erroExclusao }}</p>
 
             <template #rodape>
-                <AppButton variant="secondary" :disabled="salvando" @click="fecharModal">Cancelar</AppButton>
+                <AppButton variant="secondary" :disabled="excluindo" @click="fecharModal">Cancelar</AppButton>
                 <AppButton
-                    :variant="acaoTipo === 'desativar' ? 'danger' : 'primary'"
-                    :loading="salvando"
-                    :disabled="motivoTexto.trim().length < 10"
-                    @click="confirmarAcao"
+                    variant="danger"
+                    :loading="excluindo"
+                    :disabled="motivoExclusao.trim().length < 10"
+                    @click="confirmarExclusao"
                 >
-                    Confirmar
+                    Excluir
                 </AppButton>
             </template>
         </AppModal>
@@ -257,57 +184,15 @@ function formatarData(iso: string | null): string {
     font-size: 0.875rem;
 }
 
-.tabela-wrap {
-    overflow-x: auto;
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    margin-bottom: 1rem;
-}
-
-.tabela {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-
-.tabela th,
-.tabela td {
-    padding: 0.625rem 0.875rem;
-    text-align: left;
-    border-bottom: 1px solid hsl(var(--border));
-}
-
-.tabela th {
-    font-weight: 600;
-    color: hsl(var(--muted-foreground));
-    background: hsl(var(--muted) / 0.5);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.tabela tbody tr:last-child td { border-bottom: none; }
-.tabela tbody tr:hover { background: hsl(var(--muted) / 0.4); }
-
-.td-nome { font-weight: 600; }
-.td-sinonimos { max-width: 200px; }
-.td-acoes { display: flex; gap: 0.25rem; }
-
-.sinonimos-lista { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
-.tag-sinonimo {
-    display: inline-block;
-    padding: 0.0625rem 0.375rem;
-    border-radius: 4px;
-    font-size: 0.6875rem;
-    background: hsl(var(--muted));
-    color: hsl(var(--muted-foreground));
-}
-.texto-muted { color: hsl(var(--muted-foreground)); font-size: 0.75rem; }
-
 .modal-desc {
-    color: hsl(var(--muted-foreground));
     font-size: 0.875rem;
-    margin-bottom: 0.25rem;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.modal-aviso {
+    color: hsl(var(--destructive));
+    font-size: 0.8125rem;
 }
 
 .campo-erro {

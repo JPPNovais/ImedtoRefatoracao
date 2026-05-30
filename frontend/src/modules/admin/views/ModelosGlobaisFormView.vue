@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /**
- * Formulário de criação/edição de modelo de prontuário global.
- * conteudoJson deve ser JSON válido — validado antes de salvar.
- * W3-CA7 a W3-CA11: app-page--narrow + AppPageHeader + AppCard + AppField + AppInput + AppTextarea + AppButton.
+ * Formulário de criação/edição de modelo de prontuário global (Wave 4 live-link).
+ * estruturaJson deve ser JSON válido — validado antes de salvar.
  */
 import { ref, onMounted, computed } from "vue"
 import { useRouter } from "vue-router"
@@ -13,23 +12,24 @@ const props = defineProps<{ id?: string }>()
 const router = useRouter()
 const store = useModelosGlobaisStore()
 
-const editando = computed(() => !!props.id)
+const idNumerico = computed(() => props.id ? Number(props.id) : null)
+const editando = computed(() => idNumerico.value !== null && !isNaN(idNumerico.value))
 
 const nome = ref("")
 const descricao = ref("")
-const conteudoJson = ref("{\n  \n}")
+const estruturaJson = ref("{\n  \n}")
 const motivo = ref("")
 const erros = ref<Record<string, string>>({})
 const salvando = ref(false)
 const erroGeral = ref("")
 
 onMounted(async () => {
-    if (props.id) {
-        await store.carregarItem(props.id)
+    if (editando.value && idNumerico.value !== null) {
+        await store.carregarItem(idNumerico.value)
         if (store.itemAtual) {
             nome.value = store.itemAtual.nome
             descricao.value = store.itemAtual.descricao ?? ""
-            conteudoJson.value = store.itemAtual.conteudoJson
+            estruturaJson.value = store.itemAtual.estruturaJson
         }
     }
 })
@@ -41,8 +41,8 @@ function validarJson(valor: string): boolean {
 function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
-    if (!conteudoJson.value.trim()) e.conteudoJson = "Conteúdo JSON é obrigatório."
-    else if (!validarJson(conteudoJson.value)) e.conteudoJson = "JSON inválido."
+    if (!estruturaJson.value.trim()) e.estruturaJson = "Estrutura JSON é obrigatória."
+    else if (!validarJson(estruturaJson.value)) e.estruturaJson = "JSON inválido."
     if (motivo.value.trim().length < 10) e.motivo = "Motivo deve ter ao menos 10 caracteres."
     erros.value = e
     return Object.keys(e).length === 0
@@ -56,11 +56,11 @@ async function salvar() {
         const payload = {
             nome: nome.value.trim(),
             descricao: descricao.value.trim() || null,
-            conteudoJson: conteudoJson.value,
+            estruturaJson: estruturaJson.value,
             motivo: motivo.value.trim(),
         }
-        if (editando.value && props.id) {
-            await store.atualizar(props.id, payload)
+        if (editando.value && idNumerico.value !== null) {
+            await store.atualizar(idNumerico.value, payload)
         } else {
             await store.criar(payload)
         }
@@ -75,10 +75,10 @@ async function salvar() {
 
 function formatarJson() {
     try {
-        conteudoJson.value = JSON.stringify(JSON.parse(conteudoJson.value), null, 2)
-        if (erros.value.conteudoJson) delete erros.value.conteudoJson
+        estruturaJson.value = JSON.stringify(JSON.parse(estruturaJson.value), null, 2)
+        if (erros.value.estruturaJson) delete erros.value.estruturaJson
     } catch {
-        erros.value.conteudoJson = "JSON inválido."
+        erros.value.estruturaJson = "JSON inválido."
     }
 }
 </script>
@@ -114,12 +114,12 @@ function formatarJson() {
                     />
                 </AppField>
 
-                <AppField label="Conteúdo JSON" required :hint="erros.conteudoJson || 'Cole a estrutura JSON do template de prontuário.'">
+                <AppField label="Estrutura JSON" required :hint="erros.estruturaJson || 'Cole a estrutura JSON do template de prontuário.'">
                     <template #label-aside>
                         <AppButton variant="ghost" size="sm" type="button" @click="formatarJson">Formatar</AppButton>
                     </template>
                     <AppTextarea
-                        v-model="conteudoJson"
+                        v-model="estruturaJson"
                         :rows="16"
                         placeholder='{ "secoes": [] }'
                         :disabled="salvando"
