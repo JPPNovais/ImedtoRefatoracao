@@ -148,7 +148,7 @@ Todas globais — sem `estabelecimento_id`. Prefixo `imedto_` para distinguir da
 |---|---|
 | `imedto_admins` | Admins globais do SaaS (separados de `usuarios`). Email via `citext`. UUID PK. |
 | `imedto_admin_refresh_tokens` | Refresh tokens admin. Armazena SHA-256 hash do token, nunca o token em claro. |
-| `imedto_admin_audit_log` | Audit append-only. Retenção 2 anos (ver LGPD.md). `tenant_afetado_id` é bigint nullable sem FK física (log permanece se tenant for excluído). |
+| `imedto_admin_audit_log` | Audit append-only. Política de retenção por ação definida em `AuditLogRetencao` (Domain.Admin) — ver seção abaixo. `tenant_afetado_id` é bigint nullable sem FK física (log permanece se tenant for excluído). **Wave 7 (2026-05-30)**: cleanup retroativo removeu 158 linhas de ruído (`LOGIN_OK` 131 + `ABRIR_DETALHE_TENANT` 16 + `LOGOUT` 11 = 78% do volume). Essas 3 ações foram cortadas no código e não geram novas linhas. Retenção contínua via job `limpar-audit-admin` (1×/dia). |
 | `imedto_planos` | Catálogo de planos admin. **Diferente de `planos` (bigint, domínio cliente legado)**. UUID PK, preço em centavos inteiros nullable. |
 | `imedto_assinaturas` | Histórico imutável de assinaturas. **Diferente de `assinaturas` (bigint 1:1)**. INSERT nova linha ao trocar plano, nunca UPDATE. |
 | `imedto_config` | Key-value global. PK é a chave text. Valor JSONB. Colunas `tipo` e `secao` adicionadas na Wave 2. |

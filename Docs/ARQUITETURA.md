@@ -152,6 +152,22 @@ Gráfico: SVG inline em `modules/admin/components/dashboard/CrescimentoChart.vue
 
 Índices utilizados (existentes desde Wave 1): `ix_imedto_admin_audit_log_acao_criado`, `ix_imedto_admin_audit_log_admin_criado`, `ix_imedto_admin_audit_log_criado`, `ix_imedto_admin_audit_log_tenant_criado`.
 
+### Audit admin global — política de retenção (Wave 7)
+
+`imedto_admin_audit_log` registra apenas ações com valor forense real. TTL por categoria:
+
+| Categoria | Exemplos | Retenção | Motivo |
+|---|---|---|---|
+| Acesso (login/logout/leitura) | LOGIN_OK, LOGOUT, ABRIR_DETALHE_TENANT | **Não registrado** | Alto volume, baixo valor forense isolado. Wave 7 cortou esses 3 audits no código. |
+| Segurança | LOGIN_FAIL | 365 dias | Forense de tentativa de invasão |
+| LGPD reveal | REVELAR_CPF_DONO | 730 dias | Compliance de acesso a PII de dono (Art. 11) |
+| Mutação contratual/financeira | CRIAR_*, DESATIVAR_*, TROCAR_*, etc. | 730 dias | Compliance LGPD — quem fez o quê |
+| Catálogo padrão-sistema | CRIAR_MODELO_*, ATUALIZAR_REGIAO_*, etc. | 365 dias | Raramente disputado; estado atual fica no catálogo |
+
+Fonte de verdade: `Imedto.Backend.Domain.Admin.AuditLogRetencao` (mapa estático `PorAcao`). Ação nova sem entrada no mapa cai no default de **365 dias** — conservador mas nunca lixo eterno.
+
+Job `limpar-audit-admin` (1×/dia, batches de 10.000 linhas) aplica DELETE respeitando o mapa. Cleanup retroativo de 158 linhas de ruído realizado via `db/migrations/20260530210000_limpar_audit_admin_retroativo.sql`.
+
 ### Isolamento e cross-blindagem (CA8 + CA9)
 
 - JWT de usuário comum em `/api/admin/*` → rejeitado pela policy `ImedtoAdmin` (sem claim `imedto_admin`) → 403.

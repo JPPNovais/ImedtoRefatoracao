@@ -224,6 +224,7 @@ public static class Container
         // resolve via IServiceScopeFactory para obter um DbContext fresco por execução de job.
         services.AddScoped<IJobAgendadoRepository, JobAgendadoRepository>();
         services.AddScoped<IJobHandler, LimparAuditAntigoJob>();
+        services.AddScoped<IJobHandler, LimparAuditAdminJob>(); // Wave 7 — retenção audit admin
         services.AddScoped<IJobHandler, ExpirarTrialsJob>(); // item 2.7
         services.AddScoped<IJobHandler, LimparCacheIaJob>(); // item 3.8
         services.AddSingleton<JobScheduler>();

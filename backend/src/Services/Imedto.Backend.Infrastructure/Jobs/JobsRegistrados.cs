@@ -24,6 +24,9 @@ public static class JobsRegistrados
         // Limpeza de tentativas de delete antigas (LGPD: retenção de 90 dias). Roda a cada 24h.
         new("limpar-audit-antigo", IntervaloSeg: 24 * 60 * 60),
 
+        // Wave 7 — Retenção do audit admin global (TTL por ação via AuditLogRetencao). Roda 1×/dia.
+        new("limpar-audit-admin", IntervaloSeg: 24 * 60 * 60),
+
         // Item 2.2 — Engine de automações: drena automation_events a cada 30s.
         new("processar-automacoes", IntervaloSeg: 30),
 

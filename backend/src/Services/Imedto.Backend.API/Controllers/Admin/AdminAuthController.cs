@@ -101,12 +101,7 @@ public class AdminAuthController : ControllerBase
         _refreshRepo.Adicionar(ImedtoAdminRefreshToken.Criar(admin.Id, refreshHash, refreshExpira, ip, ua));
         await _db.SaveChangesAsync(ct);
 
-        await _audit.RegistrarAsync(
-            AcoesAuditAdmin.LoginOk,
-            adminId: admin.Id,
-            recursoTipo: "admin",
-            recursoId: admin.Id.ToString(),
-            ct: ct);
+        // LOGIN_OK não é auditado — alto volume, baixo valor forense (Wave 7).
 
         SetarCookies(accessToken.Token, refreshCru, refreshExpira);
 
@@ -188,15 +183,7 @@ public class AdminAuthController : ControllerBase
             }
         }
 
-        if (adminId.HasValue)
-        {
-            await _audit.RegistrarAsync(
-                AcoesAuditAdmin.Logout,
-                adminId: adminId,
-                recursoTipo: "admin",
-                recursoId: adminId.ToString(),
-                ct: ct);
-        }
+        // LOGOUT não é auditado — zero valor forense (Wave 7).
 
         LimparCookies();
         return Ok(new { ok = true });
