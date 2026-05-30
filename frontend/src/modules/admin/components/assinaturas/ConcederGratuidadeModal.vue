@@ -88,7 +88,7 @@ async function salvar() {
 
             <div class="admin-modal-actions">
                 <button class="admin-btn-secondary" @click="emit('fechar')">Cancelar</button>
-                <button class="admin-btn-gratuidade" :disabled="salvando" @click="salvar">
+                <button class="admin-btn-gratuidade" :disabled="salvando || !gratuidadeMotivoValido || motivo.trim().length < 10" @click="salvar">
                     {{ salvando ? "Salvando..." : "Conceder gratuidade" }}
                 </button>
             </div>
@@ -100,7 +100,7 @@ async function salvar() {
 .admin-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: hsl(var(--foreground) / 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -108,8 +108,8 @@ async function salvar() {
 }
 
 .admin-modal {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     padding: 1.5rem;
     width: 100%;
@@ -122,7 +122,7 @@ async function salvar() {
 .admin-modal-title {
     font-size: 1.125rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0;
 }
 
@@ -133,7 +133,7 @@ async function salvar() {
 }
 
 .admin-label {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-size: 0.8125rem;
     font-weight: 600;
     display: flex;
@@ -143,19 +143,19 @@ async function salvar() {
 
 .admin-contador {
     font-size: 0.75rem;
-    color: #f87171;
+    color: hsl(var(--destructive));
     font-weight: 400;
 }
 
 .admin-contador--ok {
-    color: #4ade80;
+    color: hsl(var(--success));
 }
 
 .admin-input,
 .admin-textarea {
-    background: #0f172a;
-    border: 1px solid #334155;
-    color: #f8fafc;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
     border-radius: 6px;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
@@ -168,13 +168,13 @@ async function salvar() {
 }
 
 .admin-campo-erro {
-    color: #f87171;
+    color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0;
 }
 
 .admin-campo-hint {
-    color: #64748b;
+    color: hsl(var(--muted-foreground));
     font-size: 0.75rem;
     margin: 0;
 }
@@ -186,8 +186,8 @@ async function salvar() {
 }
 
 .admin-btn-gratuidade {
-    background: #065f46;
-    color: #6ee7b7;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1rem;
@@ -197,7 +197,7 @@ async function salvar() {
 }
 
 .admin-btn-gratuidade:hover:not(:disabled) {
-    background: #047857;
+    background: hsl(var(--success));
 }
 
 .admin-btn-gratuidade:disabled {
@@ -206,8 +206,8 @@ async function salvar() {
 }
 
 .admin-btn-secondary {
-    background: #334155;
-    color: #f8fafc;
+    background: hsl(var(--border));
+    color: hsl(var(--foreground));
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1rem;

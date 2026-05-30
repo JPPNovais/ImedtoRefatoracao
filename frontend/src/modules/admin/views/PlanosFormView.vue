@@ -159,7 +159,7 @@ async function salvar() {
 <style scoped>
 .admin-planos-form {
     max-width: 640px;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
 }
 
 .admin-form-header {
@@ -172,20 +172,20 @@ async function salvar() {
 .admin-btn-voltar {
     background: none;
     border: none;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     cursor: pointer;
     font-size: 0.875rem;
     padding: 0;
 }
 
 .admin-btn-voltar:hover {
-    color: #f8fafc;
+    color: hsl(var(--foreground));
 }
 
 .admin-page-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0;
 }
 
@@ -207,7 +207,7 @@ async function salvar() {
 }
 
 .admin-label {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-size: 0.8125rem;
     font-weight: 600;
 }
@@ -221,9 +221,9 @@ async function salvar() {
 
 .admin-input,
 .admin-textarea {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #f8fafc;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
     border-radius: 6px;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
@@ -236,13 +236,13 @@ async function salvar() {
 }
 
 .admin-campo-erro {
-    color: #f87171;
+    color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0;
 }
 
 .admin-campo-hint {
-    color: #64748b;
+    color: hsl(var(--muted-foreground));
     font-size: 0.8125rem;
     margin: 0;
 }
@@ -261,8 +261,8 @@ async function salvar() {
 }
 
 .admin-btn-primary {
-    background: #2563eb;
-    color: white;
+    background: hsl(var(--primary));
+    color: hsl(var(--card));
     border: none;
     border-radius: 6px;
     padding: 0.625rem 1.25rem;
@@ -272,7 +272,7 @@ async function salvar() {
 }
 
 .admin-btn-primary:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: hsl(var(--primary));
 }
 
 .admin-btn-primary:disabled {
@@ -281,8 +281,8 @@ async function salvar() {
 }
 
 .admin-btn-secondary {
-    background: #334155;
-    color: #f8fafc;
+    background: hsl(var(--border));
+    color: hsl(var(--foreground));
     border: none;
     border-radius: 6px;
     padding: 0.625rem 1.25rem;
@@ -291,11 +291,11 @@ async function salvar() {
 }
 
 .admin-btn-secondary:hover {
-    background: #475569;
+    background: hsl(var(--border));
 }
 
 .admin-carregando {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     text-align: center;
     padding: 2rem 0;
 }

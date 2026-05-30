@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Imedto.Backend.Domain.Admin;
 using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Estabelecimentos.Events;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -7,37 +8,38 @@ namespace Imedto.Backend.Application.Estabelecimentos.Events;
 
 /// <summary>
 /// Reage a <see cref="EstabelecimentoCriadoEvent"/> criando uma assinatura em trial atrelada
-/// ao plano "Trial" (semeado pelo <c>SeedPlanosHostedService</c>). Duração default de 14 dias —
-/// alinhado ao item 2.7 da Fase 2.
+/// ao plano "Trial" (semeado pelo <c>SeedPlanosHostedService</c>).
 ///
-/// Falha controlada: se o plano "Trial" ainda não foi semeado (raríssimo, só na primeira request
-/// após deploy antes do hosted service rodar), faz log e retorna sem trial — o estabelecimento
-/// ainda funciona em features core, e o trial pode ser ativado depois manualmente. Não fazer
-/// throw evita corromper a transação do <c>UnitOfWorkAttribute</c>.
+/// Duração do trial lida de <c>trial.dias_padrao</c> via <see cref="IConfigGlobalReader"/>
+/// (fallback 14 dias — W2-CA8, W2-CA9). Não é retroativo: lê no momento da criação.
+///
+/// Falha controlada: se o plano "Trial" ainda não foi semeado, faz log e retorna sem trial.
 /// </summary>
 public class IniciarTrialAoCriarEstabelecimentoHandler : IEventHandler<EstabelecimentoCriadoEvent>
 {
     private const string NomePlanoTrial = "Trial";
-    private static readonly TimeSpan DuracaoTrialPadrao = TimeSpan.FromDays(14);
+    private const int DuracaoTrialDefaultDias = 14;
 
     private readonly IPlanoRepository _planoRepo;
     private readonly IAssinaturaRepository _assinaturaRepo;
+    private readonly IConfigGlobalReader _configReader;
     private readonly ILogger<IniciarTrialAoCriarEstabelecimentoHandler> _logger;
 
     public IniciarTrialAoCriarEstabelecimentoHandler(
         IPlanoRepository planoRepo,
         IAssinaturaRepository assinaturaRepo,
+        IConfigGlobalReader configReader,
         ILogger<IniciarTrialAoCriarEstabelecimentoHandler> logger)
     {
         _planoRepo = planoRepo;
         _assinaturaRepo = assinaturaRepo;
+        _configReader = configReader;
         _logger = logger;
     }
 
     public async Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
-        // Idempotência: se já existe assinatura para este estabelecimento, ignora —
-        // re-execuções de evento (retry) não devem criar trials duplicados.
+        // Idempotência: se já existe assinatura para este estabelecimento, ignora.
         var existente = await _assinaturaRepo.ObterPorEstabelecimentoOuNulo(domainEvent.EstabelecimentoId);
         if (existente is not null)
         {
@@ -57,11 +59,16 @@ public class IniciarTrialAoCriarEstabelecimentoHandler : IEventHandler<Estabelec
             return;
         }
 
-        var assinatura = Assinatura.IniciarTrial(domainEvent.EstabelecimentoId, planoTrial.Id, DuracaoTrialPadrao);
+        // Lê dias do trial da config global; fallback = 14 (R6: só afeta novos estabelecimentos).
+        var diasTrial = await _configReader.LerInt("trial.dias_padrao", DuracaoTrialDefaultDias);
+        if (diasTrial <= 0) diasTrial = DuracaoTrialDefaultDias;
+
+        var duracao = TimeSpan.FromDays(diasTrial);
+        var assinatura = Assinatura.IniciarTrial(domainEvent.EstabelecimentoId, planoTrial.Id, duracao);
         await _assinaturaRepo.Salvar(assinatura);
 
         _logger.LogInformation(
-            "Trial iniciado: Assinatura={AssinaturaId} Estabelecimento={EstabelecimentoId} ExpiraEm={ExpiraEm:o}",
-            assinatura.Id, domainEvent.EstabelecimentoId, assinatura.ExpiraEm);
+            "Trial iniciado: Assinatura={AssinaturaId} Estabelecimento={EstabelecimentoId} Dias={Dias} ExpiraEm={ExpiraEm:o}",
+            assinatura.Id, domainEvent.EstabelecimentoId, diasTrial, assinatura.ExpiraEm);
     }
 }

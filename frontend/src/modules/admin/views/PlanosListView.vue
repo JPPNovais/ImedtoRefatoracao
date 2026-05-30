@@ -180,7 +180,7 @@ function formatarPreco(centavos: number | null): string {
 
 <style scoped>
 .admin-planos-list {
-    color: #f8fafc;
+    color: hsl(var(--foreground));
 }
 
 .admin-planos-header {
@@ -193,7 +193,7 @@ function formatarPreco(centavos: number | null): string {
 .admin-page-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0;
 }
 
@@ -206,9 +206,9 @@ function formatarPreco(centavos: number | null): string {
 
 .admin-input,
 .admin-select {
-    background: #1e293b;
-    border: 1px solid #334155;
-    color: #f8fafc;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
     border-radius: 6px;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
@@ -220,8 +220,8 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .admin-btn-primary {
-    background: #2563eb;
-    color: white;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1rem;
@@ -231,12 +231,12 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .admin-btn-primary:hover {
-    background: #1d4ed8;
+    opacity: 0.9;
 }
 
 .admin-btn-secondary {
-    background: #334155;
-    color: #f8fafc;
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
     border: none;
     border-radius: 6px;
     padding: 0.5rem 1rem;
@@ -245,7 +245,7 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .admin-btn-secondary:hover {
-    background: #475569;
+    opacity: 0.8;
 }
 
 .admin-table {
@@ -258,11 +258,11 @@ function formatarPreco(centavos: number | null): string {
 .admin-table td {
     text-align: left;
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #1e293b;
+    border-bottom: 1px solid hsl(var(--border));
 }
 
 .admin-table th {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-weight: 600;
     font-size: 0.75rem;
     text-transform: uppercase;
@@ -270,7 +270,7 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .admin-table tbody tr:hover {
-    background: #1e293b;
+    background: hsl(var(--muted) / 0.3);
 }
 
 .admin-acoes {
@@ -279,8 +279,8 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .badge-gratuidade {
-    background: #065f46;
-    color: #6ee7b7;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     font-size: 0.6875rem;
     font-weight: 600;
     padding: 0.15rem 0.5rem;
@@ -289,16 +289,16 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .badge-ativo {
-    background: #14532d;
-    color: #4ade80;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     font-size: 0.75rem;
     padding: 0.2rem 0.6rem;
     border-radius: 9999px;
 }
 
 .badge-inativo {
-    background: #3f1111;
-    color: #f87171;
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
     font-size: 0.75rem;
     padding: 0.2rem 0.6rem;
     border-radius: 9999px;
@@ -308,19 +308,19 @@ function formatarPreco(centavos: number | null): string {
 .admin-carregando,
 .admin-erro {
     text-align: center;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     padding: 2rem 0;
 }
 
 .admin-erro {
-    color: #f87171;
+    color: hsl(var(--destructive));
 }
 
 /* Modal */
 .admin-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: hsl(var(--foreground) / 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -328,8 +328,8 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .admin-modal {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     padding: 1.5rem;
     width: 100%;
@@ -339,19 +339,19 @@ function formatarPreco(centavos: number | null): string {
 .admin-modal-title {
     font-size: 1.125rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0 0 0.25rem;
 }
 
 .admin-modal-desc {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-size: 0.875rem;
     margin: 0 0 1rem;
 }
 
 .admin-label {
     display: block;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-size: 0.8125rem;
     font-weight: 600;
     margin-bottom: 0.375rem;
@@ -359,9 +359,9 @@ function formatarPreco(centavos: number | null): string {
 
 .admin-textarea {
     width: 100%;
-    background: #0f172a;
-    border: 1px solid #334155;
-    color: #f8fafc;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
     border-radius: 6px;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
@@ -370,7 +370,7 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .admin-campo-erro {
-    color: #f87171;
+    color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0.25rem 0 0;
 }
@@ -389,11 +389,11 @@ function formatarPreco(centavos: number | null): string {
     font-size: 1rem;
     padding: 0.25rem;
     border-radius: 4px;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
 }
 
 .btn-icon:hover {
-    background: #334155;
+    background: hsl(var(--muted));
 }
 
 .btn-icon:disabled {
@@ -402,10 +402,10 @@ function formatarPreco(centavos: number | null): string {
 }
 
 .btn-icon-editar {
-    color: #60a5fa;
+    color: hsl(220 80% 65%);
 }
 
 .btn-icon-excluir {
-    color: #f87171;
+    color: hsl(var(--destructive));
 }
 </style>

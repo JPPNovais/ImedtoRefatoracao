@@ -95,6 +95,38 @@ Módulo autocontido em `frontend/src/modules/admin/`. **Zero import cruzado** co
 - **`adminAuthStore.ts`** — Pinia store `adminAuth`. Reidrata via `GET /api/admin/auth/me`. Timer de inatividade de 15min (logout automático).
 - **Router guard** — embutido no `beforeEach` global: rotas `/admin/*` são interceptadas antes das rotas normais. Redireciona para `/admin/login` se não autenticado; para `/admin/change-password` se `mustResetPassword = true`.
 
+### Configurações Globais (`ImedtoConfig` — Wave 2)
+
+- Tabela `imedto_config` com chaves no formato `secao.nome` (ex: `trial.dias_padrao`).
+- Tipos suportados: `numerico`, `texto`, `email`, `toggle`.
+- **`IConfigGlobalReader`** (singleton em `Domain.Admin`) — lê via Dapper + `IMemoryCache` (TTL 60s, prefixo `imedto_config:`). Invalida cache após mutação. Fallback ao valor default se chave ausente ou inválida.
+- CRUD admin em `/api/admin/configs` (GET lista agrupada por seção, PUT atualiza com motivo ≥10 chars + audit).
+- `IniciarTrialAoCriarEstabelecimentoHandler` lê `trial.dias_padrao` via `IConfigGlobalReader` (fallback 14 dias).
+
+### Catálogos Globais (`imedto_*_global` — Wave 2)
+
+Três entidades **sem `estabelecimento_id`** — são do sistema, não de um tenant:
+
+| Entidade | Tabela | Endpoint admin | Endpoint tenant |
+|---|---|---|---|
+| Modelo de prontuário global | `imedto_modelo_prontuario_global` | `/api/admin/catalogos/modelos-prontuario` | leitura em `GET /api/prontuario/modelos/globais` |
+| Variável pool global | `imedto_variavel_pool_global` | `/api/admin/catalogos/variaveis-pool` | leitura em `GET /api/prontuario/pool/globais` |
+| Região anatômica global | `imedto_regiao_anatomica_global` | `/api/admin/catalogos/regioes-anatomicas` | — |
+
+**Modelo de cópia (importação):**
+- `POST /api/prontuario/modelos/importar-do-global/{id}` — cria cópia independente na tabela tenant. Sem live-link.
+- `POST /api/prontuario/pool/importar-do-global/{id}` — idem para variável pool.
+- Mapping best-effort do tipo global para `TipoVariavelPool` tenant (lista→Medicamento, outros→Doenca).
+
+**Frontend (admin):**
+- Views em `modules/admin/views/`: `ModelosGlobaisListView`, `ModelosGlobaisFormView`, `VariaveisGlobaisListView`, `VariaveisGlobaisFormView`, `RegioesGlobaisListView`, `RegioesGlobaisFormView`.
+- Stores: `modelosGlobaisStore`, `variaveisGlobaisStore`, `regioesGlobaisStore`.
+- Rotas sob `/admin/catalogos/*`.
+
+**Frontend (tenant):**
+- Aba "Templates do sistema" em `ModelosProntuarioView.vue` (aba via toggle, lazy-load ao primeiro clique).
+- Aba "Templates do sistema" em `ListasVariaveisTab.vue` (idem).
+
 ### Isolamento e cross-blindagem (CA8 + CA9)
 
 - JWT de usuário comum em `/api/admin/*` → rejeitado pela policy `ImedtoAdmin` (sem claim `imedto_admin`) → 403.

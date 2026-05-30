@@ -114,8 +114,8 @@ async function handleSubmit() {
 }
 
 .admin-change-pwd-card {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     padding: 2rem;
     width: 100%;
@@ -125,12 +125,12 @@ async function handleSubmit() {
 h1 {
     font-size: 1.375rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0 0 0.5rem;
 }
 
 .admin-change-pwd-info {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-size: 0.9rem;
     margin: 0 0 1.5rem;
 }
@@ -146,7 +146,7 @@ h1 {
 .admin-policy-title {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: #93c5fd;
+    color: hsl(var(--primary) / 0.8);
     margin: 0 0 0.5rem;
 }
 
@@ -157,7 +157,7 @@ h1 {
 
 .admin-policy li {
     font-size: 0.825rem;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     margin-bottom: 0.2rem;
 }
 
@@ -176,21 +176,21 @@ form {
 .admin-field label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #cbd5e1;
+    color: hsl(var(--foreground));
 }
 
 .admin-field input {
-    background: #0f172a;
-    border: 1px solid #334155;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
     border-radius: 8px;
     padding: 0.625rem 0.875rem;
     font-size: 0.9375rem;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     outline: none;
 }
 
 .admin-field input:focus {
-    border-color: #3b82f6;
+    border-color: hsl(var(--primary));
 }
 
 .admin-field input:disabled {
@@ -203,7 +203,7 @@ form {
     border-radius: 6px;
     padding: 0.625rem;
     font-size: 0.875rem;
-    color: #fca5a5;
+    color: hsl(var(--destructive) / 0.7);
     margin: 0;
 }
 
@@ -213,13 +213,13 @@ form {
     border-radius: 6px;
     padding: 0.625rem;
     font-size: 0.875rem;
-    color: #86efac;
+    color: hsl(var(--success) / 0.8);
     margin: 0;
 }
 
 button[type="submit"] {
-    background: #3b82f6;
-    color: white;
+    background: hsl(var(--primary));
+    color: hsl(var(--card));
     border: none;
     border-radius: 8px;
     padding: 0.75rem;

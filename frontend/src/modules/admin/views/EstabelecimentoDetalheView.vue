@@ -6,6 +6,7 @@
  * CA20: zero campo de paciente.
  * CA21: estado de não encontrado.
  * CA32–CA36: reset com confirmação dupla.
+ * W2-CA1 a W2-CA4: AssinaturaCard integrado (gerencia assinaturas do tenant).
  */
 import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
@@ -13,6 +14,7 @@ import { useEstabelecimentosStore } from "../stores/estabelecimentosStore"
 import ModalRevelarCpf from "../components/estabelecimentos/ModalRevelarCpf.vue"
 import ModalResetTenant from "../components/estabelecimentos/ModalResetTenant.vue"
 import BadgeStatusEstabelecimento from "../components/estabelecimentos/BadgeStatusEstabelecimento.vue"
+import AssinaturaCard from "../components/assinaturas/AssinaturaCard.vue"
 
 const route = useRoute()
 const router = useRouter()
@@ -140,7 +142,7 @@ function formatarDataHora(iso: string): string {
                     </dl>
                 </section>
 
-                <!-- Plano/assinatura -->
+                <!-- Plano/assinatura — sumário rápido (card completo abaixo) -->
                 <section class="card-secao">
                     <h2 class="card-titulo">Plano / Assinatura</h2>
                     <dl class="dl-grid">
@@ -177,6 +179,11 @@ function formatarDataHora(iso: string): string {
                     </div>
                 </section>
             </div>
+
+            <!-- W2-CA1 a W2-CA4: Card completo de assinatura com histórico e ações -->
+            <div class="assinatura-secao">
+                <AssinaturaCard :estabelecimento-id="id" />
+            </div>
         </template>
 
         <!-- Modais -->
@@ -203,29 +210,29 @@ function formatarDataHora(iso: string): string {
 
 .breadcrumb {
     display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: #6b7280; margin-bottom: 20px;
+    font-size: 13px; color: hsl(var(--muted-foreground)); margin-bottom: 20px;
 }
 .breadcrumb-link {
-    background: none; border: none; color: #6366f1; cursor: pointer; padding: 0; font-size: 13px;
+    background: none; border: none; color: hsl(var(--primary)); cursor: pointer; padding: 0; font-size: 13px;
     text-decoration: underline;
 }
-.breadcrumb-sep { color: #d1d5db; }
+.breadcrumb-sep { color: hsl(var(--border)); }
 
 .estado-loading, .estado-erro {
-    padding: 48px; text-align: center; color: #6b7280; font-size: 14px;
+    padding: 48px; text-align: center; color: hsl(var(--muted-foreground)); font-size: 14px;
 }
-.estado-erro { color: #ef4444; }
+.estado-erro { color: hsl(var(--destructive)); }
 
 .detalhe-header {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
     flex-wrap: wrap; gap: 12px;
 }
 .detalhe-titulo-wrap { display: flex; align-items: center; gap: 12px; }
-.detalhe-titulo { font-size: 22px; font-weight: 700; margin: 0; }
+.detalhe-titulo { font-size: 22px; font-weight: 700; margin: 0; color: hsl(var(--foreground)); }
 
 .btn-perigo-destaque {
     padding: 8px 18px; border: none; border-radius: 6px;
-    background: #ef4444; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+    background: hsl(var(--destructive)); color: hsl(var(--destructive-foreground)); font-size: 13px; font-weight: 700; cursor: pointer;
 }
 
 .abas-grid {
@@ -234,24 +241,24 @@ function formatarDataHora(iso: string): string {
     gap: 20px;
 }
 .card-secao {
-    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px;
+    background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 8px; padding: 20px;
 }
-.card-titulo { font-size: 14px; font-weight: 700; margin: 0 0 14px; color: #374151; }
+.card-titulo { font-size: 14px; font-weight: 700; margin: 0 0 14px; color: hsl(var(--foreground)); }
 .dl-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
-.dl-grid dt { font-weight: 600; color: #6b7280; }
-.dl-grid dd { margin: 0; }
+.dl-grid dt { font-weight: 600; color: hsl(var(--muted-foreground)); }
+.dl-grid dd { margin: 0; color: hsl(var(--foreground)); }
 
 .cpf-row { display: flex; align-items: center; gap: 8px; }
-.cpf-mascarado { font-family: monospace; font-size: 12px; color: #374151; }
-.cpf-revelado { font-family: monospace; font-size: 13px; color: #059669; font-weight: 600; }
+.cpf-mascarado { font-family: monospace; font-size: 12px; color: hsl(var(--foreground)); }
+.cpf-revelado { font-family: monospace; font-size: 13px; color: hsl(var(--success)); font-weight: 600; }
 .btn-icon-texto {
-    background: none; border: none; color: #6366f1; font-size: 12px; cursor: pointer; padding: 0;
+    background: none; border: none; color: hsl(var(--primary)); font-size: 12px; cursor: pointer; padding: 0;
     text-decoration: underline;
 }
-.erro-inline { color: #ef4444; font-size: 12px; }
+.erro-inline { color: hsl(var(--destructive)); font-size: 12px; }
 
 .badge-gratuita {
-    background: #d1fae5; color: #065f46; padding: 2px 8px;
+    background: hsl(var(--success) / 0.15); color: hsl(var(--success)); padding: 2px 8px;
     border-radius: 10px; font-size: 11px; font-weight: 600;
 }
 
@@ -260,8 +267,10 @@ function formatarDataHora(iso: string): string {
 }
 .stat-item {
     display: flex; flex-direction: column; gap: 4px;
-    background: #f9fafb; border-radius: 8px; padding: 14px;
+    background: hsl(var(--muted) / 0.5); border-radius: 8px; padding: 14px;
 }
-.stat-valor { font-size: 28px; font-weight: 800; color: #1f2937; }
-.stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; font-weight: 600; }
+.stat-valor { font-size: 28px; font-weight: 800; color: hsl(var(--foreground)); }
+.stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted-foreground)); font-weight: 600; }
+
+.assinatura-secao { margin-top: 24px; }
 </style>

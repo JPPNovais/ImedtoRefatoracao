@@ -280,6 +280,17 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("text")
                         .HasColumnName("descricao");
 
+                    b.Property<string>("Secao")
+                        .HasColumnType("text")
+                        .HasColumnName("secao");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("texto")
+                        .HasColumnName("tipo");
+
                     b.Property<string>("Valor")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -289,7 +300,70 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
                     b.HasIndex("AtualizadoPorAdminId");
 
+                    b.HasIndex("Secao", "Id")
+                        .HasDatabaseName("ix_imedto_config_secao_chave");
+
                     b.ToTable("imedto_config", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoModeloProntuarioGlobal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTimeOffset?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid?>("AtualizadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizado_por_admin_id");
+
+                    b.Property<string>("ConteudoJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("conteudo_json")
+                        .HasDefaultValueSql("'{}'::jsonb");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid?>("CriadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_admin_id");
+
+                    b.Property<string>("Descricao")
+                        .HasColumnType("text")
+                        .HasColumnName("descricao");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtualizadoPorAdminId");
+
+                    b.HasIndex("CriadoPorAdminId");
+
+                    b.HasIndex("Nome")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imedto_modelo_prontuario_global_nome_lower");
+
+                    b.HasIndex("Ativo", "Nome")
+                        .HasDatabaseName("ix_imedto_modelo_prontuario_global_ativo_nome");
+
+                    b.ToTable("imedto_modelo_prontuario_global", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoPlano", b =>
@@ -354,6 +428,115 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("uq_imedto_planos_nome");
 
                     b.ToTable("imedto_planos", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoRegiaoAnatomicaGlobal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTimeOffset?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.PrimitiveCollection<string[]>("Sinonimos")
+                        .HasColumnType("text[]")
+                        .HasColumnName("sinonimos");
+
+                    b.Property<string>("SistemaCorporal")
+                        .HasColumnType("text")
+                        .HasColumnName("sistema_corporal");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Nome")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imedto_regiao_anatomica_global_nome_lower");
+
+                    b.HasIndex("Ativo", "SistemaCorporal", "Nome")
+                        .HasDatabaseName("ix_imedto_regiao_anatomica_global_ativo_sistema_nome");
+
+                    b.ToTable("imedto_regiao_anatomica_global", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoVariavelPoolGlobal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTimeOffset?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid?>("AtualizadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizado_por_admin_id");
+
+                    b.Property<DateTimeOffset>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid?>("CriadoPorAdminId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_admin_id");
+
+                    b.Property<string>("Descricao")
+                        .HasColumnType("text")
+                        .HasColumnName("descricao");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("tipo");
+
+                    b.Property<string>("ValoresJson")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("valores_json")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AtualizadoPorAdminId");
+
+                    b.HasIndex("CriadoPorAdminId");
+
+                    b.HasIndex("Nome")
+                        .IsUnique()
+                        .HasDatabaseName("uq_imedto_variavel_pool_global_nome_lower");
+
+                    b.HasIndex("Ativo", "Tipo", "Nome")
+                        .HasDatabaseName("ix_imedto_variavel_pool_global_ativo_tipo_nome");
+
+                    b.ToTable("imedto_variavel_pool_global", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Agendamentos.Agendamento", b =>
@@ -5631,8 +5814,34 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoModeloProntuarioGlobal", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("CriadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoPlano", b =>
                 {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("CriadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoVariavelPoolGlobal", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
+                        .WithMany()
+                        .HasForeignKey("AtualizadoPorAdminId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
                         .WithMany()
                         .HasForeignKey("CriadoPorAdminId")

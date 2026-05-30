@@ -83,28 +83,28 @@ async function confirmar() {
     z-index: 1000;
 }
 .modal-box {
-    background: #fff; border-radius: 10px; padding: 28px;
+    background: hsl(var(--card)); border-radius: 10px; padding: 28px;
     max-width: 440px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
 }
 .modal-titulo { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
-.modal-desc { font-size: 13px; color: #6b7280; margin: 0 0 18px; }
+.modal-desc { font-size: 13px; color: hsl(var(--muted-foreground)); margin: 0 0 18px; }
 .modal-campo { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
 .modal-label { font-size: 13px; font-weight: 600; }
-.req { color: #ef4444; }
+.req { color: hsl(var(--destructive)); }
 .modal-textarea {
-    padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px;
     font-size: 13px; resize: vertical; font-family: inherit;
 }
-.modal-textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px #6366f133; }
-.modal-erro { color: #ef4444; font-size: 12px; margin: 0; }
+.modal-textarea:focus { outline: none; border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px hsl(var(--primary))33; }
+.modal-erro { color: hsl(var(--destructive)); font-size: 12px; margin: 0; }
 .modal-acoes { display: flex; justify-content: flex-end; gap: 10px; }
 .btn-cancelar {
-    padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px;
-    background: #fff; font-size: 13px; cursor: pointer;
+    padding: 8px 16px; border: 1px solid hsl(var(--border)); border-radius: 6px;
+    background: hsl(var(--card)); font-size: 13px; cursor: pointer;
 }
 .btn-confirmar {
     padding: 8px 16px; border: none; border-radius: 6px;
-    background: #6366f1; color: #fff; font-size: 13px;
+    background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); font-size: 13px;
     font-weight: 600; cursor: pointer;
 }
 .btn-confirmar:disabled { opacity: 0.5; cursor: not-allowed; }

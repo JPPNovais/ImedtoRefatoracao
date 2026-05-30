@@ -38,13 +38,13 @@ const store = useAdminAuthStore()
 .admin-dashboard-title {
     font-size: 1.75rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0 0 0.5rem;
 }
 
 .admin-dashboard-sub {
     font-size: 0.9375rem;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     margin: 0 0 2rem;
 }
 
@@ -54,11 +54,11 @@ const store = useAdminAuthStore()
 }
 
 .admin-placeholder-card {
-    background: #1e293b;
-    border: 1px dashed #334155;
+    background: hsl(var(--card));
+    border: 1px dashed hsl(var(--border));
     border-radius: 10px;
     padding: 2rem;
-    color: #64748b;
+    color: hsl(var(--muted-foreground));
     font-size: 0.9rem;
     text-align: center;
 }

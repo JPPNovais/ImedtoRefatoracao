@@ -72,6 +72,63 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import("../views/PlanosFormView.vue"),
                 props: true,
             },
+            // Configurações globais
+            {
+                path: "configuracoes",
+                name: "AdminConfiguracoes",
+                component: () => import("../views/ConfigsView.vue"),
+            },
+            // Catálogos — Modelos de prontuário
+            {
+                path: "catalogos/modelos",
+                name: "AdminModelosGlobais",
+                component: () => import("../views/ModelosGlobaisListView.vue"),
+            },
+            {
+                path: "catalogos/modelos/novo",
+                name: "AdminModelosGlobaisNovo",
+                component: () => import("../views/ModelosGlobaisFormView.vue"),
+            },
+            {
+                path: "catalogos/modelos/:id",
+                name: "AdminModelosGlobaisEditar",
+                component: () => import("../views/ModelosGlobaisFormView.vue"),
+                props: true,
+            },
+            // Catálogos — Variáveis pool
+            {
+                path: "catalogos/variaveis",
+                name: "AdminVariaveisGlobais",
+                component: () => import("../views/VariaveisGlobaisListView.vue"),
+            },
+            {
+                path: "catalogos/variaveis/novo",
+                name: "AdminVariaveisGlobaisNovo",
+                component: () => import("../views/VariaveisGlobaisFormView.vue"),
+            },
+            {
+                path: "catalogos/variaveis/:id",
+                name: "AdminVariaveisGlobaisEditar",
+                component: () => import("../views/VariaveisGlobaisFormView.vue"),
+                props: true,
+            },
+            // Catálogos — Regiões anatômicas
+            {
+                path: "catalogos/regioes",
+                name: "AdminRegioesGlobais",
+                component: () => import("../views/RegioesGlobaisListView.vue"),
+            },
+            {
+                path: "catalogos/regioes/novo",
+                name: "AdminRegioesGlobaisNovo",
+                component: () => import("../views/RegioesGlobaisFormView.vue"),
+            },
+            {
+                path: "catalogos/regioes/:id",
+                name: "AdminRegioesGlobaisEditar",
+                component: () => import("../views/RegioesGlobaisFormView.vue"),
+                props: true,
+            },
         ],
     },
     // Rota catch-all para /admin/* não encontrado.

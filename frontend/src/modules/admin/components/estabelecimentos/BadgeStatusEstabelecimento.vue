@@ -18,7 +18,7 @@ defineProps<{ status: string }>()
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.badge-status--ativo { background: #d1fae5; color: #065f46; }
-.badge-status--inativo { background: #f3f4f6; color: #6b7280; }
-.badge-status--suspenso { background: #fef3c7; color: #92400e; }
+.badge-status--ativo { background: hsl(var(--success) / 0.15); color: hsl(var(--success) / 0.15); }
+.badge-status--inativo { background: hsl(var(--muted) / 0.4); color: hsl(var(--muted-foreground)); }
+.badge-status--suspenso { background: hsl(var(--warning) / 0.15); color: hsl(var(--warning-foreground, var(--foreground))); }
 </style>

@@ -268,6 +268,46 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.ConcederGratuidadeAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.EncerrarAssinaturaAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.ListarHistoricoAssinaturasAdminQueryHandler>();
+
+        // Frente 2 — Configs globais
+        services.AddSingleton<Imedto.Backend.Domain.Admin.IConfigGlobalReader,
+                              Imedto.Backend.Infrastructure.Admin.ConfigGlobalReader>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Configs.ListarConfigsAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Configs.AtualizarConfigAdminCommandHandler>();
+
+        // Frente 3 — Catálogos globais (modelos de prontuário)
+        services.AddScoped<Imedto.Backend.Infrastructure.Admin.ImedtoModeloProntuarioGlobalRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoModeloProntuarioGlobalQueryRepository>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.CriarModeloGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.AtualizarModeloGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.DesativarModeloGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.ReativarModeloGlobalCommandHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Catalogos.Modelos.ListarModelosGlobaisQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Modelos.ObterModeloGlobalQueryHandler>();
+
+        // Frente 3 — Catálogos globais (variáveis pool)
+        services.AddScoped<Imedto.Backend.Infrastructure.Admin.ImedtoVariavelPoolGlobalRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoVariavelPoolGlobalQueryRepository>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.CriarVariavelGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.AtualizarVariavelGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.DesativarVariavelGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.ReativarVariavelGlobalCommandHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Catalogos.Variaveis.ListarVariaveisGlobaisQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Variaveis.ObterVariavelGlobalQueryHandler>();
+
+        // Frente 3 — Catálogos globais (regiões anatômicas)
+        services.AddScoped<Imedto.Backend.Infrastructure.Admin.ImedtoRegiaoAnatomicaGlobalRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoRegiaoAnatomicaGlobalQueryRepository>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.CriarRegiaoGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.AtualizarRegiaoGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.DesativarRegiaoGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.ReativarRegiaoGlobalCommandHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Catalogos.Regioes.ListarRegioesGlobaisQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Catalogos.Regioes.ObterRegiaoGlobalQueryHandler>();
+
+        // Frente 3 — Importação tenant
+        services.AddScoped<Imedto.Backend.Application.Prontuarios.ImportarModeloDoGlobalCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Prontuarios.ImportarVariavelDoGlobalCommandHandler>();
     }
 
     /// <summary>

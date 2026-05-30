@@ -64,6 +64,16 @@ Como aplicar:
 
 Se um conceito de domínio aparece em **duas operações diferentes** com a mesma regra (ex: "este usuário pode atuar como profissional neste estabelecimento" → vale para criar agendamento, editar agendamento, listar disponibilidade), extraia em **uma** função do repositório e chame nos dois lugares — não copie o `if`.
 
+## Módulo Admin Global
+
+O módulo administrativo (`frontend/src/modules/admin/`) **reusa o design system do app principal** — mesma `AppSidebar`, `AppTopBar`, `AppPageHeader`, `AppCard`, mesmos tokens HSL (`hsl(var(--primary))`, `hsl(var(--border))`, etc). Zero hex code próprio no CSS scoped do módulo (validado por grep no QA — CA W2-CA31 do briefing 2026-05-30_002).
+
+Marcação de zona privilegiada:
+- **Badge "Admin"** discreto no topbar usando `hsl(var(--destructive))`, ao lado do logo.
+- **Faixa de 2px** na borda superior do topbar com `hsl(var(--warning))` — sinal visual de que o usuário está em área administrativa sem poluir a UX.
+
+O isolamento físico do módulo (sem imports cruzados com outros módulos do app) é mantido — só importa de `components/ui/`, `layouts/` e composables utilitários. Decisão consciente para preservar extração futura (briefing 2026-05-30_001 §10).
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

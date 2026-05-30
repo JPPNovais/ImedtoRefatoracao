@@ -96,13 +96,13 @@ async function handleLogin() {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0f172a;
+    background: hsl(var(--background));
     padding: 1.5rem;
 }
 
 .admin-login-card {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     padding: 2.5rem;
     width: 100%;
@@ -119,13 +119,13 @@ async function handleLogin() {
 .admin-login-logo {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     letter-spacing: -0.02em;
 }
 
 .admin-login-badge {
-    background: #dc2626;
-    color: white;
+    background: hsl(var(--destructive));
+    color: hsl(var(--card));
     font-size: 0.65rem;
     font-weight: 600;
     padding: 0.125rem 0.5rem;
@@ -137,13 +137,13 @@ async function handleLogin() {
 .admin-login-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     margin: 0 0 0.25rem;
 }
 
 .admin-login-subtitle {
     font-size: 0.875rem;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     margin: 0 0 2rem;
 }
 
@@ -162,22 +162,22 @@ async function handleLogin() {
 .admin-field label {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #cbd5e1;
+    color: hsl(var(--foreground));
 }
 
 .admin-field input {
-    background: #0f172a;
-    border: 1px solid #334155;
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
     border-radius: 8px;
     padding: 0.625rem 0.875rem;
     font-size: 0.9375rem;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
     outline: none;
     transition: border-color 0.15s;
 }
 
 .admin-field input:focus {
-    border-color: #3b82f6;
+    border-color: hsl(var(--primary));
 }
 
 .admin-field input:disabled {
@@ -191,13 +191,13 @@ async function handleLogin() {
     border-radius: 6px;
     padding: 0.625rem 0.875rem;
     font-size: 0.875rem;
-    color: #fca5a5;
+    color: hsl(var(--destructive) / 0.7);
     margin: 0;
 }
 
 .admin-login-btn {
-    background: #3b82f6;
-    color: white;
+    background: hsl(var(--primary));
+    color: hsl(var(--card));
     border: none;
     border-radius: 8px;
     padding: 0.75rem 1rem;
@@ -209,7 +209,7 @@ async function handleLogin() {
 }
 
 .admin-login-btn:hover:not(:disabled) {
-    background: #2563eb;
+    background: hsl(var(--primary));
 }
 
 .admin-login-btn:disabled {

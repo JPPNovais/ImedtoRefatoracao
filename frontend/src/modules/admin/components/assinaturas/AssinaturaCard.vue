@@ -168,8 +168,8 @@ async function aoEncerrar() {
 
 <style scoped>
 .assinatura-card {
-    background: #1e293b;
-    border: 1px solid #334155;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 12px;
     overflow: hidden;
 }
@@ -179,7 +179,7 @@ async function aoEncerrar() {
     align-items: center;
     justify-content: space-between;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid #334155;
+    border-bottom: 1px solid hsl(var(--border));
     gap: 1rem;
     flex-wrap: wrap;
 }
@@ -194,12 +194,12 @@ async function aoEncerrar() {
 .assinatura-plano-nome {
     font-size: 1rem;
     font-weight: 700;
-    color: #f8fafc;
+    color: hsl(var(--foreground));
 }
 
 .assinatura-vigente-badge {
-    background: #14532d;
-    color: #4ade80;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     font-size: 0.6875rem;
     font-weight: 600;
     padding: 0.15rem 0.5rem;
@@ -207,8 +207,8 @@ async function aoEncerrar() {
 }
 
 .badge-gratuidade {
-    background: #065f46;
-    color: #6ee7b7;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     font-size: 0.6875rem;
     font-weight: 600;
     padding: 0.15rem 0.5rem;
@@ -216,16 +216,16 @@ async function aoEncerrar() {
 }
 
 .badge-gratuidade-sm {
-    background: #065f46;
-    color: #6ee7b7;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     font-size: 0.6875rem;
     padding: 0.1rem 0.4rem;
     border-radius: 9999px;
 }
 
 .badge-normal {
-    background: #1e3a5f;
-    color: #93c5fd;
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(var(--primary) / 0.8);
     font-size: 0.6875rem;
     padding: 0.1rem 0.4rem;
     border-radius: 9999px;
@@ -233,11 +233,11 @@ async function aoEncerrar() {
 
 .assinatura-datas {
     font-size: 0.8125rem;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
 }
 
 .assinatura-sem-plano {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     font-size: 0.875rem;
 }
 
@@ -247,8 +247,8 @@ async function aoEncerrar() {
 }
 
 .admin-btn-secondary {
-    background: #334155;
-    color: #f8fafc;
+    background: hsl(var(--border));
+    color: hsl(var(--foreground));
     border: none;
     border-radius: 6px;
     padding: 0.4375rem 0.875rem;
@@ -257,12 +257,12 @@ async function aoEncerrar() {
 }
 
 .admin-btn-secondary:hover {
-    background: #475569;
+    background: hsl(var(--border));
 }
 
 .admin-btn-gratuidade {
-    background: #065f46;
-    color: #6ee7b7;
+    background: hsl(var(--success) / 0.15);
+    color: hsl(var(--success));
     border: none;
     border-radius: 6px;
     padding: 0.4375rem 0.875rem;
@@ -272,7 +272,7 @@ async function aoEncerrar() {
 }
 
 .admin-btn-gratuidade:hover {
-    background: #047857;
+    background: hsl(var(--success));
 }
 
 .assinatura-historico {
@@ -282,7 +282,7 @@ async function aoEncerrar() {
 .assinatura-historico-titulo {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin: 0 0 0.75rem;
@@ -298,11 +298,11 @@ async function aoEncerrar() {
 .admin-table-mini td {
     text-align: left;
     padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid #0f172a;
+    border-bottom: 1px solid hsl(var(--background));
 }
 
 .admin-table-mini th {
-    color: #64748b;
+    color: hsl(var(--muted-foreground));
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -314,8 +314,8 @@ async function aoEncerrar() {
 
 .btn-encerrar {
     background: none;
-    border: 1px solid #f87171;
-    color: #f87171;
+    border: 1px solid hsl(var(--destructive));
+    color: hsl(var(--destructive));
     border-radius: 4px;
     padding: 0.2rem 0.5rem;
     font-size: 0.75rem;
@@ -329,13 +329,13 @@ async function aoEncerrar() {
 .assinatura-vazio,
 .assinatura-carregando,
 .admin-erro {
-    color: #94a3b8;
+    color: hsl(var(--muted-foreground));
     text-align: center;
     padding: 1rem 0;
     font-size: 0.875rem;
 }
 
 .admin-erro {
-    color: #f87171;
+    color: hsl(var(--destructive));
 }
 </style>

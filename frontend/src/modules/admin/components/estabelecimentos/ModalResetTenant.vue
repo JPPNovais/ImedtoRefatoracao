@@ -121,43 +121,43 @@ function confirmar() {
     z-index: 1000;
 }
 .modal-box {
-    background: #fff; border-radius: 10px; padding: 0;
+    background: hsl(var(--card)); border-radius: 10px; padding: 0;
     max-width: 480px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.22);
     overflow: hidden;
 }
 .modal-danger-strip {
-    background: #ef4444; color: #fff;
+    background: hsl(var(--destructive)); color: hsl(var(--primary-foreground));
     padding: 6px 24px;
     font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
 }
 .modal-titulo { font-size: 18px; font-weight: 700; margin: 20px 24px 8px; }
-.modal-desc { font-size: 13px; color: #374151; margin: 0 24px 20px; line-height: 1.5; }
+.modal-desc { font-size: 13px; color: hsl(var(--foreground)); margin: 0 24px 20px; line-height: 1.5; }
 .modal-campo { display: flex; flex-direction: column; gap: 6px; margin: 0 24px 16px; }
 .modal-campo--check { flex-direction: row; align-items: flex-start; gap: 10px; }
 .modal-label { font-size: 13px; font-weight: 600; }
 .modal-label-check { font-size: 13px; line-height: 1.4; }
-.req { color: #ef4444; }
+.req { color: hsl(var(--destructive)); }
 .modal-input, .modal-textarea {
-    padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 6px;
     font-size: 13px; font-family: inherit;
 }
 .modal-input:focus, .modal-textarea:focus {
-    outline: none; border-color: #ef4444; box-shadow: 0 0 0 2px #ef444433;
+    outline: none; border-color: hsl(var(--destructive)); box-shadow: 0 0 0 2px hsl(var(--destructive))33;
 }
 .modal-textarea { resize: vertical; }
-.modal-erro { color: #ef4444; font-size: 12px; margin: 0; }
+.modal-erro { color: hsl(var(--destructive)); font-size: 12px; margin: 0; }
 .modal-erro--global { margin: 0 24px 12px; font-size: 13px; }
 .modal-acoes {
     display: flex; justify-content: flex-end; gap: 10px;
-    padding: 16px 24px; border-top: 1px solid #f3f4f6; margin-top: 4px;
+    padding: 16px 24px; border-top: 1px solid hsl(var(--muted) / 0.4); margin-top: 4px;
 }
 .btn-cancelar {
-    padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 6px;
-    background: #fff; font-size: 13px; cursor: pointer;
+    padding: 8px 16px; border: 1px solid hsl(var(--border)); border-radius: 6px;
+    background: hsl(var(--card)); font-size: 13px; cursor: pointer;
 }
 .btn-perigo {
     padding: 8px 18px; border: none; border-radius: 6px;
-    background: #ef4444; color: #fff; font-size: 13px;
+    background: hsl(var(--destructive)); color: hsl(var(--primary-foreground)); font-size: 13px;
     font-weight: 700; cursor: pointer;
 }
 .btn-perigo:disabled { opacity: 0.45; cursor: not-allowed; }

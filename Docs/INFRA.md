@@ -140,7 +140,7 @@ Imagens publicadas:
 
 ## Área Admin Global — Schema e Bootstrap
 
-### Tabelas criadas (migration `20260530034709`)
+### Tabelas criadas (migration `20260530034709` — Wave 1)
 
 Todas globais — sem `estabelecimento_id`. Prefixo `imedto_` para distinguir das tabelas legado.
 
@@ -151,7 +151,48 @@ Todas globais — sem `estabelecimento_id`. Prefixo `imedto_` para distinguir da
 | `imedto_admin_audit_log` | Audit append-only. Retenção 2 anos (ver LGPD.md). `tenant_afetado_id` é bigint nullable sem FK física (log permanece se tenant for excluído). |
 | `imedto_planos` | Catálogo de planos admin. **Diferente de `planos` (bigint, domínio cliente legado)**. UUID PK, preço em centavos inteiros nullable. |
 | `imedto_assinaturas` | Histórico imutável de assinaturas. **Diferente de `assinaturas` (bigint 1:1)**. INSERT nova linha ao trocar plano, nunca UPDATE. |
-| `imedto_config` | Key-value global. PK é a chave text. Valor JSONB. |
+| `imedto_config` | Key-value global. PK é a chave text. Valor JSONB. Colunas `tipo` e `secao` adicionadas na Wave 2. |
+
+### Tabelas criadas (migration `20260530131404` — Wave 2: catálogos globais)
+
+Todas globais — sem `estabelecimento_id`. A tentativa de inserir `estabelecimento_id` nessas tabelas falha por coluna inexistente (CA W2-CA38).
+
+| Tabela | Propósito |
+|---|---|
+| `imedto_modelo_prontuario_global` | Catálogo de modelos de prontuário do sistema. Admin edita; tenants importam como cópia independente. Sem live-link (R11). |
+| `imedto_variavel_pool_global` | Catálogo de variáveis pool do sistema. Tipos: `texto`, `numerico`, `data`, `lista`, `booleano`. |
+| `imedto_regiao_anatomica_global` | Catálogo de regiões anatômicas de alto nível. Distinto de `regioes_anatomicas_catalogo` (hierárquico, exame físico interativo). `sinonimos` é `text[]` com índice GIN. |
+
+**Índices estratégicos das tabelas Wave 2**:
+- `uq_imedto_*_nome_lower` — unique parcial sobre `LOWER(nome) WHERE ativo = true` (case-insensitive, criado com CONCURRENTLY).
+- `ix_imedto_modelo_prontuario_global_ativo_nome` — listagem filtrada.
+- `ix_imedto_variavel_pool_global_ativo_tipo_nome` — listagem filtrada por tipo.
+- `ix_imedto_regiao_anatomica_global_ativo_sistema_nome` — listagem filtrada por sistema corporal.
+- `ix_imedto_regiao_anatomica_global_sinonimos_gin` — busca por array de sinônimos.
+
+### Decisão sobre regiões anatômicas (Wave 2)
+
+Cenário aplicado: **Cenário 2 — nova tabela global ao lado da existente**.
+- `regioes_anatomicas_catalogo` — tabela hierárquica com 144+ itens (codigo, pai_codigo, nivel, vista, svg). Serve o exame físico interativo (componente SVG do prontuário). Mantida intacta.
+- `imedto_regiao_anatomica_global` — nova tabela de alto nível (nome, sistema_corporal, sinonimos). Serve o CRUD admin e formulários clínicos genéricos dos tenants. Seedada com 15 regiões básicas.
+- As duas coexistem com propósitos distintos. Sem migração de dados entre elas.
+
+### Configs default em `imedto_config` (Wave 2 — seeds)
+
+8 chaves seedadas via `20260530131406_seed_catalogos_globais_wave2.sql`:
+
+| Chave | Tipo | Seção | Valor default |
+|---|---|---|---|
+| `trial.dias_padrao` | numerico | Trial | `14` |
+| `trial.limite_profissionais` | numerico | Trial | `5` |
+| `assinatura.dias_aviso_expiracao` | numerico | Assinatura | `7` |
+| `sistema.email_suporte` | email | Sistema | `"suporte@imedto.com.br"` |
+| `feature_flags.exemplo` | toggle | Feature Flags | `false` |
+| `comunicacao.smtp_remetente` | email | Comunicação | `"noreply@imedto.com.br"` |
+| `comunicacao.from_padrao` | texto | Comunicação | `"Imedto"` |
+| `seguranca.tempo_sessao_admin_min` | numerico | Segurança | `15` |
+
+Valores armazenados como JSONB (números sem aspas, strings com aspas, booleans sem aspas). ON CONFLICT DO NOTHING.
 
 ### Seed de plano "Gratuidade Vitalícia"
 

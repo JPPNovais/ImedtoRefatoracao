@@ -97,4 +97,25 @@ public static class AcoesAuditAdmin
     public const string ConcederGratuidade = "CONCEDER_GRATUIDADE";
     public const string EncerrarAssinatura = "ENCERRAR_ASSINATURA";
     public const string ResetSenhaPropria = "RESET_SENHA_PROPRIA";
+
+    // Frente 2 — Configs globais
+    public const string AtualizarConfig = "ATUALIZAR_CONFIG";
+
+    // Frente 3 — Catálogos globais (modelos de prontuário)
+    public const string CriarModeloGlobal = "CRIAR_MODELO_PRONTUARIO_GLOBAL";
+    public const string AtualizarModeloGlobal = "ATUALIZAR_MODELO_PRONTUARIO_GLOBAL";
+    public const string DesativarModeloGlobal = "DESATIVAR_MODELO_PRONTUARIO_GLOBAL";
+    public const string ReativarModeloGlobal = "REATIVAR_MODELO_PRONTUARIO_GLOBAL";
+
+    // Frente 3 — Catálogos globais (variáveis pool)
+    public const string CriarVariavelGlobal = "CRIAR_VARIAVEL_POOL_GLOBAL";
+    public const string AtualizarVariavelGlobal = "ATUALIZAR_VARIAVEL_POOL_GLOBAL";
+    public const string DesativarVariavelGlobal = "DESATIVAR_VARIAVEL_POOL_GLOBAL";
+    public const string ReativarVariavelGlobal = "REATIVAR_VARIAVEL_POOL_GLOBAL";
+
+    // Frente 3 — Catálogos globais (regiões anatômicas)
+    public const string CriarRegiaoGlobal = "CRIAR_REGIAO_ANATOMICA_GLOBAL";
+    public const string AtualizarRegiaoGlobal = "ATUALIZAR_REGIAO_ANATOMICA_GLOBAL";
+    public const string DesativarRegiaoGlobal = "DESATIVAR_REGIAO_ANATOMICA_GLOBAL";
+    public const string ReativarRegiaoGlobal = "REATIVAR_REGIAO_ANATOMICA_GLOBAL";
 }
