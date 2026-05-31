@@ -117,7 +117,7 @@ jobs:
           cache-to: type=gha,mode=min,scope=backend
 
   # ─────────────────────────────────────────────────────────────────
-  # Migration: gera SQL idempotente e aplica no RDS via SSH na EC2.
+  # Migration: gera SQL idempotente e aplica no Postgres local (container na EC2) via SSH.
   # Espera: testes do backend (não pode aplicar schema quebrado) + build (não tem efeito direto, mas garante que a imagem está pronta antes).
   # ─────────────────────────────────────────────────────────────────
   migrate:
@@ -166,7 +166,7 @@ jobs:
         run: |
           scp -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null /tmp/migrate.sql "ec2-user@${EC2_HOST}:/tmp/migrate.sql"
           scp -i ~/.ssh/deploy.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null deploy/scripts/migrate.sh "ec2-user@${EC2_HOST}:/tmp/migrate.sh"
-      - name: Apply migrations on RDS
+      - name: Apply migrations on Postgres (local container)
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |

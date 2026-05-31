@@ -24,30 +24,41 @@
 | Key pair | `imedto-deploy` → `~/.ssh/imedto-deploy.pem` no laptop |
 | IAM role | `imedto-ec2-role` (S3 buckets + SSM `/imedto/*` + SES Send + CloudWatch Logs) |
 | Bootstrap | Docker 25 + Compose v2 + psql 15 instalados via `user-data` |
-| Containers (Docker Compose em `/home/ec2-user/imedto/`) | `imedto-caddy` (TLS Let's Encrypt nas portas 80/443) + `imedto-frontend` (nginx servindo SPA) + `imedto-backend` (.NET 10 API) |
+| Containers (Docker Compose em `/home/ec2-user/imedto/`) | `imedto-caddy` (TLS Let's Encrypt nas portas 80/443) + `imedto-frontend` (nginx servindo SPA) + `imedto-backend` (.NET 10 API) + `imedto-postgres` (Postgres 17, banco local — ver seção Database) |
+| Swap | 2 GB (`/swapfile`, `vm.swappiness=10`) — rede de segurança de RAM com o Postgres co-residente |
 | Acesso | `ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136` |
 
 > **Atenção:** SG da EC2 (`sg-0555c057e7d4dc46b`) libera SSH `0.0.0.0/0` (necessário pro GitHub Actions runner). Em prod, restringir a ranges específicos.
 
-## Database (1× RDS Postgres — Free Tier)
+## Database (Postgres 17 — container na própria EC2)
+
+> **2026-05-30 — saída do RDS.** Para reduzir custo no estágio de teste/baixo volume, o banco
+> deixou de ser RDS gerenciado e passou a rodar como container `imedto-postgres` na própria EC2
+> (Docker Compose). Economia de ~US$ 27/mês (compute RDS) + ~US$ 3/mês (storage). O RDS `imedto-dev`
+> foi deletado após snapshot final `imedto-dev-final-pre-ec2-postgres-20260531` (restaurável).
+> **Trade-off aceito:** sem backup gerenciado/Multi-AZ. Quando voltar a prod com volume real,
+> reavaliar retorno ao RDS (restaurar do snapshot ou `pg_dump` do container → RDS novo).
 
 | Item | Valor |
 |---|---|
-| Identifier | `imedto-dev` |
-| Engine | Postgres 17.2 — `db.t4g.micro` Single-AZ, 20 GB gp3 (encriptado) |
-| Endpoint | `imedto-dev.cx0648wywxg8.sa-east-1.rds.amazonaws.com:5432` |
-| Database de aplicação | `imedto` (master user `imedto`, senha em SSM) |
-| SG (`imedto-rds-sg`) | porta 5432 **só** do `imedto-ec2-sg` (RDS é privado) |
-| Backups | 0 dias (limitação do Free Tier "new plan" — ativar quando sair do Free Tier) |
-| Extensions instaladas | `pg_trgm`, `unaccent`, `btree_gist`, `pgcrypto`, `citext` |
+| Container | `imedto-postgres` — `postgres:17-alpine`, rede interna Docker `imedto` |
+| Conexão (backend) | `Host=postgres;Port=5432;Database=imedto;Username=imedto;SSL Mode=Disable` (rede interna, sem TLS) |
+| Volume de dados | `pgdata` (Docker named volume, persiste entre deploys) |
+| Senha | `DB_PASSWORD` do SSM `/imedto/dev/db-password` (volume inicializado com ela) |
+| Tuning t3.micro | `shared_buffers=96MB`, `max_connections=50`, `effective_cache_size=256MB` |
+| Extensions | `pg_trgm`, `unaccent`, `btree_gist`, `pgcrypto`, `citext` (vieram no restore do dump) |
+| Backups | ⚠️ Nenhum automático. Fazer `pg_dump` manual periódico se os dados de teste importarem. |
 
-**Acesso ao RDS** (sem endpoint público):
+**Acesso ao banco** (psql direto na EC2):
 ```bash
-# Túnel via EC2 (laptop):
-ssh -i ~/.ssh/imedto-deploy.pem -L 5432:imedto-dev.cx0648wywxg8.sa-east-1.rds.amazonaws.com:5432 ec2-user@56.125.254.136
-# Outro terminal:
-PGPASSWORD=$(aws ssm get-parameter --name /imedto/dev/db-password --with-decryption --query Parameter.Value --output text) \
-    psql -h localhost -U imedto -d imedto
+ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136
+docker exec -it imedto-postgres psql -U imedto -d imedto
+```
+
+**Backup manual** (dump para o laptop):
+```bash
+ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136 \
+    'docker exec imedto-postgres pg_dump -U imedto -d imedto --no-owner --no-privileges' > backup-$(date +%F).sql
 ```
 
 ## Storage (S3 — 2 buckets privados)
@@ -122,7 +133,7 @@ Zona `imedto.com` (hosted zone `Z01357441MJ00U1TI5J95`):
 Arquivo: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
 
 **Em PR**: roda `test-backend` + `test-frontend` (paralelo).
-**Em push pra `main`**: roda os 2 testes + `build-push` (Docker → ghcr.io) **em paralelo** → `migrate` (gera SQL idempotente + aplica via SSH no RDS) → `deploy` (rsync + docker compose pull/up via SSH na EC2) → `smoke` (`curl /health`).
+**Em push pra `main`**: roda os 2 testes + `build-push` (Docker → ghcr.io) **em paralelo** → `migrate` (gera SQL idempotente + aplica via SSH no container `imedto-postgres` da EC2) → `deploy` (rsync + docker compose pull/up via SSH na EC2) → `smoke` (`curl /health`).
 
 ⚠️ **1 push só por sessão de trabalho**: cada push em `main` dispara o pipeline de ~3-5 min e um deploy de produção. Se você fez várias mudanças numa mesma sessão, faça vários commits localmente se quiser (1 commit por mudança lógica é OK), mas **agrupe tudo num único `git push`**. Não fazer pushes sequenciais "um por commit" — desperdiça runners, polui o histórico de deploy e atrasa feedback. Se já deu push e percebeu que faltou algo pequeno, ainda assim espere reunir o próximo bloco de mudanças antes de subir de novo.
 
@@ -242,7 +253,7 @@ Pepper vem de `Auth:Bcrypt:Pepper` (dev: `appsettings.Development.json`; prod: S
 
 ## Decisões já tomadas (não reabrir sem motivo forte)
 
-1. **Free Tier first**: 1 EC2 + 1 RDS + S3, tudo em sa-east-1. Próximo upgrade: Multi-AZ + ECS Fargate quando sair de teste.
+1. **Free Tier first**: 1 EC2 (com Postgres co-residente em container) + S3, tudo em sa-east-1. RDS removido em 2026-05-30 por custo (ver seção Database). Próximo upgrade: voltar ao RDS gerenciado (Multi-AZ) + ECS Fargate quando o volume justificar.
 2. **Auth local** (`LocalJwtAuthService` + ECDSA P-256). Sem Cognito (lock-in maior). Refresh tokens persistidos com SHA-256 hash em `auth_refresh_tokens`.
 3. **Storage S3 sempre privado**, acesso via presigned URL. Sem CloudFront em dev (não é Free Tier).
 4. **Caddy + Let's Encrypt** em vez de ALB + ACM (Caddy renova automático, mantém volume `caddy-data` persistente).
@@ -251,13 +262,13 @@ Pepper vem de `Auth:Bcrypt:Pepper` (dev: `appsettings.Development.json`; prod: S
 7. **Cooldown 5 min** em reenvio de e-mail (`auth_email_tokens` consulta `criado_em`) — anti-spam idempotente.
 8. **Anti-enumeração**: forgot-password e reenviar-confirmacao **sempre** retornam 204 (nunca revelam se e-mail existe).
 9. **Sem RLS no Postgres**. Defense-in-depth fica no backend (filter multi-tenant + `[RequiresPapel]` + mensagens genéricas).
-10. **Custo mensal estimado**: US$ 0,50 (apenas Route 53 hosted zone). Resto Free Tier 12 meses.
+10. **Custo mensal estimado**: durante o Free Tier, ~US$ 4 (1 Elastic IP + Route 53). Após o Free Tier expirar, ~US$ 18 (EC2 t3.micro + EBS + IP + Route 53) — o RDS (~US$ 27) foi eliminado ao mover o Postgres pra dentro da EC2.
 
 ## Pra cleanup ou recriar tudo
 
 Comandos completos em [`infra/aws-resources.md`](../infra/aws-resources.md). Resumo:
-- **Não derrubar a EC2/RDS** sem aviso — perde dados e quebra produção.
-- Pra trocar instance type/migrar pra Aurora: `pg_dump` no RDS atual, `pg_restore` no novo, depois apontar `Storage:Region` e `db-host` SSM. Backend reinicia sozinho com nova connection.
+- **Não derrubar a EC2** sem aviso — o banco agora vive nela (volume `pgdata`); perder a EC2 = perder os dados de teste. Fazer `pg_dump` antes.
+- Pra voltar ao RDS gerenciado: criar RDS novo (ou restaurar o snapshot `imedto-dev-final-pre-ec2-postgres-20260531`), `pg_dump` do container → restore no RDS, apontar `ConnectionStrings__Default` de volta pra `${DB_HOST}` (SSM) no `deploy/docker-compose.yml` e remover o serviço `postgres`.
 
 ## Onde ficam os secrets
 

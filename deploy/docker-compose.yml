@@ -1,8 +1,32 @@
 # docker-compose.yml — deploy no EC2 (sa-east-1)
 # Lido junto com o .env gerado pelo scripts/pull-secrets.sh.
 # Imagens vêm do GitHub Container Registry (ghcr.io).
+#
+# Banco: Postgres roda como container nesta mesma EC2 (não mais RDS).
+# Decisão de redução de custo — ambiente de teste/baixo volume. Volume `pgdata`
+# persiste os dados. Senha = DB_PASSWORD do SSM (volume foi inicializado com ela).
 
 services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: imedto-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: imedto
+      POSTGRES_DB: imedto
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [imedto]
+    # Tuning para t3.micro (1 GB RAM, compartilhado com .NET + nginx + caddy).
+    command: postgres -c shared_buffers=96MB -c max_connections=50 -c effective_cache_size=256MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imedto -d imedto"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   backend:
     image: ghcr.io/${GHCR_OWNER}/imedto-backend:${IMAGE_TAG:-latest}
     container_name: imedto-backend
@@ -11,15 +35,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: "http://+:5000"
-      # Pool Npgsql:
-      # - Maximum Pool Size=20 → folga sem estourar max_connections=81 do RDS t4g.micro
-      #   (margem para psql administrativo + workflow de migrate em CI).
-      # - Minimum Pool Size=2 → mantém 2 conexões warm; primeiro request não paga TLS handshake.
-      # - Connection Idle Lifetime=300 → recicla idle após 5min, libera slot do RDS.
+      # Pool Npgsql (Postgres local — rede interna Docker, sem TLS):
+      # - Maximum Pool Size=20 → folga sem estourar max_connections=50 do container.
+      # - Minimum Pool Size=2 → mantém 2 conexões warm.
+      # - Connection Idle Lifetime=300 → recicla idle após 5min.
       # - Connection Pruning Interval=10 → varre idle a cada 10s.
       # - Command Timeout=30 → query lenta (>30s) aborta em vez de segurar pool inteiro.
-      ConnectionStrings__Default: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;Pooling=true;Maximum Pool Size=20;Minimum Pool Size=2;Connection Idle Lifetime=300;Connection Pruning Interval=10;Command Timeout=30"
-      ConnectionStrings__Migrations: "Host=${DB_HOST};Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Command Timeout=120"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Disable;Pooling=true;Maximum Pool Size=20;Minimum Pool Size=2;Connection Idle Lifetime=300;Connection Pruning Interval=10;Command Timeout=30"
+      ConnectionStrings__Migrations: "Host=postgres;Port=5432;Database=imedto;Username=imedto;Password=${DB_PASSWORD};SSL Mode=Disable;Pooling=false;Command Timeout=120"
       Auth__Jwt__Issuer: imedto-backend
       Auth__Jwt__Audience: imedto-app
       Auth__Jwt__PrivateKeyPem: ${JWT_PRIVATE_KEY_PEM}
@@ -40,6 +63,9 @@ services:
       Cors__AllowedOrigins__1: "https://imedto.com"
       Cors__AllowedOrigins__2: "https://www.imedto.com"
     expose: ["5000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks: [imedto]
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:5000/health"]
@@ -79,3 +105,4 @@ networks:
 volumes:
   caddy-data:
   caddy-config:
+  pgdata:
