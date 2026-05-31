@@ -1,0 +1,10 @@
+# Memory Index — imedto-qa
+
+- [Briefing admin-global-mvp: status final — commit 3d602e6 pushed](session_admin_global_mvp_final.md) — pipeline fechada com 1 bug Tipo A aberto (AdminResetService.cs): reset de tenant causa 500 por tabelas inexistentes.
+- [Bug aberto Tipo A — AdminResetService tabelas orcamento inexistentes](bug_reset_service_orcamento_tables.md) — DELETEs de orcamento_anestesia/cirurgias/implantes/internacao causam 500; fix: remover linhas 187-206 do AdminResetService.cs.
+- [Wave 2 admin global: pipeline fechada — commit ad3238a pushed](session_wave2_final.md) — 40 CAs validados; débito técnico W2-CA29/CA32 (AdminLayout não usa AppSidebar/AppTopBar) registrado no commit para Wave 3.
+- [Wave 3 admin global: pipeline fechada — commit cef073f pushed](session_wave3_final.md) — 34 CAs validados; débito W2-CA29/CA32 fechado. Senha dev: admin@imedto.com / 123123. Usar SPA navigation no Chrome headless (cookies HttpOnly expiram entre page.navigate).
+- [Wave 4 admin global: pipeline fechada — commit e81ae74 pushed](session_wave4_final.md) — drop tabelas Wave 2, live-link via EhPadraoSistema, RegiaoTreeView. Backend porta 5050 (Vite proxy). Migration RDS pendente de apply.
+- [Wave 5 admin global: pipeline fechada — commit 21d47a9 pushed](session_wave5_final.md) — 13 CAs validados; builder visual ModeloProntuarioBuilder.vue compartilhado tenant+admin. Usuários tenant QA têm senha migrada do legado (não '123123'). MSBuild MSB3492 é cache pré-existente.
+- [Wave 6 admin global: pipeline fechada — commit c0e85c8 pushed](session_wave6_final.md) — 26 CAs validados; dashboard admin completo (KPIs/gráfico/alertas/audit log). Bug DateTimeOffset corrigido pelo orquestrador na Rodada 2 (DateTimeOffset.UtcNow.Date → new DateTimeOffset(..., TimeSpan.Zero)).
+- [Wave 7 admin global: pipeline fechada — commit 6ea752d pushed](session_wave7_final.md) — 15 CAs validados; minimização audit log (corte ruído + job retenção). Armadilha: backend Wave 6 na porta 5050 ainda ativo ao iniciar QA — matar processo antigo antes de subir backend Wave 7.

@@ -182,11 +182,16 @@ function irPara(m: Modo) {
                         :disabled="reenviando || cooldownReenvio > 0 || !email"
                         @click="reenviarConfirmacao"
                     >
-                        <template v-if="reenviando">Enviando…</template>
+                        <template v-if="reenviando">
+                            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                            Enviando…
+                        </template>
                         <template v-else-if="cooldownReenvio > 0">
+                            <i class="fa-regular fa-clock" aria-hidden="true"></i>
                             Aguarde {{ Math.floor(cooldownReenvio / 60) }}:{{ String(cooldownReenvio % 60).padStart(2, "0") }} para reenviar
                         </template>
                         <template v-else>
+                            <i class="fa-regular fa-paper-plane" aria-hidden="true"></i>
                             Não recebeu? Reenviar e-mail de confirmação
                         </template>
                     </button>
@@ -472,6 +477,36 @@ function irPara(m: Modo) {
     background: hsl(var(--error) / 0.08);
     color: hsl(var(--error));
     border: 1px solid hsl(var(--error) / 0.2);
+}
+
+/* ── Reenvio de confirmação ── */
+.reenvio-confirmacao {
+    display: flex;
+    justify-content: center;
+    margin: -6px 0 18px;
+}
+.btn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: none;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: hsl(var(--primary));
+    cursor: pointer;
+    transition: background var(--dur-fast), color var(--dur-fast);
+}
+.btn-link > i { font-size: 12px; }
+.btn-link:hover:not(:disabled) {
+    background: hsl(var(--primary) / 0.08);
+}
+.btn-link:disabled {
+    color: hsl(var(--secondary) / 0.5);
+    cursor: not-allowed;
 }
 
 /* ── Field ── */

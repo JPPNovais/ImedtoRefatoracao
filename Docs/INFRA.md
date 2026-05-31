@@ -97,8 +97,10 @@ DKIM dos dois providers já configurado no Route 53 (`resend._domainkey`, `<toke
 **Trocar provider em prod:**
 ```bash
 aws ssm put-parameter --name /imedto/dev/email/provider --value "Ses" --type String --overwrite
-ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136 'cd ~/imedto && ./scripts/pull-secrets.sh && docker compose restart backend'
+ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136 'cd ~/imedto && ./scripts/pull-secrets.sh && docker compose up -d --force-recreate backend'
 ```
+
+> ⚠️ **Use `up -d --force-recreate`, não `restart`, ao trocar um segredo/variável no SSM.** O `docker compose restart` reinicia o mesmo container e **não relê o `.env`** (env vars são resolvidas na criação do container). Só `up -d --force-recreate` (ou `down && up`) recria o container carregando o `.env` regenerado pelo `pull-secrets.sh`. Vale para qualquer rotação de secret: `resend/api-key`, `bcrypt/pepper`, `jwt/*`, `db-password` etc.
 
 ## DNS (Route 53)
 
