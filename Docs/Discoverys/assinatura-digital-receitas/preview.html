@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discovery — Assinatura Digital de Receitas · Imedto</title>
+<style>
+  :root {
+    --primary: hsl(254 56% 38%);
+    --primary-dark: hsl(254 56% 21%);
+    --primary-light: hsl(254 40% 95%);
+    --bg: hsl(240 33% 99%);
+    --bg-card: #fff;
+    --bg-muted: hsl(240 5% 96%);
+    --text: hsl(0 0% 20%);
+    --text-muted: hsl(0 0% 42%);
+    --text-faint: hsl(0 0% 60%);
+    --border: hsl(240 6% 90%);
+    --border-strong: hsl(240 6% 82%);
+    --success: hsl(160 79% 35%);
+    --success-bg: hsl(160 60% 95%);
+    --warning: hsl(38 92% 42%);
+    --warning-bg: hsl(45 96% 94%);
+    --danger: hsl(0 74% 50%);
+    --danger-bg: hsl(0 84% 97%);
+    --info: hsl(199 89% 42%);
+    --info-bg: hsl(199 89% 95%);
+    --radius: 0.5rem;
+    --radius-lg: 0.85rem;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+    --shadow-lg: 0 12px 28px -8px rgba(0,0,0,.14), 0 8px 10px -6px rgba(0,0,0,.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.55;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+  a { color: var(--primary); }
+
+  /* Sticky nav */
+  nav.toc {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,.85); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.toc .wrap { display: flex; gap: 4px; align-items: center; overflow-x: auto; height: 52px; }
+  nav.toc a {
+    font-size: 13px; font-weight: 500; color: var(--text-muted);
+    text-decoration: none; padding: 7px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  nav.toc a:hover { background: var(--primary-light); color: var(--primary); }
+  nav.toc .brand { font-weight: 700; color: var(--primary); padding-right: 8px; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff; padding: 72px 0 96px; position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content: ""; position: absolute; inset: auto 0 -1px 0; height: 40px;
+    background: var(--bg); clip-path: polygon(0 100%, 100% 100%, 100% 0);
+  }
+  .hero .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25);
+    padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; margin-bottom: 20px;
+  }
+  .hero .badge::before { content: ""; width: 8px; height: 8px; background: hsl(160 79% 60%); border-radius: 50%; }
+  .hero h1 { font-size: 42px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 16px; max-width: 880px; }
+  .hero .tagline { font-size: 18px; opacity: .9; max-width: 760px; line-height: 1.5; }
+  .hero .meta { margin-top: 30px; display: flex; gap: 30px; font-size: 13px; opacity: .8; flex-wrap: wrap; }
+  .hero .meta strong { color: #fff; opacity: 1; font-weight: 600; }
+
+  /* Sections */
+  section { padding: 56px 0; }
+  section.alt { background: var(--bg-muted); }
+  .eyebrow { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary); margin-bottom: 10px; }
+  h2 { font-size: 28px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 10px; }
+  h2 + .lead { font-size: 16px; color: var(--text-muted); max-width: 760px; margin-bottom: 32px; }
+  h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+
+  /* Cards & grids */
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm); }
+  .grid { display: grid; gap: 18px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 920px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } .hero h1 { font-size: 30px; } nav.toc { display: none; } }
+
+  /* TL;DR cards */
+  .tldr-card { padding: 22px; border-left: 4px solid var(--border-strong); }
+  .tldr-card .label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; display:flex; align-items:center; gap:6px; }
+  .tldr-card .value { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.3; }
+  .tldr-card .desc { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; }
+  .tldr-card.primary { border-left-color: var(--primary); }
+  .tldr-card.success { border-left-color: var(--success); }
+  .tldr-card.warning { border-left-color: var(--warning); }
+  .tldr-card.danger { border-left-color: var(--danger); }
+  .tldr-card.info { border-left-color: var(--info); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--bg-muted); font-weight: 600; color: var(--text-muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+  tbody tr:hover { background: hsl(254 40% 98.5%); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-sm); }
+  .price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .check { color: var(--success); font-weight: 700; }
+  .cross { color: var(--danger); font-weight: 700; }
+  .partial { color: var(--warning); font-weight: 700; }
+  .unknown { color: var(--text-faint); }
+  tr.highlight td { background: var(--success-bg); }
+  tr.highlight:hover td { background: hsl(160 60% 92%); }
+
+  /* Pills */
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+  .pill.rec { background: var(--primary-light); color: var(--primary); }
+  .pill.ok { background: var(--success-bg); color: var(--success); }
+  .pill.warn { background: var(--warning-bg); color: var(--warning); }
+  .pill.bad { background: var(--danger-bg); color: var(--danger); }
+  .pill.info { background: var(--info-bg); color: var(--info); }
+
+  /* Callouts */
+  .callout { border-radius: var(--radius-lg); padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start; font-size: 14.5px; line-height: 1.55; }
+  .callout .ico { font-size: 22px; line-height: 1; flex-shrink: 0; }
+  .callout.success { background: var(--success-bg); border: 1px solid hsl(160 60% 80%); }
+  .callout.warning { background: var(--warning-bg); border: 1px solid hsl(45 90% 78%); }
+  .callout.danger { background: var(--danger-bg); border: 1px solid hsl(0 80% 88%); }
+  .callout.info { background: var(--info-bg); border: 1px solid hsl(199 80% 80%); }
+  .callout strong { font-weight: 700; }
+
+  /* Flow steps */
+  .steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; counter-reset: step; }
+  .step { position: relative; padding: 18px 14px; text-align: center; }
+  .step .n { width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+  .step .t { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; }
+  .step:not(:last-child)::after { content: "→"; position: absolute; top: 30px; right: -8px; color: var(--border-strong); font-size: 18px; }
+  @media (max-width: 920px) { .steps { grid-template-columns: 1fr 1fr; } .step::after { display: none !important; } }
+
+  /* Option / verdict cards */
+  .opt { display: flex; flex-direction: column; height: 100%; }
+  .opt .opt-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .opt h3 { margin-bottom: 4px; }
+  .opt .sub { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; }
+  .proscons { display: grid; grid-template-columns: 1fr; gap: 6px; margin-bottom: 14px; }
+  .pc { font-size: 13px; display: flex; gap: 8px; line-height: 1.45; }
+  .pc .m { flex-shrink: 0; font-weight: 700; }
+  .pc.pro .m { color: var(--success); }
+  .pc.con .m { color: var(--danger); }
+  .verdict { margin-top: auto; padding: 12px 14px; border-radius: var(--radius); font-size: 13px; line-height: 1.45; }
+  .verdict.rec { background: var(--primary-light); color: var(--primary-dark); }
+  .verdict.ok { background: var(--success-bg); color: var(--success); }
+  .verdict.warn { background: var(--warning-bg); color: var(--warning); }
+  .verdict.bad { background: var(--danger-bg); color: var(--danger); }
+  .verdict b { font-weight: 700; }
+
+  /* Scenario big-number cards */
+  .scenario { text-align: center; padding: 26px 22px; }
+  .scenario .tier { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+  .scenario .vol { font-size: 13.5px; color: var(--text-muted); margin: 6px 0 16px; }
+  .scenario .big { font-size: 40px; font-weight: 800; letter-spacing: -.02em; color: var(--success); line-height: 1; }
+  .scenario .big small { font-size: 16px; font-weight: 600; color: var(--text-muted); }
+  .scenario .unit { font-size: 12.5px; color: var(--text-faint); margin-top: 6px; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: var(--border-strong); }
+  .tl-item { position: relative; padding: 0 0 22px; }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-item::before { content: ""; position: absolute; left: -25px; top: 4px; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); border: 3px solid var(--bg); }
+  .tl-item.f1::before { background: var(--success); }
+  .tl-item .ph { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--primary); }
+  .tl-item .ti { font-weight: 600; margin: 2px 0 3px; }
+  .tl-item .de { font-size: 13.5px; color: var(--text-muted); }
+
+  /* Stat strip */
+  .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; }
+  .stat { text-align: center; padding: 20px; }
+  .stat .num { font-size: 32px; font-weight: 800; color: var(--primary); letter-spacing: -.02em; }
+  .stat .lbl { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+  @media (max-width: 920px) { .stats { grid-template-columns: 1fr 1fr; } .steps { } }
+
+  .note { font-size: 12.5px; color: var(--text-faint); margin-top: 10px; }
+  ul.clean { list-style: none; }
+  ul.clean li { font-size: 14px; padding: 6px 0 6px 26px; position: relative; color: var(--text-muted); line-height: 1.5; }
+  ul.clean li::before { content: "✓"; position: absolute; left: 0; color: var(--success); font-weight: 700; }
+  ul.clean li.no::before { content: "✕"; color: var(--danger); }
+
+  footer { background: var(--primary-dark); color: rgba(255,255,255,.8); padding: 44px 0; font-size: 13px; }
+  footer h3 { color: #fff; font-size: 15px; margin-bottom: 12px; }
+  footer a { color: hsl(254 60% 82%); }
+  footer .cols { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; }
+  @media (max-width: 920px) { footer .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<nav class="toc"><div class="wrap">
+  <span class="brand">Discovery</span>
+  <a href="#tldr">TL;DR</a>
+  <a href="#legal">Legal</a>
+  <a href="#fluxo">Fluxo</a>
+  <a href="#opcoes">Opções</a>
+  <a href="#custos">Custos</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#prazos">Autorizações</a>
+  <a href="#testes">Testes</a>
+  <a href="#reco">Recomendação</a>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="badge">Discovery · draft — insumo de decisão, não plano</span>
+  <h1>Assinatura digital ICP-Brasil para receitas médicas</h1>
+  <p class="tagline">Como assinar receitas com validade jurídica plena usando certificado em nuvem — exigências legais, provedores, custo real e modelo de repasse. Conclusão: <strong>dá pra fazer simples, barato e juridicamente válido.</strong></p>
+  <div class="meta">
+    <span>📅 <strong>31/05/2026</strong></span>
+    <span>✍️ <strong>Claude (Opus 4.8)</strong></span>
+    <span>🎯 Escopo: <strong>ICP-Brasil qualificada · certificado em nuvem</strong></span>
+    <span>🔬 <strong>Pesquisa multi-fonte + verificação adversarial</strong></span>
+  </div>
+</div></header>
+
+<!-- TL;DR -->
+<section id="tldr"><div class="wrap">
+  <span class="eyebrow">Resumo executivo</span>
+  <h2>Os 6 pontos que decidem tudo</h2>
+  <p class="lead">Se você ler só uma coisa, leia isto. O detalhe de cada ponto vem nas seções seguintes.</p>
+  <div class="grid grid-3">
+    <div class="card tldr-card primary">
+      <div class="label">① Precisa de API?</div>
+      <div class="value">Sim, um provedor ICP-Brasil — mas a integração é simples</div>
+      <div class="desc">Assinatura "caseira" não tem validade legal. Mas você só integra a API REST de um certificado em nuvem (OAuth2 + PDF PAdES). Cabe na stack .NET. Você <b>não</b> vira certificadora.</div>
+    </div>
+    <div class="card tldr-card success">
+      <div class="label">② Custo do certificado</div>
+      <div class="value">Pode ser R$ 0 para a plataforma</div>
+      <div class="desc">O <b>CFM dá certificado em nuvem grátis</b> ao médico (serve até p/ controle especial). Ou o médico usa o e-CPF que já tem. Modelo BYOC — o custo sai da sua conta.</div>
+    </div>
+    <div class="card tldr-card success">
+      <div class="label">③ Custo por receita</div>
+      <div class="value">≈ R$ 0 marginal</div>
+      <div class="desc">O certificado já inclui 5–6 mil assinaturas/ano; o médico emite ~500/ano. O único custo possível é o carimbo do tempo (centavos — e nem é obrigatório).</div>
+    </div>
+    <div class="card tldr-card warning">
+      <div class="label">④ Quanto cobrar a mais</div>
+      <div class="value">R$ 19–29/médico/mês (ou embutir no plano)</div>
+      <div class="desc">Memed é grátis e CFM dá cert grátis → não venda "a assinatura", venda a <b>Receita Digital</b>. Como o custo é ~0, quase tudo é margem (>80%).</div>
+    </div>
+    <div class="card tldr-card info">
+      <div class="label">⑤ Atalho de validação</div>
+      <div class="value">Integrar a Memed (zero engenharia de PKI)</div>
+      <div class="desc">Entrega prescrição + assinatura + envio, grátis pro médico. Trade-off: menos controle de UX/dado e a receita vive parcialmente na Memed.</div>
+    </div>
+    <div class="card tldr-card danger">
+      <div class="label">⑥ Autorizações / prazos</div>
+      <div class="value">1 gate só no MVP; SNCR é o bloqueador (só controlados)</div>
+      <div class="desc">Único gate: pedir o canal VIDaaS (grátis, dias). Evita ITI (9 meses) e SBIS (opcional). SNCR/ANVISA bloqueia <b>controlados</b> → MVP só não-controlada.</div>
+    </div>
+  </div>
+  <div style="margin-top:22px">
+    <div class="callout warning"><span class="ico">⚠️</span><div><strong>Confiança das informações:</strong> a parte <strong>legal e técnica</strong> foi verificada com alta confiança (fontes primárias: CFM, Planalto, ITI, docs dos provedores). Os <strong>preços</strong> são das páginas oficiais em <strong>maio/2026</strong> — ponto-no-tempo, reconfirmar em cotação. Itens com 🔸 exigem cotação comercial (Lacuna, modelo B2B Memed, carimbo do tempo em volume).</div></div>
+  </div>
+</div></section>
+
+<!-- LEGAL -->
+<section id="legal" class="alt"><div class="wrap">
+  <span class="eyebrow">Exigências legais</span>
+  <h2>O que realmente é obrigatório</h2>
+  <p class="lead">Receita médica eletrônica exige <strong>ICP-Brasil qualificada</strong> (CFM Res. 2.299/2021 · NGS2). Recomendação: tratar <strong>toda</strong> receita como qualificada — cobre 100% dos casos com um único caminho.</p>
+
+  <h3>Por tipo de receita (RDC ANVISA 1.000/2025)</h3>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table>
+      <thead><tr><th>Tipo de receita</th><th>Nível mínimo por lei</th><th>Recomendação Imedto</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Controladas</strong> (Notif. A/B, Especial, C1, C5)</td><td><span class="pill bad">Qualificada obrigatória</span></td><td>ICP-Brasil qualificada</td></tr>
+        <tr><td><strong>Sujeitas a retenção</strong> (antibióticos, GLP-1)</td><td><span class="pill warn">Qualificada ou Avançada</span></td><td>ICP-Brasil qualificada</td></tr>
+        <tr><td><strong>Simples</strong> (demais)</td><td><span class="pill info">Avançada ou Qualificada</span></td><td>ICP-Brasil qualificada</td></tr>
+        <tr><td><strong>Atestados</strong></td><td><span class="pill bad">Qualificada obrigatória</span></td><td>ICP-Brasil qualificada</td></tr>
+        <tr><td><strong>Requisição numeração SNCR</strong></td><td><span class="pill bad">ICP-Brasil obrigatória</span></td><td>ICP-Brasil qualificada</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="callout info"><span class="ico">⚖️</span><div><strong>Lei vs. prática:</strong> a Lei 14.063/2020 admite assinatura <em>avançada</em> p/ receita simples, mas a CFM Res. 2.299/2021 na prática exige ICP-Brasil p/ todo documento médico. <strong>Caminho seguro: tratar tudo como qualificada</strong> — elimina risco e simplifica o produto.</div></div>
+    <div class="callout success"><span class="ico">📄</span><div><strong>Formato técnico:</strong> <strong>PAdES</strong> (assinatura embutida no PDF). Perfil <strong>AD_RB</strong> (sem carimbo) já é válido pela Res. 2.299 — começa por ele. Evolui p/ <strong>AD_RT</strong> (com carimbo do tempo) + LTV se buscar certificação SBIS. Validação no <strong>Validar ITI</strong>.</div></div>
+  </div>
+</div></section>
+
+<!-- FLUXO -->
+<section id="fluxo"><div class="wrap">
+  <span class="eyebrow">Como funciona</span>
+  <h2>Assinatura em nuvem — o médico assina pelo celular, sem hardware</h2>
+  <p class="lead">A chave privada fica num HSM gerenciado pela AC. Juridicamente equivalente ao token A3 físico (mesma cadeia ICP-Brasil, mesmo NGS2).</p>
+  <div class="card" style="padding:8px 8px 0">
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div class="t">Médico clica "Assinar receita" no Imedto</div></div>
+      <div class="step"><div class="n">2</div><div class="t">Backend monta o PDF e chama a API (OAuth2 + PKCE)</div></div>
+      <div class="step"><div class="n">3</div><div class="t">Provedor dispara PUSH no app (ou QR Code)</div></div>
+      <div class="step"><div class="n">4</div><div class="t">Médico autoriza com PIN / biometria</div></div>
+      <div class="step"><div class="n">5</div><div class="t">HSM assina o hash do PDF</div></div>
+      <div class="step"><div class="n">6</div><div class="t">Backend embute assinatura PAdES no PDF</div></div>
+      <div class="step"><div class="n">7</div><div class="t">PDF assinado → paciente (WhatsApp / e-mail)</div></div>
+    </div>
+  </div>
+  <p class="note">Provedores de nuvem aceitos pela plataforma do CFM: BirdID, VIDaaS, VaultID, SafeID, RemoteID, NeoID. &nbsp;·&nbsp; Correção de premissa: <strong>VIDaaS é da Valid</strong> (não Soluti); Soluti opera o BirdID.</p>
+</div></section>
+
+<!-- OPÇÕES -->
+<section id="opcoes" class="alt"><div class="wrap">
+  <span class="eyebrow">Caminhos de implementação</span>
+  <h2>4 opções — build vs. buy</h2>
+  <p class="lead">Da mais enxuta e barata (A) ao atalho sem engenharia (C). A recomendação para começar é a <strong>Opção A</strong>.</p>
+  <div class="grid grid-2">
+
+    <div class="card opt">
+      <div class="opt-head"><div><h3>A · BYOC + API VIDaaS</h3></div><span class="pill rec">⭐ Recomendado</span></div>
+      <div class="sub">Médico traz o próprio cert; você integra a API REST do provedor.</div>
+      <div class="proscons">
+        <div class="pc pro"><span class="m">+</span><span>Certificado R$ 0 (é do médico)</span></div>
+        <div class="pc pro"><span class="m">+</span><span>Custo marginal ≈ R$ 0 (cabe na cota anual)</span></div>
+        <div class="pc pro"><span class="m">+</span><span>Controle total de UX e do dado · API casa com .NET</span></div>
+        <div class="pc con"><span class="m">−</span><span>Você apoia o onboarding do cert do médico</span></div>
+        <div class="pc con"><span class="m">−</span><span>Acoplamento a 1 provedor (mitigável c/ abstração)</span></div>
+      </div>
+      <div class="verdict rec"><b>Veredito:</b> melhor ponto de partida. Mais barato, mantém controle, viável na stack atual.</div>
+    </div>
+
+    <div class="card opt">
+      <div class="opt-head"><div><h3>B · SDK Lacuna (PKI / Rest PKI)</h3></div><span class="pill ok">Upgrade</span></div>
+      <div class="sub">Uma integração cobre 5 provedores via SDK .NET maduro.</div>
+      <div class="proscons">
+        <div class="pc pro"><span class="m">+</span><span>1 integração → 5 provedores (sem acoplar)</span></div>
+        <div class="pc pro"><span class="m">+</span><span>SDK .NET maduro (PAdES/LTV/carimbo prontos)</span></div>
+        <div class="pc pro"><span class="m">+</span><span>Reduz risco de implementar cripto "na mão"</span></div>
+        <div class="pc con"><span class="m">−</span><span>Licença/uso do SDK tem custo 🔸 (cotação)</span></div>
+        <div class="pc con"><span class="m">−</span><span>Mais uma dependência comercial</span></div>
+      </div>
+      <div class="verdict ok"><b>Veredito:</b> ótimo upgrade da A p/ multi-provedor. Cotar e comparar com manter a integração direta.</div>
+    </div>
+
+    <div class="card opt">
+      <div class="opt-head"><div><h3>C · Memed (prescrição pronta)</h3></div><span class="pill info">Atalho "buy"</span></div>
+      <div class="sub">Plataforma completa: prescrição + assinatura + envio, grátis p/ médico.</div>
+      <div class="proscons">
+        <div class="pc pro"><span class="m">+</span><span>Zero engenharia de assinatura/PKI</span></div>
+        <div class="pc pro"><span class="m">+</span><span>Grátis pro médico — forte adoção</span></div>
+        <div class="pc con"><span class="m">−</span><span>Menos controle de UX/dado (receita vive na Memed)</span></div>
+        <div class="pc con"><span class="m">−</span><span>Diferenciação fraca · sua marca cede espaço</span></div>
+        <div class="pc con"><span class="m">−</span><span>Modelo B2B com custo não público 🔸</span></div>
+      </div>
+      <div class="verdict warn"><b>Veredito:</b> bom p/ validar rápido. Ruim se a receita digital for diferencial seu.</div>
+    </div>
+
+    <div class="card opt">
+      <div class="opt-head"><div><h3>D · Clicksign (por documento)</h3></div><span class="pill bad">Não recomendado</span></div>
+      <div class="sub">Assinatura managed por documento.</div>
+      <div class="proscons">
+        <div class="pc pro"><span class="m">+</span><span>Integração simples, plataforma madura</span></div>
+        <div class="pc con"><span class="m">−</span><span>Excedente R$ 2,40–6,90/documento</span></div>
+        <div class="pc con"><span class="m">−</span><span>Custo por doc inviabiliza alto volume</span></div>
+      </div>
+      <div class="verdict bad"><b>Veredito:</b> o custo por documento mata a margem em volume. Só p/ baixíssimo volume / outros documentos.</div>
+    </div>
+
+  </div>
+</div></section>
+
+<!-- CUSTOS -->
+<section id="custos"><div class="wrap">
+  <span class="eyebrow">Custos detalhados · R$ maio/2026</span>
+  <h2>Quanto custa de verdade</h2>
+  <p class="lead">Surpresa boa: o custo recorrente é <strong>quase zero</strong> no modelo BYOC. O investimento real é engenharia one-time (~2–4 semanas de dev).</p>
+
+  <h3>Certificado em nuvem (por médico)</h3>
+  <div class="table-wrap" style="margin-bottom:28px">
+    <table>
+      <thead><tr><th>Provedor</th><th>Produto</th><th>Preço</th><th>Cota de assinaturas</th><th>Obs.</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td><strong>CFM</strong> <span class="pill ok">grátis</span></td><td>Cert. nuvem ICP-Brasil</td><td class="price check">R$ 0</td><td>—</td><td>Médico adimplente. 1 ano, renova até 5. Serve p/ controle especial.</td></tr>
+        <tr><td><strong>Valid (VIDaaS)</strong></td><td>e-CPF A3 nuvem 1 ano</td><td class="price">R$ 129,90</td><td>6.000/ano</td><td>2 anos R$ 208 · 2,5 anos R$ 258</td></tr>
+        <tr><td><strong>Soluti (BirdID)</strong></td><td>e-CPF A3 nuvem 5.000 transações</td><td class="price">R$ 149,90</td><td>5.000/ano</td><td>"Bird ID Pro" = ilimitado (à parte)</td></tr>
+        <tr><td><strong>Certisign</strong></td><td>e-CPF A3 nuvem 12 meses</td><td class="price">R$ 249,90</td><td>conforme plano</td><td>A3 token: R$ 186,90 (1a) / R$ 252,90 (3a)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Custo unitário por receita — 3 cenários (BYOC + API VIDaaS)</h3>
+  <p class="note" style="margin-bottom:18px">Premissa: certificado é do médico (R$ 0) e assinaturas cabem na cota anual. Único custo recorrente = carimbo do tempo, <em>se</em> exigido (decrescente com volume; zera no perfil AD_RB).</p>
+  <div class="grid grid-3">
+    <div class="card scenario">
+      <div class="tier">Pequeno</div>
+      <div class="vol">50 médicos · 2.000 receitas/mês</div>
+      <div class="big">~R$ 0<small> – 0,20</small></div>
+      <div class="unit">por receita</div>
+    </div>
+    <div class="card scenario">
+      <div class="tier">Médio</div>
+      <div class="vol">200 médicos · 10.000 receitas/mês</div>
+      <div class="big">~R$ 0<small> – 0,15</small></div>
+      <div class="unit">por receita</div>
+    </div>
+    <div class="card scenario">
+      <div class="tier">Grande</div>
+      <div class="vol">1.000 médicos · 50.000 receitas/mês</div>
+      <div class="big">~R$ 0<small> – 0,10</small></div>
+      <div class="unit">por receita</div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:22px">
+    <div class="callout success"><span class="ico">💡</span><div><strong>Leitura do gestor:</strong> o custo recorrente é quase nulo (BYOC). O investimento é <strong>engenharia one-time</strong> (~R$ 30–60k, não recorre). Isso muda toda a conta de pricing.</div></div>
+    <div class="callout danger"><span class="ico">🚫</span><div><strong>Por que NÃO Clicksign por documento:</strong> a R$ 3/doc → R$ 6.000/mês (pequeno), R$ 30.000/mês (médio). Inviável em volume.</div></div>
+  </div>
+</div></section>
+
+<!-- PRICING -->
+<section id="pricing" class="alt"><div class="wrap">
+  <span class="eyebrow">Pricing / repasse</span>
+  <h2>Quanto cobrar a mais</h2>
+  <p class="lead">A restrição não é custo (≈ R$ 0) — é mercado. <strong>Memed dá grátis</strong> e <strong>CFM dá o cert grátis</strong>. Então não venda a assinatura: venda o <em>workflow</em>.</p>
+  <div class="grid grid-3">
+    <div class="card opt">
+      <div class="opt-head"><div><h3>A · Embutido no plano</h3></div><span class="pill rec">⭐ Default</span></div>
+      <div class="sub">Receita digital + assinatura como feature do plano.</div>
+      <div class="verdict rec" style="margin-top:8px"><b>Quando:</b> padrão do mercado (Memed/iClinic). Vira diferencial e retenção. Sem risco óbvio.</div>
+    </div>
+    <div class="card opt">
+      <div class="opt-head"><div><h3>B · Add-on por médico</h3></div><span class="pill ok">R$ 19–29/mês</span></div>
+      <div class="sub">Módulo "Receita Digital" cobrado à parte.</div>
+      <div class="verdict ok" style="margin-top:8px"><b>Quando:</b> quer linha de receita explícita e o valor (prontuário integrado, histórico, envio) justifica.</div>
+    </div>
+    <div class="card opt">
+      <div class="opt-head"><div><h3>C · Por receita assinada</h3></div><span class="pill bad">Evitar</span></div>
+      <div class="sub">R$ 0,50–1,00 por receita.</div>
+      <div class="verdict bad" style="margin-top:8px"><b>Quando:</b> quase nunca — fricção alta e o "Memed grátis" derruba a percepção de valor.</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:30px">Margem no modelo add-on (R$ 25/médico/mês)</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Cenário</th><th>Receita add-on/mês</th><th>Custo/mês</th><th>Margem bruta</th></tr></thead>
+      <tbody>
+        <tr><td>Pequeno (50)</td><td class="price">R$ 1.250</td><td class="price">~R$ 0–400</td><td><span class="pill ok">68%–100%</span></td></tr>
+        <tr><td>Médio (200)</td><td class="price">R$ 5.000</td><td class="price">~R$ 0–1.500</td><td><span class="pill ok">70%–100%</span></td></tr>
+        <tr><td>Grande (1.000)</td><td class="price">R$ 25.000</td><td class="price">~R$ 0–5.000</td><td><span class="pill ok">80%–100%</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout info" style="margin-top:20px"><span class="ico">🎯</span><div><strong>Recomendação:</strong> embuta a assinatura como feature inclusa de um tier (ou add-on de R$ 19–29/médico/mês) cujo valor percebido é o <strong>fluxo completo</strong> — prescrever no prontuário, assinar em 2 toques, entregar por WhatsApp, histórico auditável. Como o custo é ~0, <strong>toda essa receita é margem</strong>; o trabalho é de posicionamento. Alternativa: subir o plano em ~R$ 15–20/médico/mês entregando a receita digital como valor que justifica o reajuste.</div></div>
+</div></section>
+
+<!-- PRAZOS -->
+<section id="prazos"><div class="wrap">
+  <span class="eyebrow">Autorizações, credenciamentos e prazos</span>
+  <h2>O que precisa pedir que pode demorar?</h2>
+  <p class="lead">No caminho recomendado há <strong>um único gate real</strong>: o canal VIDaaS (comercial, grátis, dias). Os credenciamentos pesados são evitados. O único bloqueador grande e fora do seu controle é o SNCR — e só p/ controlados.</p>
+
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table>
+      <thead><tr><th>Item</th><th>Quando</th><th>Lead time</th><th>Custo</th><th>Bloqueia MVP?</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td><strong>Canal VIDaaS</strong></td><td>Sempre (Opção A)</td><td><strong>Dias a semanas</strong></td><td class="check">Sem custo de integração</td><td><span class="pill warn">⚠️ Gate único do MVP</span></td></tr>
+        <tr><td>Registro do app (client_id)</td><td>Sempre</td><td>Imediato</td><td>—</td><td><span class="pill ok">Não</span></td></tr>
+        <tr><td><strong>Integração SNCR (ANVISA)</strong></td><td>Só p/ controlados</td><td><strong class="cross">Alto · spec não publicada</strong></td><td>a definir</td><td><span class="pill bad">🚫 Sim (controlados)</span></td></tr>
+        <tr><td>Certificação SBIS/CFM</td><td>Opcional (selo)</td><td>Meses (auditoria)</td><td>Auditoria paga 🔸</td><td><span class="pill ok">Não</span></td></tr>
+        <tr><td>Credenciamento ITI / PSC</td><td>Só se operar PSC próprio</td><td class="cross">9 meses + auditoria anual</td><td>Alto</td><td><span class="pill ok">Não (evitado)</span></td></tr>
+        <tr><td>Carimbo do tempo / ACT</td><td>Só com perfil AD-RT</td><td>Contrato comercial</td><td>Por carimbo 🔸</td><td><span class="pill ok">Não (MVP usa AD_RB)</span></td></tr>
+        <tr><td>Certificado do médico</td><td>Sempre (lado do médico)</td><td>CFM: depende do CRM · compra: 1–3 dias</td><td class="check">R$ 0 (CFM)</td><td><span class="pill ok">Não (é do médico)</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout danger"><span class="ico">🚨</span><div><strong>O grande bloqueador — SNCR da ANVISA (só controlados):</strong> receita de controlados deve ser gerada em serviço integrado ao SNCR via API. <strong>Os requisitos técnicos ainda não foram publicados</strong>; a fase de integração começa em jun/2026, obrigatória até 30/set/2026, e a regra ainda está mudando (minuta mai/2026). <strong>Por isso o MVP cobre só receita não-controlada</strong> (que não passa pelo SNCR e já tem 100% da base legal resolvida). Controlados = Fase 3, acompanhando o cronograma da ANVISA.</div></div>
+
+  <div class="grid grid-2" style="margin-top:22px">
+    <div class="card">
+      <h3>❌ O que você NÃO precisa (de-risk)</h3>
+      <ul class="clean">
+        <li class="no">Credenciar-se no ITI (processo de <strong>9 meses</strong>) — quem é PSC é o provedor</li>
+        <li class="no">Certificação SBIS p/ validade jurídica — é opcional (auditoria paga)</li>
+        <li class="no">Virar Autoridade Certificadora / emitir certificado</li>
+        <li class="no">Carimbo do tempo no MVP (Res. 2.299 não exige — usa AD_RB)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>✅ Sequenciamento p/ não perder tempo</h3>
+      <ul class="clean">
+        <li><strong>Agora:</strong> abrir contato comercial com a Valid e pedir o canal VIDaaS + homologação</li>
+        <li><strong>Em paralelo:</strong> pedir cotações 🔸 (Lacuna, carimbo, Memed)</li>
+        <li><strong>MVP:</strong> implementar só receita não-controlada (zero dependência SNCR)</li>
+        <li><strong>Monitorar:</strong> manuais técnicos do SNCR (jun–set/2026) antes de prometer controlados</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- TESTES -->
+<section id="testes" class="alt"><div class="wrap">
+  <span class="eyebrow">Ambientes de teste / homologação</span>
+  <h2>Dá pra validar a integração de graça?</h2>
+  <p class="lead"><strong>Sim.</strong> Todos têm homologação/sandbox e dá pra testar sem pagar. Em homologação você assina com <strong>certificado de teste</strong> (grátis, mas sem validade jurídica). Só gasta na validação real — e mesmo aí pode usar o cert grátis do CFM.</p>
+
+  <div class="table-wrap" style="margin-bottom:22px">
+    <table>
+      <thead><tr><th>Provedor</th><th>Ambiente de homologação</th><th>Cert de teste grátis?</th><th>Custo p/ testar</th><th>Comercial antes?</th></tr></thead>
+      <tbody>
+        <tr class="highlight"><td><strong>BirdID / Soluti</strong> <span class="pill rec">⭐</span></td><td><code>apihom.birdid.com.br</code></td><td class="check">Sim — "CERTIFICADO TESTE VAULTID"</td><td class="check">R$ 0</td><td>Não (docs abertas)</td></tr>
+        <tr><td><strong>Lacuna Rest PKI</strong></td><td>registro em <code>pki.rest</code> + samples GitHub</td><td class="check">Sim (nos samples)</td><td class="check">R$ 0 no trial</td><td>Trial self-service</td></tr>
+        <tr><td><strong>VIDaaS / Valid</strong></td><td><code>hml-certificado.vidaas.com.br</code></td><td class="partial">Confirmar 🔸</td><td class="check">Sem custo de integração</td><td><span class="pill warn">Sim — pedir canal</span></td></tr>
+        <tr><td><strong>Memed</strong></td><td><code>integrations.memed.com.br</code></td><td class="unknown">n/a (assina a Memed)</td><td class="check">R$ 0</td><td>Onboarding parceiro</td></tr>
+        <tr><td><strong>Clicksign</strong></td><td>Trial 14 dias (até 30 docs)</td><td class="unknown">usa cert real</td><td class="check">R$ 0 no trial</td><td>Não</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout success"><span class="ico">🧪</span><div><strong>POC a custo zero:</strong> comece pelo <strong>BirdID</strong> (homologação aberta + cert de teste grátis, sem gate comercial) ou pelo <strong>trial da Lacuna</strong> p/ validar o fluxo PAdES no .NET. Em paralelo, solicite o canal VIDaaS (produção). No fim, valide <strong>uma</strong> assinatura real com o <strong>certificado gratuito do CFM</strong> — fechando o ciclo técnico + jurídico sem desembolso.</div></div>
+  <div class="callout warning" style="margin-top:16px"><span class="ico">⚠️</span><div><strong>Atenção:</strong> assinatura com certificado de teste <strong>não tem validade jurídica</strong> e não passa como válida no Validar ITI — é só para desenvolvimento. A validação real exige um cert ICP-Brasil de verdade (pode ser o do CFM, grátis).</div></div>
+</div></section>
+
+<!-- RECOMENDAÇÃO -->
+<section id="reco"><div class="wrap">
+  <span class="eyebrow">Recomendação final</span>
+  <h2>Por onde começar e como evoluir</h2>
+
+  <div class="grid grid-2" style="margin-bottom:30px">
+    <div class="card">
+      <h3>🚀 MVP — juridicamente válido e barato</h3>
+      <ul class="clean">
+        <li><strong>Opção A:</strong> BYOC + API REST do VIDaaS (com abstração p/ plugar BirdID depois)</li>
+        <li><strong>Certificado BYOC:</strong> CFM grátis ou e-CPF do médico — plataforma não revende</li>
+        <li><strong>PAdES AD_RB</strong> (sem carimbo) — válido pela Res. 2.299</li>
+        <li>Tratar <strong>toda receita como ICP-Brasil qualificada</strong> (um caminho só)</li>
+        <li>Garantir que o PDF passa no <strong>Validar ITI</strong></li>
+        <li><strong>Só receita não-controlada</strong> — zero dependência de SNCR</li>
+        <li><strong>Pricing:</strong> embutir no plano ou add-on R$ 19–29/médico/mês</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗺️ Caminho de evolução</h3>
+      <div class="timeline">
+        <div class="tl-item f1"><div class="ph">MVP · agora</div><div class="ti">BYOC + VIDaaS API + PAdES AD_RB</div><div class="de">Receita não-controlada, validade jurídica plena.</div></div>
+        <div class="tl-item"><div class="ph">Fase 2</div><div class="ti">Carimbo do tempo (AD_RT) + LTV + multi-provedor</div><div class="de">Gatilho: certificação SBIS / exigência de farmácia.</div></div>
+        <div class="tl-item"><div class="ph">Fase 3</div><div class="ti">Integração SNCR (ANVISA) p/ controlados</div><div class="de">Gatilho: demanda de controle especial (jun/2026+).</div></div>
+        <div class="tl-item"><div class="ph">Fase 4</div><div class="ti">Avaliar PSC próprio (Lacuna Amplia)</div><div class="de">Só em volume muito alto — exige credenciamento ITI. Provavelmente nunca compensa.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats card" style="padding:10px">
+    <div class="stats">
+      <div class="stat"><div class="num">R$ 0</div><div class="lbl">custo de certificado (BYOC/CFM)</div></div>
+      <div class="stat"><div class="num">≈ R$ 0</div><div class="lbl">custo marginal por receita</div></div>
+      <div class="stat"><div class="num">1</div><div class="lbl">gate real no MVP (canal VIDaaS)</div></div>
+      <div class="stat"><div class="num">9 meses</div><div class="lbl">de credenciamento ITI evitados</div></div>
+    </div>
+  </div>
+
+  <div class="callout info" style="margin-top:24px"><span class="ico">➡️</span><div><strong>Próximo passo:</strong> se virar decisão, abrir briefing na pipeline (<code>imedto-business-analyst</code>) p/ o MVP da Opção A — CAs de assinatura (multi-tenant: cert vinculado ao médico do tenant; LGPD: PDF assinado é dado sensível; estados: pendente/concluída/falha; validação ITI). E pedir as 4 cotações 🔸 em paralelo.</div></div>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="cols">
+    <div>
+      <h3>Fontes principais</h3>
+      <p style="line-height:1.9">
+        CFM Res. 2.299/2021 · Lei 14.063/2020 (Planalto) · FAQ Prescrição Eletrônica CFM · Certificado gratuito CFM · Requisitos SBIS-CFM · ITI (AD-RT) · RDC ANVISA 1.000/2025 ·
+        Manual VIDaaS (Valid) · Lacuna PKI SDK / Rest PKI · BirdID/VaultID docs · Clicksign · Memed ·
+        SNCR (sncr.anvisa.gov.br) · preços oficiais dos provedores (maio/2026).
+      </p>
+    </div>
+    <div>
+      <h3>Documento</h3>
+      <p style="line-height:1.9">
+        Versão completa em <a href="01_discovery.md">01_discovery.md</a><br>
+        Status: <strong style="color:#fff">draft / discovery</strong><br>
+        Data: 31/05/2026<br>
+        Autor: Claude (Opus 4.8)
+      </p>
+    </div>
+  </div>
+  <p style="margin-top:28px; opacity:.6; font-size:12px; border-top:1px solid rgba(255,255,255,.15); padding-top:18px">
+    Discovery ≠ plano de execução. Insumo de decisão. Preços ponto-no-tempo (mai/2026) — reconfirmar em cotação. Itens 🔸 exigem cotação comercial.
+  </p>
+</div></footer>
+
+</body>
+</html>

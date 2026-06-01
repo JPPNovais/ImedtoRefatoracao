@@ -19,6 +19,7 @@ Cada feature/tema tem sua própria subpasta. Padrão de nomes dos arquivos dentr
 ## Subpastas atuais
 
 - [`nota-fiscal/`](nota-fiscal/) — Emissão de NFS-e integrada com APIs do governo (gateways de mercado vs. Sistema Nacional NFS-e)
+- [`assinatura-digital-receitas/`](assinatura-digital-receitas/) — Assinatura digital ICP-Brasil (certificado em nuvem) para receitas médicas: exigências legais, provedores, custos por cenário e modelo de repasse
 
 ## Quando criar um novo discovery
 
