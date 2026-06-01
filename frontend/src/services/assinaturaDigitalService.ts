@@ -1,5 +1,9 @@
 import httpClient from "./httpClient"
 
+// Para reativar a feature: alterar para true e fazer deploy.
+// No backend: alterar AssinaturaDigital:Habilitado para true no appsettings/SSM.
+export const ASSINATURA_DIGITAL_HABILITADA = false
+
 /**
  * Serviço de assinatura digital ICP-Brasil de receitas.
  * Backend é fonte da verdade — toda validação vive no aggregate/handler.

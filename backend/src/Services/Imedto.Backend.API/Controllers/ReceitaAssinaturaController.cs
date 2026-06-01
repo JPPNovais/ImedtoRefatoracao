@@ -5,6 +5,7 @@ using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -26,16 +27,22 @@ public class ReceitaAssinaturaController : ControllerBase
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
     private readonly ICurrentTenantAccessor _tenant;
+    private readonly bool _habilitado;
 
     public ReceitaAssinaturaController(
         ICommandBus commandBus,
         IRequestBus requestBus,
-        ICurrentTenantAccessor tenant)
+        ICurrentTenantAccessor tenant,
+        IConfiguration configuration)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
         _tenant = tenant;
+        _habilitado = configuration.GetValue<bool>("AssinaturaDigital:Habilitado");
     }
+
+    private IActionResult? FeatureDesabilitada() =>
+        _habilitado ? null : StatusCode(503, new { mensagem = "Assinatura digital não está disponível neste momento." });
 
     /// <summary>
     /// Dispara assinatura digital de uma receita emitida.
@@ -48,6 +55,7 @@ public class ReceitaAssinaturaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Assinar(long id)
     {
+        if (FeatureDesabilitada() is { } r) return r;
         await _commandBus.Send(new DispararAssinaturaCommand
         {
             ReceitaId = id,
@@ -66,6 +74,7 @@ public class ReceitaAssinaturaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ObterStatus(long id)
     {
+        if (FeatureDesabilitada() is { } r) return r;
         var dto = await _requestBus.Query<ObterStatusAssinaturaQuery, StatusAssinaturaDto>(
             new ObterStatusAssinaturaQuery
             {

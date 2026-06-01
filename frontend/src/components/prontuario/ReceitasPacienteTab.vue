@@ -25,7 +25,7 @@ import CancelarReceitaModal from "@/components/prontuario/CancelarReceitaModal.v
 import AssinaturaStatusBadge from "@/components/ui/AssinaturaStatusBadge.vue"
 import AssinaturaOnboardingModal from "@/components/prontuario/AssinaturaOnboardingModal.vue"
 import AssinaturaPollingIndicator from "@/components/prontuario/AssinaturaPollingIndicator.vue"
-import { assinaturaDigitalService, type StatusAssinaturaDigital } from "@/services/assinaturaDigitalService"
+import { assinaturaDigitalService, ASSINATURA_DIGITAL_HABILITADA, type StatusAssinaturaDigital } from "@/services/assinaturaDigitalService"
 import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -574,7 +574,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                         </span>
                         <span v-if="r.requerRetencao" class="badge badge-warning">RETER</span>
                         <!-- Badge de assinatura digital — CA-13 -->
-                        <AssinaturaStatusBadge :status="statusAssinaturaDeReceita(r)" />
+                        <AssinaturaStatusBadge v-if="ASSINATURA_DIGITAL_HABILITADA" :status="statusAssinaturaDeReceita(r)" />
                     </div>
                     <div class="receita-data">
                         {{ formatarData(r.emitidaEm ?? new Date().toISOString()) }}
@@ -622,7 +622,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
 
         <!-- Banner condicional por status de assinatura -->
         <div
-            v-if="(assinaturaStore.statusPorReceita[String(receitaAberta.id)] ?? receitaAberta.assinaturaDigitalStatus) === 'AssinadaIcp'"
+            v-if="ASSINATURA_DIGITAL_HABILITADA && (assinaturaStore.statusPorReceita[String(receitaAberta.id)] ?? receitaAberta.assinaturaDigitalStatus) === 'AssinadaIcp'"
             class="aviso-assinatura aviso-assinatura--ok"
             role="note"
         >
@@ -633,7 +633,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
             </div>
         </div>
         <div
-            v-else-if="(assinaturaStore.statusPorReceita[String(receitaAberta.id)] ?? receitaAberta.assinaturaDigitalStatus) !== 'AssinaturaPendente'"
+            v-else-if="ASSINATURA_DIGITAL_HABILITADA && (assinaturaStore.statusPorReceita[String(receitaAberta.id)] ?? receitaAberta.assinaturaDigitalStatus) !== 'AssinaturaPendente'"
             class="aviso-assinatura"
             role="note"
         >
@@ -797,7 +797,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                 </AppButton>
 
                 <!-- Ações de assinatura digital — CA-04/CA-05/CA-06/CA-13 -->
-                <template v-if="ehPrescritorDaReceitaAberta()">
+                <template v-if="ASSINATURA_DIGITAL_HABILITADA && ehPrescritorDaReceitaAberta()">
                     <!-- Polling ativo: exibe indicador -->
                     <AssinaturaPollingIndicator
                         v-if="pollingAtivo === receitaAberta.id"

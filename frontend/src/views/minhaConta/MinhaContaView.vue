@@ -13,7 +13,7 @@ import { redimensionarImagem } from "@/services/imageUtils"
 import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
 import AssinaturaOnboardingModal from "@/components/prontuario/AssinaturaOnboardingModal.vue"
 import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
-import { assinaturaDigitalService } from "@/services/assinaturaDigitalService"
+import { assinaturaDigitalService, ASSINATURA_DIGITAL_HABILITADA } from "@/services/assinaturaDigitalService"
 
 const auth         = useAuthStore()
 const tenant       = useTenantStore()
@@ -482,7 +482,7 @@ onMounted(async () => {
         </div>
 
         <!-- ── Card: Assinatura Digital ── -->
-        <div class="card">
+        <div v-if="ASSINATURA_DIGITAL_HABILITADA" class="card">
             <h2 class="card-titulo">Assinatura Digital (ICP-Brasil)</h2>
             <p class="card-sub">
                 Vincule seu certificado em nuvem (BirdID ou CFM gratuito) para assinar

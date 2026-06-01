@@ -4,6 +4,7 @@ using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -25,16 +26,22 @@ public class MedicoCertificadoController : ControllerBase
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
     private readonly ICurrentTenantAccessor _tenant;
+    private readonly bool _habilitado;
 
     public MedicoCertificadoController(
         ICommandBus commandBus,
         IRequestBus requestBus,
-        ICurrentTenantAccessor tenant)
+        ICurrentTenantAccessor tenant,
+        IConfiguration configuration)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
         _tenant = tenant;
+        _habilitado = configuration.GetValue<bool>("AssinaturaDigital:Habilitado");
     }
+
+    private IActionResult? FeatureDesabilitada() =>
+        _habilitado ? null : StatusCode(503, new { mensagem = "Assinatura digital não está disponível neste momento." });
 
     /// <summary>
     /// Vincula (ou atualiza) o certificado em nuvem ICP-Brasil do médico autenticado.
@@ -45,6 +52,7 @@ public class MedicoCertificadoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Vincular([FromBody] VincularCertificadoRequest request)
     {
+        if (FeatureDesabilitada() is { } r) return r;
         await _commandBus.Send(new VincularCertificadoCommand
         {
             MedicoId = _tenant.UsuarioId,
@@ -62,6 +70,7 @@ public class MedicoCertificadoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Remover()
     {
+        if (FeatureDesabilitada() is { } r) return r;
         await _commandBus.Send(new RemoverCertificadoCommand
         {
             MedicoId = _tenant.UsuarioId,
@@ -77,6 +86,7 @@ public class MedicoCertificadoController : ControllerBase
     [ProducesResponseType(typeof(CertificadoVinculadoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Obter()
     {
+        if (FeatureDesabilitada() is { } r) return r;
         var dto = await _requestBus.Query<ObterCertificadoVinculadoQuery, CertificadoVinculadoDto?>(
             new ObterCertificadoVinculadoQuery
             {
