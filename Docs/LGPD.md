@@ -45,9 +45,23 @@ O admin global (`imedto_admin`) opera fora do contexto de tenant. Regras especí
 - **Inatividade** — sessão admin expira automaticamente após 15 min de inatividade no frontend (`adminAuthStore`).
 - **Cross-blindagem** — admin não acessa endpoints de tenant (policy + filtro global `AdminBlindagemFilter`). Usuário de tenant não acessa `/api/admin/*` (policy `ImedtoAdmin`).
 
+## Assinatura digital de receitas — dados sensíveis (briefing 2026-06-01_001)
+
+A feature de assinatura digital introduz novos dados sensíveis com tratamento obrigatório:
+
+| Dado | Tabela / campo | Classificação | Regra |
+|---|---|---|---|
+| Refresh token do certificado BirdID | `assinatura_certificados.refresh_token` | Credencial de acesso ao certificado ICP-Brasil do médico | Cifrado com `IDataProtectionProvider` antes de persistir. **Nunca** retornado em payload de API — `GET /api/medico/certificado` expõe apenas `provedor` e `expiraEm`. |
+| PDF assinado digitalmente | `receitas.pdf_assinado_s3_key` → S3 `imedto-anexos` | Dado de saúde (Art. 11 LGPD) — documento clínico com identificação do paciente | Bucket privado. Acesso exclusivamente via presigned URL TTL **5 minutos**. Sem URL pública permanente. |
+| Audit de assinatura | `assinatura_audit_log` | Metadado operacional — sem PII de paciente | Retenção **730 dias** (implicação de documento médico assinado com validade jurídica). Contém apenas: `receita_id`, `usuario_id`, `estabelecimento_id`, `acao`, `status_anterior`, `status_novo`, `criado_em`. Nunca nome/CPF do paciente. |
+
+**Webhook de callback (BirdID)**: endpoint sem autenticação JWT de usuário (`POST /api/webhooks/assinatura/{receita_id}`). A ausência de `[Authorize]` é deliberada (callback externo). Segurança é feita no handler via validação de HMAC/JWT do payload do provedor. **Nenhuma PII do paciente transita no callback** — apenas IDs e resultado da assinatura.
+
+**Multi-tenant no webhook**: mesmo sem token de usuário, o handler resolve o `estabelecimento_id` a partir da `receita_id` e valida que o tenant está ativo antes de qualquer mutação. Tenant inativo → descarte silencioso, sem mutação.
+
 ## Checklist multi-tenant — premissa não-negociável
 
-Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento), valide:
+Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento, **assinatura digital**), valide:
 
 1. **Filtro por `estabelecimento_id`** em todo `WHERE`/join de domínio.
 2. **Verificação de vínculo** do usuário com o estabelecimento (papel + escopo do vínculo).

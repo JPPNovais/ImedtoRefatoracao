@@ -39,5 +39,9 @@ public static class JobsRegistrados
         // Item 4.3 — Anonimização LGPD de pacientes com retenção vencida (CFM 1.821/07: 20 anos).
         // Roda mensalmente (~30 dias = 2.592.000 s).
         new("anonimizar-pacientes-inativos", IntervaloSeg: 2592000),
+
+        // Assinatura Digital ICP-Brasil — expira receitas pendentes sem resposta após 30 min.
+        // Roda 1x/h (configurável via AssinaturaDigital:ExpiracaoPendenteMinutos).
+        new("expirar-assinaturas-pendentes", IntervaloSeg: 60 * 60),
     };
 }

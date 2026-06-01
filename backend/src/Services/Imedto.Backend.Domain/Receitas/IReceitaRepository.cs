@@ -8,7 +8,21 @@ public interface IReceitaRepository
     /// </summary>
     Task<Receita?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
+    /// <summary>
+    /// Carrega a receita SEM filtro de tenant. Uso exclusivo do handler de webhook de
+    /// assinatura digital — o callback externo não carrega claim de tenant; a
+    /// autenticidade é garantida pelo HMAC do provedor, não pelo usuário.
+    /// </summary>
+    Task<Receita?> ObterSemTenantAsync(long id);
+
     Task Salvar(Receita receita);
+
+    /// <summary>
+    /// Lista receitas em <see cref="StatusAssinaturaDigital.AssinaturaPendente"/> cuja
+    /// <c>assinatura_solicitada_em</c> é anterior a <paramref name="anteriorA"/>.
+    /// Usado pelo job de expiração periódica.
+    /// </summary>
+    Task<List<Receita>> ListarPendentesParaExpirarAsync(DateTime anteriorA, CancellationToken ct = default);
 }
 
 public interface IConfiguracaoReceitaRepository

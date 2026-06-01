@@ -38,6 +38,12 @@ public class ReceitaConfiguration : IEntityTypeConfiguration<Receita>
             .HasConversion<string>()
             .HasDefaultValue(StatusAssinaturaDigital.NaoAssinada)
             .IsRequired();
+        // S3 key do PDF assinado (PAdES AD_RB). Null enquanto não assinado.
+        builder.Property(r => r.PdfAssinadoS3Key)
+            .HasColumnName("pdf_assinado_s3_key")
+            .HasColumnType("text");
+        builder.Property(r => r.AssinaturaSolicitadaEm).HasColumnName("assinatura_solicitada_em");
+        builder.Property(r => r.AssinadaEm).HasColumnName("assinada_em");
         builder.Property(r => r.CanceladaEm).HasColumnName("cancelada_em");
         builder.Property(r => r.MotivoCancelamento).HasColumnName("motivo_cancelamento").HasMaxLength(500);
         builder.Property(r => r.CriadaEm).HasColumnName("criada_em").IsRequired();

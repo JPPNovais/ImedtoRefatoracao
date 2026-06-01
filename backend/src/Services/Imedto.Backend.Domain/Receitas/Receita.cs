@@ -48,13 +48,17 @@ public class Receita : Entity, ISoftDeletable
     public virtual string? Observacoes { get; protected set; }
     public virtual StatusReceita Status { get; protected set; }
     /// <summary>
-    /// Estado da assinatura digital. Hoje toda receita emitida pelo Imedto nasce
-    /// como <see cref="StatusAssinaturaDigital.NaoAssinada"/> — o campo existe para
-    /// preparar a integração futura com ICP-Brasil/Memed sem migration adicional
-    /// e para que o front possa exibir/ocultar o aviso de "assine manualmente"
-    /// conforme o estado real do documento.
+    /// Estado da assinatura digital ICP-Brasil. Máquina de estados:
+    /// NaoAssinada → AssinaturaPendente → AssinadaIcp | FalhaAssinatura | AssinaturaExpirada.
+    /// Coluna no banco: <c>assinatura_digital_status</c> (varchar 20).
     /// </summary>
     public virtual StatusAssinaturaDigital AssinaturaDigitalStatus { get; protected set; }
+    /// <summary>S3 key do PDF assinado (PAdES AD_RB). Null enquanto não assinado.</summary>
+    public virtual string? PdfAssinadoS3Key { get; protected set; }
+    /// <summary>Quando foi disparada a assinatura no provedor ICP-Brasil.</summary>
+    public virtual DateTime? AssinaturaSolicitadaEm { get; protected set; }
+    /// <summary>Quando o provedor confirmou a assinatura com sucesso.</summary>
+    public virtual DateTime? AssinadaEm { get; protected set; }
     public virtual DateTime? CanceladaEm { get; protected set; }
     public virtual string? MotivoCancelamento { get; protected set; }
     public virtual DateTime CriadaEm { get; protected set; }
@@ -300,6 +304,66 @@ public class Receita : Entity, ISoftDeletable
             throw new BusinessException("Receita já está deletada.");
         DeletadoEm = DateTime.UtcNow;
         DeletadoPorUsuarioId = usuarioId;
+    }
+
+    // --------------------- transições de assinatura digital ---------------------
+
+    /// <summary>
+    /// Dispara a assinatura digital: transiciona para <see cref="StatusAssinaturaDigital.AssinaturaPendente"/>.
+    /// Permitido de: NaoAssinada, FalhaAssinatura, AssinaturaExpirada.
+    /// </summary>
+    public virtual void IniciarAssinatura()
+    {
+        if (AssinaturaDigitalStatus == StatusAssinaturaDigital.AssinadaIcp)
+            throw new BusinessException("Esta receita já está assinada digitalmente.");
+
+        if (Status != StatusReceita.Emitida)
+            throw new BusinessException("Apenas receitas emitidas podem ser assinadas digitalmente.");
+
+        AssinaturaDigitalStatus = StatusAssinaturaDigital.AssinaturaPendente;
+        AssinaturaSolicitadaEm = DateTime.UtcNow;
+        AtualizadaEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Registra conclusão bem-sucedida da assinatura via callback do provedor.
+    /// </summary>
+    public virtual void ConfirmarAssinatura(string pdfAssinadoS3Key)
+    {
+        if (AssinaturaDigitalStatus != StatusAssinaturaDigital.AssinaturaPendente)
+            throw new BusinessException("Receita não está aguardando confirmação de assinatura.");
+        if (string.IsNullOrWhiteSpace(pdfAssinadoS3Key))
+            throw new BusinessException("S3 key do PDF assinado é obrigatória.");
+
+        AssinaturaDigitalStatus = StatusAssinaturaDigital.AssinadaIcp;
+        PdfAssinadoS3Key = pdfAssinadoS3Key;
+        AssinadaEm = DateTime.UtcNow;
+        AtualizadaEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Registra falha na assinatura (médico recusou PUSH ou erro do provedor).
+    /// </summary>
+    public virtual void RegistrarFalhaAssinatura()
+    {
+        if (AssinaturaDigitalStatus != StatusAssinaturaDigital.AssinaturaPendente)
+            return; // Idempotente: se já foi resolvido de outra forma, ignora.
+
+        AssinaturaDigitalStatus = StatusAssinaturaDigital.FalhaAssinatura;
+        AtualizadaEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Expiração por job periódico: pendentes sem resposta após X minutos viram AssinaturaExpirada.
+    /// Chamado apenas quando status == AssinaturaPendente.
+    /// </summary>
+    public virtual void ExpirarAssinaturaPendente()
+    {
+        if (AssinaturaDigitalStatus != StatusAssinaturaDigital.AssinaturaPendente)
+            return; // Idempotente.
+
+        AssinaturaDigitalStatus = StatusAssinaturaDigital.AssinaturaExpirada;
+        AtualizadaEm = DateTime.UtcNow;
     }
 
     // ---------------------------- helpers privados ----------------------------

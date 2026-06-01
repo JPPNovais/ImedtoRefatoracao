@@ -176,6 +176,55 @@ Job `limpar-audit-admin` (1×/dia, batches de 10.000 linhas) aplica DELETE respe
 
 ---
 
+## Bounded Context: AssinaturaDigital (briefing 2026-06-01_001)
+
+Permite que o médico prescritor assine digitalmente receitas com validade jurídica ICP-Brasil (CFM Res. 2.299/2021 + Lei 14.063/2020), usando certificado em nuvem sem hardware físico.
+
+### Abstração de provedor
+
+`IAssinaturaDigitalProvider` (Domain) — interface única que isola a integração com qualquer provedor ICP-Brasil:
+
+```csharp
+Task<DisparoAssinaturaResult> DispararAssinaturaAsync(receita, medicoId, ct);
+Task<ValidacaoCallbackResult> ValidarCallbackAsync(payload, ct);
+```
+
+MVP implementa `BirdIdAssinaturaProvider`. Novo provedor (VIDaaS etc.) entra como nova implementação registrada por nome no container — zero mudança nos handlers. Seleção via config `AssinaturaDigital:Provedor`.
+
+### Máquina de estados da receita
+
+```
+NaoAssinada → AssinaturaPendente → AssinadaIcp
+                               ↘ FalhaAssinatura  (médico recusou PUSH)
+                               ↘ AssinaturaExpirada  (job: pendente > 30 min)
+```
+
+`AssinaturaExpirada` e `FalhaAssinatura` permitem re-disparo (transicionam de volta para `AssinaturaPendente`). `AssinadaIcp` é estado terminal imutável.
+
+### Fluxo assíncrono (polling + webhook)
+
+A assinatura em nuvem é inerentemente assíncrona: o BirdID dispara PUSH no celular do médico, que confirma em segundos ou minutos.
+
+1. Frontend chama `POST /api/receitas/{id}/assinar` → recebe `202 Accepted` com `{ status: 'AssinaturaPendente' }`.
+2. Frontend inicia polling leve: `GET /api/receitas/{id}/status-assinatura` a cada **4 segundos**.
+3. BirdID chama `POST /api/webhooks/assinatura/{receita_id}` (callback externo) → backend valida HMAC do payload, atualiza status, persiste PDF assinado no S3.
+4. Próxima rodada de polling pega o status atualizado. Frontend para o polling ao resolver.
+5. Timeout frontend: **5 minutos** — exibe mensagem orientativa sem loop eterno.
+
+**Webhook sem `[Authorize]`**: único endpoint no sistema sem autenticação JWT de usuário. Segurança é feita pelo handler via validação de assinatura HMAC/JWT do payload do BirdID. Receita de tenant inativo → descarte silencioso (sem mutação, resposta 200 para evitar retry infinito do provedor).
+
+### Job: expirar-assinaturas-pendentes
+
+`ExpirarAssinaturasPendentesJob` — `Nome = "expirar-assinaturas-pendentes"`, intervalo `3600` (1×/hora). Marca como `AssinaturaExpirada` todas as receitas com `status_assinatura = 'AssinaturaPendente'` e `assinatura_solicitada_em < UtcNow - 30 min`. Registro em `assinatura_audit_log` com `acao = 'EXPIRAR_PENDENTE'`.
+
+### Formato e validade
+
+- **PAdES AD_RB** (sem carimbo do tempo) no MVP — atende CFM Res. 2.299/2021. PDF assinado deve passar no `validar.iti.gov.br`.
+- **AD-RT** (com carimbo) entra em Fase 2, se buscar certificação SBIS.
+- Vínculo do certificado: **por médico (usuário)**, não por estabelecimento — médico que atua em N tenants vincula uma vez.
+
+---
+
 ## Conexão Postgres (RDS)
 
 - Connection string normal Npgsql em `ConnectionStrings:Default` (runtime) e `ConnectionStrings:Migrations` (autoria de migrations via `dotnet ef`).

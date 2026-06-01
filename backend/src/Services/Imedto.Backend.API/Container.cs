@@ -173,6 +173,11 @@ using Imedto.Backend.Contracts.Termos.Commands;
 using Imedto.Backend.Contracts.Termos.Queries;
 using Imedto.Backend.Contracts.Termos.Dtos;
 using Imedto.Backend.Infrastructure.Termos;
+using Imedto.Backend.Application.AssinaturaDigital.Commands;
+using Imedto.Backend.Application.AssinaturaDigital.Queries;
+using Imedto.Backend.Contracts.AssinaturaDigital.Commands;
+using Imedto.Backend.Contracts.AssinaturaDigital.Queries;
+using Imedto.Backend.Domain.AssinaturaDigital;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Jobs;
@@ -210,6 +215,10 @@ public static class Container
         RegistrarIa(services, configuration);
         RegistrarHandlers(services);
         RegistrarBuses(services);
+
+        // Assinatura Digital — configuração do provedor BirdID.
+        services.Configure<Imedto.Backend.Infrastructure.AssinaturaDigital.BirdIdOptions>(
+            configuration.GetSection(Imedto.Backend.Infrastructure.AssinaturaDigital.BirdIdOptions.Section));
 
         // Admin
         services.AddScoped<Domain.Admin.IAdminResetService, AdminResetService>();
@@ -825,6 +834,21 @@ public static class Container
         services.AddSingleton<BuscarProcedimentoCatalogoQueryHandlers>();
         services.AddSingleton<ObterProcedimentoPorCodigoQueryHandlers>();
 
+        // Assinatura Digital ICP-Brasil (2026-06-01).
+        // (Configure<BirdIdOptions> feito em Install() que tem acesso à configuration)
+        services.AddScoped<IAssinaturaCertificadoRepository, AssinaturaCertificadoRepository>();
+        services.AddScoped<IAssinaturaAuditLogRepository, AssinaturaAuditLogRepository>();
+        services.AddSingleton<IAssinaturaDigitalQueryRepository, AssinaturaDigitalQueryRepository>();
+        services.AddSingleton<IAssinaturaDigitalProvider, Imedto.Backend.Infrastructure.AssinaturaDigital.BirdIdAssinaturaProvider>();
+        services.AddScoped<VincularCertificadoCommandHandler>();
+        services.AddScoped<RemoverCertificadoCommandHandler>();
+        services.AddScoped<DispararAssinaturaCommandHandler>();
+        services.AddScoped<ProcessarCallbackAssinaturaCommandHandler>();
+        services.AddScoped<ExpirarAssinaturasPendentesCommandHandler>();
+        services.AddScoped<ObterStatusAssinaturaQueryHandler>();
+        services.AddScoped<ObterCertificadoVinculadoQueryHandler>();
+        services.AddScoped<IJobHandler, Imedto.Backend.Infrastructure.AssinaturaDigital.ExpirarAssinaturasPendentesJob>();
+
         // Item 4.3 — LGPD: anonimização e exportação de dados do titular.
         services.AddScoped<ILgpdAnonimizacaoRepository, LgpdAnonimizacaoRepository>();
         services.AddScoped<IAnonimizacaoService, AnonimizacaoService>();
@@ -1026,6 +1050,12 @@ public static class Container
             bus.Register<ReenviarLinkTermoCommand, ReenviarLinkTermoCommandHandler>();
             // Item 4.3 — LGPD.
             bus.Register<AnonimizarMinhaContaCommand, AnonimizarMinhaContaCommandHandler>();
+            // Assinatura Digital ICP-Brasil (2026-06-01).
+            bus.Register<VincularCertificadoCommand, VincularCertificadoCommandHandler>();
+            bus.Register<RemoverCertificadoCommand, RemoverCertificadoCommandHandler>();
+            bus.Register<DispararAssinaturaCommand, DispararAssinaturaCommandHandler>();
+            bus.Register<ProcessarCallbackAssinaturaCommand, ProcessarCallbackAssinaturaCommandHandler>();
+            bus.Register<ExpirarAssinaturasPendentesCommand, ExpirarAssinaturasPendentesCommandHandler>();
             return bus;
         });
 
@@ -1152,6 +1182,9 @@ public static class Container
             bus.Register<ObterUrlPdfTermoQuery, TermoPdfUrlDto, ObterUrlPdfTermoQueryHandlers>();
             // Fase 4 — query anônima via token público.
             bus.Register<ObterTermoPublicoPorTokenQuery, TermoPublicoDto, ObterTermoPublicoPorTokenQueryHandler>();
+            // Assinatura Digital ICP-Brasil (2026-06-01).
+            bus.Register<ObterStatusAssinaturaQuery, StatusAssinaturaDto, ObterStatusAssinaturaQueryHandler>();
+            bus.Register<ObterCertificadoVinculadoQuery, CertificadoVinculadoDto?, ObterCertificadoVinculadoQueryHandler>();
             return bus;
         });
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Imedto.Backend.Domain.Admin;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.AssinaturaDigital;
 using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Atestados;
 using Imedto.Backend.Domain.Auth;
@@ -141,6 +142,10 @@ public class AppDbContext : DbContext
     public DbSet<ImedtoPlano> ImedtoPlanos => Set<ImedtoPlano>();
     public DbSet<ImedtoAssinatura> ImedtoAssinaturas => Set<ImedtoAssinatura>();
     public DbSet<ImedtoConfig> ImedtoConfigs => Set<ImedtoConfig>();
+
+    // Assinatura Digital ICP-Brasil (2026-06-01).
+    public DbSet<AssinaturaCertificado> AssinaturaCertificados => Set<AssinaturaCertificado>();
+    public DbSet<AssinaturaAuditLog> AssinaturaAuditLogs => Set<AssinaturaAuditLog>();
 
     // Termos de consentimento (Fase 1 — 2026-05-19).
     public DbSet<TermoModelo> TermosModelo => Set<TermoModelo>();

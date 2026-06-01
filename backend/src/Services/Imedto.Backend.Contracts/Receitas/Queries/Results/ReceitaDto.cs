@@ -19,6 +19,8 @@ public class ReceitaResumoDto
     public bool RequerRetencao { get; set; }
     public int QuantidadeItens { get; set; }
     public string? ProfissionalNome { get; set; }
+    /// <summary>Status de assinatura digital para exibição de badge e ações na listagem.</summary>
+    public string AssinaturaDigitalStatus { get; set; } = "NaoAssinada";
 }
 
 public class ReceitaDto

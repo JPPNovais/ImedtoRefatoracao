@@ -53,17 +53,18 @@ public class ReceitaQueryRepository : IReceitaQueryRepository
         // emitidas pela data de emissão. NULLS FIRST coloca rascunhos no topo —
         // o profissional vê o que está em andamento antes do histórico.
         const string sqlItens = """
-            SELECT  r.id                  AS Id,
-                    r.paciente_id         AS PacienteId,
-                    r.prontuario_id       AS ProntuarioId,
-                    r.tipo                AS Tipo,
-                    r.tipo_notificacao    AS TipoNotificacao,
-                    r.status              AS Status,
-                    r.emitida_em          AS EmitidaEm,
-                    r.validade_ate        AS ValidadeAte,
-                    r.requer_retencao     AS RequerRetencao,
+            SELECT  r.id                        AS Id,
+                    r.paciente_id               AS PacienteId,
+                    r.prontuario_id             AS ProntuarioId,
+                    r.tipo                      AS Tipo,
+                    r.tipo_notificacao          AS TipoNotificacao,
+                    r.status                    AS Status,
+                    r.emitida_em                AS EmitidaEm,
+                    r.validade_ate              AS ValidadeAte,
+                    r.requer_retencao           AS RequerRetencao,
                     (SELECT COUNT(*) FROM public.receita_itens ri WHERE ri.receita_id = r.id) AS QuantidadeItens,
-                    u.nome_completo       AS ProfissionalNome
+                    u.nome_completo             AS ProfissionalNome,
+                    r.assinatura_digital_status AS AssinaturaDigitalStatus
             FROM    public.receitas r
             LEFT JOIN public.usuarios u ON u.id = r.profissional_usuario_id
             WHERE   r.paciente_id = @PacienteId

@@ -68,7 +68,9 @@ ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136 \
 | `imedto-fotos-155684258219` | Fotos de profissional/estabelecimento | Privado, AES256, presigned URL TTL 24h |
 | `imedto-anexos-155684258219` | Anexos de prontuário (LGPD sensível) | Privado, AES256, presigned URL TTL 5 min, Glacier após 90d |
 
-Backend acessa via `IFotoStorageService` / `IAnexoStorageService` (`Domain.Common` / `Domain.Prontuarios`) → implementações `S3FotoStorageService` / `S3AnexoStorageService`. Credenciais via IAM role da EC2.
+**PDFs assinados digitalmente** (feature Assinatura Digital — briefing 2026-06-01_001) são armazenados **no mesmo bucket `imedto-anexos`**, prefixo `receitas-assinadas/`. Mesma política de acesso (presigned URL TTL 5 min). Dado de saúde Art. 11 LGPD — mesma classificação dos anexos de prontuário.
+
+Backend acessa via `IFotoStorageService` / `IAnexoStorageService` (`Domain.Common` / `Domain.Prontuarios`) → implementações `S3FotoStorageService` / `S3AnexoStorageService`. PDFs assinados são salvos diretamente pelo `BirdIdAssinaturaProvider` via `S3AnexoStorageService`. Credenciais via IAM role da EC2.
 
 Limites configuráveis em `Storage:*` (appsettings):
 - `TamanhoMaxMb` = 50
@@ -90,6 +92,9 @@ Limites configuráveis em `Storage:*` (appsettings):
 | `s3/bucket-fotos`, `s3/bucket-anexos` | String × 2 | Nomes dos buckets |
 | `aws/region` | String | `sa-east-1` |
 | `ghcr-token` | SecureString | GitHub PAT (escopo `read:packages`) — EC2 puxa imagens do ghcr.io |
+| `assinatura/birdid-client-id` | String | client_id da aplicação registrada no BirdID (Soluti) |
+| `assinatura/birdid-client-secret` | SecureString | client_secret do BirdID |
+| `assinatura/birdid-webhook-secret` | SecureString | Chave HMAC usada para validar assinatura dos callbacks BirdID |
 
 EC2 lê via IAM role; CLI/laptop lê via `aws ssm get-parameter`. Nunca colocar em repo.
 

@@ -539,6 +539,95 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("imedto_variavel_pool_global", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.AssinaturaDigital.AssinaturaAuditLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Acao")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("acao");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<long>("ReceitaId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("receita_id");
+
+                    b.Property<string>("StatusAnterior")
+                        .HasColumnType("text")
+                        .HasColumnName("status_anterior");
+
+                    b.Property<string>("StatusNovo")
+                        .HasColumnType("text")
+                        .HasColumnName("status_novo");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceitaId")
+                        .HasDatabaseName("ix_assinatura_audit_log_receita");
+
+                    b.HasIndex("EstabelecimentoId", "CriadoEm")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_assinatura_audit_log_estab_criado");
+
+                    b.ToTable("assinatura_audit_log", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.AssinaturaDigital.AssinaturaCertificado", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateTime?>("ExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em");
+
+                    b.Property<Guid>("MedicoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("medico_id");
+
+                    b.Property<string>("Provedor")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("provedor");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("refresh_token");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicoId")
+                        .HasDatabaseName("ix_assinatura_certificados_medico");
+
+                    b.HasIndex("MedicoId", "Provedor")
+                        .IsUnique()
+                        .HasDatabaseName("uq_assinatura_certificados_medico_provedor");
+
+                    b.ToTable("assinatura_certificados", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Agendamentos.Agendamento", b =>
                 {
                     b.Property<long>("Id")
@@ -4947,6 +5036,18 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("NaoAssinada")
                         .HasColumnName("assinatura_digital_status");
+
+                    b.Property<DateTime?>("AssinadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assinada_em");
+
+                    b.Property<DateTime?>("AssinaturaSolicitadaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assinatura_solicitada_em");
+
+                    b.Property<string>("PdfAssinadoS3Key")
+                        .HasColumnType("text")
+                        .HasColumnName("pdf_assinado_s3_key");
 
                     b.Property<DateTime?>("AtualizadaEm")
                         .HasColumnType("timestamp with time zone")

@@ -12,7 +12,13 @@ import httpClient from "./httpClient"
 export type TipoReceita = "Comum" | "Controlada" | "Antibiotico" | "Especial"
 export type TipoNotificacao = "A" | "B" | "C" | "Especial"
 export type StatusReceita = "Rascunho" | "Emitida" | "Cancelada" | "Substituida"
-export type StatusAssinatura = "NaoAssinada" | "AssinadaIcp" | "AssinadaMemed"
+export type StatusAssinatura =
+    | "NaoAssinada"
+    | "AssinadaIcp"
+    | "AssinadaMemed"
+    | "AssinaturaPendente"
+    | "FalhaAssinatura"
+    | "AssinaturaExpirada"
 
 export interface ItemReceita {
     id?: number
@@ -39,6 +45,7 @@ export interface ReceitaResumo {
     requerRetencao: boolean
     quantidadeItens: number
     profissionalNome: string | null
+    assinaturaDigitalStatus: StatusAssinatura
 }
 
 export interface Receita {

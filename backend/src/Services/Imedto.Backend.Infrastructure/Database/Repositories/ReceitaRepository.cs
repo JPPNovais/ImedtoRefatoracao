@@ -17,6 +17,20 @@ public class ReceitaRepository : IReceitaRepository
             .Include(x => x.Itens)
             .FirstOrDefaultAsync(x => x.Id == id && x.EstabelecimentoId == estabelecimentoId);
 
+    /// <inheritdoc />
+    public async Task<Receita?> ObterSemTenantAsync(long id) =>
+        await _context.Receitas
+            .Include(x => x.Itens)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+    /// <inheritdoc />
+    public async Task<List<Receita>> ListarPendentesParaExpirarAsync(DateTime anteriorA, CancellationToken ct = default) =>
+        await _context.Receitas
+            .Where(r => r.AssinaturaDigitalStatus == StatusAssinaturaDigital.AssinaturaPendente
+                     && r.AssinaturaSolicitadaEm != null
+                     && r.AssinaturaSolicitadaEm < anteriorA)
+            .ToListAsync(ct);
+
     public async Task Salvar(Receita receita)
     {
         if (receita.Id == 0)

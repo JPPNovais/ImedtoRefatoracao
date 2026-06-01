@@ -5,7 +5,7 @@
   Receitas finalizadas podem ser canceladas, duplicadas e impressas.
 -->
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue"
 import {
     receitaService,
     FORMAS_FARMACEUTICAS,
@@ -22,11 +22,99 @@ import {
     AppButton, AppConfirmDialog, AppInput, AppPagination, AppSelect, AppTextarea, AppToast,
 } from "@/components/ui"
 import CancelarReceitaModal from "@/components/prontuario/CancelarReceitaModal.vue"
+import AssinaturaStatusBadge from "@/components/ui/AssinaturaStatusBadge.vue"
+import AssinaturaOnboardingModal from "@/components/prontuario/AssinaturaOnboardingModal.vue"
+import AssinaturaPollingIndicator from "@/components/prontuario/AssinaturaPollingIndicator.vue"
+import { assinaturaDigitalService, type StatusAssinaturaDigital } from "@/services/assinaturaDigitalService"
+import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
+import { useAuthStore } from "@/stores/authStore"
 
 const props = defineProps<{
     pacienteId: number
     pacienteNome: string
 }>()
+
+// ─── Assinatura digital ───────────────────────────────────────────────────────
+const assinaturaStore = useAssinaturaDigitalStore()
+const authStore = useAuthStore()
+const modalOnboarding = ref(false)
+const pollingAtivo = ref<number | null>(null) // receitaId com polling ativo
+const timeoutPolling = ref(false) // flag de timeout 5 min
+
+onMounted(() => assinaturaStore.carregarCertificado())
+onUnmounted(() => {
+    if (pollingAtivo.value !== null)
+        assinaturaStore.pararPolling(String(pollingAtivo.value))
+})
+
+function ehPrescritorDaReceitaAberta(): boolean {
+    if (!receitaAberta.value) return false
+    return receitaAberta.value.profissionalUsuarioId === authStore.usuario?.id
+}
+
+const temCertificado = computed(() => assinaturaStore.certificadoVinculado !== null)
+
+function statusAssinaturaDeReceita(r: ReceitaResumo): StatusAssinaturaDigital {
+    const cached = assinaturaStore.statusPorReceita[String(r.id)]
+    if (cached) return cached
+    return r.assinaturaDigitalStatus ?? "NaoAssinada"
+}
+
+async function dispararAssinatura(receitaId: number) {
+    salvandoAcao.value = true
+    timeoutPolling.value = false
+    try {
+        await assinaturaDigitalService.dispararAssinatura(receitaId)
+        assinaturaStore.setStatus(String(receitaId), "AssinaturaPendente")
+        pollingAtivo.value = receitaId
+        assinaturaStore.iniciarPolling(
+            String(receitaId),
+            (status) => {
+                pollingAtivo.value = null
+                notificar(
+                    status === "AssinadaIcp"
+                        ? "Receita assinada com sucesso!"
+                        : "Falha na assinatura. Tente novamente.",
+                    status === "AssinadaIcp" ? "success" : "error",
+                )
+                carregar()
+                if (receitaAberta.value?.id === receitaId)
+                    abrirReceita(receitaId)
+            },
+            () => {
+                pollingAtivo.value = null
+                timeoutPolling.value = true
+            },
+        )
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao disparar assinatura.", "error")
+    } finally {
+        salvandoAcao.value = false
+    }
+}
+
+function cancelarPolling() {
+    if (pollingAtivo.value !== null) {
+        const id = pollingAtivo.value
+        assinaturaStore.pararPolling(String(id))
+        pollingAtivo.value = null
+        // Não altera o status: o webhook do BirdID pode ainda chegar.
+        // O status ficará como AssinaturaPendente até o job de expiração agir.
+    }
+}
+
+async function baixarPdfAssinado(receitaId: number) {
+    try {
+        const res = await assinaturaDigitalService.obterStatus(receitaId)
+        if (res.pdfAssinadoUrl) {
+            window.open(res.pdfAssinadoUrl, "_blank", "noopener,noreferrer")
+        } else {
+            notificar("URL do PDF assinado não disponível.", "error")
+        }
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao obter PDF assinado.", "error")
+    }
+}
 
 // ─── Estado de lista (paginação server-side) ─────────────────────────────────
 const receitas = ref<ReceitaResumo[]>([])
@@ -485,6 +573,8 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                             Notif. {{ r.tipoNotificacao }}
                         </span>
                         <span v-if="r.requerRetencao" class="badge badge-warning">RETER</span>
+                        <!-- Badge de assinatura digital — CA-13 -->
+                        <AssinaturaStatusBadge :status="statusAssinaturaDeReceita(r)" />
                     </div>
                     <div class="receita-data">
                         {{ formatarData(r.emitidaEm ?? new Date().toISOString()) }}
@@ -689,6 +779,63 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                 <AppButton icon="fa-solid fa-print" @click="imprimir">
                     Imprimir
                 </AppButton>
+
+                <!-- Ações de assinatura digital — CA-04/CA-05/CA-06/CA-13 -->
+                <template v-if="ehPrescritorDaReceitaAberta()">
+                    <!-- Polling ativo: exibe indicador -->
+                    <AssinaturaPollingIndicator
+                        v-if="pollingAtivo === receitaAberta.id"
+                        :receita-id="receitaAberta.id"
+                        @cancelar="cancelarPolling"
+                    />
+                    <!-- Timeout: mensagem orientativa (CA-20) -->
+                    <div v-else-if="timeoutPolling" class="aviso-timeout">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        Não recebemos confirmação do BirdID. Verifique o app e clique em "Verificar status" para atualizar.
+                        <AppButton size="sm" variant="secondary" @click="dispararAssinatura(receitaAberta.id)">
+                            Verificar status
+                        </AppButton>
+                    </div>
+                    <!-- Sem certificado: onboarding (CA-19) -->
+                    <AppButton
+                        v-else-if="!temCertificado && receitaAberta.assinaturaDigitalStatus === 'NaoAssinada'"
+                        size="sm"
+                        variant="secondary"
+                        icon="fa-solid fa-certificate"
+                        @click="modalOnboarding = true"
+                    >
+                        Cadastrar certificado
+                    </AppButton>
+                    <!-- Com certificado + NaoAssinada / FalhaAssinatura / AssinaturaExpirada -->
+                    <AppButton
+                        v-else-if="
+                            temCertificado &&
+                            (receitaAberta.assinaturaDigitalStatus === 'NaoAssinada' ||
+                             receitaAberta.assinaturaDigitalStatus === 'FalhaAssinatura' ||
+                             receitaAberta.assinaturaDigitalStatus === 'AssinaturaExpirada')
+                        "
+                        size="sm"
+                        icon="fa-solid fa-signature"
+                        :loading="salvandoAcao"
+                        @click="dispararAssinatura(receitaAberta.id)"
+                    >
+                        {{
+                            receitaAberta.assinaturaDigitalStatus === 'NaoAssinada'
+                                ? 'Assinar digitalmente'
+                                : 'Reenviar assinatura'
+                        }}
+                    </AppButton>
+                    <!-- AssinadaIcp: download do PDF assinado (CA-06/CA-16) -->
+                    <AppButton
+                        v-else-if="receitaAberta.assinaturaDigitalStatus === 'AssinadaIcp'"
+                        size="sm"
+                        variant="secondary"
+                        icon="fa-solid fa-file-arrow-down"
+                        @click="baixarPdfAssinado(receitaAberta.id)"
+                    >
+                        Baixar PDF assinado
+                    </AppButton>
+                </template>
             </template>
             <template v-else>
                 <p class="aviso-cancelada">
@@ -703,6 +850,13 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
         :receita-id="receitaAberta?.id ?? null"
         @fechar="modalCancelar = false"
         @confirmar="onCancelarConfirmado"
+    />
+
+    <!-- Modal de vinculação de certificado digital -->
+    <AssinaturaOnboardingModal
+        :aberto="modalOnboarding"
+        @fechar="modalOnboarding = false"
+        @vinculado="notificar('Certificado vinculado com sucesso!', 'success')"
     />
 
     <AppConfirmDialog
@@ -862,6 +1016,14 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
 }
 .aviso-cancelada {
     color: hsl(var(--muted-foreground)); font-style: italic; margin: 0;
+}
+
+.aviso-timeout {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    font-size: 0.85rem; color: hsl(var(--foreground));
+    background: hsl(var(--warning) / 0.15);
+    border: 1px solid hsl(var(--warning) / 0.4);
+    border-radius: 0.5rem; padding: 0.5rem 0.75rem;
 }
 
 @media (max-width: 768px) {
