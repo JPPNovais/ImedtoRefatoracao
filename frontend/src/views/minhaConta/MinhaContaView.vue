@@ -257,8 +257,6 @@ async function salvarTudo() {
     }
 }
 
-// ─── Segurança (trocar senha) ────────────────────────────────────────────────
-
 // ─── Assinatura digital ───────────────────────────────────────────────────────
 
 const assinaturaStore = useAssinaturaDigitalStore()
@@ -738,11 +736,11 @@ onMounted(async () => {
     border: 1px solid var(--border);
 }
 .cert-status--ok {
-    background: #f0fdf4;
-    border-color: #86efac;
-    color: #166534;
+    background: hsl(var(--success) / 0.1);
+    border-color: hsl(var(--success) / 0.4);
+    color: hsl(var(--success));
 }
-.cert-status--ok i { color: #16a34a; margin-top: 0.1rem; }
+.cert-status--ok i { color: hsl(var(--success)); margin-top: 0.1rem; }
 .cert-status--vazio {
     background: hsl(var(--accent));
     color: var(--text-muted);

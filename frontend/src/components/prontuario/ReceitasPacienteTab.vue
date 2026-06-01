@@ -960,11 +960,11 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
 .aviso-assinatura > i { margin-top: 2px; color: hsl(38 90% 45%); }
 .aviso-assinatura b { display: block; margin-bottom: 2px; }
 .aviso-assinatura--ok {
-    background: #f0fdf4;
-    border-color: #86efac;
-    color: #166534;
+    background: hsl(var(--success) / 0.1);
+    border-color: hsl(var(--success) / 0.4);
+    color: hsl(var(--success));
 }
-.aviso-assinatura--ok > i { color: #16a34a; }
+.aviso-assinatura--ok > i { color: hsl(var(--success)); }
 
 .secao {
     background: hsl(var(--card));
