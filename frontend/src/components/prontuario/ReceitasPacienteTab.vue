@@ -620,14 +620,30 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
-        <div class="aviso-assinatura" role="note">
+        <!-- Banner condicional por status de assinatura -->
+        <div
+            v-if="(assinaturaStore.statusPorReceita[String(receitaAberta.id)] ?? receitaAberta.assinaturaDigitalStatus) === 'AssinadaIcp'"
+            class="aviso-assinatura aviso-assinatura--ok"
+            role="note"
+        >
+            <i class="fa-solid fa-circle-check"></i>
+            <div>
+                <b>Receita assinada digitalmente (ICP-Brasil).</b>
+                <span>Esta receita possui assinatura digital com validade jurídica plena.</span>
+            </div>
+        </div>
+        <div
+            v-else-if="(assinaturaStore.statusPorReceita[String(receitaAberta.id)] ?? receitaAberta.assinaturaDigitalStatus) !== 'AssinaturaPendente'"
+            class="aviso-assinatura"
+            role="note"
+        >
             <i class="fa-solid fa-circle-exclamation"></i>
             <div>
                 <b>Receita não assinada digitalmente.</b>
                 <span>
                     Esta receita inclui apenas a identificação do profissional. Para validade jurídica plena
                     em farmácias que exigem assinatura digital (ICP-Brasil / Memed), imprima e assine
-                    manualmente. A integração com provedores de assinatura está em desenvolvimento.
+                    manualmente.
                 </span>
             </div>
         </div>
@@ -943,6 +959,12 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
 }
 .aviso-assinatura > i { margin-top: 2px; color: hsl(38 90% 45%); }
 .aviso-assinatura b { display: block; margin-bottom: 2px; }
+.aviso-assinatura--ok {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #166534;
+}
+.aviso-assinatura--ok > i { color: #16a34a; }
 
 .secao {
     background: hsl(var(--card));
