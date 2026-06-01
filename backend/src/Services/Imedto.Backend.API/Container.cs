@@ -211,6 +211,16 @@ public static class Container
     {
         services.AddHttpContextAccessor();
         services.AddMemoryCache(); // usado pelo AssinaturaService (gating de feature).
+
+        // Data Protection — chaves persistidas em /var/imedto/dp-keys para sobreviver a deploys.
+        // Sem isso, cada restart gera novo key ring e invalida tokens cifrados (ex.: refresh_token do certificado).
+        var dpKeysPath = configuration.GetValue<string>("DataProtection:KeysPath")
+            ?? "/var/imedto/dp-keys";
+        System.IO.Directory.CreateDirectory(dpKeysPath);
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(new System.IO.DirectoryInfo(dpKeysPath))
+            .SetApplicationName("imedto-backend");
+
         services.AddInfrastructure(configuration);
         RegistrarIa(services, configuration);
         RegistrarHandlers(services);

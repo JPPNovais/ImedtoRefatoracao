@@ -50,7 +50,17 @@ public class DispararAssinaturaCommandHandler : ICommandHandler<DispararAssinatu
         var cert = await _certRepo.ObterPorMedicoAsync(cmd.CallerUsuarioId)
             ?? throw new BusinessException("Nenhum certificado digital vinculado. Vincule seu certificado antes de assinar.");
 
-        var refreshTokenDecifrado = _protector.Unprotect(cert.RefreshToken);
+        string refreshTokenDecifrado;
+        try
+        {
+            refreshTokenDecifrado = _protector.Unprotect(cert.RefreshToken);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
+            // Chave de Data Protection mudou (ex.: deploy sem persistência configurada).
+            // O médico precisa revincular o certificado.
+            throw new BusinessException("Certificado inválido ou expirado. Acesse Minha Conta e vincule o certificado novamente.");
+        }
 
         receita.IniciarAssinatura();
         await _receitaRepo.Salvar(receita);
