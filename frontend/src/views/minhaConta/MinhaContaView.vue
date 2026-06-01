@@ -11,6 +11,9 @@ import { useProfissionalStore } from "@/stores/profissionalStore"
 import { AppButton, AppPhotoUpload, AppConfirmDialog } from "@/components/ui"
 import { redimensionarImagem } from "@/services/imageUtils"
 import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
+import AssinaturaOnboardingModal from "@/components/prontuario/AssinaturaOnboardingModal.vue"
+import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
+import { assinaturaDigitalService } from "@/services/assinaturaDigitalService"
 
 const auth         = useAuthStore()
 const tenant       = useTenantStore()
@@ -256,6 +259,29 @@ async function salvarTudo() {
 
 // ─── Segurança (trocar senha) ────────────────────────────────────────────────
 
+// ─── Assinatura digital ───────────────────────────────────────────────────────
+
+const assinaturaStore = useAssinaturaDigitalStore()
+const modalOnboardingAberto = ref(false)
+const removendoCert = ref(false)
+const erroCert = ref<string | null>(null)
+
+onMounted(() => assinaturaStore.carregarCertificado())
+
+async function removerCertificado() {
+    removendoCert.value = true
+    erroCert.value = null
+    try {
+        await assinaturaDigitalService.removerCertificado()
+        await assinaturaStore.carregarCertificado()
+    } catch (e: any) {
+        erroCert.value = e?.response?.data?.mensagem ?? "Erro ao remover certificado."
+    } finally {
+        removendoCert.value = false
+    }
+}
+
+// ─── Segurança (trocar senha) ────────────────────────────────────────────────
 const trocarSenhaAberto = ref(false)
 const senhaTrocadaMsg   = ref<string | null>(null)
 let senhaMsgTimer: number | null = null
@@ -457,6 +483,58 @@ onMounted(async () => {
             </div>
         </div>
 
+        <!-- ── Card: Assinatura Digital ── -->
+        <div class="card">
+            <h2 class="card-titulo">Assinatura Digital (ICP-Brasil)</h2>
+            <p class="card-sub">
+                Vincule seu certificado em nuvem (BirdID ou CFM gratuito) para assinar
+                receitas médicas com validade jurídica plena diretamente pelo celular.
+            </p>
+
+            <!-- Certificado vinculado -->
+            <template v-if="assinaturaStore.certificadoVinculado">
+                <div class="cert-status cert-status--ok">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <div>
+                        <strong>Certificado vinculado</strong>
+                        <span class="cert-detalhe">
+                            Provedor: {{ assinaturaStore.certificadoVinculado.provedor }}
+                            <template v-if="assinaturaStore.certificadoVinculado.expiraEm">
+                                · Expira em {{ new Date(assinaturaStore.certificadoVinculado.expiraEm).toLocaleDateString("pt-BR") }}
+                            </template>
+                        </span>
+                    </div>
+                </div>
+                <p v-if="erroCert" class="msg-erro">{{ erroCert }}</p>
+                <div class="card-footer">
+                    <AppButton
+                        variant="secondary"
+                        icon="fa-solid fa-trash"
+                        :loading="removendoCert"
+                        @click="removerCertificado"
+                    >
+                        Remover certificado
+                    </AppButton>
+                </div>
+            </template>
+
+            <!-- Sem certificado -->
+            <template v-else>
+                <div class="cert-status cert-status--vazio">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                    <span>Nenhum certificado vinculado.</span>
+                </div>
+                <div class="card-footer">
+                    <AppButton
+                        icon="fa-solid fa-certificate"
+                        @click="modalOnboardingAberto = true"
+                    >
+                        Vincular certificado
+                    </AppButton>
+                </div>
+            </template>
+        </div>
+
         <!-- ── Card: Privacidade e LGPD ── -->
         <div class="card">
             <h2 class="card-titulo">Privacidade e LGPD</h2>
@@ -506,6 +584,12 @@ onMounted(async () => {
             :aberto="trocarSenhaAberto"
             @fechar="trocarSenhaAberto = false"
             @alterada="onSenhaAlterada"
+        />
+
+        <AssinaturaOnboardingModal
+            :aberto="modalOnboardingAberto"
+            @fechar="modalOnboardingAberto = false"
+            @vinculado="assinaturaStore.carregarCertificado()"
         />
 
         <AppConfirmDialog
@@ -644,6 +728,34 @@ onMounted(async () => {
     text-decoration: none;
     transition: all 0.15s;
 }
+.cert-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+.cert-status--ok {
+    background: #f0fdf4;
+    border-color: #86efac;
+    color: #166534;
+}
+.cert-status--ok i { color: #16a34a; margin-top: 0.1rem; }
+.cert-status--vazio {
+    background: hsl(var(--accent));
+    color: var(--text-muted);
+}
+.cert-status--vazio i { color: var(--text-muted); }
+.cert-detalhe {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 400;
+    margin-top: 0.15rem;
+    opacity: 0.85;
+}
+
 .lgpd-link:hover {
     border-color: hsl(var(--primary));
     color: hsl(var(--primary));
