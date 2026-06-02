@@ -68,7 +68,7 @@ const perfilProprio = ref<{ especialidade: string | null; conselho: string; foto
 const filtroProf = ref("")
 const filtroEspec = ref("")
 const filtroStatus = ref<Agendamento["status"] | null>(null)
-const filtroSalaId = ref<number | null>(null)
+const filtroSalaId = ref<string>("")
 const buscaTexto = ref("")
 
 // Salas ativas — carregadas no mount para o filtro.
@@ -115,7 +115,7 @@ const baseFiltrada = computed<Agendamento[]>(() => {
     return agendamentos.value.filter(a => {
         if (filtroProf.value && a.profissionalUsuarioId !== filtroProf.value) return false
         if (filtroEspec.value && especialidadeDoProfissional(a.profissionalUsuarioId) !== filtroEspec.value) return false
-        if (filtroSalaId.value != null && a.salaId !== filtroSalaId.value) return false
+        if (filtroSalaId.value && String(a.salaId) !== filtroSalaId.value) return false
         return true
     })
 })
@@ -564,8 +564,8 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                             </AppSelect>
                         </AppField>
                         <AppField v-if="salas.length > 0" label="Sala" class="filt-grupo">
-                            <AppSelect v-model.number="filtroSalaId">
-                                <option :value="null">Todas</option>
+                            <AppSelect v-model="filtroSalaId">
+                                <option value="">Todas</option>
                                 <option v-for="s in salas" :key="s.id" :value="s.id">{{ s.nome }}</option>
                             </AppSelect>
                         </AppField>

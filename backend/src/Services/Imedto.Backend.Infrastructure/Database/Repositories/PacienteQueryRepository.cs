@@ -93,9 +93,10 @@ public class PacienteQueryRepository
     }
 
     /// <summary>
-    /// Autocomplete de paciente (LGPD: somente nome). Sem busca → retorna os
-    /// últimos cadastrados; com busca → filtra por nome usando o índice GIN
-    /// trigram. Limite máximo enforced em 30 (proteção contra exfiltração).
+    /// Autocomplete de paciente (LGPD: o DTO retorna somente id + nome). Sem busca →
+    /// retorna os últimos cadastrados; com busca → filtra por nome (índice GIN trigram),
+    /// CPF (prefixo numérico) ou documento internacional — mesma cobertura do Listar.
+    /// Limite máximo enforced em 30 (proteção contra exfiltração).
     /// </summary>
     public async Task<IReadOnlyList<PacienteBuscaRapidaDto>> BuscaRapida(
         long estabelecimentoId,
@@ -104,6 +105,10 @@ public class PacienteQueryRepository
     {
         var lim = Math.Clamp(limite, 1, 30);
         var buscaSanitizada = string.IsNullOrWhiteSpace(q) ? null : q.Trim();
+        var buscaNumerica = buscaSanitizada is null
+            ? null
+            : new string(buscaSanitizada.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(buscaNumerica)) buscaNumerica = null;
 
         const string sql = """
             SELECT  id            AS Id,
@@ -113,7 +118,9 @@ public class PacienteQueryRepository
               AND   deletado_em IS NULL
               AND   (@Busca::text IS NULL
                      OR public.imutable_unaccent(lower(nome_completo))
-                        ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%')
+                        ILIKE '%' || public.imutable_unaccent(lower(@Busca)) || '%'
+                     OR (@BuscaNumerica IS NOT NULL AND cpf LIKE @BuscaNumerica || '%')
+                     OR (@Busca IS NOT NULL AND lower(documento_internacional) LIKE lower(@Busca) || '%'))
             ORDER BY CASE WHEN @Busca IS NULL THEN criado_em END DESC,
                      nome_completo
             LIMIT  @Limite
@@ -124,6 +131,7 @@ public class PacienteQueryRepository
         {
             EstabelecimentoId = estabelecimentoId,
             Busca = buscaSanitizada,
+            BuscaNumerica = buscaNumerica,
             Limite = lim
         });
         return itens.AsList();

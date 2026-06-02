@@ -39,7 +39,7 @@ import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
 import type { ProfissionalPublico } from "@/services/vinculoService"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
-import { AppAvatarSelect, AppDatePicker } from "@/components/ui"
+import { AppAvatarSelect, AppDatePicker, AppCheckbox } from "@/components/ui"
 import { cpfValido, somenteDigitos } from "@/utils/cpf"
 
 const props = defineProps<{
@@ -575,8 +575,9 @@ const profSelecionado = computed(() =>
 
                     <div class="quick-info">
                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                        O cadastro completo (endereço, convênios, alergias, histórico) poderá ser concluído pelo paciente
-                        ao chegar na clínica ou pela secretaria depois.
+                        O cadastro completo (endereço, convênios, alergias, histórico) poderá ser concluído pelo(a)
+                        secretário(a) ou responsável pelo agendamento quando o paciente chegar na clínica e informar os
+                        dados necessários para finalizar.
                     </div>
 
                     <button type="button" class="link-back" @click="modo = 'search'">
@@ -783,14 +784,12 @@ const profSelecionado = computed(() =>
                         <div class="field-group full reminder-row">
                             <label>Lembrete automático</label>
                             <div class="reminder-toggles">
-                                <label class="tg" :class="{ on: detalhes.lembreteWA }">
-                                    <input type="checkbox" v-model="detalhes.lembreteWA" />
+                                <AppCheckbox v-model="detalhes.lembreteWA">
                                     <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp
-                                </label>
-                                <label class="tg" :class="{ on: detalhes.lembreteEmail }">
-                                    <input type="checkbox" v-model="detalhes.lembreteEmail" />
+                                </AppCheckbox>
+                                <AppCheckbox v-model="detalhes.lembreteEmail">
                                     <i class="fa-solid fa-envelope" aria-hidden="true"></i> E-mail
-                                </label>
+                                </AppCheckbox>
                             </div>
                             <span class="hint">Enviado automaticamente 24h antes do atendimento.</span>
                         </div>
@@ -1596,39 +1595,8 @@ const profSelecionado = computed(() =>
 /* Reminder */
 .reminder-row .reminder-toggles {
     display: flex;
-    gap: 8px;
+    gap: 20px;
     flex-wrap: wrap;
-}
-.reminder-row .tg {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    border-radius: 999px;
-    border: 1px solid hsl(var(--foreground) / 0.12);
-    background: hsl(var(--card));
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    color: hsl(var(--foreground) / 0.7);
-    transition: all 0.15s;
-}
-.reminder-row .tg input {
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    border: 1.5px solid hsl(var(--foreground) / 0.2);
-    border-radius: 4px;
-    margin: 0;
-}
-.reminder-row .tg.on {
-    background: hsl(var(--primary, 254 56% 38%) / 0.08);
-    border-color: hsl(var(--primary, 254 56% 38%) / 0.5);
-    color: hsl(var(--primary-dark, 254 56% 21%));
-}
-.reminder-row .tg.on input {
-    background: hsl(var(--primary, 254 56% 38%));
-    border-color: hsl(var(--primary, 254 56% 38%));
 }
 .reminder-row .hint {
     font-size: 11px;
