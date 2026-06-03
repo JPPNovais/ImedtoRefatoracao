@@ -59,6 +59,23 @@ A feature de assinatura digital introduz novos dados sensíveis com tratamento o
 
 **Multi-tenant no webhook**: mesmo sem token de usuário, o handler resolve o `estabelecimento_id` a partir da `receita_id` e valida que o tenant está ativo antes de qualquer mutação. Tenant inativo → descarte silencioso, sem mutação.
 
+## Confirmação por link público de agendamento — log de acesso (briefing 2026-06-02_001, Fase 2)
+
+A Fase 2 introduz um novo ponto de coleta de dado operacional para o fluxo público de confirmação de presença:
+
+| Dado | Tabela / campo | Classificação | Regra |
+|---|---|---|---|
+| Log de acesso ao link público | `agendamento_confirmacao_acesso_log` (`ip_origem`, `user_agent`, `acao`, `acessado_em`, `agendamento_id`, `estabelecimento_id`) | Metadado operacional — **sem PII do paciente** | Idêntico ao padrão de `termo_emitido_acesso_log` (Fase 4, Termos). Registra IP, UserAgent e ação (`visualizou_publico` / `confirmou_presenca` / `tentativa_invalida` / `tentativa_idempotente`). Retenção alinhada à de Termos. Sem `paciente_id`, nome, CPF ou e-mail. |
+| Token de confirmação | `agendamentos.token_confirmacao` | Credencial temporária (256 bits) | Token **nunca logado em texto claro**. Expira em `min(agora + 7 dias, InicioPrevisto)`. Único via índice parcial. Sobrescrito a cada reagendamento. Não exposto em payload de API (só embutido no link do e-mail). |
+
+**Endpoint público** (`GET`/`POST /api/publico/agendamentos/confirmar/{token}`):
+- Resolve o agendamento **pelo token**, sem tenant claim (o token é o único segredo).
+- Payload de resposta: apenas `estabelecimentoNome`, `profissionalNome`, `tipoServico`, `inicioPrevisto`, `fimPrevisto`. **Nunca** `paciente_id`, `estabelecimento_id`, nome do paciente, CPF ou e-mail.
+- Erros (token inválido/expirado/cancelado) → 410 Gone com mensagem **genérica idêntica** em todos os casos.
+- Rate limit: 10 req/min por IP (política `agendamentos-publico`).
+
+**Referência cruzada**: padrão idêntico ao já documentado para Termos (`termo_emitido_acesso_log`). Se a política de retenção for alterada para Termos, aplicar o mesmo ajuste aqui.
+
 ## Checklist multi-tenant — premissa não-negociável
 
 Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento, **assinatura digital**), valide:

@@ -13,12 +13,27 @@ public class AgendamentoRepository : IAgendamentoRepository
         => await _db.Agendamentos
             .FirstOrDefaultAsync(a => a.Id == id && a.EstabelecimentoId == estabelecimentoId);
 
+    /// <inheritdoc/>
+    public async Task<Agendamento?> ObterPorTokenOuNulo(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        return await _db.Agendamentos
+            .FirstOrDefaultAsync(a => a.TokenConfirmacao == token);
+    }
+
     public async Task Salvar(Agendamento agendamento)
     {
         if (agendamento.Id == 0)
             _db.Agendamentos.Add(agendamento);
         else
             _db.Agendamentos.Update(agendamento);
+        await _db.SaveChangesAsync();
+    }
+
+    /// <inheritdoc/>
+    public async Task SalvarAcessoLog(AgendamentoConfirmacaoAcessoLog log)
+    {
+        await _db.AgendamentoConfirmacaoAcessoLogs.AddAsync(log);
         await _db.SaveChangesAsync();
     }
 

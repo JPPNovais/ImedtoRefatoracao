@@ -70,6 +70,7 @@ public class AppDbContext : DbContext
     public DbSet<MedicamentoFavorito> MedicamentosFavoritos => Set<MedicamentoFavorito>();
     public DbSet<Agendamento> Agendamentos => Set<Agendamento>();
     public DbSet<AgendamentoSalaAudit> AgendamentoSalaAudits => Set<AgendamentoSalaAudit>();
+    public DbSet<AgendamentoConfirmacaoAcessoLog> AgendamentoConfirmacaoAcessoLogs => Set<AgendamentoConfirmacaoAcessoLog>();
     public DbSet<ListaEsperaAgendamento> ListaEsperaAgendamentos => Set<ListaEsperaAgendamento>();
     public DbSet<ItemInventario> ItensInventario => Set<ItemInventario>();
     public DbSet<MovimentacaoEstoque> MovimentacoesEstoque => Set<MovimentacaoEstoque>();

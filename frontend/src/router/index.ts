@@ -68,6 +68,13 @@ const router = createRouter({
             name: "AceiteTermoPublico",
             component: () => import("@/views/publico/AceiteTermoPublicoView.vue"),
         },
+        // Confirmação de presença em agendamento via link público (Fase 2). Anônima, sem AppLayout.
+        // Token 256 bits é a credencial. Backend retorna apenas dados mínimos (sem PII).
+        {
+            path: "/agendamentos/confirmar/:token",
+            name: "ConfirmarPresencaPublico",
+            component: () => import("@/views/publico/ConfirmarPresencaPublicaView.vue"),
+        },
 
         // Pós-login sem tenant (sem layout)
         {

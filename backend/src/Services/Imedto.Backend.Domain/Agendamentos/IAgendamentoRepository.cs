@@ -10,7 +10,20 @@ public interface IAgendamentoRepository
     /// </summary>
     Task<Agendamento?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
+    /// <summary>
+    /// Carrega o agendamento pelo token de confirmação pública (Fase 2).
+    /// NÃO filtra por tenant — o token (256 bits) é o segredo único.
+    /// Retorna null quando o token não existe (sem PII nos erros — controller devolve 410 genérico).
+    /// </summary>
+    Task<Agendamento?> ObterPorTokenOuNulo(string token);
+
     Task Salvar(Agendamento agendamento);
+
+    /// <summary>
+    /// Persiste log de acesso ao link público (R16).
+    /// Append-only — sem PII do paciente (IP/UA/acao/AgendamentoId/EstabelecimentoId).
+    /// </summary>
+    Task SalvarAcessoLog(AgendamentoConfirmacaoAcessoLog log);
 
     /// <summary>
     /// Verifica se o profissional já tem um agendamento ativo no estabelecimento informado

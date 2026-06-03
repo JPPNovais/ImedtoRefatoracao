@@ -349,6 +349,8 @@ builder.Services.AddRateLimiter(options =>
     // 10 req/min por IP é generoso pra UX legítimo (paciente acessa, lê, responde)
     // mas trava enumeração massiva de tokens.
     options.AddPolicy("termos-publico", ctx => CriarParticao(ctx, 10));
+    // Fase 2 (agendamentos) — endpoints públicos de confirmação de presença (anônimos, por token).
+    options.AddPolicy("agendamentos-publico", ctx => CriarParticao(ctx, 10));
 
     options.OnRejected = async (context, ct) =>
     {
