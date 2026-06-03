@@ -15,11 +15,12 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
-import { agendaService, type Agendamento } from "@/services/agendaService"
+import { agendaService, type Agendamento, type DisponibilidadeDia } from "@/services/agendaService"
 import type { PacienteListaItem } from "@/services/pacienteService"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
+import { calcularPodeEncaixar } from "@/utils/encaixeUtils"
 import { AppButton, AppDatePicker, AppToast } from "@/components/ui"
 import EncaixeModal from "@/components/atendimentos/EncaixeModal.vue"
 import AtendimentoActiveCard from "@/components/atendimentos/AtendimentoActiveCard.vue"
@@ -173,12 +174,21 @@ async function carregar() {
     }
 }
 
-function irHoje()      { dataSel.value = toISO(new Date()) }
+function irHoje() {
+    dataSel.value = toISO(new Date())
+    // Revalida aptidão ao retornar para hoje (horário pode ter mudado desde o mount — briefing §6).
+    void consultarAptidaoHoje()
+}
 function diaAnterior() { dataSel.value = addDias(dataSel.value, -1) }
 function proximoDia()  { dataSel.value = addDias(dataSel.value,  1) }
 
 watch(dataSel, carregar)
-onMounted(carregar)
+onMounted(() => {
+    void carregar()
+    // Consulta aptidão de encaixe uma única vez ao montar a tela (CA11).
+    // Não repete ao navegar entre dias — encaixe é sempre "agora", não da data do filtro.
+    void consultarAptidaoHoje()
+})
 
 // ─── Ações sobre agendamento ─────────────────────────────────────────────────
 function abrirProntuario(a: Agendamento) {
@@ -236,6 +246,37 @@ function abrirAlocarSala(a: Agendamento) {
 async function onSalaAlocada() {
     agendamentoTrocarSala.value = null
     await carregar()
+}
+
+// ─── Aptidão para encaixe agora (checagem preventiva de UX) ─────────────────
+// ATENÇÃO: esta checagem é espelho de UX. O backend (Estabelecimento.ValidarPodeAgendar)
+// continua sendo a fonte da verdade — a criação do encaixe ainda passa por 422 no save.
+const disponibilidadeHoje = ref<DisponibilidadeDia | null>(null)
+
+// Calcula se o estabelecimento aceita encaixe no momento atual.
+// Usa os dados já retornados pelo backend (multi-tenant, server-side).
+// Lógica extraída em calcularPodeEncaixar (encaixeUtils.ts) para ser testável isoladamente.
+const podeEncaixarAgora = computed<boolean>(() => {
+    const agora = new Date()
+    const horaAtual = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`
+    return calcularPodeEncaixar(disponibilidadeHoje.value, horaAtual)
+})
+
+const tooltipEncaixe = computed<string>(() =>
+    podeEncaixarAgora.value
+        ? ""
+        : "O estabelecimento não está em funcionamento neste momento — não é possível criar encaixe agora.",
+)
+
+async function consultarAptidaoHoje() {
+    if (!auth.usuario?.id) return
+    try {
+        const r = await agendaService.consultarDisponibilidade(auth.usuario.id, toISO(hoje), toISO(hoje))
+        disponibilidadeHoje.value = r.dias.find(d => d.data === toISO(hoje)) ?? null
+    } catch {
+        // Falha na consulta → não bloqueia o botão (R6: falha-fechada não-bloqueante, CA9).
+        disponibilidadeHoje.value = null
+    }
 }
 
 // ─── Novo encaixe ────────────────────────────────────────────────────────────
@@ -305,9 +346,19 @@ function fecharEncaixe() {
                     <AppButton variant="ghost" size="sm" @click="irHoje">Hoje</AppButton>
                 </div>
 
-                <AppButton variant="danger" icon="fa-solid fa-bolt" @click="modalEncaixe = true">
-                    Novo encaixe
-                </AppButton>
+                <span
+                    :title="!podeEncaixarAgora ? tooltipEncaixe : undefined"
+                    style="display: inline-flex;"
+                >
+                    <AppButton
+                        variant="danger"
+                        icon="fa-solid fa-bolt"
+                        :disabled="!podeEncaixarAgora"
+                        @click="podeEncaixarAgora && (modalEncaixe = true)"
+                    >
+                        Novo encaixe
+                    </AppButton>
+                </span>
             </div>
         </header>
 

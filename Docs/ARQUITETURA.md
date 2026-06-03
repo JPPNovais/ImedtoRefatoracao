@@ -55,6 +55,8 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 - Convenção: views/stores nunca usam `httpClient` diretamente — toda HTTP passa por `*Service` em [frontend/src/services/](../frontend/src/services/).
 - Alias `@/*` → `./src/*`.
 
+> **Nota — Botão "Novo encaixe" em `MeusAtendimentosView`**: a aptidão para criar encaixe no momento atual é verificada preventivamente no front via `agendaService.consultarDisponibilidade(profissional, hoje, hoje)` — checagem de UX para evitar atrito operacional. `Estabelecimento.ValidarPodeAgendar` (backend) **permanece a fonte da verdade**: qualquer criação de encaixe ainda passa por `CriarAgendamentoCommandHandler` e retorna 422 se o estabelecimento estiver fechado. O front é espelho; o backend é autoritativo.
+
 > Detalhes de UI, design system, componentes e premissas de produto em [DESIGN.md](DESIGN.md).
 
 ---
