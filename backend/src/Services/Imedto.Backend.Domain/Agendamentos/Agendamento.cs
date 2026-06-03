@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Imedto.Backend.Domain.Agendamentos.Events;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -20,6 +21,11 @@ public class Agendamento : Entity
     public virtual bool LembretePorEmailEnviado { get; protected set; }
     public virtual DateTime? CheckInEm { get; protected set; }
     public virtual long? SalaId { get; protected set; }
+
+    // Fase 2 — confirmação por link público
+    public virtual string? TokenConfirmacao { get; protected set; }
+    public virtual DateTime? TokenConfirmacaoExpiraEm { get; protected set; }
+    public virtual DateTime? ConfirmadoPorLinkEm { get; protected set; }
 
     protected Agendamento() { }
 
@@ -140,6 +146,7 @@ public class Agendamento : Entity
         string tipoServico,
         string? observacoes)
     {
+        // R7: bloqueia Cancelado/Concluído e agendamento já ocorrido.
         if (Status == AgendamentoStatus.Cancelado)
             throw new BusinessException("Não é possível alterar um agendamento cancelado.");
         if (Status == AgendamentoStatus.Concluido)
@@ -155,11 +162,90 @@ public class Agendamento : Entity
         if (string.IsNullOrWhiteSpace(tipoServico))
             throw new BusinessException("Tipo de serviço é obrigatório.");
 
+        // Comparar ANTES de sobrescrever — R1/R5/R6.
+        var mudouHorarioProfissional =
+            profissionalUsuarioId != ProfissionalUsuarioId
+            || inicioPrevisto != InicioPrevisto
+            || fimPrevisto != FimPrevisto;
+
+        // R1: Confirmado com mudança de horário/profissional → volta a Agendado.
+        // R3: zerar lembrete ao resetar.
+        if (Status == AgendamentoStatus.Confirmado && mudouHorarioProfissional)
+        {
+            Status = AgendamentoStatus.Agendado;
+            LembretePorEmailEnviado = false;
+        }
+
+        // R6: Agendado com mudança de horário/profissional → zerar lembrete
+        // (lembrete antigo pode estar marcado para horário desatualizado).
+        if (Status == AgendamentoStatus.Agendado && mudouHorarioProfissional)
+            LembretePorEmailEnviado = false;
+
         ProfissionalUsuarioId = profissionalUsuarioId;
         InicioPrevisto = inicioPrevisto;
         FimPrevisto = fimPrevisto;
         TipoServico = tipoServico.Trim();
         Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim();
         AtualizadoEm = DateTime.UtcNow;
+
+        // R4/R5: evento informativo quando muda horário ou profissional,
+        // independente do status de origem (Agendado ou Confirmado).
+        if (mudouHorarioProfissional)
+            AddDomainEvent(new AgendamentoReagendadoEvent(
+                Id, EstabelecimentoId, PacienteId, ProfissionalUsuarioId, InicioPrevisto));
+    }
+
+    // ─── Fase 2: link público de confirmação ──────────────────────────────────
+
+    /// <summary>
+    /// Gera token de confirmação url-safe (256 bits / 32 bytes, RFC 4648 §5 sem padding).
+    /// Expira em <c>min(InicioPrevisto, agora + ttl)</c> — nunca além do início do agendamento.
+    /// Default TTL: 7 dias. Sobrescreve token anterior se existir (reagendamento repete o link).
+    /// </summary>
+    public virtual void GerarTokenConfirmacao(TimeSpan? ttl = null)
+    {
+        var ttlEfetivo = ttl ?? TimeSpan.FromDays(7);
+        var expiraCandidato = DateTime.UtcNow.Add(ttlEfetivo);
+        TokenConfirmacao = GerarTokenUrlSafe(32);
+        // R11: nunca além de InicioPrevisto.
+        TokenConfirmacaoExpiraEm = expiraCandidato < InicioPrevisto ? expiraCandidato : InicioPrevisto;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Confirma presença via link público anônimo (R13).
+    /// Só transita Agendado → Confirmado com token válido e não expirado.
+    /// Idempotência: se já Confirmado, lança <see cref="AgendamentoJaConfirmadoException"/> —
+    /// o command handler trata separadamente e devolve 200 (não erro).
+    /// </summary>
+    public virtual void ConfirmarPorLinkPublico(string? ipOrigem, string? userAgent)
+    {
+        if (Status == AgendamentoStatus.Confirmado)
+            throw new AgendamentoJaConfirmadoException();
+
+        if (Status != AgendamentoStatus.Agendado)
+            throw new BusinessException(MensagemLinkInvalido);
+
+        if (string.IsNullOrWhiteSpace(TokenConfirmacao)
+            || TokenConfirmacaoExpiraEm is null
+            || TokenConfirmacaoExpiraEm < DateTime.UtcNow)
+            throw new BusinessException(MensagemLinkInvalido);
+
+        Status = AgendamentoStatus.Confirmado;
+        ConfirmadoPorLinkEm = DateTime.UtcNow;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>Mensagem genérica usada em todos os erros do fluxo público (anti-enumeração).</summary>
+    public const string MensagemLinkInvalido =
+        "Este link expirou ou não é mais válido. Entre em contato com o estabelecimento.";
+
+    private static string GerarTokenUrlSafe(int bytes)
+    {
+        var buffer = RandomNumberGenerator.GetBytes(bytes);
+        return Convert.ToBase64String(buffer)
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
     }
 }

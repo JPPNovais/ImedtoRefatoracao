@@ -784,9 +784,13 @@ const profSelecionado = computed(() =>
                         <div class="field-group full reminder-row">
                             <label>Lembrete automático</label>
                             <div class="reminder-toggles">
-                                <AppCheckbox v-model="detalhes.lembreteWA">
-                                    <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp
-                                </AppCheckbox>
+                                <!-- CA14: WhatsApp desabilitado — sem integração de envio. NÃO remover do estado. -->
+                                <span title="em breve" class="reminder-wa-soon">
+                                    <AppCheckbox v-model="detalhes.lembreteWA" :disabled="true">
+                                        <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp
+                                    </AppCheckbox>
+                                    <span class="badge-soon">em breve</span>
+                                </span>
                                 <AppCheckbox v-model="detalhes.lembreteEmail">
                                     <i class="fa-solid fa-envelope" aria-hidden="true"></i> E-mail
                                 </AppCheckbox>
@@ -870,10 +874,8 @@ const profSelecionado = computed(() =>
                             </div>
                             <div class="kv">
                                 <span>Lembrete</span>
-                                <b>{{
-                                    [detalhes.lembreteWA && "WhatsApp", detalhes.lembreteEmail && "E-mail"]
-                                        .filter(Boolean).join(" + ") || "Não enviar"
-                                }}</b>
+                                <!-- CA14: WhatsApp não conta como canal ativo (sem integração). -->
+                                <b>{{ detalhes.lembreteEmail ? "E-mail" : "Não enviar" }}</b>
                             </div>
                         </div>
                     </div>
@@ -889,7 +891,7 @@ const profSelecionado = computed(() =>
                     <div v-else class="confirm-info">
                         <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
                         Tudo pronto. Ao confirmar, o agendamento será adicionado à agenda{{
-                            (detalhes.lembreteWA || detalhes.lembreteEmail)
+                            detalhes.lembreteEmail
                                 ? " e o lembrete será disparado 24h antes."
                                 : " sem envio de lembrete automático."
                         }}
@@ -1602,6 +1604,25 @@ const profSelecionado = computed(() =>
     font-size: 11px;
     color: hsl(var(--foreground) / 0.55);
     margin-top: 4px;
+}
+
+/* CA14: wrapper do checkbox WhatsApp desabilitado + badge "em breve" */
+.reminder-wa-soon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.badge-soon {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: hsl(35 90% 30%);
+    background: hsl(45 96% 47% / 0.15);
+    border: 1px solid hsl(45 96% 47% / 0.35);
+    border-radius: 4px;
+    padding: 1px 5px;
+    line-height: 1.4;
 }
 
 /* ─── Step 3 Confirm ─── */

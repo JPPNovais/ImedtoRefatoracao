@@ -191,6 +191,16 @@ const dataAlterada = computed(() => form.data !== form.origData)
 const horaAlterada = computed(() => form.hora !== form.origHora)
 const isReagendamento = computed(() => dataAlterada.value || horaAlterada.value)
 
+// CA13: aviso exibido quando agendamento está Confirmado E o usuário altera
+// horário (data ou hora) OU profissional — backend resetará status para Agendado (R1).
+// Se mudar só obs/tipo, sem aviso (R2).
+const exibirAvisoResetConfirmacao = computed(() => {
+    if (!props.agendamento || props.agendamento.status !== "Confirmado") return false
+    const mudouHorario = isReagendamento.value
+    const mudouProfissional = form.profissionalUsuarioId !== props.agendamento.profissionalUsuarioId
+    return mudouHorario || mudouProfissional
+})
+
 // Validação para salvar
 const detalhesAlterados = computed(() => {
     if (!props.agendamento) return false
@@ -519,6 +529,16 @@ async function salvar() {
                 </div>
 
                 <div v-if="erro" class="erro-banner">{{ erro }}</div>
+
+                <!-- CA13: aviso de reset quando Confirmado e usuário altera horário ou profissional -->
+                <div v-if="exibirAvisoResetConfirmacao" class="aviso-reagendamento">
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span>
+                        Este agendamento está confirmado. Ao remarcar o horário ou o profissional,
+                        ele voltará para <strong>Pendente</strong> e a paciente será avisada por e-mail
+                        para reconfirmar.
+                    </span>
+                </div>
             </div>
 
             <footer class="modal-foot">
@@ -911,6 +931,27 @@ async function salvar() {
     border-radius: 8px;
     color: hsl(0 84% 50%);
     font-size: 13px;
+}
+
+/* ── Aviso de reset de confirmação (CA13) ── */
+.aviso-reagendamento {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: hsl(45 96% 47% / 0.10);
+    border: 1px solid hsl(45 96% 47% / 0.35);
+    border-radius: 8px;
+    color: hsl(35 90% 30%);
+    font-size: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.5;
+}
+.aviso-reagendamento i {
+    color: hsl(38 92% 50%);
+    font-size: 15px;
+    margin-top: 1px;
+    flex-shrink: 0;
 }
 
 /* ── Footer ── */

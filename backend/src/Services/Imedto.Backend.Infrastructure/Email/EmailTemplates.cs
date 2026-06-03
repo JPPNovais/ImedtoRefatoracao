@@ -207,6 +207,81 @@ public static class EmailTemplates
         return Wrap(assunto, conteudo);
     }
 
+    /// <summary>
+    /// E-mail enviado ao paciente quando um agendamento é remarcado (mudança de horário ou profissional).
+    /// Informa nome fantasia do estabelecimento, tipo de serviço, profissional e nova data/hora (Brasília).
+    ///
+    /// LGPD: sem CPF, sem dados clínicos, sem paciente_id.
+    /// </summary>
+    public static string AgendamentoRemarcadoParaPaciente(
+        string estabelecimentoNome,
+        string tipoServico,
+        string profissionalNome,
+        DateTime novoInicioPrevisto)
+    {
+        var dataFormatada = novoInicioPrevisto
+            .ToString("dd/MM/yyyy 'às' HH:mm", new System.Globalization.CultureInfo("pt-BR"));
+
+        var conteudo = $$"""
+            <h1>Seu agendamento foi remarcado</h1>
+            <p>Olá,</p>
+            <p><strong>{{HtmlEscape(estabelecimentoNome)}}</strong> remarcou seu agendamento:</p>
+            <div class="info-box">
+              <p><strong>{{HtmlEscape(tipoServico)}}</strong></p>
+              <p>Profissional: {{HtmlEscape(profissionalNome)}}</p>
+              <p>Nova data/hora: <strong>{{HtmlEscape(dataFormatada)}}</strong></p>
+            </div>
+            <p>Seu agendamento foi remarcado e a confirmação anterior foi cancelada.</p>
+            <p>Em breve você poderá reconfirmar sua presença.</p>
+            <div class="divider"></div>
+            <p style="font-size:14px;color:#737373;">
+              Em caso de dúvidas, entre em contato diretamente com o estabelecimento.
+            </p>
+            """;
+        return Wrap($"Agendamento remarcado — {estabelecimentoNome}", conteudo);
+    }
+
+    /// <summary>
+    /// E-mail enviado ao paciente quando o agendamento é remarcado (Fase 2):
+    /// inclui link público de confirmação de presença.
+    /// Informa nome fantasia do estabelecimento, tipo de serviço, profissional, nova data/hora (Brasília) e link.
+    ///
+    /// LGPD: sem CPF, sem dados clínicos, sem paciente_id.
+    /// Não logar o HTML produzido (contém URL com token).
+    /// </summary>
+    public static string AgendamentoConfirmacaoLinkParaPaciente(
+        string estabelecimentoNome,
+        string tipoServico,
+        string profissionalNome,
+        DateTime novoInicioPrevisto,
+        string linkConfirmacao)
+    {
+        var dataFormatada = novoInicioPrevisto
+            .ToString("dd/MM/yyyy 'às' HH:mm", new System.Globalization.CultureInfo("pt-BR"));
+
+        var conteudo = $$"""
+            <h1>Seu agendamento foi remarcado</h1>
+            <p>Olá,</p>
+            <p><strong>{{HtmlEscape(estabelecimentoNome)}}</strong> remarcou seu agendamento:</p>
+            <div class="info-box">
+              <p><strong>{{HtmlEscape(tipoServico)}}</strong></p>
+              <p>Profissional: {{HtmlEscape(profissionalNome)}}</p>
+              <p>Nova data/hora: <strong>{{HtmlEscape(dataFormatada)}}</strong></p>
+            </div>
+            <p>Para confirmar sua presença, clique no botão abaixo:</p>
+            <p style="text-align:center;"><a href="{{HtmlEscape(linkConfirmacao)}}" class="button">Confirmar presença</a></p>
+            <div class="divider"></div>
+            <p style="font-size:14px;color:#737373;">
+              Se o botão não funcionar, copie e cole este endereço no seu navegador:<br>
+              <span style="word-break:break-all;color:#442B97;">{{HtmlEscape(linkConfirmacao)}}</span>
+            </p>
+            <p style="font-size:14px;color:#737373;">
+              Em caso de dúvidas, entre em contato diretamente com o estabelecimento.
+            </p>
+            """;
+        return Wrap($"Agendamento remarcado — {estabelecimentoNome}", conteudo);
+    }
+
     private static string Wrap(string titulo, string conteudo)
     {
         return $$"""

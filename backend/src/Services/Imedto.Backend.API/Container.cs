@@ -594,6 +594,11 @@ public static class Container
         services.AddSingleton<AgendamentoQueryRepository>();
         services.AddScoped<AgendamentoCriadoEventHandler>();
         services.AddScoped<AgendamentoCanceladoEventHandler>();
+        services.AddScoped<EnviarEmailAgendamentoReagendadoEventHandler>();
+        // Fase 2 — link público de confirmação de presença.
+        // Scoped (não singleton): handler usa IAgendamentoRepository (scoped) para gravar log de acesso.
+        services.AddScoped<ConfirmarPresencaPublicaCommandHandler>();
+        services.AddScoped<ConsultarConfirmacaoPublicaQueryHandler>();
 
         // Anexos de prontuário
         services.AddScoped<AdicionarAnexoCommandHandler>();
@@ -943,6 +948,8 @@ public static class Container
             bus.Register<ConcluirAgendamentoCommand, ConcluirAgendamentoCommandHandler>();
             bus.Register<RegistrarCheckInAgendamentoCommand, RegistrarCheckInAgendamentoCommandHandler>();
             bus.Register<AlocarSalaAgendamentoCommand, AlocarSalaAgendamentoCommandHandler>();
+            // Fase 2 — link público de confirmação de presença.
+            bus.Register<ConfirmarPresencaPublicaCommand, ConfirmarPresencaPublicaCommandHandler>();
             bus.Register<AdicionarListaEsperaCommand, AdicionarListaEsperaCommandHandler>();
             bus.Register<RemoverListaEsperaCommand, RemoverListaEsperaCommandHandler>();
             bus.Register<CriarItemInventarioCommand, CriarItemInventarioCommandHandler>();
@@ -1105,6 +1112,8 @@ public static class Container
             bus.Register<ContarAgendamentosPorDiaQuery, IEnumerable<ContagemPorDiaDto>, ContarAgendamentosPorDiaQueryHandler>();
             bus.Register<ObterAgendamentoQuery, AgendamentoDto, ObterAgendamentoQueryHandlers>();
             bus.Register<ConsultarDisponibilidadeQuery, DisponibilidadeSemanaDto, ConsultarDisponibilidadeQueryHandlers>();
+            // Fase 2 — link público de confirmação de presença.
+            bus.Register<ConsultarConfirmacaoPublicaQuery, ConfirmacaoPublicaDto, ConsultarConfirmacaoPublicaQueryHandler>();
             bus.Register<ListarListaEsperaQuery, PaginaListaEsperaDto, ListarListaEsperaQueryHandler>();
             bus.Register<ListarItensInventarioQuery, PaginaItensInventarioDto, ListarItensInventarioQueryHandlers>();
             bus.Register<ListarMovimentacoesQuery, PaginaMovimentacoesEstoqueDto, ListarMovimentacoesQueryHandlers>();
@@ -1222,6 +1231,7 @@ public static class Container
             bus.Register<EvolucaoRegistradaEvent, EvolucaoRegistradaEventHandler>();
             bus.Register<AgendamentoCriadoEvent, AgendamentoCriadoEventHandler>();
             bus.Register<AgendamentoCanceladoEvent, AgendamentoCanceladoEventHandler>();
+            bus.Register<AgendamentoReagendadoEvent, EnviarEmailAgendamentoReagendadoEventHandler>();
             bus.Register<EstoqueAbaixoMinimoEvent, EstoqueAbaixoMinimoEventHandler>();
             bus.Register<OrcamentoCriadoEvent, OrcamentoCriadoEventHandler>();
             bus.Register<OrcamentoAprovadoEvent, OrcamentoAprovadoEventHandler>();

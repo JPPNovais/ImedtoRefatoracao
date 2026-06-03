@@ -227,6 +227,72 @@ A assinatura em nuvem é inerentemente assíncrona: o BirdID dispara PUSH no cel
 
 ---
 
+## Bounded Context: Agendamentos (briefing 2026-06-02_001)
+
+### Máquina de estados do Agendamento
+
+```
+Agendado ──── Confirmar() ───────────────────► Confirmado
+   │           (canal interno: recepção)            │
+   │                                                │  (mudou horário/profissional)
+   │  (mudou horário/profissional)                  │  Atualizar() → LembretePorEmailEnviado=false
+   │  Atualizar() → LembretePorEmailEnviado=false   │  → AgendamentoReagendadoEvent → e-mail c/ link
+   │  → AgendamentoReagendadoEvent → e-mail c/ link ▼
+   │                                             Agendado  ← RESET
+   │
+   │  ConfirmarPorLinkPublico(token, ip, ua)
+   │  (canal anônimo: paciente via link público)
+   └──────────────────────────────────────────► Confirmado  (Fase 2)
+   │
+   ├──── Cancelar(motivo) ──────────────────────► Cancelado  (terminal)
+   │
+   └──── Concluir() ────────────────────────────► Concluido  (terminal)
+```
+
+**Transições válidas:**
+
+| De | Para | Método | Condição |
+|---|---|---|---|
+| `Agendado` | `Confirmado` | `Confirmar()` | Status == Agendado (canal interno) |
+| `Agendado` | `Confirmado` | `ConfirmarPorLinkPublico(token, ip, ua)` | Status == Agendado + token válido + não expirado (canal anônimo, Fase 2) |
+| `Confirmado` | `Agendado` | `Atualizar()` | Muda InicioPrevisto, FimPrevisto ou ProfissionalUsuarioId |
+| `Agendado` ou `Confirmado` | `Cancelado` | `Cancelar(motivo)` | motivo obrigatório |
+| Qualquer (exceto Cancelado) | `Concluido` | `Concluir()` | — |
+
+**Estados terminais**: `Cancelado` e `Concluido` — `Atualizar()` lança `BusinessException`.
+
+### Regra de reset (R1) e evento de domínio (R4)
+
+Quando `Atualizar()` detecta mudança em `InicioPrevisto`, `FimPrevisto` **ou** `ProfissionalUsuarioId` (comparação feita **antes** de sobrescrever os campos):
+
+1. Se `Status == Confirmado` → `Status = Agendado` + `LembretePorEmailEnviado = false` (R1, R3).
+2. Se `Status == Agendado` → apenas `LembretePorEmailEnviado = false` (R6, sem reset de status).
+3. Em ambos os casos → `AddDomainEvent(new AgendamentoReagendadoEvent(...))` (R4, R5).
+4. Se mudar **só** `TipoServico` e/ou `Observacoes` (horário e profissional idênticos) → nenhuma das ações acima (R2).
+
+O `AgendamentoReagendadoEvent` **não carrega PII** (apenas IDs + novo `InicioPrevisto`). O handler `EnviarEmailAgendamentoReagendadoEventHandler`:
+- Gera token de confirmação pública via `Agendamento.GerarTokenConfirmacao()` (Fase 2, default TTL 7 dias, `min(agora+TTL, InicioPrevisto)`).
+- Persiste o token via `IAgendamentoRepository.Salvar()` antes de enviar o e-mail.
+- Monta e envia e-mail ao paciente com o link `{AppBaseUrl}/agendamentos/confirmar/{token}`.
+- Aplica degradação graciosa: paciente sem e-mail → pula com `LogInformation` (sem PII); falha SES → `LogWarning` sem corpo, não relança.
+
+### Confirmação por link público (Fase 2)
+
+**Endpoint**: `[AllowAnonymous] + [EnableRateLimiting("agendamentos-publico")]`
+- `GET /api/publico/agendamentos/confirmar/{token}` → retorna resumo mínimo (apenas NomeFantasia do estab, profissional, tipo de serviço e data/hora). **Sem PII do paciente, sem paciente_id, sem estabelecimento_id.**
+- `POST /api/publico/agendamentos/confirmar/{token}` → confirma presença (Agendado → Confirmado).
+
+**Segurança**:
+- Token 256 bits (32 bytes, RFC 4648 §5 url-safe sem padding) — 43 caracteres.
+- 10 req/min por IP (política `agendamentos-publico`).
+- Token inválido/expirado/cancelado → 410 Gone com mensagem **genérica idêntica** em todos os casos (anti-enumeração).
+- Idempotência: já Confirmado → 200 "Presença já confirmada".
+- Todo acesso GET/POST grava `AgendamentoConfirmacaoAcessoLog` (`{AgendamentoId, EstabelecimentoId, IP, UserAgent, acao, timestamp}`) — sem PII do paciente.
+
+**Frontend**: rota anônima `/agendamentos/confirmar/:token` → `ConfirmarPresencaPublicaView` (espelho de `AceiteTermoPublicoView`). Sem login, sem menu, mobile-first.
+
+---
+
 ## Conexão Postgres (RDS)
 
 - Connection string normal Npgsql em `ConnectionStrings:Default` (runtime) e `ConnectionStrings:Migrations` (autoria de migrations via `dotnet ef`).
