@@ -345,6 +345,17 @@ const subtitulo = computed(() =>
 
         <!-- ── Cadastro completo (modo editar OU criar-expandido) ── -->
         <div v-else class="form-completo">
+            <button
+                v-if="expandirCadastro"
+                type="button"
+                class="link-voltar"
+                :disabled="salvando"
+                @click="expandirCadastro = false"
+            >
+                <i class="fa-solid fa-arrow-left"></i>
+                Voltar para cadastro rápido
+            </button>
+
             <section class="secao">
                 <h3 class="secao-titulo">Dados pessoais</h3>
                 <div class="form-grid">
@@ -581,6 +592,19 @@ const subtitulo = computed(() =>
     border-color: hsl(var(--primary) / 0.5);
     background: hsl(var(--primary) / 0.04);
 }
+
+/* Botão "voltar para cadastro rápido" */
+.link-voltar {
+    margin-bottom: 18px;
+    background: transparent; border: none;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 0;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    color: hsl(var(--primary)); cursor: pointer;
+    transition: color 150ms;
+}
+.link-voltar:hover:not(:disabled) { color: hsl(var(--primary-dark)); }
+.link-voltar:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Form completo: seções */
 .form-completo .secao + .secao { margin-top: 22px; }
