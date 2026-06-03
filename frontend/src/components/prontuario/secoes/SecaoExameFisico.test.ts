@@ -62,6 +62,44 @@ describe("SecaoExameFisico", () => {
         expect(imcInput.element.value).toBe("22.9")
     })
 
+    it("exibe aviso de plausibilidade com valores fisiologicamente improváveis", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: {
+                modelValue: { peso: "3", altura: "20" }, // 3kg / 20cm → IMC 75, altura 0.2m implausível
+                readOnly: false,
+            },
+            global: {
+                stubs: {
+                    BodyMap: true,
+                    RegionSelectorPopup: true,
+                    RegionExamCard: true,
+                },
+            },
+        })
+
+        const aviso = wrapper.find(".aviso-antro")
+        expect(aviso.exists()).toBe(true)
+        expect(aviso.text()).toContain("Altura fora da faixa plausível")
+    })
+
+    it("não exibe aviso de plausibilidade com valores normais", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: {
+                modelValue: { peso: "70", altura: "175" },
+                readOnly: false,
+            },
+            global: {
+                stubs: {
+                    BodyMap: true,
+                    RegionSelectorPopup: true,
+                    RegionExamCard: true,
+                },
+            },
+        })
+
+        expect(wrapper.find(".aviso-antro").exists()).toBe(false)
+    })
+
     it("não exibe mapa corporal quando readOnly", () => {
         const wrapper = mount(SecaoExameFisico, {
             props: {

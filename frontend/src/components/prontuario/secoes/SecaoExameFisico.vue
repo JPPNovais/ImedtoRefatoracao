@@ -110,6 +110,19 @@ const classIMC = computed<string | null>(() => {
     return "Obesidade grau III"
 })
 
+// Aviso de plausibilidade — não bloqueia, só sinaliza valor fisiologicamente improvável (provável erro de digitação)
+const avisoAntropometria = computed<string | null>(() => {
+    const p = parseFloat((props.modelValue.peso ?? "").replace(",", "."))
+    const h = parseFloat((props.modelValue.altura ?? "").replace(",", "."))
+    if (!p || !h) return null
+    const alturaM = h > 3 ? h / 100 : h   // mesma heurística cm/m do IMC
+    if (p < 0.3 || p > 500)         return "Peso fora da faixa plausível — confira o valor digitado."
+    if (alturaM < 0.3 || alturaM > 2.5) return "Altura fora da faixa plausível — confira se digitou em cm ou m."
+    const v = p / (alturaM * alturaM)
+    if (v < 10 || v > 100)          return "IMC fora da faixa plausível — confira peso e altura."
+    return null
+})
+
 const ESTADO_GERAL     = ["Bom", "Regular", "Comprometido"]
 const CONSCIENCIA      = ["Lúcido(a)", "Confuso", "Sonolento", "Torporoso", "Comatoso"]
 const ESTADO_NUTR      = ["Desnutrido", "Eutrófico", "Sobrepeso", "Obeso"]
@@ -355,6 +368,10 @@ onMounted(async () => {
                     <AppInput :model-value="classIMC ?? ''" readonly />
                 </AppField>
             </div>
+            <p v-if="avisoAntropometria" class="aviso-antro">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                {{ avisoAntropometria }}
+            </p>
         </div>
 
         <!-- Ectoscopia -->
@@ -551,6 +568,18 @@ onMounted(async () => {
 
 .grade-sv    { display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 0.6rem; align-items: end; }
 .grade-antro { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 0.6rem; align-items: end; }
+
+.aviso-antro {
+    display: flex; align-items: center; gap: 0.45rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.8rem; font-weight: 600;
+    color: hsl(38 80% 30%);
+    background: hsl(var(--warning) / 0.12);
+    border: 1px solid hsl(var(--warning) / 0.35);
+    border-radius: 0.375rem;
+    padding: 0.4rem 0.6rem;
+}
+.aviso-antro i { color: hsl(var(--warning)); }
 .grade-ecto  { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; align-items: end; }
 
 .pa-row { display: flex; align-items: center; gap: 0.35rem; }
