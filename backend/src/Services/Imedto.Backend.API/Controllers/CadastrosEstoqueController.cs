@@ -244,7 +244,8 @@ public class CadastrosEstoqueController : ControllerBase
             ContatoNome = dto.ContatoNome,
             ContatoTelefone = dto.ContatoTelefone,
             ContatoEmail = dto.ContatoEmail,
-            PrazoEntregaDias = dto.PrazoEntregaDias
+            PrazoEntregaDias = dto.PrazoEntregaDias,
+            TipoPrazoEntrega = dto.TipoPrazoEntrega
         };
         await _cmd.Send(cmd);
         return CreatedAtAction(nameof(ListarFornecedores), new { }, new { id = cmd.FornecedorIdCriado });
@@ -264,7 +265,8 @@ public class CadastrosEstoqueController : ControllerBase
             ContatoNome = dto.ContatoNome,
             ContatoTelefone = dto.ContatoTelefone,
             ContatoEmail = dto.ContatoEmail,
-            PrazoEntregaDias = dto.PrazoEntregaDias
+            PrazoEntregaDias = dto.PrazoEntregaDias,
+            TipoPrazoEntrega = dto.TipoPrazoEntrega
         });
         return NoContent();
     }
@@ -390,5 +392,6 @@ public record FornecedorPayloadDto(
     string? ContatoNome,
     string? ContatoTelefone,
     string? ContatoEmail,
-    int PrazoEntregaDias);
+    int PrazoEntregaDias,
+    string TipoPrazoEntrega = "corridos");
 public record LocalPayloadDto(string Nome, string Tipo, string? AndarSetor, string? Responsavel);

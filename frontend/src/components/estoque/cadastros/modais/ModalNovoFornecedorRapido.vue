@@ -9,7 +9,7 @@
  * espelha o `CnpjValidator` do domínio — backend é fonte da verdade).
  */
 import { ref, watch, computed } from "vue"
-import { AppModal, AppButton, AppField, AppInput } from "@/components/ui"
+import { AppModal, AppButton, AppField, AppInput, AppPillToggle } from "@/components/ui"
 import {
     estoqueCadastrosService,
     type CadastroOpcao,
@@ -20,11 +20,17 @@ import { apenasDigitos, validateCnpj } from "@/utils/validateCnpj"
 const props = defineProps<{ aberto: boolean }>()
 const emit  = defineEmits<{ criada: [opcao: CadastroOpcao]; fechar: [] }>()
 
+const opcoesTipoPrazo = [
+    { valor: 'corridos' as string, label: 'Corridos' },
+    { valor: 'uteis' as string, label: 'Úteis' },
+]
+
 const form = ref<FornecedorPayload>({
     razaoSocial: "",
     nomeFantasia: "",
     cnpj: "",
     prazoEntregaDias: 5,
+    tipoPrazoEntrega: 'corridos',
 })
 const erro     = ref<string | null>(null)
 const salvando = ref(false)
@@ -36,7 +42,7 @@ const cnpjValido = computed(() => {
 
 watch(() => props.aberto, (aberta) => {
     if (aberta) {
-        form.value = { razaoSocial: "", nomeFantasia: "", cnpj: "", prazoEntregaDias: 5 }
+        form.value = { razaoSocial: "", nomeFantasia: "", cnpj: "", prazoEntregaDias: 5, tipoPrazoEntrega: 'corridos' }
         erro.value = null
     }
 })
@@ -57,6 +63,7 @@ async function salvar() {
             nomeFantasia,
             cnpj,
             prazoEntregaDias: Number(form.value.prazoEntregaDias) || 0,
+            tipoPrazoEntrega: form.value.tipoPrazoEntrega ?? 'corridos',
         })
         // Pré-seleção mostra a razão social (mesmo nome que o endpoint /opcoes devolve).
         emit("criada", { id, nome: razaoSocial })
@@ -91,6 +98,10 @@ async function salvar() {
 
             <AppField label="Prazo de entrega (dias)" required>
                 <AppInput v-model="form.prazoEntregaDias" type="number" :min="0" :step="1" />
+            </AppField>
+
+            <AppField label="Tipo de prazo" class="full">
+                <AppPillToggle :model-value="form.tipoPrazoEntrega ?? 'corridos'" :opcoes="opcoesTipoPrazo" @update:model-value="(v: string) => form.tipoPrazoEntrega = v as 'corridos' | 'uteis'" />
             </AppField>
         </div>
 

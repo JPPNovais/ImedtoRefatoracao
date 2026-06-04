@@ -12,6 +12,7 @@ public class CriarFornecedorEstoqueCommand : ICommand
     public string? ContatoTelefone { get; set; }
     public string? ContatoEmail { get; set; }
     public int PrazoEntregaDias { get; set; } = 5;
+    public string TipoPrazoEntrega { get; set; } = "corridos";
     public long FornecedorIdCriado { get; set; }
 }
 
@@ -26,6 +27,7 @@ public class AtualizarFornecedorEstoqueCommand : ICommand
     public string? ContatoTelefone { get; set; }
     public string? ContatoEmail { get; set; }
     public int PrazoEntregaDias { get; set; }
+    public string TipoPrazoEntrega { get; set; } = "corridos";
 }
 
 public class InativarFornecedorEstoqueCommand : ICommand

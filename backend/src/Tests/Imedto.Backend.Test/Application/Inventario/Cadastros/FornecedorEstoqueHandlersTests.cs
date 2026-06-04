@@ -71,4 +71,40 @@ public class FornecedorEstoqueHandlersTests
         repo.Verify(r => r.ExisteComCnpjNoEstabelecimento(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<long?>()), Times.Never);
         repo.Verify(r => r.Salvar(It.IsAny<FornecedorEstoque>()), Times.Once);
     }
+
+    [Test]
+    public async Task Criar_TipoPrazoUteis_PersisteFornecedorComUteis()
+    {
+        var repo = new Mock<IFornecedorEstoqueRepository>();
+        repo.Setup(r => r.ExisteComNomeNoEstabelecimento(It.IsAny<string>(), EstabA, null)).ReturnsAsync(false);
+        var sut = new CriarFornecedorEstoqueCommandHandler(repo.Object);
+
+        await sut.Handle(new CriarFornecedorEstoqueCommand
+        {
+            EstabelecimentoId = EstabA,
+            RazaoSocial = "Distribuidora X",
+            PrazoEntregaDias = 5,
+            TipoPrazoEntrega = "uteis",
+        });
+
+        repo.Verify(r => r.Salvar(It.Is<FornecedorEstoque>(f => f.TipoPrazoEntrega == "uteis")), Times.Once);
+    }
+
+    [Test]
+    public void Criar_TipoPrazoInvalido_LancaBusinessException()
+    {
+        var repo = new Mock<IFornecedorEstoqueRepository>();
+        repo.Setup(r => r.ExisteComNomeNoEstabelecimento(It.IsAny<string>(), EstabA, null)).ReturnsAsync(false);
+        var sut = new CriarFornecedorEstoqueCommandHandler(repo.Object);
+
+        var ex = Assert.ThrowsAsync<BusinessException>(() => sut.Handle(new CriarFornecedorEstoqueCommand
+        {
+            EstabelecimentoId = EstabA,
+            RazaoSocial = "Distribuidora X",
+            PrazoEntregaDias = 5,
+            TipoPrazoEntrega = "semanal",
+        }));
+        Assert.That(ex.Message, Does.Contain("prazo"));
+        repo.Verify(r => r.Salvar(It.IsAny<FornecedorEstoque>()), Times.Never);
+    }
 }

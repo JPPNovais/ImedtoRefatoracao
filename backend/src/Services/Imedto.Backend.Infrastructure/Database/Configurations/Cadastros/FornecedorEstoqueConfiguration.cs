@@ -20,6 +20,7 @@ public class FornecedorEstoqueConfiguration : IEntityTypeConfiguration<Fornecedo
         builder.Property(f => f.ContatoTelefone).HasColumnName("contato_telefone").HasMaxLength(40);
         builder.Property(f => f.ContatoEmail).HasColumnName("contato_email").HasMaxLength(200);
         builder.Property(f => f.PrazoEntregaDias).HasColumnName("prazo_entrega_dias").IsRequired();
+        builder.Property(f => f.TipoPrazoEntrega).HasColumnName("tipo_prazo_entrega").HasMaxLength(10).IsRequired().HasDefaultValue("corridos");
         builder.Property(f => f.Ativo).HasColumnName("ativo").IsRequired();
         builder.Property(f => f.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(f => f.AtualizadoEm).HasColumnName("atualizado_em");

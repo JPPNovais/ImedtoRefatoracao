@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, computed } from "vue"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
-    AppField, AppInput, AppStatusPill, AppToast, AppConfirmDialog,
+    AppField, AppInput, AppStatusPill, AppToast, AppConfirmDialog, AppPillToggle,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
@@ -36,6 +36,11 @@ const confirmacao = ref<{ aberto: boolean, alvo: FornecedorEstoque | null, execu
 
 const drawerAberto = ref(false)
 const editando = ref<FornecedorEstoque | null>(null)
+const opcoesTipoPrazo = [
+    { valor: 'corridos' as string, label: 'Corridos' },
+    { valor: 'uteis' as string, label: 'Úteis' },
+]
+
 const form = ref<FornecedorPayload>({
     razaoSocial: "",
     nomeFantasia: "",
@@ -44,6 +49,7 @@ const form = ref<FornecedorPayload>({
     contatoTelefone: "",
     contatoEmail: "",
     prazoEntregaDias: 5,
+    tipoPrazoEntrega: 'corridos',
 })
 const erroForm = ref<string | null>(null)
 const salvando = ref(false)
@@ -52,7 +58,7 @@ const cnpjValido = computed(() => validateCnpj(form.value.cnpj))
 
 function abrirCriar() {
     editando.value = null
-    form.value = { razaoSocial: "", nomeFantasia: "", cnpj: "", contatoNome: "", contatoTelefone: "", contatoEmail: "", prazoEntregaDias: 5 }
+    form.value = { razaoSocial: "", nomeFantasia: "", cnpj: "", contatoNome: "", contatoTelefone: "", contatoEmail: "", prazoEntregaDias: 5, tipoPrazoEntrega: 'corridos' }
     erroForm.value = null
     drawerAberto.value = true
 }
@@ -67,6 +73,7 @@ function abrirEditar(f: FornecedorEstoque) {
         contatoTelefone: f.contatoTelefone ?? "",
         contatoEmail: f.contatoEmail ?? "",
         prazoEntregaDias: f.prazoEntregaDias,
+        tipoPrazoEntrega: f.tipoPrazoEntrega,
     }
     erroForm.value = null
     drawerAberto.value = true
@@ -88,6 +95,7 @@ async function salvar() {
             contatoTelefone: form.value.contatoTelefone?.trim() || null,
             contatoEmail: form.value.contatoEmail?.trim() || null,
             prazoEntregaDias: form.value.prazoEntregaDias,
+            tipoPrazoEntrega: form.value.tipoPrazoEntrega ?? 'corridos',
         }
         if (editando.value) {
             await estoqueCadastrosService.fornecedores.atualizar(editando.value.id, payload)
@@ -207,7 +215,7 @@ onMounted(carregar)
                         <div v-if="f.contatoNome" class="contato-nome">{{ f.contatoNome }}</div>
                         <small class="muted">{{ f.contatoTelefone || f.contatoEmail || "—" }}</small>
                     </div>
-                    <div class="muted">{{ f.prazoEntregaDias }}d</div>
+                    <div class="muted">{{ f.prazoEntregaDias }}d {{ f.tipoPrazoEntrega === 'uteis' ? 'úteis' : 'corridos' }}</div>
                     <div class="muted">{{ f.quantidadeItens }}</div>
                     <div>
                         <AppStatusPill :label="f.ativo ? 'Ativo' : 'Inativo'" :variante="f.ativo ? 'success' : 'muted'" />
@@ -278,6 +286,9 @@ onMounted(carregar)
                     </AppField>
                     <AppField label="Prazo de entrega (dias)">
                         <AppInput v-model="form.prazoEntregaDias" type="number" :min="0" />
+                    </AppField>
+                    <AppField label="Tipo de prazo">
+                        <AppPillToggle :model-value="form.tipoPrazoEntrega ?? 'corridos'" :opcoes="opcoesTipoPrazo" @update:model-value="(v: string) => form.tipoPrazoEntrega = v as 'corridos' | 'uteis'" />
                     </AppField>
 
                     <div class="sub-titulo full">Contato</div>

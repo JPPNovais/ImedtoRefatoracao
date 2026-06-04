@@ -32,6 +32,8 @@ public class FornecedorEstoqueDto
     public string? ContatoTelefone { get; set; }
     public string? ContatoEmail { get; set; }
     public int PrazoEntregaDias { get; set; }
+    /// <summary>"corridos" ou "uteis" — tipo do prazo de entrega acordado com o fornecedor.</summary>
+    public string TipoPrazoEntrega { get; set; } = "corridos";
     public bool Ativo { get; set; }
     public int QuantidadeItens { get; set; }
 }

@@ -26,7 +26,8 @@ public class CriarFornecedorEstoqueCommandHandler : ICommandHandler<CriarFornece
 
         var forn = FornecedorEstoque.Criar(
             cmd.EstabelecimentoId, cmd.RazaoSocial, cmd.NomeFantasia, cmd.Cnpj,
-            cmd.ContatoNome, cmd.ContatoTelefone, cmd.ContatoEmail, cmd.PrazoEntregaDias);
+            cmd.ContatoNome, cmd.ContatoTelefone, cmd.ContatoEmail, cmd.PrazoEntregaDias,
+            cmd.TipoPrazoEntrega);
 
         await _repo.Salvar(forn);
         cmd.FornecedorIdCriado = forn.Id;
@@ -55,7 +56,8 @@ public class AtualizarFornecedorEstoqueCommandHandler : ICommandHandler<Atualiza
 
         forn.Atualizar(
             cmd.RazaoSocial, cmd.NomeFantasia, cmd.Cnpj,
-            cmd.ContatoNome, cmd.ContatoTelefone, cmd.ContatoEmail, cmd.PrazoEntregaDias);
+            cmd.ContatoNome, cmd.ContatoTelefone, cmd.ContatoEmail, cmd.PrazoEntregaDias,
+            cmd.TipoPrazoEntrega);
         await _repo.Salvar(forn);
     }
 }

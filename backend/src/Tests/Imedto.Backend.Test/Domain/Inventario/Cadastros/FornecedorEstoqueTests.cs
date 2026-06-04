@@ -9,7 +9,7 @@ public class FornecedorEstoqueTests
 {
     private const string CnpjValido = "11222333000181";
 
-    private static FornecedorEstoque Criar(string? cnpj = CnpjValido) =>
+    private static FornecedorEstoque Criar(string? cnpj = CnpjValido, string tipoPrazo = "corridos") =>
         FornecedorEstoque.Criar(
             estabelecimentoId: 1,
             razaoSocial: "ACME LTDA",
@@ -18,7 +18,8 @@ public class FornecedorEstoqueTests
             contatoNome: "João",
             contatoTelefone: "(11) 99999-9999",
             contatoEmail: "contato@acme.com",
-            prazoEntregaDias: 7);
+            prazoEntregaDias: 7,
+            tipoPrazoEntrega: tipoPrazo);
 
     [Test]
     public void Criar_DadosValidos_RetornaAtivo()
@@ -29,7 +30,40 @@ public class FornecedorEstoqueTests
         Assert.That(f.Cnpj, Is.EqualTo(CnpjValido));
         Assert.That(f.ContatoEmail, Is.EqualTo("contato@acme.com"));
         Assert.That(f.PrazoEntregaDias, Is.EqualTo(7));
+        Assert.That(f.TipoPrazoEntrega, Is.EqualTo("corridos"));
         Assert.That(f.Ativo, Is.True);
+    }
+
+    [Test]
+    public void Criar_TipoPrazoUteis_ArmazenaUteis()
+    {
+        var f = Criar(tipoPrazo: "uteis");
+        Assert.That(f.TipoPrazoEntrega, Is.EqualTo("uteis"));
+    }
+
+    [Test]
+    public void Criar_TipoPrazoInvalido_LancaBusinessException()
+    {
+        Assert.Throws<BusinessException>(() => Criar(tipoPrazo: "semanal"));
+        Assert.Throws<BusinessException>(() => Criar(tipoPrazo: ""));
+        Assert.Throws<BusinessException>(() => Criar(tipoPrazo: "Corridos")); // maiúscula inválida
+    }
+
+    [Test]
+    public void Atualizar_TipoPrazo_AlteraValor()
+    {
+        var f = Criar(); // corridos por padrão
+        Assert.That(f.TipoPrazoEntrega, Is.EqualTo("corridos"));
+
+        f.Atualizar("ACME LTDA", null, null, null, null, null, 7, "uteis");
+        Assert.That(f.TipoPrazoEntrega, Is.EqualTo("uteis"));
+    }
+
+    [Test]
+    public void Atualizar_TipoPrazoInvalido_LancaBusinessException()
+    {
+        var f = Criar();
+        Assert.Throws<BusinessException>(() => f.Atualizar("ACME LTDA", null, null, null, null, null, 7, "mensal"));
     }
 
     [Test]

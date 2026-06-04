@@ -17,6 +17,8 @@ public class FornecedorEstoque : Entity
     public virtual string? ContatoTelefone { get; protected set; }
     public virtual string? ContatoEmail { get; protected set; }
     public virtual int PrazoEntregaDias { get; protected set; }
+    /// <summary>Tipo do prazo de entrega: "corridos" ou "uteis". Default = corridos.</summary>
+    public virtual string TipoPrazoEntrega { get; protected set; } = "corridos";
     public virtual bool Ativo { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
@@ -31,7 +33,8 @@ public class FornecedorEstoque : Entity
         string? contatoNome,
         string? contatoTelefone,
         string? contatoEmail,
-        int prazoEntregaDias)
+        int prazoEntregaDias,
+        string tipoPrazoEntrega = "corridos")
     {
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
@@ -42,6 +45,7 @@ public class FornecedorEstoque : Entity
         ValidarContatoTelefone(contatoTelefone);
         ValidarContatoEmail(contatoEmail);
         ValidarPrazo(prazoEntregaDias);
+        ValidarTipoPrazo(tipoPrazoEntrega);
 
         return new FornecedorEstoque
         {
@@ -53,6 +57,7 @@ public class FornecedorEstoque : Entity
             ContatoTelefone = string.IsNullOrWhiteSpace(contatoTelefone) ? null : contatoTelefone.Trim(),
             ContatoEmail = string.IsNullOrWhiteSpace(contatoEmail) ? null : contatoEmail.Trim().ToLowerInvariant(),
             PrazoEntregaDias = prazoEntregaDias,
+            TipoPrazoEntrega = tipoPrazoEntrega,
             Ativo = true,
             CriadoEm = DateTime.UtcNow
         };
@@ -65,7 +70,8 @@ public class FornecedorEstoque : Entity
         string? contatoNome,
         string? contatoTelefone,
         string? contatoEmail,
-        int prazoEntregaDias)
+        int prazoEntregaDias,
+        string tipoPrazoEntrega = "corridos")
     {
         if (!Ativo) throw new BusinessException("Fornecedor inativo não pode ser alterado.");
         ValidarRazaoSocial(razaoSocial);
@@ -75,6 +81,7 @@ public class FornecedorEstoque : Entity
         ValidarContatoTelefone(contatoTelefone);
         ValidarContatoEmail(contatoEmail);
         ValidarPrazo(prazoEntregaDias);
+        ValidarTipoPrazo(tipoPrazoEntrega);
 
         RazaoSocial = razaoSocial.Trim();
         NomeFantasia = string.IsNullOrWhiteSpace(nomeFantasia) ? null : nomeFantasia.Trim();
@@ -83,6 +90,7 @@ public class FornecedorEstoque : Entity
         ContatoTelefone = string.IsNullOrWhiteSpace(contatoTelefone) ? null : contatoTelefone.Trim();
         ContatoEmail = string.IsNullOrWhiteSpace(contatoEmail) ? null : contatoEmail.Trim().ToLowerInvariant();
         PrazoEntregaDias = prazoEntregaDias;
+        TipoPrazoEntrega = tipoPrazoEntrega;
         AtualizadoEm = DateTime.UtcNow;
     }
 
@@ -154,5 +162,11 @@ public class FornecedorEstoque : Entity
             throw new BusinessException("Prazo de entrega não pode ser negativo.");
         if (prazoDias > 365)
             throw new BusinessException("Prazo de entrega não pode passar de 365 dias.");
+    }
+
+    private static void ValidarTipoPrazo(string tipo)
+    {
+        if (tipo != "corridos" && tipo != "uteis")
+            throw new BusinessException("Tipo de prazo de entrega inválido. Use 'corridos' ou 'uteis'.");
     }
 }

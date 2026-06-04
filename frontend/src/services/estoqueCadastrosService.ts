@@ -36,6 +36,7 @@ export interface FornecedorEstoque {
     contatoTelefone: string | null
     contatoEmail: string | null
     prazoEntregaDias: number
+    tipoPrazoEntrega: 'corridos' | 'uteis'
     ativo: boolean
     quantidadeItens: number
 }
@@ -93,6 +94,7 @@ export interface FornecedorPayload {
     contatoTelefone?: string | null
     contatoEmail?: string | null
     prazoEntregaDias: number
+    tipoPrazoEntrega?: 'corridos' | 'uteis'
 }
 
 export interface LocalPayload {

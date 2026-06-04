@@ -146,6 +146,7 @@ public class CadastrosEstoqueQueryRepository
                 f.contato_telefone      AS ContatoTelefone,
                 f.contato_email         AS ContatoEmail,
                 f.prazo_entrega_dias    AS PrazoEntregaDias,
+                f.tipo_prazo_entrega    AS TipoPrazoEntrega,
                 f.ativo                 AS Ativo,
                 (SELECT count(*) FROM itens_inventario i
                     WHERE i.fornecedor_padrao_id = f.id AND i.estabelecimento_id = f.estabelecimento_id
