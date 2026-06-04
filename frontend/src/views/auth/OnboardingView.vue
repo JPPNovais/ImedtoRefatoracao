@@ -312,6 +312,13 @@ const dias = ref<DiaConfig[]>([
 const duracaoConsulta = ref("30")
 const intervaloConsulta = ref("0")
 
+const erroIntervaloOnboarding = computed<string | null>(() => {
+    const i = Number(intervaloConsulta.value)
+    if (!Number.isFinite(i) || i < 0 || i > 240)
+        return "Intervalo entre consultas deve estar entre 0 e 240 minutos."
+    return null
+})
+
 function copiarParaTodos(idx: number) {
     const d = dias.value[idx]
     for (let i = 0; i < dias.value.length; i++) {
@@ -342,7 +349,7 @@ const podeAvancar = computed(() => {
         if (!profissaoId.value) return false
         return true
     }
-    if (step.value === 4) return true
+    if (step.value === 4) return erroIntervaloOnboarding.value === null
     return true
 })
 
@@ -911,15 +918,18 @@ const stepperPassos = computed(() => [
                             </div>
                         </div>
                         <div class="field">
-                            <label>Intervalo entre consultas</label>
-                            <div class="input-wrap input-wrap--select">
-                                <select v-model="intervaloConsulta">
-                                    <option value="0">Sem intervalo</option>
-                                    <option value="5">5 minutos</option>
-                                    <option value="10">10 minutos</option>
-                                    <option value="15">15 minutos</option>
-                                </select>
+                            <label>Intervalo entre consultas (min)</label>
+                            <div class="input-wrap">
+                                <input
+                                    v-model="intervaloConsulta"
+                                    type="number"
+                                    min="0"
+                                    max="240"
+                                    step="5"
+                                    placeholder="0"
+                                />
                             </div>
+                            <p v-if="erroIntervaloOnboarding" class="cpf-msg">{{ erroIntervaloOnboarding }}</p>
                         </div>
                     </div>
                 </div>
