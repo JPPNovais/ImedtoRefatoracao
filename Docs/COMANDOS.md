@@ -6,6 +6,17 @@
 
 ---
 
+## Subir tudo de uma vez (dev local → banco da EC2)
+
+`./dev.sh` (na raiz do repo) sobe **túnel SSH + backend + frontend** apontando para o banco da EC2:
+
+- Resolve o IP do container `imedto-postgres` na EC2 e abre túnel `localhost:5432 → container:5432` (a porta do Postgres **não é publicada** no host — só existe na rede Docker interna).
+- Backend em `http://localhost:5050` (porta que o proxy do Vite espera; a `:5000` é ocupada pelo AirPlay Receiver do macOS). Usa `DataProtection__KeysPath=/tmp/imedto/dp-keys` (o default `/var/imedto` é barrado fora do container).
+- Frontend (Vite) em `http://localhost:3000`, em foreground. `Ctrl+C` derruba o que o script subiu.
+- **Reinicia a cada execução**: mata qualquer instância anterior (túnel/backend/front aberta em outro terminal) antes de subir do zero.
+
+> ⚠️ Conecta no banco de **dev real da EC2** — alterações persistem lá (não é banco local descartável). Requer `appsettings.Development.json` com `SSL Mode=Disable` na connection string (o container não tem TLS).
+
 ## Backend (raiz `backend/src/`)
 
 - Build: `dotnet build Imedto.Backend.sln`
