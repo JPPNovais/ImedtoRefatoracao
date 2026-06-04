@@ -247,14 +247,26 @@ async function executarAcaoLinha() {
     }
 }
 
-async function cancelarConvite(c: ProfissionalVinculado) {
+const confirmacaoCancelarConvite = ref<{ aberto: boolean, alvo: ProfissionalVinculado | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+
+function cancelarConvite(c: ProfissionalVinculado) {
     if (c.vinculoId == null) return  // Dono não tem vínculo; nunca chega aqui via UI.
-    if (!confirm(`Cancelar convite enviado para ${c.email}?`)) return
+    confirmacaoCancelarConvite.value = { aberto: true, alvo: c, executando: false }
+}
+
+async function executarCancelarConvite() {
+    const alvo = confirmacaoCancelarConvite.value.alvo
+    if (!alvo || alvo.vinculoId == null) return
+    confirmacaoCancelarConvite.value.executando = true
     try {
-        await vinculoService.inativarVinculo(c.vinculoId)
+        await vinculoService.inativarVinculo(alvo.vinculoId)
+        confirmacaoCancelarConvite.value = { aberto: false, alvo: null, executando: false }
         await carregar()
-        notificar(`Convite para ${c.email} cancelado.`)
+        notificar(`Convite para ${alvo.email} cancelado.`)
     } catch (e: any) {
+        confirmacaoCancelarConvite.value.executando = false
         notificar(e?.response?.data?.mensagem ?? "Não foi possível cancelar o convite.", "error")
     }
 }
@@ -405,6 +417,17 @@ async function reenviarConvite(c: ProfissionalVinculado) {
             :executando="acaoMassaExecutando"
             @confirmar="executarAcaoMassa"
             @cancelar="acaoMassa = null"
+        />
+
+        <!-- Confirmação para cancelar convite -->
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoCancelarConvite.aberto"
+            titulo="Cancelar convite?"
+            :mensagem="confirmacaoCancelarConvite.alvo ? `Cancelar convite enviado para ${confirmacaoCancelarConvite.alvo.email}?` : ''"
+            confirmar-rotulo="Cancelar convite"
+            variante="danger"
+            :executando="confirmacaoCancelarConvite.executando"
+            @confirmar="executarCancelarConvite"
         />
 
         <AppToast

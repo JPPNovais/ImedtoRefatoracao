@@ -11,6 +11,7 @@ import {
 } from "@/services/solicitacaoVinculoService"
 import {
     AppPageHeader, AppButton, AppBadge, AppCard, AppField, AppInput, AppTextarea,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 
 // ─── Formulario de nova solicitacao ──────────────────────────────────────────
@@ -69,16 +70,32 @@ async function carregarMinhas() {
 
 const cancelando = ref<Set<number>>(new Set())
 
-async function cancelar(s: SolicitacaoVinculo) {
-    if (!confirm(`Cancelar solicitacao para ${s.estabelecimentoNome ?? s.estabelecimentoId}?`)) return
-    cancelando.value.add(s.id)
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacaoCancelar = ref<{ aberto: boolean, alvo: SolicitacaoVinculo | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+
+function cancelar(s: SolicitacaoVinculo) {
+    confirmacaoCancelar.value = { aberto: true, alvo: s, executando: false }
+}
+
+async function executarCancelar() {
+    const alvo = confirmacaoCancelar.value.alvo
+    if (!alvo) return
+    confirmacaoCancelar.value.executando = true
+    cancelando.value.add(alvo.id)
     try {
-        await solicitacaoVinculoService.cancelar(s.id)
+        await solicitacaoVinculoService.cancelar(alvo.id)
+        confirmacaoCancelar.value = { aberto: false, alvo: null, executando: false }
         await carregarMinhas()
     } catch (e: any) {
-        erroLista.value = e?.response?.data?.mensagem ?? "Erro ao cancelar."
+        confirmacaoCancelar.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao cancelar.", "error")
     } finally {
-        cancelando.value.delete(s.id)
+        cancelando.value.delete(alvo.id)
     }
 }
 
@@ -178,6 +195,22 @@ onMounted(carregarMinhas)
                 </div>
             </div>
         </AppCard>
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoCancelar.aberto"
+            titulo="Cancelar solicitação?"
+            :mensagem="confirmacaoCancelar.alvo ? `Cancelar solicitação para ${confirmacaoCancelar.alvo.estabelecimentoNome ?? confirmacaoCancelar.alvo.estabelecimentoId}?` : ''"
+            confirmar-rotulo="Cancelar solicitação"
+            variante="danger"
+            :executando="confirmacaoCancelar.executando"
+            @confirmar="executarCancelar"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </main>
 </template>
 

@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from "vue"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
-    AppField, AppInput, AppStatusPill,
+    AppField, AppInput, AppStatusPill, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
@@ -25,6 +25,15 @@ const erro = ref<string | null>(null)
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
 const apenasAtivos = ref(true)
+
+// Toast e confirmação.
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: CategoriaEstoque | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 // ─── Drawer ──────────────────────────────────────────────────────────
 const drawerAberto = ref(false)
@@ -66,13 +75,22 @@ async function salvar() {
     }
 }
 
-async function inativar(c: CategoriaEstoque) {
-    if (!confirm(`Inativar a categoria "${c.nome}"?`)) return
+function pedirInativacao(c: CategoriaEstoque) {
+    confirmacao.value = { aberto: true, alvo: c, executando: false }
+}
+
+async function executarInativacao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await estoqueCadastrosService.categorias.inativar(c.id)
+        await estoqueCadastrosService.categorias.inativar(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Categoria inativada.")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao inativar.", "error")
     }
 }
 
@@ -80,8 +98,9 @@ async function reativar(c: CategoriaEstoque) {
     try {
         await estoqueCadastrosService.categorias.reativar(c.id)
         await carregar()
+        notificar("Categoria reativada.")
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao reativar.")
+        notificar(e?.response?.data?.mensagem ?? "Erro ao reativar.", "error")
     }
 }
 
@@ -179,7 +198,7 @@ onMounted(carregar)
                             type="button"
                             class="btn-icon btn-icon-excluir"
                             title="Inativar"
-                            @click="inativar(c)"
+                            @click="pedirInativacao(c)"
                         >
                             <i class="fa-solid fa-ban"></i>
                         </button>
@@ -206,6 +225,23 @@ onMounted(carregar)
             class="paginacao"
             @update:pagina="(p: number) => (pagina = p)"
             @update:tamanho="(t: number) => (tamanho = t)"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar categoria?"
+            :mensagem="confirmacao.alvo ? `Inativar a categoria ${confirmacao.alvo.nome}?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            :executando="confirmacao.executando"
+            @confirmar="executarInativacao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
         />
 
         <!-- Drawer de criar/editar -->

@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from "vue"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
-    AppField, AppInput, AppStatusPill,
+    AppField, AppInput, AppStatusPill, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
@@ -23,6 +23,14 @@ const erro = ref<string | null>(null)
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
 const apenasAtivos = ref(true)
+
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: FabricanteEstoque | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 const drawerAberto = ref(false)
 const editando = ref<FabricanteEstoque | null>(null)
@@ -67,13 +75,22 @@ async function salvar() {
     }
 }
 
-async function inativar(f: FabricanteEstoque) {
-    if (!confirm(`Inativar "${f.nome}"?`)) return
+function pedirInativacao(f: FabricanteEstoque) {
+    confirmacao.value = { aberto: true, alvo: f, executando: false }
+}
+
+async function executarInativacao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await estoqueCadastrosService.fabricantes.inativar(f.id)
+        await estoqueCadastrosService.fabricantes.inativar(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Fabricante inativado.")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao inativar.", "error")
     }
 }
 
@@ -81,8 +98,9 @@ async function reativar(f: FabricanteEstoque) {
     try {
         await estoqueCadastrosService.fabricantes.reativar(f.id)
         await carregar()
+        notificar("Fabricante reativado.")
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao reativar.")
+        notificar(e?.response?.data?.mensagem ?? "Erro ao reativar.", "error")
     }
 }
 
@@ -160,7 +178,7 @@ onMounted(carregar)
                         <button type="button" class="btn-icon btn-icon-editar" title="Editar" @click="abrirEditar(f)">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button v-if="f.ativo" type="button" class="btn-icon btn-icon-excluir" title="Inativar" @click="inativar(f)">
+                        <button v-if="f.ativo" type="button" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirInativacao(f)">
                             <i class="fa-solid fa-ban"></i>
                         </button>
                         <button v-else type="button" class="btn-icon" title="Reativar" @click="reativar(f)">
@@ -180,6 +198,23 @@ onMounted(carregar)
             class="paginacao"
             @update:pagina="(p: number) => (pagina = p)"
             @update:tamanho="(t: number) => (tamanho = t)"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar fabricante?"
+            :mensagem="confirmacao.alvo ? `Inativar ${confirmacao.alvo.nome}?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            :executando="confirmacao.executando"
+            @confirmar="executarInativacao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
         />
 
         <AppDrawer

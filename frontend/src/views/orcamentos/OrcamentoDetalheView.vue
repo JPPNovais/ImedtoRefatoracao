@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { orcamentoService, type Orcamento } from "@/services/orcamentoService"
 import { useOrcamentoPdf } from "@/composables/useOrcamentoPdf"
-import { AppButton, AppCard } from "@/components/ui"
+import { AppButton, AppCard, AppConfirmDialog } from "@/components/ui"
 import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
 import { formatData, formatDataHora } from "@/utils/datetime"
 import { labelTipoLocalCirurgia } from "@/utils/orcamentoLabels"
@@ -61,13 +61,25 @@ const podeConverter = computed(() =>
     orcamento.value.cirurgias.length > 0
 )
 
-async function converter() {
+const confirmacaoConverter = ref<{ aberto: boolean, executando: boolean }>({
+    aberto: false, executando: false,
+})
+
+function converter() {
     if (!orcamento.value) return
-    if (!confirm("Converter este orçamento em uma cirurgia planejada?")) return
-    await executarAcao(
-        () => orcamentoService.converterEmCirurgia(orcamentoId).then(() => {}),
-        "Erro ao converter."
-    )
+    confirmacaoConverter.value = { aberto: true, executando: false }
+}
+
+async function executarConverter() {
+    confirmacaoConverter.value.executando = true
+    try {
+        await orcamentoService.converterEmCirurgia(orcamentoId)
+        confirmacaoConverter.value = { aberto: false, executando: false }
+        await carregar()
+    } catch (e: any) {
+        confirmacaoConverter.value.executando = false
+        erro.value = e?.response?.data?.mensagem ?? "Erro ao converter."
+    }
 }
 
 async function baixarPdf() {
@@ -340,6 +352,16 @@ onMounted(carregar)
                 </aside>
             </div>
         </template>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoConverter.aberto"
+            titulo="Converter em cirurgia?"
+            mensagem="Converter este orçamento em uma cirurgia planejada?"
+            confirmar-rotulo="Converter"
+            variante="primary"
+            :executando="confirmacaoConverter.executando"
+            @confirmar="executarConverter"
+        />
     </div>
 </template>
 

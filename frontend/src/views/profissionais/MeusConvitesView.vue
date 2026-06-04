@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import { vinculoService, type ConvitePendente } from "@/services/vinculoService"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppToast, AppConfirmDialog } from "@/components/ui"
 
 const convites   = ref<ConvitePendente[]>([])
 const carregando = ref(false)
 const erro       = ref<string | null>(null)
 const msg        = ref<string | null>(null)
 const processando= ref<Set<number>>(new Set())
+
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacaoRecusar = ref<{ aberto: boolean, alvo: ConvitePendente | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 async function carregar() {
     carregando.value = true
@@ -33,16 +41,24 @@ async function aceitar(c: ConvitePendente) {
     }
 }
 
-async function recusar(c: ConvitePendente) {
-    if (!confirm(`Recusar convite de ${c.nomeFantasiaEstabelecimento}?`)) return
-    processando.value.add(c.vinculoId)
+function recusar(c: ConvitePendente) {
+    confirmacaoRecusar.value = { aberto: true, alvo: c, executando: false }
+}
+
+async function executarRecusar() {
+    const alvo = confirmacaoRecusar.value.alvo
+    if (!alvo) return
+    confirmacaoRecusar.value.executando = true
+    processando.value.add(alvo.vinculoId)
     try {
-        await vinculoService.inativarVinculo(c.vinculoId)
+        await vinculoService.inativarVinculo(alvo.vinculoId)
+        confirmacaoRecusar.value = { aberto: false, alvo: null, executando: false }
         await carregar()
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao recusar."
+        confirmacaoRecusar.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao recusar.", "error")
     } finally {
-        processando.value.delete(c.vinculoId)
+        processando.value.delete(alvo.vinculoId)
     }
 }
 
@@ -89,6 +105,7 @@ onMounted(carregar)
                         :disabled="processando.has(c.vinculoId)"
                         @click="recusar(c)"
                     >Recusar</AppButton>
+
                     <AppButton
                         :disabled="processando.has(c.vinculoId)"
                         :loading="processando.has(c.vinculoId)"
@@ -97,6 +114,22 @@ onMounted(carregar)
                 </div>
             </div>
         </div>
+    <AppConfirmDialog
+        v-model:aberto="confirmacaoRecusar.aberto"
+        titulo="Recusar convite?"
+        :mensagem="confirmacaoRecusar.alvo ? `Recusar convite de ${confirmacaoRecusar.alvo.nomeFantasiaEstabelecimento}?` : ''"
+        confirmar-rotulo="Recusar"
+        variante="danger"
+        :executando="confirmacaoRecusar.executando"
+        @confirmar="executarRecusar"
+    />
+
+    <AppToast
+        v-if="toast"
+        :mensagem="toast.mensagem"
+        :variante="toast.variante"
+        @fechar="toast = null"
+    />
     </div>
 </template>
 

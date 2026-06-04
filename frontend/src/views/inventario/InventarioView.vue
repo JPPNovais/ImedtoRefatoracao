@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { inventarioService, type ItemInventario, type MovimentacaoEstoque } from "@/services/inventarioService"
 import { estoqueCadastrosService, type CategoriaEstoque } from "@/services/estoqueCadastrosService"
 import { useRouter } from "vue-router"
-import { AppPageHeader, AppButton, AppTabs } from "@/components/ui"
+import { AppPageHeader, AppButton, AppTabs, AppToast, AppConfirmDialog } from "@/components/ui"
 
 const router = useRouter()
 import { formatarMoedaBrl } from "@/utils/format"
@@ -198,16 +198,34 @@ async function carregarCategorias() {
     }
 }
 
+// Toast e confirmação.
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacaoInativar = ref<{ aberto: boolean, alvo: ItemInventario | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+
 // ─── Inativar ────────────────────────────────────────────────────────────────
-async function inativar(item: ItemInventario) {
-    if (!confirm(`Inativar "${item.nome}"?`)) return
+function inativar(item: ItemInventario) {
+    confirmacaoInativar.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarInativar() {
+    const alvo = confirmacaoInativar.value.alvo
+    if (!alvo) return
+    confirmacaoInativar.value.executando = true
     try {
-        await inventarioService.inativarItem(item.id)
+        await inventarioService.inativarItem(alvo.id)
+        confirmacaoInativar.value = { aberto: false, alvo: null, executando: false }
+        notificar("Item inativado.")
         // Recarrega itens E movimentações — a inativação cria uma movimentação
         // tipo "Inativacao" para auditoria, que precisa aparecer na aba sem F5.
         await Promise.all([carregarItens(), carregarMovimentacoes()])
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
+        confirmacaoInativar.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao inativar.", "error")
     }
 }
 
@@ -399,6 +417,23 @@ onMounted(async () => {
             :categorias="categorias"
             @fechar="itemEditando = null"
             @confirmar="confirmarEditar"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoInativar.aberto"
+            titulo="Inativar item?"
+            :mensagem="confirmacaoInativar.alvo ? `Inativar ${confirmacaoInativar.alvo.nome}?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            :executando="confirmacaoInativar.executando"
+            @confirmar="executarInativar"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
         />
     </div>
 </template>

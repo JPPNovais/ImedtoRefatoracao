@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, computed } from "vue"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
-    AppField, AppInput, AppSelect, AppSelectComCriacao, AppStatusPill, AppToast,
+    AppField, AppInput, AppSelect, AppSelectComCriacao, AppStatusPill, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { inventarioService, type ItemInventario } from "@/services/inventarioService"
@@ -108,11 +108,19 @@ const modalFabricanteAberto  = ref(false)
 const modalFornecedorAberto  = ref(false)
 const modalLocalAberto       = ref(false)
 
-const toastMsg = ref<string | null>(null)
+const toastMsg = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
 
 function notificarSucesso(mensagem: string) {
-    toastMsg.value = mensagem
+    toastMsg.value = { mensagem, variante: "success" }
 }
+
+function notificarErro(mensagem: string) {
+    toastMsg.value = { mensagem, variante: "error" }
+}
+
+const confirmacao = ref<{ aberto: boolean, alvo: ItemInventario | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 function onCriadaCategoria(opcao: CadastroOpcao) {
     // 1) append local (resposta instantânea) — refetch silencioso só pra
@@ -260,13 +268,22 @@ async function salvar() {
     }
 }
 
-async function inativar(it: ItemInventario) {
-    if (!confirm(`Inativar "${it.nome}"?`)) return
+function pedirInativacao(it: ItemInventario) {
+    confirmacao.value = { aberto: true, alvo: it, executando: false }
+}
+
+async function executarInativacao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await inventarioService.inativarItem(it.id)
+        await inventarioService.inativarItem(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificarSucesso("Produto inativado.")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
+        confirmacao.value.executando = false
+        notificarErro(e?.response?.data?.mensagem ?? "Erro ao inativar.")
     }
 }
 
@@ -379,7 +396,7 @@ function formatarQtd(n: number) {
                         <button type="button" class="btn-icon btn-icon-editar" title="Editar" :disabled="!it.ativo" @click="abrirEditar(it)">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button v-if="it.ativo" type="button" class="btn-icon btn-icon-excluir" title="Inativar" @click="inativar(it)">
+                        <button v-if="it.ativo" type="button" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirInativacao(it)">
                             <i class="fa-solid fa-ban"></i>
                         </button>
                     </div>
@@ -516,10 +533,20 @@ function formatarQtd(n: number) {
             @fechar="modalLocalAberto = false"
         />
 
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar produto?"
+            :mensagem="confirmacao.alvo ? `Inativar ${confirmacao.alvo.nome}?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            :executando="confirmacao.executando"
+            @confirmar="executarInativacao"
+        />
+
         <AppToast
             v-if="toastMsg"
-            :mensagem="toastMsg"
-            variante="success"
+            :mensagem="toastMsg.mensagem"
+            :variante="toastMsg.variante"
             @fechar="toastMsg = null"
         />
     </div>

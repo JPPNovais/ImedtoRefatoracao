@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import {
-    AppButton, AppEmptyState, AppFilterPills, AppPageHeader, AppPagination, AppSearchInput, AppSelect, AppToast,
+    AppButton, AppEmptyState, AppFilterPills, AppPageHeader, AppPagination, AppSearchInput, AppSelect, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
@@ -94,6 +94,11 @@ const tagOpcoes = computed(() => {
     ]
 })
 
+// Confirmação de exclusão de paciente (LGPD — irreversível).
+const confirmacaoExcluir = ref<{ aberto: boolean, alvo: PacienteListaItem | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+
 // ─── Ações ─────────────────────────────────────────────────────────────────
 function novo() {
     pacienteEmEdicao.value = null
@@ -113,14 +118,22 @@ function verDetalhe(p: PacienteListaItem) {
     router.push({ name: "PacienteDetalhe", params: { id: p.id } })
 }
 
-async function excluir(p: PacienteListaItem) {
-    if (!confirm(`Excluir ${p.nomeCompleto}? Esta ação é irreversível.`)) return
-    excluindoId.value = p.id
+function excluir(p: PacienteListaItem) {
+    confirmacaoExcluir.value = { aberto: true, alvo: p, executando: false }
+}
+
+async function executarExcluir() {
+    const alvo = confirmacaoExcluir.value.alvo
+    if (!alvo) return
+    confirmacaoExcluir.value.executando = true
+    excluindoId.value = alvo.id
     try {
-        await pacienteService.deletar(p.id)
+        await pacienteService.deletar(alvo.id)
+        confirmacaoExcluir.value = { aberto: false, alvo: null, executando: false }
         await Promise.all([carregar(), carregarStats()])
         notificar("Paciente excluído.")
     } catch (e: any) {
+        confirmacaoExcluir.value.executando = false
         notificar(e?.response?.data?.mensagem ?? "Erro ao excluir.", "error")
     } finally {
         excluindoId.value = null
@@ -340,6 +353,16 @@ function formatarCpf(cpf: string | null) {
             :paciente="pacienteEmEdicao"
             @fechar="modalAberto = false; pacienteEmEdicao = null"
             @salvo="onPacienteSalvo"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoExcluir.aberto"
+            titulo="Excluir paciente?"
+            :mensagem="confirmacaoExcluir.alvo ? `Excluir ${confirmacaoExcluir.alvo.nomeCompleto}? Esta ação é irreversível.` : ''"
+            confirmar-rotulo="Excluir"
+            variante="danger"
+            :executando="confirmacaoExcluir.executando"
+            @confirmar="executarExcluir"
         />
 
         <AppToast

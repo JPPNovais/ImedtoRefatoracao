@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue"
-import { AppButton, AppCard, AppField, AppInput, AppPillToggle } from "@/components/ui"
+import { AppButton, AppCard, AppField, AppInput, AppPillToggle, AppToast, AppConfirmDialog } from "@/components/ui"
 import {
     variavelPoolService,
     type TipoVariavelPool,
@@ -29,6 +29,14 @@ const itens = ref<VariavelPool[]>([])
 const carregando = ref(false)
 const erro = ref<string | null>(null)
 const msgOk = ref<string | null>(null)
+
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacaoExcluir = ref<{ aberto: boolean, alvo: VariavelPool | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 const novoNome = ref("")
 const salvandoNovo = ref(false)
@@ -112,17 +120,24 @@ async function salvarEdicao(item: VariavelPool) {
     }
 }
 
-async function excluir(item: VariavelPool) {
-    if (!confirm(`Deseja realmente excluir "${item.nome}"? Ela deixará de aparecer nos prontuários.`))
-        return
+function excluir(item: VariavelPool) {
+    confirmacaoExcluir.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarExcluir() {
+    const alvo = confirmacaoExcluir.value.alvo
+    if (!alvo) return
+    confirmacaoExcluir.value.executando = true
     erro.value = null
     msgOk.value = null
     try {
-        await variavelPoolService.excluir(item.id)
-        msgOk.value = "Opção excluída."
+        await variavelPoolService.excluir(alvo.id)
+        confirmacaoExcluir.value = { aberto: false, alvo: null, executando: false }
+        notificar("Opção excluída.")
         await carregar()
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao excluir opção."
+        confirmacaoExcluir.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao excluir opção.", "error")
     }
 }
 
@@ -226,6 +241,22 @@ onMounted(carregar)
             </ul>
         </AppCard>
         </template>
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoExcluir.aberto"
+            titulo="Excluir opção?"
+            :mensagem="confirmacaoExcluir.alvo ? `Deseja realmente excluir ${confirmacaoExcluir.alvo.nome}? Ela deixará de aparecer nos prontuários.` : ''"
+            confirmar-rotulo="Excluir"
+            variante="danger"
+            :executando="confirmacaoExcluir.executando"
+            @confirmar="executarExcluir"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

@@ -5,6 +5,7 @@ import { prontuarioService, type ModeloProntuario } from "@/services/prontuarioS
 import { useTenantStore } from "@/stores/tenantStore"
 import {
     AppBadge, AppButton, AppEmptyState, AppPageHeader, ModeloProntuarioBuilder,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 
 const router = useRouter()
@@ -34,6 +35,14 @@ const carregando = ref(false)
 const carregandoModelos = ref(false)
 const salvando = ref(false)
 const excluindoId = ref<number | null>(null)
+
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacaoExcluir = ref<{ aberto: boolean, alvo: ModeloProntuario | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 const modelosPadroes = computed(() => modelos.value.filter(m => m.ehPadraoSistema))
 const modelosPersonalizados = computed(() => modelos.value.filter(m => !m.ehPadraoSistema))
@@ -88,24 +97,32 @@ async function salvar() {
         }
         await carregarModelos()
         resetarForm()
+        notificar("Modelo salvo com sucesso.")
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao salvar modelo.")
+        notificar(e?.response?.data?.mensagem ?? "Erro ao salvar modelo.", "error")
     } finally {
         salvando.value = false
     }
 }
 
-async function excluir(modelo: ModeloProntuario) {
+function excluir(modelo: ModeloProntuario) {
     if (modelo.ehPadraoSistema) return
-    if (!confirm(`Deseja excluir o modelo "${modelo.nome}"?`)) return
+    confirmacaoExcluir.value = { aberto: true, alvo: modelo, executando: false }
+}
 
-    excluindoId.value = modelo.id
+async function executarExcluir() {
+    const alvo = confirmacaoExcluir.value.alvo
+    if (!alvo) return
+    confirmacaoExcluir.value.executando = true
+    excluindoId.value = alvo.id
     try {
-        await prontuarioService.excluirModelo(modelo.id)
-        if (form.id === modelo.id) resetarForm()
+        await prontuarioService.excluirModelo(alvo.id)
+        confirmacaoExcluir.value = { aberto: false, alvo: null, executando: false }
+        if (form.id === alvo.id) resetarForm()
         await carregarModelos()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Não foi possível excluir o modelo.")
+        confirmacaoExcluir.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Não foi possível excluir o modelo.", "error")
     } finally {
         excluindoId.value = null
     }
@@ -232,6 +249,22 @@ onMounted(async () => {
                 </form>
             </section>
         </div>
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoExcluir.aberto"
+            titulo="Excluir modelo?"
+            :mensagem="confirmacaoExcluir.alvo ? `Deseja excluir o modelo ${confirmacaoExcluir.alvo.nome}?` : ''"
+            confirmar-rotulo="Excluir"
+            variante="danger"
+            :executando="confirmacaoExcluir.executando"
+            @confirmar="executarExcluir"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 

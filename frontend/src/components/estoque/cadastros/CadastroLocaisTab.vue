@@ -2,7 +2,7 @@
 import { ref, watch, onMounted } from "vue"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
-    AppField, AppInput, AppSelect, AppStatusPill,
+    AppField, AppInput, AppSelect, AppStatusPill, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
@@ -25,6 +25,14 @@ const erro = ref<string | null>(null)
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
 const apenasAtivos = ref(true)
+
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacao = ref<{ aberto: boolean, alvo: LocalEstoque | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
 
 const drawerAberto = ref(false)
 const editando = ref<LocalEstoque | null>(null)
@@ -72,13 +80,22 @@ async function salvar() {
     }
 }
 
-async function inativar(l: LocalEstoque) {
-    if (!confirm(`Inativar "${l.nome}"?`)) return
+function pedirInativacao(l: LocalEstoque) {
+    confirmacao.value = { aberto: true, alvo: l, executando: false }
+}
+
+async function executarInativacao() {
+    const alvo = confirmacao.value.alvo
+    if (!alvo) return
+    confirmacao.value.executando = true
     try {
-        await estoqueCadastrosService.locais.inativar(l.id)
+        await estoqueCadastrosService.locais.inativar(alvo.id)
+        confirmacao.value = { aberto: false, alvo: null, executando: false }
+        notificar("Local inativado.")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao inativar.")
+        confirmacao.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao inativar.", "error")
     }
 }
 
@@ -86,8 +103,9 @@ async function reativar(l: LocalEstoque) {
     try {
         await estoqueCadastrosService.locais.reativar(l.id)
         await carregar()
+        notificar("Local reativado.")
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao reativar.")
+        notificar(e?.response?.data?.mensagem ?? "Erro ao reativar.", "error")
     }
 }
 
@@ -181,7 +199,7 @@ function iconePorTipo(t: TipoLocalEstoque): string {
                         <button type="button" class="btn-icon btn-icon-editar" title="Editar" @click="abrirEditar(l)">
                             <i class="fa-solid fa-pen"></i>
                         </button>
-                        <button v-if="l.ativo" type="button" class="btn-icon btn-icon-excluir" title="Inativar" @click="inativar(l)">
+                        <button v-if="l.ativo" type="button" class="btn-icon btn-icon-excluir" title="Inativar" @click="pedirInativacao(l)">
                             <i class="fa-solid fa-ban"></i>
                         </button>
                         <button v-else type="button" class="btn-icon" title="Reativar" @click="reativar(l)">
@@ -201,6 +219,23 @@ function iconePorTipo(t: TipoLocalEstoque): string {
             class="paginacao"
             @update:pagina="(p: number) => (pagina = p)"
             @update:tamanho="(t: number) => (tamanho = t)"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacao.aberto"
+            titulo="Inativar local?"
+            :mensagem="confirmacao.alvo ? `Inativar ${confirmacao.alvo.nome}?` : ''"
+            confirmar-rotulo="Inativar"
+            variante="danger"
+            :executando="confirmacao.executando"
+            @confirmar="executarInativacao"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
         />
 
         <AppDrawer

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { financeiroService, type Lancamento, type ResumoFinanceiro } from "@/services/financeiroService"
-import { AppButton, AppDatePicker, AppField, AppInput, AppModal, AppPagination, AppSelect } from "@/components/ui"
+import { AppButton, AppDatePicker, AppField, AppInput, AppModal, AppPagination, AppSelect, AppToast, AppConfirmDialog } from "@/components/ui"
 
 const lancamentos = ref<Lancamento[]>([])
 const total = ref(0)
@@ -104,23 +104,54 @@ async function salvarEditar() {
     }
 }
 
-async function pagar(l: Lancamento) {
-    if (!confirm(`Baixar "${l.descricao}" como pago?`)) return
+// Toast e confirmações (dois fluxos distintos).
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+
+const confirmacaoPagar = ref<{ aberto: boolean, alvo: Lancamento | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+const confirmacaoCancelar = ref<{ aberto: boolean, alvo: Lancamento | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+
+function pagar(l: Lancamento) {
+    confirmacaoPagar.value = { aberto: true, alvo: l, executando: false }
+}
+
+async function executarPagar() {
+    const alvo = confirmacaoPagar.value.alvo
+    if (!alvo) return
+    confirmacaoPagar.value.executando = true
     try {
-        await financeiroService.pagar(l.id)
+        await financeiroService.pagar(alvo.id)
+        confirmacaoPagar.value = { aberto: false, alvo: null, executando: false }
+        notificar("Pagamento registrado.")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao registrar pagamento.")
+        confirmacaoPagar.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao registrar pagamento.", "error")
     }
 }
 
-async function cancelar(l: Lancamento) {
-    if (!confirm(`Cancelar "${l.descricao}"?`)) return
+function cancelar(l: Lancamento) {
+    confirmacaoCancelar.value = { aberto: true, alvo: l, executando: false }
+}
+
+async function executarCancelar() {
+    const alvo = confirmacaoCancelar.value.alvo
+    if (!alvo) return
+    confirmacaoCancelar.value.executando = true
     try {
-        await financeiroService.cancelar(l.id)
+        await financeiroService.cancelar(alvo.id)
+        confirmacaoCancelar.value = { aberto: false, alvo: null, executando: false }
+        notificar("Lançamento cancelado.")
         await carregar()
     } catch (e: any) {
-        alert(e?.response?.data?.mensagem ?? "Erro ao cancelar.")
+        confirmacaoCancelar.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao cancelar.", "error")
     }
 }
 
@@ -305,6 +336,33 @@ const vencidoPendente = (l: Lancamento) =>
                 <AppButton :disabled="salvando" :loading="salvando" @click="salvarEditar">Salvar</AppButton>
             </template>
         </AppModal>
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoPagar.aberto"
+            titulo="Baixar como pago?"
+            :mensagem="confirmacaoPagar.alvo ? `Baixar ${confirmacaoPagar.alvo.descricao} como pago?` : ''"
+            confirmar-rotulo="Confirmar pagamento"
+            variante="danger"
+            :executando="confirmacaoPagar.executando"
+            @confirmar="executarPagar"
+        />
+
+        <AppConfirmDialog
+            v-model:aberto="confirmacaoCancelar.aberto"
+            titulo="Cancelar lançamento?"
+            :mensagem="confirmacaoCancelar.alvo ? `Cancelar ${confirmacaoCancelar.alvo.descricao}?` : ''"
+            confirmar-rotulo="Cancelar lançamento"
+            variante="danger"
+            :executando="confirmacaoCancelar.executando"
+            @confirmar="executarCancelar"
+        />
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.mensagem"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </main>
 </template>
 

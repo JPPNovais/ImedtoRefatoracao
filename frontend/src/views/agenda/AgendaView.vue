@@ -17,6 +17,7 @@ import { useRoute, useRouter } from "vue-router"
 import {
     AppButton, AppCard, AppPageHeader, AppEmptyState, AppSelect,
     AppDateStrip, AppStatCard, AppField, AppInput, AppAvatarSelect,
+    AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import AgendamentoRow from "@/components/agenda/AgendamentoRow.vue"
 import AgendaRail from "@/components/agenda/AgendaRail.vue"
@@ -468,6 +469,15 @@ async function onAgendamentoEditado() {
 // ─── Lista de espera ───
 const listaEspera = ref<ListaEsperaItem[]>([])
 
+// Toast e confirmação de lista de espera.
+const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
+function notificar(mensagem: string, variante: "info" | "success" | "error" = "success") {
+    toast.value = { mensagem, variante }
+}
+const confirmacaoRemoverEspera = ref<{ aberto: boolean, alvo: ListaEsperaItem | null, executando: boolean }>({
+    aberto: false, alvo: null, executando: false,
+})
+
 async function carregarListaEspera() {
     try {
         const pg = await listaEsperaService.listar()
@@ -475,13 +485,21 @@ async function carregarListaEspera() {
     } catch { /* não crítico */ }
 }
 
-async function removerListaEspera(item: ListaEsperaItem) {
-    if (!confirm(`Remover "${item.pacienteNome}" da lista de espera?`)) return
+function removerListaEspera(item: ListaEsperaItem) {
+    confirmacaoRemoverEspera.value = { aberto: true, alvo: item, executando: false }
+}
+
+async function executarRemoverListaEspera() {
+    const alvo = confirmacaoRemoverEspera.value.alvo
+    if (!alvo) return
+    confirmacaoRemoverEspera.value.executando = true
     try {
-        await listaEsperaService.remover(item.id)
+        await listaEsperaService.remover(alvo.id)
+        confirmacaoRemoverEspera.value = { aberto: false, alvo: null, executando: false }
         await carregarListaEspera()
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao remover."
+        confirmacaoRemoverEspera.value.executando = false
+        notificar(e?.response?.data?.mensagem ?? "Erro ao remover.", "error")
     }
 }
 
@@ -691,6 +709,23 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :agendamento="agendamentoCancelar"
         @fechar="modalCancelarAberto = false; agendamentoCancelar = null"
         @cancelado="onAgendamentoCancelado"
+    />
+
+    <AppConfirmDialog
+        v-model:aberto="confirmacaoRemoverEspera.aberto"
+        titulo="Remover da lista de espera?"
+        :mensagem="confirmacaoRemoverEspera.alvo ? `Remover ${confirmacaoRemoverEspera.alvo.pacienteNome} da lista de espera?` : ''"
+        confirmar-rotulo="Remover"
+        variante="danger"
+        :executando="confirmacaoRemoverEspera.executando"
+        @confirmar="executarRemoverListaEspera"
+    />
+
+    <AppToast
+        v-if="toast"
+        :mensagem="toast.mensagem"
+        :variante="toast.variante"
+        @fechar="toast = null"
     />
 </template>
 
