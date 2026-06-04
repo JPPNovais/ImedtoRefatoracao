@@ -21,10 +21,16 @@ public class ProfissionalVinculadoDto
     public string? Conselho { get; set; }
 
     /// <summary>
-    /// Nome da profissão. Hoje vem apenas de convites (via profissao_convidada_id);
-    /// profissionais já ativados não persistem o vínculo com o catálogo de profissões.
+    /// Nome da profissão. Vem de profissao_convidada_id via JOIN com tabela profissoes.
     /// </summary>
     public string? Profissao { get; set; }
+
+    /// <summary>
+    /// Id da profissão do catálogo associada ao vínculo (profissao_convidada_id).
+    /// Necessário para pré-selecionar o dropdown de profissão no modal de detalhes
+    /// e filtrar as especialidades disponíveis.
+    /// </summary>
+    public long? ProfissaoConvidadaId { get; set; }
 
     /// <summary>URL presigned (S3) da foto do profissional, quando houver.</summary>
     public string? FotoUrl { get; set; }

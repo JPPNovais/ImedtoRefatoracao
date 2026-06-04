@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref } from "vue"
 import { vMaska } from "maska/vue"
 import {
     AppButton, AppField, AppInput, AppModal, AppSelect, AppTextarea,
 } from "@/components/ui"
 import { vinculoService } from "@/services/vinculoService"
-import { catalogoService } from "@/services/catalogoService"
-import type { ProfissaoCatalogo, EspecialidadeCatalogo } from "@/services/catalogoService"
+import { useProfissaoEspecialidade } from "@/composables/useProfissaoEspecialidade"
 import type { ModeloPermissao } from "@/services/permissaoService"
 
 const LIMITE_MENSAGEM = 1000
@@ -55,8 +54,6 @@ interface Form {
     email: string
     telefone: string
     modeloId: number | null
-    profissaoId: number | null
-    especialidade: string
     conselho: string
     mensagem: string
 }
@@ -67,8 +64,6 @@ const form = reactive<Form>({
     email: "",
     telefone: "",
     modeloId: null,
-    profissaoId: null,
-    especialidade: "",
     conselho: "",
     mensagem: "",
 })
@@ -76,6 +71,17 @@ const form = reactive<Form>({
 const enviando = ref(false)
 const erro = ref<string | null>(null)
 const templateAtivo = ref<TemplateId | null>(null)
+
+const {
+    profissoes,
+    especialidades,
+    profissaoId,
+    especialidade,
+    carregandoEspecialidades,
+    profissaoTemEspecialidades,
+    carregarProfissoes,
+    reset: resetProfissaoEsp,
+} = useProfissaoEspecialidade()
 
 function selecionarTemplate(id: TemplateId) {
     if (templateAtivo.value === id) {
@@ -91,57 +97,29 @@ function selecionarTemplate(id: TemplateId) {
 const charCount = computed(() => form.mensagem.length)
 const mensagemInvalida = computed(() => charCount.value > LIMITE_MENSAGEM)
 
-const profissoes = ref<ProfissaoCatalogo[]>([])
-const especialidades = ref<EspecialidadeCatalogo[]>([])
-const carregandoEspecialidades = ref(false)
-
 function reset() {
     form.metodo = "email"
     form.nome = ""
     form.email = ""
     form.telefone = ""
     form.modeloId = null
-    form.profissaoId = null
-    form.especialidade = ""
     form.conselho = ""
     form.mensagem = ""
-    especialidades.value = []
+    resetProfissaoEsp()
     erro.value = null
     templateAtivo.value = null
 }
 
-onMounted(async () => {
-    try {
-        profissoes.value = await catalogoService.listarProfissoes()
-    } catch {
-        // falha silenciosa — campo fica vazio mas não bloqueia o modal
-    }
-})
-
-watch(() => form.profissaoId, async (id) => {
-    form.especialidade = ""
-    especialidades.value = []
-    if (!id) return
-    carregandoEspecialidades.value = true
-    try {
-        especialidades.value = await catalogoService.listarEspecialidades(id)
-    } catch {
-        // falha silenciosa
-    } finally {
-        carregandoEspecialidades.value = false
-    }
+onMounted(() => {
+    carregarProfissoes()
 })
 
 // Profissão/Especialidade são CAMPOS DE IDENTIFICAÇÃO do profissional (não de
-// permissão). Sempre opcionais — a permissão escolhida acima nao gateia esses
+// permissão). Sempre opcionais — a permissão escolhida acima não gateia esses
 // campos. O backend valida apenas que profissaoId vem se especialidade for
 // informada (ConvidarProfissionalCommandHandler).
 const modeloSelecionado = computed(() =>
     props.modelos.find(m => m.id === form.modeloId) ?? null,
-)
-
-const profissaoTemEspecialidades = computed(() =>
-    form.profissaoId !== null && (carregandoEspecialidades.value || especialidades.value.length > 0),
 )
 
 const valido = computed(() => {
@@ -164,8 +142,8 @@ async function enviar() {
             modeloPermissaoId: form.modeloId,
             nome: form.nome.trim() || null,
             telefone: form.telefone.trim() || null,
-            especialidade: form.especialidade.trim() || null,
-            profissaoId: form.profissaoId,
+            especialidade: especialidade.value.trim() || null,
+            profissaoId: profissaoId.value,
             mensagemPersonalizada: mensagemFinal,
         })
         emit("enviado", { nome: form.nome, email: form.email, actionLink: r.actionLink })
@@ -258,8 +236,8 @@ function fechar() {
 
             <AppField label="Profissão (opcional)">
                 <AppSelect
-                    :model-value="form.profissaoId"
-                    @update:model-value="form.profissaoId = $event ? Number($event) : null"
+                    :model-value="profissaoId"
+                    @update:model-value="profissaoId = $event ? Number($event) : null"
                 >
                     <option :value="null">Selecione...</option>
                     <option v-for="p in profissoes" :key="p.id" :value="p.id">{{ p.nome }}</option>
@@ -268,9 +246,9 @@ function fechar() {
 
             <AppField v-if="profissaoTemEspecialidades" label="Especialidade (opcional)">
                 <AppSelect
-                    :model-value="form.especialidade"
+                    :model-value="especialidade"
                     :disabled="carregandoEspecialidades"
-                    @update:model-value="form.especialidade = String($event)"
+                    @update:model-value="especialidade = String($event)"
                 >
                     <option value="">
                         {{ carregandoEspecialidades ? 'Carregando...' : 'Selecione...' }}

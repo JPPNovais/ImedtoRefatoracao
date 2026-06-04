@@ -262,7 +262,11 @@ Essa regra se aplica em **todos os lugares** onde a especialidade do profissiona
 2. **Lista pública/seletores** (`ListarProfissionaisPublicoDoEstabelecimento`): `VinculoQueryRepository.cs` — mesma expressão COALESCE na query pública (agenda/prontuário/orçamento).
 3. **PDFs/termos clínicos** (`{{profissional.especialidade}}`): `TermoResolverDeVariaveis.cs` — `COALESCE(v.especialidade_convidada, p.especialidade)` na query do `ProfissionalResolver` (o JOIN com `vinculo ... status='Ativo'` já existia para defense-in-depth multi-tenant).
 
-**Edição da especialidade do vínculo**: `PUT /api/estabelecimento/profissionais/{vinculoId}/especialidade` — restrito ao Dono. Grava em `v.especialidade_convidada`. Valor vazio limpa o campo (fallback volta ao global). Independe do status do vínculo (Convidado/Ativo/Inativo podem ter especialidade definida). A linha sintética do Dono (`vinculoId=null`) não tem especialidade de vínculo editável — segue usando `p.especialidade`.
+**Edição atômica de profissão+especialidade do vínculo** (briefing 2026-06-04_003): `PUT /api/estabelecimento/profissionais/{vinculoId}/profissao-especialidade` — restrito ao Dono. Grava `profissao_convidada_id` e `especialidade_convidada` num único comando (`AlterarProfissaoEspecialidadeDoVinculoCommand`) para evitar janela de estado inconsistente (profissão nova + especialidade da profissão antiga). Trocar a profissão limpa a especialidade. Valor vazio/nulo limpa os campos (fallback volta ao global). A especialidade deve pertencer ao catálogo da profissão informada — backend valida com `ExisteEspecialidadeAtivaPorNome` (422 BusinessException). Independe do status do vínculo (Convidado/Ativo/Inativo). A linha sintética do Dono (`vinculoId=null`) não é editável — segue usando `p.especialidade`.
+
+**`ProfissionalVinculadoDto`** agora expõe `ProfissaoConvidadaId` (`long?`) além de `Profissao` (nome) — necessário para pré-selecionar o dropdown de profissão no modal de detalhes e filtrar especialidades. O campo **não** está no `ProfissionalPublicoDto` (seletores públicos não precisam).
+
+**Endpoint legado** `PUT /especialidade` é mantido mas marcado como deprecated no frontend — migre para `/profissao-especialidade`. O handler `AlterarEspecialidadeDoVinculoCommandHandler` permanece registrado enquanto há chamadas em circulação.
 
 **Invariante de implementação**: nunca inverter o COALESCE para `COALESCE(p.especialidade, v.especialidade_convidada)` — isso faz o cadastro global vencer e ofusca a especialidade por estabelecimento (era o bug original).
 

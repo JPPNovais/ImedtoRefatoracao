@@ -42,6 +42,7 @@ public class VinculoQueryRepository
                     COALESCE(v.especialidade_convidada, p.especialidade) AS Especialidade,
                     p.conselho                 AS Conselho,
                     pr.nome                    AS Profissao,
+                    v.profissao_convidada_id   AS ProfissaoConvidadaId,
                     p.foto_url                 AS FotoUrl
             FROM    public.vinculo_profissional_estabelecimento v
             JOIN    public.usuarios u ON u.id = v.profissional_usuario_id
@@ -67,6 +68,7 @@ public class VinculoQueryRepository
                     p.especialidade            AS Especialidade,
                     p.conselho                 AS Conselho,
                     NULL::text                 AS Profissao,
+                    NULL::bigint               AS ProfissaoConvidadaId,
                     p.foto_url                 AS FotoUrl
             FROM    public.estabelecimentos e
             JOIN    public.usuarios u ON u.id = e.dono_usuario_id

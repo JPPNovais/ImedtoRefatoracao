@@ -50,6 +50,12 @@ O Imedto é um produto único — toda tela, fluxo e interação precisa parecer
 - **Caso o componente não exista no design system e seja reutilizável**, deve ser criado no design system primeiro, e depois importado no front. Mantém padronização.
 - **Antes de criar componente novo no front**, verifique se ele existe no design system.
 
+## Composables compartilhados
+
+Lógica assíncrona reutilizável entre dois ou mais componentes vive em `frontend/src/composables/`. Composables são a alternativa adequada a copiar lógica de `watch`/`ref`/`computed` entre modais e views.
+
+- **`useProfissaoEspecialidade`** (briefing 2026-06-04_003): mecânica de cascata profissão→especialidade por catálogo estrito. Expõe `profissoes`, `especialidades`, `profissaoId`, `especialidade`, `carregandoEspecialidades`, `profissaoTemEspecialidades`, `conselhoSigla`, `carregarProfissoes`, `reset`, `inicializarComVinculo`. Usado por `ConvidarProfissionalModal.vue` e `ProfissionalDetalhesModal.vue` — fonte única, sem duplicação. Regra: trocar profissão limpa especialidade; `inicializarComVinculo` pré-seleciona sem limpar (abertura do modal de detalhes com dados existentes).
+
 ## Padrão de desenvolvimento
 
 - Backend segue DDD + CQRS (commands/queries/events) com **regra de negócio sempre no domain/handler**, nunca no controller, no SQL ou na view.

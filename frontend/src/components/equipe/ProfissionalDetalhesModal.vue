@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import {
-    AppAvatar, AppButton, AppConfirmDialog, AppInput, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
+    AppAvatar, AppButton, AppConfirmDialog, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
 } from "@/components/ui"
 import { permissaoService, type ModeloPermissao } from "@/services/permissaoService"
 import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
 import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
+import { useProfissaoEspecialidade } from "@/composables/useProfissaoEspecialidade"
 
 /**
  * Modal de detalhes do profissional. 2 abas:
@@ -38,16 +39,33 @@ const salvando = ref(false)
 const removendo = ref(false)
 const reativando = ref(false)
 const confirmRemoverAberto = ref(false)
-const salvandoEspecialidade = ref(false)
-const especialidadeEditada = ref<string>("")
+const salvandoProfissaoEsp = ref(false)
 const erro = ref<string | null>(null)
 
-watch(() => [props.profissional, props.aberto] as const, ([p, aberto]) => {
+const {
+    profissoes,
+    especialidades,
+    profissaoId: profissaoEditadaId,
+    especialidade: especialidadeEditada,
+    carregandoProfissoes,
+    carregandoEspecialidades,
+    profissaoTemEspecialidades,
+    conselhoSigla,
+    carregarProfissoes,
+    inicializarComVinculo,
+} = useProfissaoEspecialidade()
+
+onMounted(() => {
+    carregarProfissoes()
+})
+
+watch(() => [props.profissional, props.aberto] as const, async ([p, aberto]) => {
     if (!aberto || !p) return
     aba.value = "perfil"
     modeloSelecionadoId.value = p.modeloPermissaoId
-    especialidadeEditada.value = p.especialidade ?? ""
     erro.value = null
+    // Pré-seleciona profissão e especialidade do vínculo sem limpar (inicialização).
+    await inicializarComVinculo(p.profissaoConvidadaId ?? null, p.especialidade ?? null)
 }, { immediate: true })
 
 const modeloAtual = computed(() =>
@@ -72,24 +90,30 @@ function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
     return "muted"
 }
 
-async function salvarEspecialidade() {
-    if (!props.profissional || salvandoEspecialidade.value) return
+async function salvarProfissaoEspecialidade() {
+    if (!props.profissional || salvandoProfissaoEsp.value) return
     if (props.profissional.vinculoId == null) return  // Dono sintético — sem vínculo formal.
-    salvandoEspecialidade.value = true
+    salvandoProfissaoEsp.value = true
     erro.value = null
     try {
-        await vinculoService.alterarEspecialidade(
+        await vinculoService.alterarProfissaoEspecialidade(
             props.profissional.vinculoId,
+            profissaoEditadaId.value,
             especialidadeEditada.value.trim() || null,
         )
+        // Encontra o nome da profissão selecionada para atualizar o header do modal.
+        const profissaoNome = profissoes.value.find(p => p.id === profissaoEditadaId.value)?.nome ?? null
         emit("atualizado", {
             ...props.profissional,
+            profissaoConvidadaId: profissaoEditadaId.value,
+            profissao: profissaoNome,
             especialidade: especialidadeEditada.value.trim() || null,
+            conselho: conselhoSigla.value ?? props.profissional.conselho,
         })
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Não foi possível atualizar a especialidade."
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível atualizar a profissão/especialidade."
     } finally {
-        salvandoEspecialidade.value = false
+        salvandoProfissaoEsp.value = false
     }
 }
 
@@ -222,37 +246,85 @@ function fechar() {
                         <span class="dado-valor">{{ profissional.nomeCompleto || "—" }}</span>
                     </div>
 
-                    <!-- Especialidade editável pelo Dono (vinculoId != null). Somente leitura para Dono sintético e não-Dono. -->
+                    <!-- Profissão + Especialidade editáveis pelo Dono (vinculoId != null). Somente leitura para não-Dono. -->
                     <div v-if="podeEditarEspecialidade" class="dado dado-full especialidade-edit">
-                        <span class="dado-label">Especialidade neste estabelecimento</span>
-                        <div class="esp-row">
-                            <AppInput
-                                v-model="especialidadeEditada"
-                                placeholder="Ex.: Dermatologia (vazio = usa cadastro global)"
-                                :disabled="salvandoEspecialidade"
-                                maxlength="200"
-                            />
+                        <span class="dado-label">Profissão e especialidade neste estabelecimento</span>
+
+                        <div class="esp-grid">
+                            <div class="esp-field">
+                                <label class="esp-sublabel">Profissão</label>
+                                <AppSelect
+                                    :model-value="profissaoEditadaId"
+                                    :disabled="salvandoProfissaoEsp || carregandoProfissoes"
+                                    @update:model-value="profissaoEditadaId = $event ? Number($event) : null"
+                                >
+                                    <option :value="null">Selecione...</option>
+                                    <option v-for="p in profissoes" :key="p.id" :value="p.id">{{ p.nome }}</option>
+                                </AppSelect>
+                            </div>
+
+                            <div v-if="profissaoTemEspecialidades" class="esp-field">
+                                <label class="esp-sublabel">Especialidade</label>
+                                <AppSelect
+                                    :model-value="especialidadeEditada"
+                                    :disabled="salvandoProfissaoEsp || carregandoEspecialidades"
+                                    @update:model-value="especialidadeEditada = String($event)"
+                                >
+                                    <option value="">
+                                        {{ carregandoEspecialidades ? 'Carregando...' : 'Selecione...' }}
+                                    </option>
+                                    <option v-for="e in especialidades" :key="e.id" :value="e.nome">{{ e.nome }}</option>
+                                </AppSelect>
+                            </div>
+
+                            <div v-else-if="profissaoEditadaId && !profissaoTemEspecialidades && !carregandoEspecialidades" class="esp-field">
+                                <label class="esp-sublabel">Especialidade</label>
+                                <AppSelect disabled>
+                                    <option value="">Sem especialidades para esta profissão</option>
+                                </AppSelect>
+                            </div>
+
+                            <div v-else-if="!profissaoEditadaId" class="esp-field">
+                                <label class="esp-sublabel">Especialidade</label>
+                                <AppSelect disabled>
+                                    <option value="">Selecione a profissão primeiro</option>
+                                </AppSelect>
+                            </div>
+                        </div>
+
+                        <div v-if="conselhoSigla" class="esp-conselho">
+                            <i class="fa-solid fa-id-card"></i>
+                            Conselho: <strong>{{ conselhoSigla }}</strong>
+                        </div>
+
+                        <div class="esp-row-actions">
+                            <span class="da-hint">
+                                <i class="fa-solid fa-circle-info"></i>
+                                Trocar a profissão limpa a especialidade. Vazio = usa o cadastro global do profissional.
+                            </span>
                             <AppButton
                                 size="sm"
                                 icon="fa-solid fa-floppy-disk"
-                                :loading="salvandoEspecialidade"
-                                :disabled="salvandoEspecialidade"
-                                @click="salvarEspecialidade"
+                                :loading="salvandoProfissaoEsp"
+                                :disabled="salvandoProfissaoEsp"
+                                @click="salvarProfissaoEspecialidade"
                             >
                                 Salvar
                             </AppButton>
                         </div>
-                        <span class="da-hint">
-                            <i class="fa-solid fa-circle-info"></i>
-                            Deixe em branco para usar a especialidade do cadastro global do profissional.
-                        </span>
                     </div>
-                    <div v-else-if="profissional.especialidade" class="dado">
-                        <span class="dado-label">Especialidade</span>
-                        <span class="dado-valor">{{ profissional.especialidade }}</span>
+                    <div v-else class="dado-grid-inline">
+                        <div v-if="profissional.profissao" class="dado">
+                            <span class="dado-label">Profissão</span>
+                            <span class="dado-valor">{{ profissional.profissao }}</span>
+                        </div>
+                        <div v-if="profissional.especialidade" class="dado">
+                            <span class="dado-label">Especialidade</span>
+                            <span class="dado-valor">{{ profissional.especialidade }}</span>
+                        </div>
                     </div>
 
-                    <div v-if="profissional.conselho" class="dado">
+                    <div v-if="profissional.conselho && !podeEditarEspecialidade" class="dado">
                         <span class="dado-label">Conselho</span>
                         <span class="dado-valor">{{ profissional.conselho }}</span>
                     </div>
@@ -326,6 +398,8 @@ function fechar() {
                 Salvar alterações
             </AppButton>
         </template>
+        <!-- Nota: o botão Salvar da aba Perfil (profissão+especialidade) fica inline
+             no bloco especialidade-edit para feedback visual próximo aos dropdowns. -->
     </AppModal>
 
     <AppConfirmDialog
@@ -381,9 +455,15 @@ function fechar() {
 .dado-label.danger { color: hsl(var(--error)); }
 .dado-valor { font-size: 14px; color: hsl(var(--primary-dark)); font-weight: 500; }
 .da-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.especialidade-edit { display: flex; flex-direction: column; gap: 6px; }
-.esp-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
-.esp-row > :first-child { flex: 1; min-width: 160px; }
+.especialidade-edit { display: flex; flex-direction: column; gap: 10px; }
+.esp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.esp-field { display: flex; flex-direction: column; gap: 4px; }
+.esp-sublabel { font-size: 11px; font-weight: 600; color: hsl(var(--secondary) / 0.6); text-transform: uppercase; letter-spacing: 0.04em; }
+.esp-conselho { font-size: 12px; color: hsl(var(--secondary) / 0.75); }
+.esp-conselho strong { color: hsl(var(--primary-dark)); }
+.esp-row-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.dado-grid-inline { display: contents; }
+@media (max-width: 720px) { .esp-grid { grid-template-columns: 1fr; } }
 .da-hint, .rc-hint {
     display: inline-flex; align-items: center; gap: 6px;
     margin-top: 8px; font-size: 12px;

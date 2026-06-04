@@ -445,6 +445,7 @@ public static class Container
         services.AddScoped<ReenviarConviteCommandHandler>();
         services.AddScoped<AlterarModeloPermissaoDoVinculoCommandHandler>();
         services.AddScoped<AlterarEspecialidadeDoVinculoCommandHandler>();
+        services.AddScoped<AlterarProfissaoEspecialidadeDoVinculoCommandHandler>();
         services.AddScoped<ListarProfissionaisEstabelecimentoQueryHandlers>();
         services.AddSingleton<ListarProfissionaisPublicoQueryHandlers>();
         services.AddSingleton<ListarMeusConvitesQueryHandlers>();
@@ -929,6 +930,7 @@ public static class Container
             bus.Register<ReenviarConviteCommand, ReenviarConviteCommandHandler>();
             bus.Register<AlterarModeloPermissaoDoVinculoCommand, AlterarModeloPermissaoDoVinculoCommandHandler>();
             bus.Register<AlterarEspecialidadeDoVinculoCommand, AlterarEspecialidadeDoVinculoCommandHandler>();
+            bus.Register<AlterarProfissaoEspecialidadeDoVinculoCommand, AlterarProfissaoEspecialidadeDoVinculoCommandHandler>();
             // Item 4.2 — Solicitação inversa.
             bus.Register<SolicitarVinculoCommand, SolicitarVinculoCommandHandler>();
             bus.Register<AprovarSolicitacaoVinculoCommand, AprovarSolicitacaoVinculoCommandHandler>();

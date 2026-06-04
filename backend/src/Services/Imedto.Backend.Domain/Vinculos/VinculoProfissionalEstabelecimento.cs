@@ -186,6 +186,18 @@ public class VinculoProfissionalEstabelecimento : Entity
         EspecialidadeConvidada = NormalizarTexto(especialidade, 200);
     }
 
+    /// <summary>
+    /// Altera atomicamente a profissão e a especialidade do vínculo neste estabelecimento.
+    /// Trocar a profissão sempre limpa a especialidade — não há janela de estado inconsistente.
+    /// Profissao nula limpa profissao_convidada_id; especialidade nula/vazia limpa especialidade_convidada.
+    /// Independe do status do vínculo.
+    /// </summary>
+    public virtual void AtualizarProfissaoEspecialidade(long? profissaoId, string? especialidade)
+    {
+        ProfissaoConvidadaId = profissaoId is { } pid && pid > 0 ? pid : null;
+        EspecialidadeConvidada = NormalizarTexto(especialidade, 200);
+    }
+
     public virtual void AtualizarModeloPermissao(long novoModeloPermissaoId)
     {
         if (Status == VinculoStatus.Inativo)

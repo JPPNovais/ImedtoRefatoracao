@@ -104,17 +104,22 @@ public class ModeloPermissaoController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Define (ou limpa) a especialidade do vínculo para este estabelecimento.</summary>
-    [HttpPut("/api/estabelecimento/profissionais/{vinculoId:long}/especialidade")]
+    /// <summary>
+    /// Altera atomicamente a profissão e a especialidade do vínculo para este estabelecimento.
+    /// Trocar a profissão limpa a especialidade — persistência num único comando (sem janela de inconsistência).
+    /// Substitui o endpoint legado /especialidade.
+    /// </summary>
+    [HttpPut("/api/estabelecimento/profissionais/{vinculoId:long}/profissao-especialidade")]
     [RequiresPapel(TenantPapel.Dono)]
-    public async Task<ActionResult> AlterarEspecialidadeDoVinculo(long vinculoId, [FromBody] AlterarEspecialidadeDoVinculoDto dto)
+    public async Task<ActionResult> AlterarProfissaoEspecialidadeDoVinculo(long vinculoId, [FromBody] AlterarProfissaoEspecialidadeDoVinculoDto dto)
     {
         var userId = Guid.Parse(User.FindFirst("sub")!.Value);
 
-        await _cmd.Send(new AlterarEspecialidadeDoVinculoCommand
+        await _cmd.Send(new AlterarProfissaoEspecialidadeDoVinculoCommand
         {
             VinculoId = vinculoId,
             EstabelecimentoId = _tenant.EstabelecimentoId,
+            ProfissaoId = dto.ProfissaoId,
             Especialidade = dto.Especialidade,
             UsuarioSolicitanteId = userId,
         });
@@ -142,3 +147,5 @@ public record AtualizarModeloPermissaoDto(
 public record AtribuirModeloAoVinculoDto(long ModeloPermissaoId);
 
 public record AlterarEspecialidadeDoVinculoDto(string? Especialidade);
+
+public record AlterarProfissaoEspecialidadeDoVinculoDto(long? ProfissaoId, string? Especialidade);

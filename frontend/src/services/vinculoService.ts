@@ -15,6 +15,8 @@ export interface ProfissionalVinculado {
     especialidade?: string | null
     conselho?: string | null
     profissao?: string | null
+    /** Id da profissão do catálogo associada ao vínculo. Usado para pré-selecionar o dropdown de profissão. */
+    profissaoConvidadaId?: number | null
     fotoUrl?: string | null
 }
 
@@ -144,9 +146,8 @@ export const vinculoService = {
     },
 
     /**
-     * Define (ou limpa) a especialidade do vínculo para este estabelecimento.
-     * Especialidade nula ou vazia limpa o campo — exibição volta a usar o cadastro
-     * global do profissional. Restrito ao Dono — backend retorna 422 se não for Dono.
+     * @deprecated Use alterarProfissaoEspecialidade para persistência atômica de profissão+especialidade.
+     * Mantido apenas para compatibilidade enquanto há chamadas legadas em circulação.
      */
     async alterarEspecialidade(vinculoId: number, especialidade: string | null): Promise<void> {
         const tenantStore = useTenantStore()
@@ -155,6 +156,22 @@ export const vinculoService = {
         await httpClient.put(
             `/estabelecimento/profissionais/${vinculoId}/especialidade`,
             { especialidade: especialidade || null },
+        )
+    },
+
+    /**
+     * Altera atomicamente a profissão e a especialidade do vínculo para este estabelecimento.
+     * Trocar a profissão limpa a especialidade — a persistência é um único comando no backend
+     * para evitar janela de estado inconsistente. Restrito ao Dono (backend retorna 403 se não for Dono).
+     * Profissão nula limpa profissao_convidada_id; especialidade nula limpa especialidade_convidada.
+     */
+    async alterarProfissaoEspecialidade(vinculoId: number, profissaoId: number | null, especialidade: string | null): Promise<void> {
+        const tenantStore = useTenantStore()
+        const id = tenantStore.ativo?.id
+        if (!id) throw new Error("Nenhum estabelecimento ativo.")
+        await httpClient.put(
+            `/estabelecimento/profissionais/${vinculoId}/profissao-especialidade`,
+            { profissaoId: profissaoId || null, especialidade: especialidade || null },
         )
     },
 }
