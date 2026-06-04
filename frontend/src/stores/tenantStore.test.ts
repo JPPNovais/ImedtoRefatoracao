@@ -301,6 +301,66 @@ describe("tenantStore", () => {
     })
 
     // ────────────────────────────────────────────────────────────────────────────
+    // popularEstabelecimentos() — resolução com ultimoEstabelecimentoId (CA8/CA9/CA10)
+    // ────────────────────────────────────────────────────────────────────────────
+    describe("popularEstabelecimentos() — último acessado", () => {
+        const lista = [
+            { id: 10, nomeFantasia: "Clínica A", papelDoUsuario: "Dono" as const, permissoes: [], permissoesExtras: [] },
+            { id: 20, nomeFantasia: "Clínica B", papelDoUsuario: "Profissional" as const, permissoes: [], permissoesExtras: [] },
+        ]
+
+        it("CA8 — quando ultimoEstabelecimentoId está na lista, seleciona ele (não lista[0])", () => {
+            const store = useTenantStore()
+
+            const usouFallback = store.popularEstabelecimentos(lista, 20)
+
+            expect(store.estabelecimentoAtivoId).toBe(20)
+            expect(store.ativo?.nomeFantasia).toBe("Clínica B")
+            expect(usouFallback).toBe(false)
+        })
+
+        it("CA9 — ultimoEstabelecimentoId nulo → fallback lista[0] + retorna true (deve gravar)", () => {
+            const store = useTenantStore()
+
+            const usouFallback = store.popularEstabelecimentos(lista, null)
+
+            expect(store.estabelecimentoAtivoId).toBe(10)
+            expect(usouFallback).toBe(true)
+        })
+
+        it("CA10 — ultimoEstabelecimentoId órfão (não está na lista) → fallback lista[0] sem crash", () => {
+            const store = useTenantStore()
+
+            // Id 99 não existe na lista → deve cair no fallback.
+            const usouFallback = store.popularEstabelecimentos(lista, 99)
+
+            expect(store.estabelecimentoAtivoId).toBe(10)
+            // usouFallback = false porque ultimoEstabelecimentoId != null (há um id no servidor,
+            // apenas não está na lista acessível). Não é "nunca registrado" — é órfão.
+            expect(usouFallback).toBe(false)
+        })
+
+        it("sem ultimoEstabelecimentoId (undefined) → comportamento de fallback como antes, retorna true", () => {
+            const store = useTenantStore()
+
+            const usouFallback = store.popularEstabelecimentos(lista)
+
+            expect(store.estabelecimentoAtivoId).toBe(10)
+            expect(usouFallback).toBe(true)
+        })
+
+        it("expõe lista de estabelecimentos no store", () => {
+            const store = useTenantStore()
+
+            store.popularEstabelecimentos(lista)
+
+            expect(store.estabelecimentos).toHaveLength(2)
+            expect(store.estabelecimentos[0].id).toBe(10)
+            expect(store.estabelecimentos[1].id).toBe(20)
+        })
+    })
+
+    // ────────────────────────────────────────────────────────────────────────────
     // computeds derivados
     // ────────────────────────────────────────────────────────────────────────────
     describe("computeds", () => {

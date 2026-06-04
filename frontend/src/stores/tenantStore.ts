@@ -18,7 +18,7 @@ export interface EstabelecimentoAtivo {
     permissoesExtras: string[]
 }
 
-interface EstabelecimentoListavel {
+export interface EstabelecimentoListavel {
     id: number
     nomeFantasia: string
     papelDoUsuario: "Dono" | "Profissional"
@@ -50,6 +50,9 @@ export const useTenantStore = defineStore("tenant", () => {
     // true quando o usuário está autenticado e não tem nenhum estabelecimento vinculado.
     // Sinaliza para o guard redirecionar para MeusConvites em vez de tentar carregar.
     const semEstabelecimento = ref(false)
+
+    /** Lista completa de estabelecimentos acessíveis pelo usuário (vinda do bootstrap). */
+    const estabelecimentos = ref<EstabelecimentoListavel[]>([])
 
     const estabelecimentoAtivoId = computed(() => ativo.value?.id ?? null)
     const papel = computed(() => ativo.value?.papel ?? null)
@@ -113,9 +116,18 @@ export const useTenantStore = defineStore("tenant", () => {
 
     /**
      * Variante síncrona de resolverTenant — recebe a lista já carregada (via
-     * /auth/bootstrap) e aplica a mesma lógica de auto-seleção, sem fazer HTTP.
+     * /auth/bootstrap) e aplica a lógica de auto-seleção com prioridade para
+     * `ultimoEstabelecimentoId` (persistido server-side).
+     *
+     * Retorna `true` quando precisou usar fallback (lista[0]) sem ter registro
+     * server-side — sinaliza ao chamador que deve gravar o resolvido (CA9).
      */
-    function popularEstabelecimentos(lista: EstabelecimentoListavel[]) {
+    function popularEstabelecimentos(
+        lista: EstabelecimentoListavel[],
+        ultimoEstabelecimentoId?: number | null,
+    ): boolean {
+        estabelecimentos.value = lista
+
         if (ativo.value) {
             // Já tem tenant em memória (sessionStorage). Re-hidrata o permissoesStore
             // a partir da lista atual — o sessionStorage pode estar desatualizado se as
@@ -138,42 +150,50 @@ export const useTenantStore = defineStore("tenant", () => {
                     permissoes: ativo.value.permissoes,
                     permissoesExtras: ativo.value.permissoesExtras,
                 })
+                return false
             } else {
                 // Tenant em sessionStorage não está mais na lista (vínculo removido) — limpa.
                 limpar()
                 if (lista.length === 0) {
                     semEstabelecimento.value = true
-                    return
+                    return false
                 }
-                const primeiro = lista[0]
-                selecionar({
-                    id: primeiro.id,
-                    nomeFantasia: primeiro.nomeFantasia,
-                    papel: primeiro.papelDoUsuario,
-                    permissoes: primeiro.permissoes ?? [],
-                    permissoesExtras: primeiro.permissoesExtras ?? [],
-                })
+                // Após limpar, cai na lógica normal abaixo.
             }
-            return
         }
+
         if (lista.length === 0) {
             semEstabelecimento.value = true
             usePermissoesStore().limpar()
-            return
+            return false
         }
-        const primeiro = lista[0]
+
+        // Prioriza o último estabelecimento acessado (R4).
+        const candidato = ultimoEstabelecimentoId != null
+            ? lista.find(e => e.id === ultimoEstabelecimentoId)
+            : null
+
+        // Se encontrou o último acessado, seleciona. Senão, fallback para lista[0].
+        const alvo = candidato ?? lista[0]
+        const usouFallback = !candidato && ultimoEstabelecimentoId == null
+
         selecionar({
-            id: primeiro.id,
-            nomeFantasia: primeiro.nomeFantasia,
-            papel: primeiro.papelDoUsuario,
-            permissoes: primeiro.permissoes ?? [],
-            permissoesExtras: primeiro.permissoesExtras ?? [],
+            id: alvo.id,
+            nomeFantasia: alvo.nomeFantasia,
+            papel: alvo.papelDoUsuario,
+            permissoes: alvo.permissoes ?? [],
+            permissoesExtras: alvo.permissoesExtras ?? [],
         })
+
+        // Retorna true quando não havia registro server-side e usamos lista[0]
+        // → main.ts deve gravar para que a próxima sessão já resolva corretamente.
+        return usouFallback
     }
 
     return {
         ativo,
         semEstabelecimento,
+        estabelecimentos,
         estabelecimentoAtivoId,
         papel,
         temTenantSelecionado,

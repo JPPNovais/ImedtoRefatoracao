@@ -239,6 +239,29 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Registra o último estabelecimento acessado pelo usuário. Chamado pelo front
+    /// ao trocar de estabelecimento manualmente ou ao resolver via fallback no boot.
+    /// Falha-fechada: valida vínculo Ativo ou Dono antes de gravar.
+    /// </summary>
+    /// <response code="204">Último estabelecimento registrado.</response>
+    /// <response code="401">Não autenticado.</response>
+    /// <response code="422">Estabelecimento não acessível pelo usuário.</response>
+    [HttpPost("ultimo-estabelecimento")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RegistrarUltimoEstabelecimento(
+        [FromBody] RegistrarUltimoEstabelecimentoRequest request)
+    {
+        await _commandBus.Send(new RegistrarUltimoEstabelecimentoCommand
+        {
+            EstabelecimentoId = request.EstabelecimentoId,
+        });
+        return NoContent();
+    }
+
+    /// <summary>
     /// Carrega o payload de /auth/me com cache em memória de 60s. O cache é invalidado
     /// pelas controllers que mutam os campos retornados (UsuarioController, OnboardingController,
     /// MinhaContaController) — ver <see cref="AuthMeCacheKey(Guid)"/>.
@@ -257,6 +280,8 @@ public class AuthController : ControllerBase
         // Payload minimizado (LGPD): cpf removido (nao usado pelo front) e
         // ultimoAcessoEm removido (sem uso). Telefone mantido — eh round-trip
         // do form em MinhaContaView (front precisa do valor existente para editar).
+        // UltimoEstabelecimentoId: exposto apenas no bootstrap (nao no /me) — o /me
+        // serve para reidratar dados de perfil, nao preferencia de tenant.
         var payload = new MeUsuarioDto(
             usuario.Id,
             usuario.Email,
@@ -480,3 +505,6 @@ public record AceitarConviteRequest(string Token, string Email, string NovaSenha
 
 /// <summary>Payload de alteração de senha do usuário autenticado.</summary>
 public record AlterarSenhaRequest(string SenhaAtual, string NovaSenha);
+
+/// <summary>Payload para registrar o último estabelecimento acessado.</summary>
+public record RegistrarUltimoEstabelecimentoRequest(long EstabelecimentoId);

@@ -69,6 +69,24 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 4. Requer `Microsoft.AspNetCore.Authentication.JwtBearer >= 10.0` — versões <10 não suportam ES256 nativamente.
 5. Confirmação de e-mail, reset de senha e convite usam tokens em `auth_email_tokens` (TTL 24h confirm, 1h reset, 7d invite). Para testes unitários, usar Moq de `IAuthService`.
 
+### Bootstrap da SPA e resolução de tenant
+
+`GET /api/auth/bootstrap` retorna em paralelo `{ usuario, profissional, estabelecimentos }` — substitui 3 round-trips serializados. Handler: `BootstrapMeQueryHandlers` (query singleton, sem UoW).
+
+`MeUsuarioDto` expõe `ultimoEstabelecimentoId: long?` — coluna `usuarios.ultimo_estabelecimento_id` (nullable, FK ON DELETE SET NULL). Ausente no `/auth/me` (apenas bootstrap).
+
+**Lógica de resolução de tenant em `tenantStore.popularEstabelecimentos(lista, ultimoEstabelecimentoId)`:**
+
+1. Se `ultimoEstabelecimentoId` está na lista de acessíveis → seleciona esse.
+2. Se nulo ou órfão (id não está na lista) → fallback `lista[0]` + a função retorna `true` para sinalizar que o `main.ts` deve gravar o resolvido (E1: `POST /api/auth/ultimo-estabelecimento`).
+3. Se sessionStorage já tem tenant válido → re-hidrata permissões do servidor (fonte da verdade) sem trocar.
+
+**Command de gravação:** `RegistrarUltimoEstabelecimentoCommand` → `RegistrarUltimoEstabelecimentoCommandHandler`. Falha-fechada multi-tenant: valida `PodeAtuarComoProfissional` (vínculo não-inativo OU é Dono) antes de qualquer escrita. Sem acesso → `BusinessException("Não encontrado.")`.
+
+**Dois gatilhos de gravação:** (a) troca manual pela modal (`EstabelecimentoSeletorModal`) — sempre grava antes do reload; (b) primeiro boot sem registro (`ultimoEstabelecimentoId == null`) — main.ts dispara a gravação do fallback resolvido.
+
+**Degradação graciosa (R7):** se o POST falhar (rede/500), a troca de tenant acontece mesmo assim. Falha silenciosa com catch, sem erro bloqueante.
+
 ---
 
 ## Área Admin Global

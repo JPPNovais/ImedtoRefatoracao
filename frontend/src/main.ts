@@ -8,6 +8,7 @@ import { useProfissionalStore } from "./stores/profissionalStore"
 import { useTenantStore } from "./stores/tenantStore"
 import { usePermissoesStore } from "./stores/permissoesStore"
 import { bootstrapService } from "./services/bootstrapService"
+import { usuarioService } from "./services/usuarioService"
 import realtimeService from "./services/realtimeService"
 
 async function bootstrap() {
@@ -43,7 +44,9 @@ async function bootstrap() {
         auth.setUsuario(data.usuario)
         profissional.setProfissional(data.profissional)
         if (!auth.onboardingPendente) {
-            tenant.popularEstabelecimentos(data.estabelecimentos)
+            const ultimoId = data.usuario.ultimoEstabelecimentoId ?? null
+            const usouFallback = tenant.popularEstabelecimentos(data.estabelecimentos, ultimoId)
+
             // Sanidade: se o backend devolveu estabelecimentos mas nada foi selecionado,
             // o sessionStorage tem um tenant órfão (id que não existe mais nesta lista).
             // Limpar e re-selecionar evita SPA chamando endpoints com header inválido.
@@ -52,7 +55,17 @@ async function bootstrap() {
                 // eslint-disable-next-line no-console
                 console.warn("[bootstrap] sessionStorage tinha estabelecimento órfão — re-selecionando.")
                 tenant.limpar()
-                tenant.popularEstabelecimentos(data.estabelecimentos)
+                // Após limpar, re-aplica a lógica de resolução com o último acessado.
+                tenant.popularEstabelecimentos(data.estabelecimentos, ultimoId)
+            }
+
+            // E1: primeiro boot sem registro server-side → grava o resolvido para que
+            // a próxima sessão resolva corretamente sem fallback (CA9).
+            if (usouFallback && tenant.estabelecimentoAtivoId) {
+                const idResolvido = tenant.estabelecimentoAtivoId
+                usuarioService.gravarUltimoEstabelecimento(idResolvido).catch(() => {
+                    // Falha silenciosa (R7): não bloqueia o boot.
+                })
             }
         }
         auth.ativarRealtime()

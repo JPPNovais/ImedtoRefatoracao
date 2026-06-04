@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Usuarios;
 
 namespace Imedto.Backend.Infrastructure.Database.Configurations;
@@ -22,6 +23,15 @@ public class UsuarioConfiguration : IEntityTypeConfiguration<Usuario>
         builder.Property(u => u.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(u => u.AtualizadoEm).HasColumnName("atualizado_em");
         builder.Property(u => u.UltimoAcessoEm).HasColumnName("ultimo_acesso_em");
+        builder.Property(u => u.UltimoEstabelecimentoId).HasColumnName("ultimo_estabelecimento_id");
+
+        // FK nullable: ON DELETE SET NULL — se o estabelecimento for removido, a coluna zera.
+        // O boot da SPA trata nulo/órfão via fallback (R4 do briefing).
+        builder.HasOne<Estabelecimento>()
+            .WithMany()
+            .HasForeignKey(u => u.UltimoEstabelecimentoId)
+            .HasConstraintName("fk_usuarios_ultimo_estabelecimento")
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(u => u.Email).HasDatabaseName("ix_usuarios_email");
         builder.HasIndex(u => u.Cpf).IsUnique().HasDatabaseName("uq_usuarios_cpf")

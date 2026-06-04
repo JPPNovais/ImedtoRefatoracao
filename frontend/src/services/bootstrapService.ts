@@ -4,11 +4,20 @@ import type { ProfissionalPerfil } from "./profissionalService"
 import type { Estabelecimento } from "./estabelecimentoService"
 
 /**
+ * Versão extendida do Usuario retornada somente pelo bootstrap — inclui campos
+ * de preferência que não fazem parte do estado de auth geral (/auth/me).
+ */
+export interface UsuarioBootstrap extends Usuario {
+    /** Último estabelecimento acessado (persistido server-side). Null se nunca registrado. */
+    ultimoEstabelecimentoId: number | null
+}
+
+/**
  * Resposta agregada de GET /auth/bootstrap. Substitui /auth/me + /profissional/me +
  * /estabelecimento no boot do SPA — um único round-trip em vez de três serializados.
  */
 export interface Bootstrap {
-    usuario: Usuario
+    usuario: UsuarioBootstrap
     profissional: ProfissionalPerfil | null
     estabelecimentos: Estabelecimento[]
 }

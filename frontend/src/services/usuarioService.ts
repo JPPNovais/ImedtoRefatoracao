@@ -29,4 +29,13 @@ export const usuarioService = {
         })
         return data
     },
+
+    /**
+     * Persiste o último estabelecimento acessado no backend.
+     * Chamado ao trocar manualmente ou ao resolver via fallback no boot.
+     * Falha silenciosa (R7): se o POST falhar, a troca prossegue mesmo assim.
+     */
+    async gravarUltimoEstabelecimento(estabelecimentoId: number): Promise<void> {
+        await httpClient.post("/auth/ultimo-estabelecimento", { estabelecimentoId })
+    },
 }

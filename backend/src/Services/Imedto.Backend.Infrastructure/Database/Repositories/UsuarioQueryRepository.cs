@@ -46,12 +46,13 @@ public class UsuarioQueryRepository
     public async Task<MeUsuarioDto?> ObterMeParaBootstrap(Guid usuarioId)
     {
         const string sql = """
-            SELECT  id                  AS Id,
-                    email               AS Email,
-                    nome_completo       AS NomeCompleto,
-                    telefone            AS Telefone,
-                    status              AS Status,
-                    onboarding_completo AS OnboardingCompleto
+            SELECT  id                         AS Id,
+                    email                      AS Email,
+                    nome_completo              AS NomeCompleto,
+                    telefone                   AS Telefone,
+                    status                     AS Status,
+                    onboarding_completo        AS OnboardingCompleto,
+                    ultimo_estabelecimento_id  AS UltimoEstabelecimentoId
             FROM    public.usuarios
             WHERE   id = @Id
             """;

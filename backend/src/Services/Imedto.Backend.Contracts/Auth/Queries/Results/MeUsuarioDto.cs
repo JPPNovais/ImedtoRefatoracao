@@ -11,4 +11,5 @@ public record MeUsuarioDto(
     string NomeCompleto,
     string Telefone,
     string Status,
-    bool OnboardingCompleto);
+    bool OnboardingCompleto,
+    long? UltimoEstabelecimentoId = null);

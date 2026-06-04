@@ -19,6 +19,13 @@ public class Usuario : Entity<Guid>
     public virtual DateTime? AtualizadoEm { get; protected set; }
     public virtual DateTime? UltimoAcessoEm { get; protected set; }
 
+    /// <summary>
+    /// Último estabelecimento acessado pelo usuário. Null enquanto o usuário nunca tiver
+    /// selecionado um tenant ou se o estabelecimento foi removido (ON DELETE SET NULL).
+    /// O boot da SPA prioriza este id e cai em lista[0] se nulo ou órfão.
+    /// </summary>
+    public virtual long? UltimoEstabelecimentoId { get; protected set; }
+
     protected Usuario() { }
 
     public static Usuario Criar(Guid id, string email)
@@ -85,6 +92,17 @@ public class Usuario : Entity<Guid>
     public virtual void RegistrarAcesso()
     {
         UltimoAcessoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Persiste o último estabelecimento acessado. Chamado pelo handler após validar
+    /// que o usuário possui vínculo ativo ou é dono do estabelecimento informado.
+    /// Passar <c>null</c> limpa a preferência (cenário de perda de vínculo).
+    /// </summary>
+    public virtual void RegistrarUltimoEstabelecimento(long? estabelecimentoId)
+    {
+        UltimoEstabelecimentoId = estabelecimentoId;
+        AtualizadoEm = DateTime.UtcNow;
     }
 
     /// <summary>

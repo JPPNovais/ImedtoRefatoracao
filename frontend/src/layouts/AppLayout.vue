@@ -9,7 +9,7 @@
  *   - <main> com `padding-top: var(--topbar-h)` e margem esquerda dinâmica
  *     baseada no estado pin do sidebar (controlado por `body.has-pinned-sidebar`)
  */
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { useRouter, useRoute } from "vue-router"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
@@ -18,7 +18,9 @@ import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useNotificacoesStore } from "@/stores/notificacoesStore"
 import { useTheme, type Theme } from "@/composables/useTheme"
 import { AppTopBar, AppSidebar } from "@/components/ui"
+import EstabelecimentoSeletorModal from "@/components/ui/EstabelecimentoSeletorModal.vue"
 import { podeAcessarRota } from "@/router/routePermissions"
+import { usuarioService } from "@/services/usuarioService"
 import logoBranco from "@/assets/imedto-logo-branco.png"
 
 const { tema, definirTema } = useTheme()
@@ -116,9 +118,32 @@ const subtituloUsuario = computed(() => {
     return ""
 })
 
+const modalSeletorAberto = ref(false)
+
+// R3: item de menu visível somente quando há 2+ estabelecimentos acessíveis.
+const temMultiEstabelecimento = computed(() => tenant.estabelecimentos.length > 1)
+
 function trocarEstabelecimento() {
-    tenant.limpar()
-    // Reload completo: re-executa main.ts que chama resolverTenant novamente.
+    modalSeletorAberto.value = true
+}
+
+async function confirmarTrocaEstabelecimento(novoId: number) {
+    // R7: falha na gravação não bloqueia a troca.
+    await usuarioService.gravarUltimoEstabelecimento(novoId).catch(() => {
+        // Falha silenciosa — sem erro bloqueante para o usuário.
+    })
+    tenant.selecionar(
+        tenant.estabelecimentos.find(e => e.id === novoId)
+            ? {
+                id: novoId,
+                nomeFantasia: tenant.estabelecimentos.find(e => e.id === novoId)!.nomeFantasia,
+                papel: tenant.estabelecimentos.find(e => e.id === novoId)!.papelDoUsuario,
+                permissoes: tenant.estabelecimentos.find(e => e.id === novoId)!.permissoes ?? [],
+                permissoesExtras: tenant.estabelecimentos.find(e => e.id === novoId)!.permissoesExtras ?? [],
+            }
+            : tenant.ativo!,
+    )
+    // Reload completo para reidratar tudo do zero via /auth/bootstrap (CA11).
     window.location.href = "/home"
 }
 
@@ -137,7 +162,7 @@ function irNotificacoes() {
 
 async function sincronizarNotificacoes() {
     await Promise.all([
-        notificacoes.carregar({ tamanho: 5 }),
+        notificacoes.carregar({ tamanho: 5, lidas: false }),
         notificacoes.atualizarContador(),
     ])
 }
@@ -200,7 +225,12 @@ async function sincronizarNotificacoes() {
                 <button type="button" class="pop-item" @click="() => { fechar(); router.push({ name: 'MeusConvites' }) }">
                     <i class="fa-solid fa-envelope" aria-hidden="true"></i>Meus convites
                 </button>
-                <button type="button" class="pop-item" @click="() => { fechar(); trocarEstabelecimento() }">
+                <button
+                    v-if="temMultiEstabelecimento"
+                    type="button"
+                    class="pop-item"
+                    @click="() => { fechar(); trocarEstabelecimento() }"
+                >
                     <i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i>Trocar estabelecimento
                 </button>
 
@@ -260,6 +290,14 @@ async function sincronizarNotificacoes() {
     <main class="conteudo">
         <slot />
     </main>
+
+    <EstabelecimentoSeletorModal
+        :aberto="modalSeletorAberto"
+        :estabelecimentos="tenant.estabelecimentos"
+        :ativo-id="tenant.estabelecimentoAtivoId"
+        @fechar="modalSeletorAberto = false"
+        @selecionar="confirmarTrocaEstabelecimento"
+    />
 </template>
 
 <style scoped>

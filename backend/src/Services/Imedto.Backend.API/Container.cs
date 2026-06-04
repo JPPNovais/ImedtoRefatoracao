@@ -384,6 +384,7 @@ public static class Container
         services.AddScoped<CriarRegistroLocalUsuarioCommandHandler>();
         services.AddScoped<AtualizarPerfilUsuarioCommandHandler>();
         services.AddScoped<CompletarOnboardingUsuarioCommandHandler>();
+        services.AddScoped<RegistrarUltimoEstabelecimentoCommandHandler>();
         services.AddSingleton<VerificarCpfDisponivelQueryHandler>();
         services.AddScoped<UsuarioCriadoEventHandler>();
 
@@ -905,6 +906,7 @@ public static class Container
             bus.Register<CriarRegistroLocalUsuarioCommand, CriarRegistroLocalUsuarioCommandHandler>();
             bus.Register<AtualizarPerfilUsuarioCommand, AtualizarPerfilUsuarioCommandHandler>();
             bus.Register<CompletarOnboardingUsuarioCommand, CompletarOnboardingUsuarioCommandHandler>();
+            bus.Register<RegistrarUltimoEstabelecimentoCommand, RegistrarUltimoEstabelecimentoCommandHandler>();
             bus.Register<CriarEstabelecimentoCommand, CriarEstabelecimentoCommandHandler>();
             bus.Register<AtualizarEstabelecimentoCommand, AtualizarEstabelecimentoCommandHandler>();
             bus.Register<AtualizarFuncionamentoCommand, AtualizarFuncionamentoCommandHandler>();
