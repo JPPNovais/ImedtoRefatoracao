@@ -18,6 +18,38 @@ public interface IModeloPermissaoRepository
     Task Salvar(ModeloPermissaoEstabelecimento modelo);
     Task Excluir(ModeloPermissaoEstabelecimento modelo);
 
+    // ─── Métodos para o contexto do Admin Global ───────────────────────────────
+
+    /// <summary>Retorna o registro global (estabelecimento_id NULL) pelo id.</summary>
+    Task<ModeloPermissaoEstabelecimento?> ObterGlobalPorIdOuNulo(long id);
+
+    /// <summary>
+    /// Retorna todos os registros globais (estabelecimento_id NULL) em ordem alfabética por nome.
+    /// Usado pelo handler de criação de estabelecimento para semear as cópias padrão.
+    /// </summary>
+    Task<IReadOnlyList<ModeloPermissaoEstabelecimento>> ListarGlobais();
+
+    /// <summary>Verifica se existe registro global com o mesmo nome (ignora o id informado).</summary>
+    Task<bool> ExisteGlobalComNome(string nome, long? excetoId = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Verifica se algum estabelecimento já possui cópia (padrão ou não) com o mesmo nome.
+    /// Usado antes de criar um padrão global — colisão bloquearia o INSERT das cópias.
+    /// </summary>
+    Task<bool> ExisteNomeEmQualquerEstabelecimento(string nome, long? excetoIdGlobal = null, CancellationToken ct = default);
+
+    /// <summary>Retorna todas as cópias <c>eh_padrao=true</c> correlacionadas pelo nome (para propagação).</summary>
+    Task<IReadOnlyList<ModeloPermissaoEstabelecimento>> ListarCopiasPadraoDoGlobal(string nomeGlobal, CancellationToken ct = default);
+
+    /// <summary>
+    /// Retorna true se alguma cópia eh_padrao=true com o nome informado está em uso por vínculo ativo
+    /// em qualquer estabelecimento.
+    /// </summary>
+    Task<bool> CopiaEstaEmUsoEmQualquerEstabelecimento(string nomeGlobal, CancellationToken ct = default);
+
+    /// <summary>Conta o total de estabelecimentos existentes (para estimativa de propagação).</summary>
+    Task<int> ContarEstabelecimentos(CancellationToken ct = default);
+
     /// <summary>
     /// Retorna <c>true</c> se o usuário possui a permissão fina informada (catálogo em
     /// <see cref="PermissoesExtras"/>) no estabelecimento — via vínculo ativo cujo modelo

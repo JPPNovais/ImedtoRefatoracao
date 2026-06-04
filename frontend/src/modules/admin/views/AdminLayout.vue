@@ -23,9 +23,10 @@ const menuItems = [
     { name: "AdminPlanos",           label: "Planos",                 icon: "fa-solid fa-credit-card",  to: { name: "AdminPlanos" } },
     { name: "AdminAdmins",           label: "Administradores",        icon: "fa-solid fa-user-shield",  to: { name: "AdminAdminsList" } },
     { name: "AdminConfiguracoes",    label: "Configurações",          icon: "fa-solid fa-gear",         to: { name: "AdminConfiguracoes" } },
-    { name: "AdminModelosGlobais",   label: "Modelos de prontuário",  icon: "fa-solid fa-file-medical", to: { name: "AdminModelosGlobais" } },
-    { name: "AdminVariaveisGlobais", label: "Variáveis pool",         icon: "fa-solid fa-list-check",   to: { name: "AdminVariaveisGlobais" } },
-    { name: "AdminRegioesGlobais",   label: "Regiões anatômicas",     icon: "fa-solid fa-person-rays",  to: { name: "AdminRegioesGlobais" } },
+    { name: "AdminModelosGlobais",    label: "Modelos de prontuário",  icon: "fa-solid fa-file-medical",   to: { name: "AdminModelosGlobais" } },
+    { name: "AdminVariaveisGlobais",  label: "Variáveis pool",         icon: "fa-solid fa-list-check",     to: { name: "AdminVariaveisGlobais" } },
+    { name: "AdminRegioesGlobais",    label: "Regiões anatômicas",     icon: "fa-solid fa-person-rays",    to: { name: "AdminRegioesGlobais" } },
+    { name: "AdminPermissoesGlobais", label: "Modelos de permissão",   icon: "fa-solid fa-shield-halved",  to: { name: "AdminPermissoesGlobais" } },
 ]
 
 async function handleLogout() {

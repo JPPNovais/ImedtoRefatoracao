@@ -49,6 +49,64 @@ public class ModeloPermissaoRepository : IModeloPermissaoRepository
         return await q.AnyAsync();
     }
 
+    // ─── Métodos Admin Global ──────────────────────────────────────────────────
+
+    public async Task<ModeloPermissaoEstabelecimento?> ObterGlobalPorIdOuNulo(long id) =>
+        await _context.ModelosPermissao
+            .FirstOrDefaultAsync(m => m.Id == id && m.EstabelecimentoId == null);
+
+    public async Task<IReadOnlyList<ModeloPermissaoEstabelecimento>> ListarGlobais() =>
+        await _context.ModelosPermissao
+            .Where(m => m.EstabelecimentoId == null)
+            .OrderBy(m => m.Nome)
+            .ToListAsync();
+
+    public async Task<bool> ExisteGlobalComNome(string nome, long? excetoId = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return false;
+        var nomeNorm = nome.Trim();
+        var q = _context.ModelosPermissao
+            .AsNoTracking()
+            .Where(m => m.EstabelecimentoId == null && m.Nome == nomeNorm);
+        if (excetoId is { } id) q = q.Where(m => m.Id != id);
+        return await q.AnyAsync(ct);
+    }
+
+    public async Task<bool> ExisteNomeEmQualquerEstabelecimento(string nome, long? excetoIdGlobal = null, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) return false;
+        var nomeNorm = nome.Trim();
+        return await _context.ModelosPermissao
+            .AsNoTracking()
+            .AnyAsync(m => m.EstabelecimentoId != null && m.Nome == nomeNorm, ct);
+    }
+
+    public async Task<IReadOnlyList<ModeloPermissaoEstabelecimento>> ListarCopiasPadraoDoGlobal(string nomeGlobal, CancellationToken ct = default)
+    {
+        var nomeNorm = nomeGlobal.Trim();
+        return await _context.ModelosPermissao
+            .Where(m => m.EstabelecimentoId != null && m.EhPadrao && m.Nome == nomeNorm)
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> CopiaEstaEmUsoEmQualquerEstabelecimento(string nomeGlobal, CancellationToken ct = default)
+    {
+        var nomeNorm = nomeGlobal.Trim();
+        return await _context.Vinculos
+            .AsNoTracking()
+            .AnyAsync(v =>
+                v.Status != Domain.Vinculos.VinculoStatus.Inativo
+                && _context.ModelosPermissao
+                    .Any(m => m.Id == v.ModeloPermissaoId
+                              && m.EstabelecimentoId != null
+                              && m.EhPadrao
+                              && m.Nome == nomeNorm),
+                ct);
+    }
+
+    public async Task<int> ContarEstabelecimentos(CancellationToken ct = default) =>
+        await _context.Estabelecimentos.CountAsync(ct);
+
     public async Task Salvar(ModeloPermissaoEstabelecimento modelo)
     {
         if (modelo.Id == 0)

@@ -9,13 +9,26 @@ import { permissaoService, type ModeloPermissao } from "@/services/permissaoServ
  * Modal de criar/editar papel personalizado. Permite editar nome, descrição,
  * ícone, cor + matriz de permissões granulares.
  *
- * Modelos padrão (`ehPadrao`) abrem em modo somente-leitura — UI mostra apenas
- * a matriz e bloqueia o submit.
+ * Modelos padrão (`ehPadrao`) abrem em modo somente-leitura no contexto tenant.
+ * No contexto admin (`contexto='admin'`), padrões são editáveis e deletáveis.
+ *
+ * Para injetar um service admin diferente no contexto admin, passe `servicoSalvar`
+ * e `servicoExcluir` como props (opcional — se não passados, usa `permissaoService` padrão).
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     aberto: boolean
     modelo: ModeloPermissao | null   // null = criar novo
-}>()
+    /** 'tenant' (padrão): padrão abre read-only. 'admin': padrão é editável. */
+    contexto?: "tenant" | "admin"
+    /** Override do service de salvar — injetado pelo contexto admin. */
+    servicoSalvar?: (payload: unknown) => Promise<ModeloPermissao | void>
+    /** Override do service de excluir — injetado pelo contexto admin. */
+    servicoExcluir?: (id: number) => Promise<void>
+}>(), {
+    contexto: "tenant",
+    servicoSalvar: undefined,
+    servicoExcluir: undefined,
+})
 
 const emit = defineEmits<{
     (e: "fechar"): void
@@ -78,7 +91,9 @@ watch(() => [props.modelo, props.aberto] as const, ([m, aberto]) => {
 }, { immediate: true })
 
 const ehNovo = computed(() => !props.modelo)
-const ehPadrao = computed(() => props.modelo?.ehPadrao === true)
+/** No contexto admin, padrões são editáveis — só read-only no tenant. */
+const ehPadrao = computed(() => props.modelo?.ehPadrao === true && props.contexto !== "admin")
+const ehContextoAdmin = computed(() => props.contexto === "admin")
 const valido = computed(() => form.nome.trim().length > 1 && form.permissoes.length > 0)
 
 const bgIconeAtual = computed(() => `color-mix(in srgb, ${form.cor} 14%, white)`)
@@ -88,44 +103,35 @@ async function salvar() {
     salvando.value = true
     erro.value = null
     try {
-        if (ehNovo.value) {
-            const r = await permissaoService.criar({
-                nome: form.nome.trim(),
-                tipoAcesso: form.tipoAcesso,
-                permissoes: [...form.permissoes],
-                icone: form.icone,
-                cor: form.cor,
-                descricao: form.descricao.trim() || null,
+        const payload = {
+            nome: form.nome.trim(),
+            tipoAcesso: form.tipoAcesso,
+            permissoes: [...form.permissoes],
+            icone: form.icone,
+            cor: form.cor,
+            descricao: form.descricao.trim() || null,
+        }
+
+        if (props.servicoSalvar) {
+            // Contexto admin: delega ao service injetado (CA17 — reuso sem duplicar)
+            await props.servicoSalvar(payload)
+            emit("salvo", {
+                id: props.modelo?.id ?? 0,
+                ...payload,
+                ehPadrao: props.modelo?.ehPadrao ?? false,
+                criadoEm: props.modelo?.criadoEm ?? new Date().toISOString(),
             })
+        } else if (ehNovo.value) {
+            const r = await permissaoService.criar(payload)
             emit("salvo", {
                 id: r.modeloId,
-                nome: form.nome.trim(),
-                tipoAcesso: form.tipoAcesso,
-                permissoes: [...form.permissoes],
+                ...payload,
                 ehPadrao: false,
                 criadoEm: new Date().toISOString(),
-                icone: form.icone,
-                cor: form.cor,
-                descricao: form.descricao.trim() || null,
             })
         } else if (props.modelo) {
-            await permissaoService.atualizar(props.modelo.id, {
-                nome: form.nome.trim(),
-                tipoAcesso: form.tipoAcesso,
-                permissoes: [...form.permissoes],
-                icone: form.icone,
-                cor: form.cor,
-                descricao: form.descricao.trim() || null,
-            })
-            emit("salvo", {
-                ...props.modelo,
-                nome: form.nome.trim(),
-                tipoAcesso: form.tipoAcesso,
-                permissoes: [...form.permissoes],
-                icone: form.icone,
-                cor: form.cor,
-                descricao: form.descricao.trim() || null,
-            })
+            await permissaoService.atualizar(props.modelo.id, payload)
+            emit("salvo", { ...props.modelo, ...payload })
         }
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Não foi possível salvar a permissão."
@@ -136,11 +142,18 @@ async function salvar() {
 
 async function excluir() {
     if (!props.modelo || excluindo.value || salvando.value) return
-    if (!confirm(`Excluir a permissão "${props.modelo.nome}"? Esta ação é irreversível. Profissionais vinculados a esta permissão precisam receber outra antes.`)) return
+    const confirmMsg = ehContextoAdmin.value
+        ? `Excluir o modelo "${props.modelo.nome}"? Esta ação removerá o modelo de todas as clínicas e é irreversível.`
+        : `Excluir a permissão "${props.modelo.nome}"? Esta ação é irreversível. Profissionais vinculados a esta permissão precisam receber outra antes.`
+    if (!confirm(confirmMsg)) return
     excluindo.value = true
     erro.value = null
     try {
-        await permissaoService.excluir(props.modelo.id)
+        if (props.servicoExcluir) {
+            await props.servicoExcluir(props.modelo.id)
+        } else {
+            await permissaoService.excluir(props.modelo.id)
+        }
         emit("excluido", props.modelo)
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Não foi possível excluir a permissão."
@@ -159,7 +172,7 @@ function fechar() {
     <AppModal
         :aberto="aberto"
         largura="lg"
-        :titulo="ehPadrao ? 'Visualizar permissão do sistema' : (ehNovo ? 'Nova permissão personalizada' : 'Editar permissão')"
+        :titulo="ehPadrao ? 'Visualizar permissão do sistema' : (ehNovo ? (ehContextoAdmin ? 'Novo modelo de permissão' : 'Nova permissão personalizada') : (ehContextoAdmin ? 'Editar modelo de permissão' : 'Editar permissão'))"
         @fechar="fechar"
     >
         <!-- Identidade -->
@@ -234,9 +247,10 @@ function fechar() {
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
         <template #rodape>
-            <!-- Excluir só faz sentido para papéis customizados existentes (não padrão, não novo). -->
+            <!-- Excluir: para papéis customizados existentes (não padrão) no tenant;
+                          no contexto admin, pode excluir padrões também. -->
             <AppButton
-                v-if="!ehPadrao && !ehNovo"
+                v-if="!ehNovo && (ehContextoAdmin || !props.modelo?.ehPadrao)"
                 variant="danger"
                 icon="fa-solid fa-trash"
                 :loading="excluindo"

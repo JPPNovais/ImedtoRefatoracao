@@ -22,7 +22,12 @@ namespace Imedto.Backend.Domain.ModelosPermissao;
 /// </summary>
 public class ModeloPermissaoEstabelecimento : Entity
 {
-    public virtual long EstabelecimentoId { get; protected set; }
+    /// <summary>
+    /// NULL quando se trata do registro global de referência (escopo sistema).
+    /// NOT NULL quando se trata de uma cópia pertencente a um estabelecimento.
+    /// Nunca use em queries de tenant sem filtrar por estabelecimento_id = @X.
+    /// </summary>
+    public virtual long? EstabelecimentoId { get; protected set; }
     public virtual string Nome { get; protected set; } = string.Empty;
     public virtual TipoAcessoModelo TipoAcesso { get; protected set; }
 
@@ -67,7 +72,7 @@ public class ModeloPermissaoEstabelecimento : Entity
         {
             new ModeloPermissaoEstabelecimento
             {
-                EstabelecimentoId = estabelecimentoId,
+                EstabelecimentoId = (long?)estabelecimentoId,
                 Nome = "Admin",
                 TipoAcesso = TipoAcessoModelo.Profissional,
                 PermissoesJson = SerializarLista(CatalogoPermissoes.AdminPadrao),
@@ -88,7 +93,7 @@ public class ModeloPermissaoEstabelecimento : Entity
             },
             new ModeloPermissaoEstabelecimento
             {
-                EstabelecimentoId = estabelecimentoId,
+                EstabelecimentoId = (long?)estabelecimentoId,
                 Nome = "Médico",
                 TipoAcesso = TipoAcessoModelo.Profissional,
                 PermissoesJson = SerializarLista(CatalogoPermissoes.MedicoPadrao),
@@ -105,7 +110,7 @@ public class ModeloPermissaoEstabelecimento : Entity
             },
             new ModeloPermissaoEstabelecimento
             {
-                EstabelecimentoId = estabelecimentoId,
+                EstabelecimentoId = (long?)estabelecimentoId,
                 Nome = "Recepção",
                 TipoAcesso = TipoAcessoModelo.Recepcionista,
                 PermissoesJson = SerializarLista(CatalogoPermissoes.RecepcaoPadrao),
@@ -117,6 +122,91 @@ public class ModeloPermissaoEstabelecimento : Entity
                 CriadoEm = agora,
             },
         };
+    }
+
+    /// <summary>
+    /// Cria o registro global de referência (escopo sistema, <c>EstabelecimentoId = NULL</c>).
+    /// Usado pelo Admin Global para criar/gerenciar os padrões do sistema.
+    /// </summary>
+    public static ModeloPermissaoEstabelecimento CriarGlobal(
+        string nome,
+        TipoAcessoModelo tipoAcesso,
+        IReadOnlyList<string>? permissoes = null,
+        IReadOnlyList<string>? permissoesExtras = null,
+        string? icone = null,
+        string? cor = null,
+        string? descricao = null)
+    {
+        if (string.IsNullOrWhiteSpace(nome))
+            throw new BusinessException("Nome do modelo é obrigatório.");
+        ValidarPermissoes(permissoes);
+        ValidarPermissoesExtras(permissoesExtras);
+
+        return new ModeloPermissaoEstabelecimento
+        {
+            EstabelecimentoId = null,
+            Nome = nome.Trim(),
+            TipoAcesso = tipoAcesso,
+            PermissoesJson = SerializarLista(permissoes),
+            PermissoesExtrasJson = SerializarLista(permissoesExtras),
+            Icone = NormalizarTexto(icone, 50),
+            Cor = NormalizarTexto(cor, 40),
+            Descricao = NormalizarTexto(descricao, 200),
+            EhPadrao = true,
+            CriadoEm = DateTime.UtcNow
+        };
+    }
+
+    /// <summary>
+    /// Materializa uma cópia <c>eh_padrao=true</c> do registro global para o estabelecimento informado.
+    /// Preserva <c>PermissoesExtrasJson</c> do global — cópias semeadas nascem com os extras do global.
+    /// Usado pelo handler de propagação ao criar estabelecimento ou ao criar padrão retroativamente.
+    /// </summary>
+    public static ModeloPermissaoEstabelecimento CriarCopiaDeGlobal(
+        ModeloPermissaoEstabelecimento global,
+        long estabelecimentoId)
+    {
+        if (estabelecimentoId <= 0)
+            throw new ArgumentException("estabelecimentoId inválido.", nameof(estabelecimentoId));
+        if (global.EstabelecimentoId is not null)
+            throw new ArgumentException("Origem deve ser um registro global (EstabelecimentoId null).", nameof(global));
+
+        return new ModeloPermissaoEstabelecimento
+        {
+            EstabelecimentoId = (long?)estabelecimentoId,
+            Nome = global.Nome,
+            TipoAcesso = global.TipoAcesso,
+            PermissoesJson = global.PermissoesJson,
+            PermissoesExtrasJson = global.PermissoesExtrasJson,
+            Icone = global.Icone,
+            Cor = global.Cor,
+            Descricao = global.Descricao,
+            EhPadrao = true,
+            CriadoEm = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Sincroniza esta cópia com os dados do registro global correspondente.
+    /// Usado exclusivamente pelo handler de propagação — não passa pelo guard <see cref="Atualizar"/>.
+    /// Preserva <c>EstabelecimentoId</c> e <c>PermissoesExtrasJson</c> da cópia (R8 — extras não editadas pelo admin).
+    /// </summary>
+    public virtual void SincronizarComGlobal(
+        string nome,
+        TipoAcessoModelo tipoAcesso,
+        string permissoesJson,
+        string? icone,
+        string? cor,
+        string? descricao)
+    {
+        Nome = nome.Trim();
+        TipoAcesso = tipoAcesso;
+        PermissoesJson = permissoesJson;
+        Icone = NormalizarTexto(icone, 50);
+        Cor = NormalizarTexto(cor, 40);
+        Descricao = NormalizarTexto(descricao, 200);
+        AtualizadoEm = DateTime.UtcNow;
+        // PermissoesExtrasJson permanece intacto (R8).
     }
 
     public static ModeloPermissaoEstabelecimento Criar(
@@ -138,7 +228,7 @@ public class ModeloPermissaoEstabelecimento : Entity
 
         return new ModeloPermissaoEstabelecimento
         {
-            EstabelecimentoId = estabelecimentoId,
+            EstabelecimentoId = (long?)estabelecimentoId,
             Nome = nome.Trim(),
             TipoAcesso = tipoAcesso,
             PermissoesJson = SerializarLista(permissoes),

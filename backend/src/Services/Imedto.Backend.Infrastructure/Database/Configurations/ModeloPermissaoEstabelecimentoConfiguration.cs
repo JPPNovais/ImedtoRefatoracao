@@ -13,7 +13,7 @@ public class ModeloPermissaoEstabelecimentoConfiguration : IEntityTypeConfigurat
         builder.HasKey(m => m.Id);
         builder.Property(m => m.Id).HasColumnName("id").ValueGeneratedOnAdd();
 
-        builder.Property(m => m.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
+        builder.Property(m => m.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired(false);
         builder.Property(m => m.Nome).HasColumnName("nome").IsRequired().HasMaxLength(100);
         builder.Property(m => m.TipoAcesso)
             .HasColumnName("tipo_acesso")
@@ -39,6 +39,11 @@ public class ModeloPermissaoEstabelecimentoConfiguration : IEntityTypeConfigurat
         builder.HasIndex(m => m.EstabelecimentoId).HasDatabaseName("ix_modelo_permissao_estabelecimento");
         builder.HasIndex(m => new { m.EstabelecimentoId, m.Nome }).IsUnique()
             .HasDatabaseName("uq_modelo_permissao_nome_por_estabelecimento");
+
+        // Unique parcial para o escopo global (WHERE estabelecimento_id IS NULL):
+        // garante que não existam dois registros globais com o mesmo nome.
+        // O EF Core não suporta natively unique parcial — o índice é criado via migration SQL custom.
+        // Ver db/migrations/*_modelos_permissao_padrao_sistema.sql
 
         builder.Ignore(m => m.DomainEvents);
     }

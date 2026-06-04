@@ -135,6 +135,31 @@ Wave 2 entregou tabelas paralelas (`imedto_modelo_prontuario_global`, `imedto_va
 - Stores: `modelosGlobaisStore`, `variaveisGlobaisStore`, `regioesGlobaisStore` (este último carrega árvore completa).
 - Rotas sob `/admin/modelos-globais`, `/admin/variaveis-globais`, `/admin/regioes-globais`.
 
+### Catálogos Globais — Exceção ao live-link: Modelos de permissão padrão do sistema (briefing 2026-06-04_001)
+
+Os catálogos globais descritos acima (modelo de prontuário, variável pool, região anatômica) usam **live-link puro**: o tenant lê o registro global diretamente via `WHERE (eh_padrao_sistema=true OR estabelecimento_id=@X)`. O modelo de permissão **não pode** seguir esse padrão.
+
+**Por que não live-link:** `vinculo_profissional_estabelecimento.modelo_permissao_id` é FK para a cópia `eh_padrao=true` **daquele estabelecimento**. As queries de autorização (`UsuarioTemAcao`/`UsuarioTemPermissaoExtra`) fazem JOIN `v.modelo_permissao_id = mp.id` filtrando `v.estabelecimento_id`. Um registro global compartilhado quebraria esse vínculo por tenant — um profissional de um estabelecimento não pode ter FK apontando para um registro sem `estabelecimento_id`.
+
+**Representação:** registro global = `modelo_permissao_estabelecimento` com `estabelecimento_id NULL` + `eh_padrao=true` (template/fonte). Cópias por tenant = `estabelecimento_id NOT NULL` + `eh_padrao=true` (referenciáveis por vínculo). Nenhum vínculo aponta para o registro global.
+
+**Propagação cross-tenant:** criar/editar/excluir o global sincroniza as cópias correlacionadas **por Nome** em todos os tenants, em transação única (R11). Renomear o global renomeia todas as cópias para manter a correlação (R3/R5). `R8`: edição não toca `permissoes_extras` das cópias (preservadas como semeadas).
+
+**Exclusão segura (R6):** bloqueada se qualquer cópia correlacionada estiver em uso por vínculo ativo em qualquer estabelecimento — nunca deixa profissional órfão.
+
+**Clínica nova (CA6):** `CriarModeloPadraoAoCriarEstabelecimentoHandler` semeia as cópias a partir dos registros globais (fallback para hardcode `CriarPadroes()` se o seed ainda não rodou).
+
+**Endpoint admin:** `api/admin/catalogos/permissoes` (policy `ImedtoAdmin`). Controller: `AdminModelosPermissaoGlobaisController`. Handlers em `Application/Admin/ModelosPermissaoPadraoSistema/`.
+
+**Comparativo de catálogos globais:**
+
+| Entidade | Tabela | Escopo global | Como tenant consome | Tipo |
+|---|---|---|---|---|
+| Modelo de prontuário | `modelo_de_prontuario` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
+| Variável pool | `prontuario_variaveis_pool` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
+| Região anatômica | `regioes_anatomicas_catalogo` | global por construção | acessa diretamente | Live-link |
+| **Modelo de permissão** | `modelo_permissao_estabelecimento` | `estabelecimento_id=NULL`, `eh_padrao=true` | FK via cópia `(estabelecimento_id=@X, eh_padrao=true)` | **Cópia materializada + propagação** |
+
 ### Dashboard Admin (Wave 6)
 
 `Application/Admin/Dashboard/` — 4 query handlers (singletons) servindo `/api/admin/dashboard/*`:

@@ -324,6 +324,14 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.InativarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ExcluirRegiaoAdminCommandHandler>();
 
+        // Briefing 2026-06-04_001 — Modelos de permissão padrão sistema (cópias materializadas + propagação cross-tenant)
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.ModeloPermissaoPadraoSistemaQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.ListarModelosPermissaoPadraoSistemaQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.ObterModeloPermissaoPadraoSistemaQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.CriarModeloPermissaoPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.AtualizarModeloPermissaoPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.ExcluirModeloPermissaoPadraoSistemaCommandHandler>();
+
         // Wave 6 — Dashboard admin (4 query handlers singleton + repositório Dapper)
         services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.IDashboardAdminQueryRepository,
                               Imedto.Backend.Infrastructure.Admin.QueryRepositories.DashboardAdminQueryRepository>();

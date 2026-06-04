@@ -112,6 +112,12 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import("../views/VariaveisGlobaisFormView.vue"),
                 props: true,
             },
+            // Catálogos — Modelos de permissão padrão sistema
+            {
+                path: "catalogos/permissoes",
+                name: "AdminPermissoesGlobais",
+                component: () => import("../views/PermissoesGlobaisListView.vue"),
+            },
             // Catálogos — Regiões anatômicas
             {
                 path: "catalogos/regioes",

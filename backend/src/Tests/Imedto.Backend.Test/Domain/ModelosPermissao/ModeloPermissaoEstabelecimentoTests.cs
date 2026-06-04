@@ -218,4 +218,94 @@ public class ModeloPermissaoEstabelecimentoTests
         Assert.Throws<BusinessException>(() =>
             padrao.RemoverPermissaoExtra(PermissoesExtras.AssistenteClinicoIa));
     }
+
+    // ----- CriarGlobal (briefing 2026-06-04_001) -----
+
+    [Test]
+    public void CriarGlobal_Valido_EstabelecimentoIdNullEhPadraoTrue()
+    {
+        var global = ModeloPermissaoEstabelecimento.CriarGlobal(
+            "Financeiro", TipoAcessoModelo.Recepcionista,
+            new[] { "financeiro.ver" }, null, null, null, null);
+
+        Assert.That(global.EstabelecimentoId, Is.Null, "Registro global deve ter EstabelecimentoId null.");
+        Assert.That(global.EhPadrao, Is.True);
+        Assert.That(global.Nome, Is.EqualTo("Financeiro"));
+    }
+
+    [Test]
+    public void CriarGlobal_NomeVazio_LancaBusinessException()
+    {
+        Assert.Throws<BusinessException>(() =>
+            ModeloPermissaoEstabelecimento.CriarGlobal("  ", TipoAcessoModelo.Profissional));
+    }
+
+    // ----- CriarCopiaDeGlobal (briefing 2026-06-04_001) -----
+
+    [Test]
+    public void CriarCopiaDeGlobal_Valido_EstabelecimentoIdPreenchidoPermissoesExtrasCopiadas()
+    {
+        var global = ModeloPermissaoEstabelecimento.CriarGlobal(
+            "Médico", TipoAcessoModelo.Profissional,
+            new[] { "agenda.ver" }, null,
+            "fa-user-doctor", null, null);
+
+        var copia = ModeloPermissaoEstabelecimento.CriarCopiaDeGlobal(global, 42L);
+
+        Assert.That(copia.EstabelecimentoId, Is.EqualTo(42L));
+        Assert.That(copia.EhPadrao, Is.True);
+        Assert.That(copia.Nome, Is.EqualTo("Médico"));
+        Assert.That(copia.TemAcao("agenda", "ver"), Is.True);
+    }
+
+    [Test]
+    public void CriarCopiaDeGlobal_OrigemNaoGlobal_LancaArgumentException()
+    {
+        var naoGlobal = ModeloPermissaoEstabelecimento.Criar(
+            1L, "X", TipoAcessoModelo.Profissional);
+
+        Assert.Throws<ArgumentException>(() =>
+            ModeloPermissaoEstabelecimento.CriarCopiaDeGlobal(naoGlobal, 2L));
+    }
+
+    // ----- SincronizarComGlobal (briefing 2026-06-04_001) -----
+
+    [Test]
+    public void SincronizarComGlobal_AtualizaCamposPermissoesEPreservaExtrasDoGlobal()
+    {
+        // Global com extras semeadas
+        var global = ModeloPermissaoEstabelecimento.CriarGlobal(
+            "Médico", TipoAcessoModelo.Profissional,
+            new[] { "agenda.ver" }, new[] { PermissoesExtras.AssistenteClinicoIa },
+            null, null, null);
+
+        // Cópia semeada do global (traz os extras do global)
+        var copia = ModeloPermissaoEstabelecimento.CriarCopiaDeGlobal(global, 1L);
+        Assert.That(copia.TemPermissaoExtra(PermissoesExtras.AssistenteClinicoIa), Is.True, "Pré-condição: cópia tem extras do global.");
+
+        // Simula propagação: adiciona nova permissão (não muda extras)
+        copia.SincronizarComGlobal(
+            "Médico",
+            TipoAcessoModelo.Profissional,
+            """["agenda.ver","relatorios.exportar"]""",
+            null, null, null);
+
+        // CA2 — nova permissão propagada
+        Assert.That(copia.TemAcao("relatorios", "exportar"), Is.True);
+
+        // CA18 — extras preservadas (SincronizarComGlobal não toca extras)
+        Assert.That(copia.TemPermissaoExtra(PermissoesExtras.AssistenteClinicoIa), Is.True);
+    }
+
+    [Test]
+    public void SincronizarComGlobal_Renomeado_AtualizaNome()
+    {
+        var global = ModeloPermissaoEstabelecimento.CriarGlobal(
+            "OldName", TipoAcessoModelo.Profissional, new[] { "agenda.ver" }, null, null, null, null);
+        var copia = ModeloPermissaoEstabelecimento.CriarCopiaDeGlobal(global, 1L);
+
+        copia.SincronizarComGlobal("NewName", TipoAcessoModelo.Profissional, """["agenda.ver"]""", null, null, null);
+
+        Assert.That(copia.Nome, Is.EqualTo("NewName"));
+    }
 }

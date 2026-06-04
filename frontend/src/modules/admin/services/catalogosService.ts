@@ -116,6 +116,59 @@ export const variaveisGlobaisService = {
     },
 }
 
+// ─── Modelos de permissão padrão sistema (briefing 2026-06-04_001) ──────────
+
+export interface ModeloPermissaoPadraoListaItemDto {
+    id: number
+    nome: string
+    tipoAcesso: string
+    descricao: string | null
+    icone: string | null
+    cor: string | null
+    criadoEm: string
+    atualizadoEm: string | null
+}
+
+export interface ModeloPermissaoPadraoDetalheDto extends ModeloPermissaoPadraoListaItemDto {
+    permissoes: string[]
+    permissoesExtras: string[]
+}
+
+export const permissoesGlobaisService = {
+    async listar(params: { busca?: string; pagina?: number; tamanhoPagina?: number } = {}): Promise<ListaPaginada<ModeloPermissaoPadraoListaItemDto>> {
+        const { data } = await adminApi.get("/catalogos/permissoes", { params })
+        return data
+    },
+    async obter(id: number): Promise<ModeloPermissaoPadraoDetalheDto> {
+        const { data } = await adminApi.get(`/catalogos/permissoes/${id}`)
+        return data
+    },
+    async criar(payload: {
+        nome: string
+        tipoAcesso: string
+        permissoes: string[]
+        icone: string | null
+        cor: string | null
+        descricao: string | null
+    }): Promise<{ id: number }> {
+        const { data } = await adminApi.post("/catalogos/permissoes", payload)
+        return data
+    },
+    async atualizar(id: number, payload: {
+        nome: string
+        tipoAcesso: string
+        permissoes: string[]
+        icone: string | null
+        cor: string | null
+        descricao: string | null
+    }): Promise<void> {
+        await adminApi.put(`/catalogos/permissoes/${id}`, payload)
+    },
+    async excluir(id: number): Promise<void> {
+        await adminApi.delete(`/catalogos/permissoes/${id}`)
+    },
+}
+
 // ─── Service: Regiões ────────────────────────────────────────────────────────
 
 export const regioesGlobaisService = {
