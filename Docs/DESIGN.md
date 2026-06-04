@@ -97,6 +97,41 @@ O isolamento físico do módulo é mantido: só importa de `@/components/ui/`, `
 **Componentes de domínio compartilhados (tenant + admin):**
 - `ModeloProntuarioBuilder.vue` em `components/ui/` — builder visual de modelos de prontuário, compartilhado entre `ModelosProntuarioView` (tenant, `/configuracoes/modelos-prontuario`) e `ModelosGlobaisFormView` (admin global). Aceita `v-model:nome`, `v-model:descricao`, `v-model:estruturaJson` (string JSON, shape array `[{ chave, titulo, tipo, ordem }]`) e emite `update:valido`. A constante exportada `SECOES_MODELO_PRONTUARIO` é a **fonte única de verdade** das 17 seções suportadas pelo prontuário — nenhuma outra cópia desse catálogo deve existir no front. Reordenação via botões ↑/↓ (drag-and-drop é extensão futura). Retrocompatível com JSON manual criado antes do builder: seções com chaves fora das 17 conhecidas são preservadas intactas com aviso visual. Adicionado em Wave 5 (briefing `planejamentos/2026-05-30_005_admin-global-wave5-builder-visual.md`).
 
+## Componentes de exibição contextual
+
+### `AppPopover` (briefing 2026-06-04_007)
+
+Painel flutuante genérico e reutilizável, ancorado a um elemento gatilho. Localização: [`frontend/src/components/ui/AppPopover.vue`](../frontend/src/components/ui/AppPopover.vue).
+
+**API de slots:**
+- `#gatilho="{ abrir, fechar, toggle, aberto }"` — elemento que dispara a abertura. Deve ser focável (botão ou elemento com `tabindex`); o slot-scope expõe as funções para controle manual.
+- `#conteudo="{ fechar }"` — corpo do painel flutuante. Renderizado dentro do painel (via Teleport para `<body>`).
+
+**Props:**
+- `posicao?: "bottom-start" | "bottom-end" | "top-start" | "top-end"` (default: `"bottom-start"`) — posição preferida; inverte automaticamente se não couber na viewport.
+- `offset?: number` (default: `6`) — deslocamento vertical em px entre gatilho e painel.
+
+**Comportamento:**
+- Fecha ao clicar fora do painel e do gatilho.
+- Fecha ao pressionar `Esc` (propaga `stopPropagation`).
+- Devolve foco ao gatilho ao fechar.
+- Clampa posição na viewport (nunca estoura borda; inclui margem de 8px).
+- Sem overlay/backdrop — uso para listas de detalhe ancoras a um gatilho (não para modais que exijam atenção total).
+
+**Casos de uso esperados:** listas de detalhe só-leitura ancoradas a um contador ou badge (ex: "N profissionais" → popover listando nome + avatar + status); tooltips ricos; menus de contexto simples. Não substituir `AppModal` para fluxos que exigem foco total.
+
+**Exemplo mínimo:**
+```vue
+<AppPopover posicao="bottom-start">
+  <template #gatilho="{ toggle }">
+    <button type="button" @click="toggle">3 profissionais</button>
+  </template>
+  <template #conteudo>
+    <div>Conteúdo aqui</div>
+  </template>
+</AppPopover>
+```
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import { AppButton, AppPermissionMatrix } from "@/components/ui"
+import { AppAvatar, AppButton, AppPermissionMatrix, AppPopover, AppStatusPill } from "@/components/ui"
 import type { ModeloPermissao } from "@/services/permissaoService"
 import type { ProfissionalVinculado } from "@/services/vinculoService"
 
@@ -8,7 +8,16 @@ import type { ProfissionalVinculado } from "@/services/vinculoService"
  * Aba "Papéis e permissões". Layout em grid de 2 colunas:
  *  - Coluna esquerda: lista de papéis (do sistema + customizados da clínica).
  *  - Coluna direita: detalhe do papel selecionado, com matriz de permissões.
+ *
+ * Regras de contagem:
+ *  - R1: profissional com status "Dono" (modeloPermissaoId null) é contado no
+ *    card do modelo padrão "Admin" (ehPadrao === true && nome === 'Admin').
+ *    Não existe campo slug/chave estável no tipo ModeloPermissao — matching por
+ *    nome literal com fallback seguro (R2: sem card Admin → dono não vaza).
+ *  - R3: deduplicação por usuarioId — se o dono também tiver vínculo apontando
+ *    para o modelo Admin, é contado uma vez só, com precedência do selo "Dono".
  */
+
 const props = defineProps<{
     modelos: ModeloPermissao[]
     profissionais: ProfissionalVinculado[]
@@ -31,12 +40,73 @@ watch(() => props.modelos, (lista) => {
 
 const selecionado = computed(() => props.modelos.find(m => m.id === selecionadoId.value) ?? null)
 
-const padroes = computed(() => props.modelos.filter(m => m.ehPadrao))
+const padroes    = computed(() => props.modelos.filter(m => m.ehPadrao))
 const customizados = computed(() => props.modelos.filter(m => !m.ehPadrao))
 
-function quantosUsam(m: ModeloPermissao): number {
-    return props.profissionais.filter(p => p.modeloPermissaoId === m.id && p.status !== "Removido").length
+/**
+ * Modelo padrão "Admin" — critério: ehPadrao === true && nome === 'Admin'.
+ * Não existe campo de slug/chave no tipo, portanto usamos nome literal.
+ * Se não houver, retorna null (R2: fallback seguro).
+ */
+const modeloAdmin = computed(() =>
+    props.modelos.find(m => m.ehPadrao && m.nome === "Admin") ?? null,
+)
+
+/**
+ * Profissionais de um modelo, deduplizados por usuarioId.
+ * Para o modelo Admin: inclui o Dono (R1) e desemparelha duplicata de
+ * registro de vínculo do mesmo usuário (R3).
+ */
+function profissionaisDoModelo(m: ModeloPermissao): ProfissionalVinculado[] {
+    const vistosUserId = new Set<string>()
+    const resultado: ProfissionalVinculado[] = []
+
+    const ehModeloAdmin = modeloAdmin.value !== null && m.id === modeloAdmin.value.id
+
+    if (ehModeloAdmin) {
+        // Dono primeiro (precedência visual do selo — R3)
+        const dono = props.profissionais.find(
+            p => p.status === "Dono" && p.modeloPermissaoId === null,
+        )
+        if (dono) {
+            vistosUserId.add(dono.usuarioId)
+            resultado.push(dono)
+        }
+    }
+
+    // Demais profissionais vinculados ao modelo (exceto Removidos)
+    for (const p of props.profissionais) {
+        if (p.modeloPermissaoId !== m.id) continue
+        if (p.status === "Removido") continue
+        if (vistosUserId.has(p.usuarioId)) continue  // dedup R3
+        vistosUserId.add(p.usuarioId)
+        resultado.push(p)
+    }
+
+    return resultado
 }
+
+function quantosUsam(m: ModeloPermissao): number {
+    return profissionaisDoModelo(m).length
+}
+
+// --- Chips de status (mesma lógica de AbaProfissionais para consistência visual) ---
+
+function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
+    if (s === "Ativo" || s === "Dono") return "success"
+    if (s === "Convidado")             return "warning"
+    return "muted"
+}
+
+function statusLabel(s: string): string {
+    if (s === "Dono")      return "Dono"
+    if (s === "Ativo")     return "Ativo"
+    if (s === "Inativo")   return "Inativo"
+    if (s === "Convidado") return "Convidado"
+    return s
+}
+
+// --- Utilitários visuais ---
 
 function bgIcone(cor?: string | null): string {
     const c = cor ?? "hsl(0 0% 45%)"
@@ -45,6 +115,10 @@ function bgIcone(cor?: string | null): string {
 
 function corIcone(cor?: string | null): string {
     return cor ?? "hsl(0 0% 45%)"
+}
+
+function labelProfissionais(n: number): string {
+    return `${n} profissio${n === 1 ? "nal" : "nais"}`
 }
 </script>
 
@@ -72,7 +146,40 @@ function corIcone(cor?: string | null): string {
                         </div>
                         <div class="ri-info">
                             <b>{{ r.nome }}</b>
-                            <span>{{ quantosUsam(r) }} profissio{{ quantosUsam(r) === 1 ? 'nal' : 'nais' }}</span>
+                            <AppPopover v-if="quantosUsam(r) > 0" posicao="bottom-start">
+                                <template #gatilho="{ toggle }">
+                                    <button
+                                        type="button"
+                                        class="contador-clicavel"
+                                        :aria-label="`Ver profissionais do papel ${r.nome}`"
+                                        @click.stop="toggle"
+                                    >{{ labelProfissionais(quantosUsam(r)) }}</button>
+                                </template>
+                                <template #conteudo>
+                                    <div class="pop-lista">
+                                        <div class="pop-cabecalho">{{ r.nome }} — {{ labelProfissionais(quantosUsam(r)) }}</div>
+                                        <div class="pop-itens">
+                                            <div
+                                                v-for="p in profissionaisDoModelo(r)"
+                                                :key="p.usuarioId"
+                                                class="pop-item"
+                                            >
+                                                <AppAvatar :nome="p.nomeCompleto" :foto-url="p.fotoUrl" tamanho="sm" decorativo />
+                                                <span class="pop-nome">{{ p.nomeCompleto }}</span>
+                                                <span v-if="p.status === 'Dono'" class="pop-selo-dono" title="Dono da clínica">
+                                                    <i class="fa-solid fa-crown"></i> Dono
+                                                </span>
+                                                <AppStatusPill
+                                                    v-else
+                                                    :label="statusLabel(p.status)"
+                                                    :variante="statusVariante(p.status)"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </AppPopover>
+                            <span v-else class="ri-count-zero">{{ labelProfissionais(0) }}</span>
                         </div>
                         <i class="fa-solid fa-chevron-right ri-arrow"></i>
                     </button>
@@ -102,7 +209,36 @@ function corIcone(cor?: string | null): string {
                         </div>
                         <div class="ri-info">
                             <b>{{ r.nome }}</b>
-                            <span>{{ quantosUsam(r) }} profissio{{ quantosUsam(r) === 1 ? 'nal' : 'nais' }}</span>
+                            <AppPopover v-if="quantosUsam(r) > 0" posicao="bottom-start">
+                                <template #gatilho="{ toggle }">
+                                    <button
+                                        type="button"
+                                        class="contador-clicavel"
+                                        :aria-label="`Ver profissionais do papel ${r.nome}`"
+                                        @click.stop="toggle"
+                                    >{{ labelProfissionais(quantosUsam(r)) }}</button>
+                                </template>
+                                <template #conteudo>
+                                    <div class="pop-lista">
+                                        <div class="pop-cabecalho">{{ r.nome }} — {{ labelProfissionais(quantosUsam(r)) }}</div>
+                                        <div class="pop-itens">
+                                            <div
+                                                v-for="p in profissionaisDoModelo(r)"
+                                                :key="p.usuarioId"
+                                                class="pop-item"
+                                            >
+                                                <AppAvatar :nome="p.nomeCompleto" :foto-url="p.fotoUrl" tamanho="sm" decorativo />
+                                                <span class="pop-nome">{{ p.nomeCompleto }}</span>
+                                                <AppStatusPill
+                                                    :label="statusLabel(p.status)"
+                                                    :variante="statusVariante(p.status)"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </AppPopover>
+                            <span v-else class="ri-count-zero">{{ labelProfissionais(0) }}</span>
                         </div>
                         <i class="fa-solid fa-chevron-right ri-arrow"></i>
                     </button>
@@ -125,9 +261,45 @@ function corIcone(cor?: string | null): string {
                         </div>
                     </div>
                     <div class="rd-actions">
-                        <span class="rd-badge">
+                        <AppPopover v-if="quantosUsam(selecionado) > 0" posicao="bottom-end">
+                            <template #gatilho="{ toggle }">
+                                <button
+                                    type="button"
+                                    class="rd-badge rd-badge--clicavel"
+                                    :aria-label="`Ver profissionais do papel ${selecionado.nome}`"
+                                    @click="toggle"
+                                >
+                                    <i class="fa-solid fa-users"></i>
+                                    {{ labelProfissionais(quantosUsam(selecionado)) }}
+                                </button>
+                            </template>
+                            <template #conteudo>
+                                <div class="pop-lista">
+                                    <div class="pop-cabecalho">{{ selecionado.nome }} — {{ labelProfissionais(quantosUsam(selecionado)) }}</div>
+                                    <div class="pop-itens">
+                                        <div
+                                            v-for="p in profissionaisDoModelo(selecionado)"
+                                            :key="p.usuarioId"
+                                            class="pop-item"
+                                        >
+                                            <AppAvatar :nome="p.nomeCompleto" :foto-url="p.fotoUrl" tamanho="sm" decorativo />
+                                            <span class="pop-nome">{{ p.nomeCompleto }}</span>
+                                            <span v-if="p.status === 'Dono'" class="pop-selo-dono" title="Dono da clínica">
+                                                <i class="fa-solid fa-crown"></i> Dono
+                                            </span>
+                                            <AppStatusPill
+                                                v-else
+                                                :label="statusLabel(p.status)"
+                                                :variante="statusVariante(p.status)"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </AppPopover>
+                        <span v-else class="rd-badge">
                             <i class="fa-solid fa-users"></i>
-                            {{ quantosUsam(selecionado) }} profissio{{ quantosUsam(selecionado) === 1 ? 'nal' : 'nais' }}
+                            {{ labelProfissionais(0) }}
                         </span>
                         <AppButton
                             v-if="!selecionado.ehPadrao"
@@ -199,7 +371,28 @@ function corIcone(cor?: string | null): string {
 }
 .ri-info { flex: 1; min-width: 0; }
 .ri-info b { display: block; color: hsl(var(--primary-dark)); font-size: 13px; font-weight: 700; }
-.ri-info span { font-size: 11px; color: hsl(var(--secondary) / 0.6); }
+
+/* Contador clicável (quando n > 0) */
+.contador-clicavel {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 11px;
+    color: hsl(var(--primary));
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+}
+.contador-clicavel:hover { text-decoration-style: solid; }
+
+/* Contador não-clicável (quando n = 0) */
+.ri-count-zero {
+    font-size: 11px;
+    color: hsl(var(--secondary) / 0.6);
+}
+
 .ri-arrow { color: hsl(var(--secondary) / 0.3); font-size: 11px; }
 .role-item.active .ri-arrow { color: hsl(var(--primary)); }
 
@@ -246,10 +439,74 @@ function corIcone(cor?: string | null): string {
     padding: 6px 12px; border-radius: 999px;
     font-size: 12px; font-weight: 600; color: hsl(var(--secondary) / 0.7);
 }
+/* Badge clicável no painel de detalhe */
+.rd-badge--clicavel {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms;
+}
+.rd-badge--clicavel:hover {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+}
 .rd-system {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 12px; color: hsl(var(--secondary) / 0.55); font-style: italic;
 }
+
+/* Popover — conteúdo interno (estilos do painel flutuante ficam no AppPopover) */
+.pop-lista {
+    padding: 12px;
+}
+.pop-cabecalho {
+    font-size: 11px;
+    font-weight: 700;
+    color: hsl(var(--secondary) / 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding-bottom: 8px;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.08);
+    margin-bottom: 8px;
+}
+.pop-itens {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    /* ~6 itens de 40px + gaps → max ~276px; acima disso scroll interno */
+    max-height: 276px;
+    overflow-y: auto;
+}
+.pop-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 2px;
+}
+.pop-nome {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: hsl(var(--primary-dark));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* Selo "Dono" — visualmente distinto (ouro/coroa) */
+.pop-selo-dono {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: hsl(43 90% 55% / 0.15);
+    color: hsl(43 80% 35%);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.pop-selo-dono i { font-size: 10px; }
 
 @media (max-width: 1100px) {
     .roles-grid { grid-template-columns: 1fr; }
