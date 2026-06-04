@@ -367,7 +367,11 @@ function fechar() {
                 <div v-else class="permissoes-bloco">
                     <div class="role-change">
                         <label>Permissão atual</label>
-                        <AppSelect v-model="modeloSelecionadoId" :disabled="ehDono">
+                        <AppSelect
+                            :model-value="modeloSelecionadoId"
+                            :disabled="ehDono"
+                            @update:model-value="modeloSelecionadoId = $event ? Number($event) : null"
+                        >
                             <option v-for="m in modelos" :key="m.id" :value="m.id">{{ m.nome }}</option>
                         </AppSelect>
                         <span v-if="ehDono" class="rc-hint">
@@ -377,9 +381,13 @@ function fechar() {
 
                     <div class="rps-head">
                         <h3>Acessos herdados da permissão "{{ modeloAtual?.nome ?? '—' }}"</h3>
-                        <span>Para alterar acessos individuais, edite a permissão ou crie uma permissão customizada.</span>
+                        <span>
+                            <i class="fa-solid fa-lock"></i>
+                            Estes acessos vêm do modelo de permissão. Para alterá-los, edite a
+                            permissão na aba <strong>Permissões</strong>.
+                        </span>
                     </div>
-                    <AppPermissionMatrix :model-value="modeloAtual?.permissoes ?? []" read-only />
+                    <AppPermissionMatrix :model-value="modeloAtual?.permissoes ?? []" read-only compact />
                 </div>
             </div>
 

@@ -9,6 +9,10 @@ import { PERMISSION_AREAS, type AreaPermissao } from "@/constants/permissions"
  *
  * Modos:
  *  - `readOnly`: somente leitura (visualizar permissões de um papel do sistema).
+ *  - `compact`: somente leitura condensada — mostra apenas as áreas/ações
+ *    concedidas, em formato de chips informativos (sem cara de checkbox). Útil
+ *    quando os acessos são herdados de um modelo e não são editáveis ali (ex:
+ *    aba de permissão do profissional). Implica `readOnly`.
  *  - editável: emite `update:modelValue` com o array novo a cada toggle.
  *
  * Compatibilidade: aceita chaves legadas sem ponto (ex: `"agenda"`) — quando
@@ -18,6 +22,7 @@ import { PERMISSION_AREAS, type AreaPermissao } from "@/constants/permissions"
 const props = defineProps<{
     modelValue: string[]
     readOnly?: boolean
+    compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -49,6 +54,13 @@ const resumos = computed<AreaResumo[]>(() =>
         }
     }),
 )
+
+// Apenas áreas com ao menos uma ação concedida (visão compacta).
+const resumosConcedidos = computed(() => resumos.value.filter(r => !r.none))
+
+function acoesConcedidas(area: AreaPermissao) {
+    return area.acoes.filter(ac => temPerm(area.chave, ac.chave))
+}
 
 function temPerm(area: string, acao: string): boolean {
     const chave = `${area}.${acao}`
@@ -86,7 +98,29 @@ function dedupe(arr: string[]) {
 </script>
 
 <template>
-    <div class="perm-matrix">
+    <!-- Visão compacta, somente leitura: só áreas/ações concedidas, em chips. -->
+    <div v-if="compact" class="perm-compact">
+        <div v-for="r in resumosConcedidos" :key="r.area.chave" class="pc-area">
+            <div class="pc-head">
+                <div class="pc-icon">
+                    <i class="fa-solid" :class="r.area.icone"></i>
+                </div>
+                <b class="pc-area-label">{{ r.area.label }}</b>
+                <span v-if="r.fully" class="pc-tag pc-tag-full">Acesso total</span>
+                <span v-else class="pc-tag pc-tag-partial">{{ r.granted }}/{{ r.total }}</span>
+            </div>
+            <ul class="pc-perms">
+                <li v-for="acao in acoesConcedidas(r.area)" :key="acao.chave" class="pc-perm">
+                    <i class="fa-solid fa-check"></i>{{ acao.label }}
+                </li>
+            </ul>
+        </div>
+        <p v-if="!resumosConcedidos.length" class="pc-empty">
+            <i class="fa-solid fa-ban"></i> Esta permissão não concede nenhum acesso.
+        </p>
+    </div>
+
+    <div v-else class="perm-matrix">
         <div
             v-for="r in resumos" :key="r.area.chave"
             class="perm-area"
@@ -139,6 +173,46 @@ function dedupe(arr: string[]) {
 </template>
 
 <style scoped>
+/* ---- Visão compacta (somente leitura, herdada de um modelo) ---- */
+.perm-compact { display: flex; flex-direction: column; gap: 6px; }
+.pc-area {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.07);
+}
+.pc-area:last-child { border-bottom: none; }
+.pc-head { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+.pc-icon {
+    width: 26px; height: 26px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: hsl(var(--primary) / 0.08); color: hsl(var(--primary));
+    font-size: 12px; flex-shrink: 0;
+}
+.pc-area-label { font-size: 13px; font-weight: 700; color: hsl(var(--primary-dark)); }
+.pc-tag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.pc-tag-full    { background: hsl(var(--success) / 0.14); color: hsl(160 79% 30%); }
+.pc-tag-partial { background: hsl(var(--secondary) / 0.08); color: hsl(var(--secondary) / 0.6); }
+
+.pc-perms {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-wrap: wrap; gap: 6px;
+}
+.pc-perm {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: hsl(var(--secondary) / 0.8);
+    background: hsl(var(--secondary) / 0.05);
+    padding: 3px 9px; border-radius: 999px;
+}
+.pc-perm i { font-size: 9px; color: hsl(var(--success)); }
+.pc-empty {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; color: hsl(var(--secondary) / 0.6);
+    padding: 12px 4px; margin: 0;
+}
+
 .perm-matrix { display: flex; flex-direction: column; gap: 10px; }
 
 .perm-area {
