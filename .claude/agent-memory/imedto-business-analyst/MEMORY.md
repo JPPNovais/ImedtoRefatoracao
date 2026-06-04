@@ -1,3 +1,4 @@
 - [Regra de funcionamento do estabelecimento](project_regra_funcionamento_estabelecimento.md) — onde mora a validação dia/horário/intervalo e como o front consulta disponibilidade (reuso para encaixe/agenda).
 - [Receita: status e soft-delete](project_receita_status_e_softdelete.md) — Rascunho descartável (soft-delete já existe) vs Emitida cancelável; regra clínica de Cancelar imutável.
 - [RBAC inativar/reativar vínculo](project_rbac_inativar_reativar_vinculo.md) — autorização atual diverge de "Dono + gerir_profissionais"; rota só tem vinculoId, checagem precisa rodar no handler.
+- [Especialidade por vínculo/estabelecimento](project_especialidade_por_vinculo.md) — regra canônica COALESCE(v.especialidade_convidada, p.especialidade); 3 pontos de leitura; vale nos PDFs; sem migration.
