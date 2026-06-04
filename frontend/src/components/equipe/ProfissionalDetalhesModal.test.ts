@@ -40,6 +40,7 @@ vi.mock("@/services/vinculoService",   () => ({ vinculoService: mocks.vinculoSer
 vi.mock("@/components/ui", () => ({
     AppAvatar:           { template: "<span />" },
     AppButton:           { template: "<button><slot /></button>", props: ["size", "icon", "loading", "disabled", "variant"] },
+    AppConfirmDialog:    { template: "<div />", props: ["aberto", "titulo", "mensagem", "confirmarRotulo", "variante", "icone", "executando"], emits: ["update:aberto", "confirmar"] },
     AppInput:            { template: "<input />", props: ["modelValue", "disabled", "placeholder", "maxlength"], emits: ["update:modelValue"] },
     AppModal:            { template: "<div v-if='aberto'><slot name='titulo'/><slot/><slot name='rodape'/></div>", props: ["aberto", "largura", "semPaddingCorpo"] },
     AppPermissionMatrix: { template: "<div />", props: ["modelValue", "readOnly"] },

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue"
 import {
-    AppButton, AppField, AppInput, AppModal, AppPermissionMatrix, AppTextarea,
+    AppButton, AppConfirmDialog, AppField, AppInput, AppModal, AppPermissionMatrix, AppTextarea,
 } from "@/components/ui"
 import { permissaoService, type ModeloPermissao } from "@/services/permissaoService"
 
@@ -69,6 +69,7 @@ const form = reactive<Form>({
 const salvando = ref(false)
 const excluindo = ref(false)
 const erro = ref<string | null>(null)
+const confirmExcluirAberto = ref(false)
 
 watch(() => [props.modelo, props.aberto] as const, ([m, aberto]) => {
     if (!aberto) return
@@ -140,12 +141,20 @@ async function salvar() {
     }
 }
 
-async function excluir() {
+function solicitarExclusao() {
     if (!props.modelo || excluindo.value || salvando.value) return
-    const confirmMsg = ehContextoAdmin.value
-        ? `Excluir o modelo "${props.modelo.nome}"? Esta ação removerá o modelo de todas as clínicas e é irreversível.`
-        : `Excluir a permissão "${props.modelo.nome}"? Esta ação é irreversível. Profissionais vinculados a esta permissão precisam receber outra antes.`
-    if (!confirm(confirmMsg)) return
+    if (ehContextoAdmin.value) {
+        // No contexto admin, a PermissoesGlobaisListView já exibe confirmação de impacto
+        // após receber o evento @excluido. Emitir diretamente sem segunda confirmação aqui.
+        void executarExclusao()
+    } else {
+        // No contexto tenant, abre o AppConfirmDialog interno para proteção.
+        confirmExcluirAberto.value = true
+    }
+}
+
+async function executarExclusao() {
+    if (!props.modelo) return
     excluindo.value = true
     erro.value = null
     try {
@@ -255,7 +264,7 @@ function fechar() {
                 icon="fa-solid fa-trash"
                 :loading="excluindo"
                 :disabled="excluindo || salvando"
-                @click="excluir"
+                @click="solicitarExclusao"
             >
                 Excluir permissão
             </AppButton>
@@ -274,6 +283,18 @@ function fechar() {
             </AppButton>
         </template>
     </AppModal>
+
+    <!-- Confirmação de exclusão no contexto tenant (no contexto admin, a list view confirma). -->
+    <AppConfirmDialog
+        v-model:aberto="confirmExcluirAberto"
+        titulo="Excluir permissão?"
+        :mensagem="`Excluir a permissão &quot;${props.modelo?.nome}&quot;? Esta ação é irreversível. Profissionais vinculados precisarão receber outra permissão.`"
+        confirmar-rotulo="Excluir"
+        variante="danger"
+        icone="fa-solid fa-trash"
+        :executando="excluindo"
+        @confirmar="executarExclusao"
+    />
 </template>
 
 <style scoped>

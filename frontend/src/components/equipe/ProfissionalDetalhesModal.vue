@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import {
-    AppAvatar, AppButton, AppInput, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
+    AppAvatar, AppButton, AppConfirmDialog, AppInput, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
 } from "@/components/ui"
 import { permissaoService, type ModeloPermissao } from "@/services/permissaoService"
 import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
@@ -37,6 +37,7 @@ const modeloSelecionadoId = ref<number | null>(null)
 const salvando = ref(false)
 const removendo = ref(false)
 const reativando = ref(false)
+const confirmRemoverAberto = ref(false)
 const salvandoEspecialidade = ref(false)
 const especialidadeEditada = ref<string>("")
 const erro = ref<string | null>(null)
@@ -117,10 +118,14 @@ async function salvarPapel() {
     }
 }
 
-async function remover() {
+function solicitarRemocao() {
     if (!props.profissional || !podeRemover.value) return
     if (props.profissional.vinculoId == null) return  // Dono não pode ser removido (status="Dono" já bloqueia podeRemover).
-    if (!confirm(`Remover ${props.profissional.nomeCompleto || props.profissional.email} do estabelecimento?`)) return
+    confirmRemoverAberto.value = true
+}
+
+async function executarRemocao() {
+    if (!props.profissional || props.profissional.vinculoId == null) return
     removendo.value = true
     erro.value = null
     try {
@@ -274,7 +279,7 @@ function fechar() {
                                 :disabled="removendo"
                                 title="Remover do estabelecimento"
                                 aria-label="Remover do estabelecimento"
-                                @click="remover"
+                                @click="solicitarRemocao"
                             />
                         </div>
                         <span v-if="ehDono" class="da-hint">
@@ -322,6 +327,17 @@ function fechar() {
             </AppButton>
         </template>
     </AppModal>
+
+    <AppConfirmDialog
+        v-model:aberto="confirmRemoverAberto"
+        titulo="Remover profissional?"
+        :mensagem="`Remover ${profissional?.nomeCompleto || profissional?.email} do estabelecimento?`"
+        confirmar-rotulo="Remover"
+        variante="danger"
+        icone="fa-solid fa-trash"
+        :executando="removendo"
+        @confirmar="executarRemocao"
+    />
 </template>
 
 <style scoped>
