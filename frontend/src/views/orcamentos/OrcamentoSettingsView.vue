@@ -12,11 +12,12 @@ import { AppPageHeader, AppTabs, AppButton, AppToast } from "@/components/ui"
 import ProcedimentosTab from "@/components/orcamento/config/ProcedimentosTab.vue"
 import ProdutosTab from "@/components/orcamento/config/ProdutosTab.vue"
 import EquipeTab from "@/components/orcamento/config/EquipeTab.vue"
+import ValoresProfissionalTab from "@/components/orcamento/config/ValoresProfissionalTab.vue"
 import AnestesistasTab from "@/components/orcamento/config/AnestesistasTab.vue"
 import PacotesTab from "@/components/orcamento/config/PacotesTab.vue"
 import OutrasConfigsTab from "@/components/orcamento/config/OutrasConfigsTab.vue"
 
-type AbaKey = "procedimentos" | "produtos" | "equipe" | "anestesistas" | "pacotes" | "outras"
+type AbaKey = "procedimentos" | "produtos" | "equipe" | "valores-profissional" | "anestesistas" | "pacotes" | "outras"
 
 const route = useRoute()
 const router = useRouter()
@@ -30,8 +31,9 @@ const contagens = ref<Record<string, number>>({})
 const abas = computed(() => [
     { valor: "procedimentos", label: `Procedimentos${contagens.value.procedimentos != null ? ` (${contagens.value.procedimentos})` : ""}`, icone: "fa-solid fa-scalpel" },
     { valor: "produtos",      label: `Produtos${contagens.value.produtos != null ? ` (${contagens.value.produtos})` : ""}`,                icone: "fa-solid fa-boxes-stacked" },
-    { valor: "equipe",        label: `Equipe${contagens.value.equipe != null ? ` (${contagens.value.equipe})` : ""}`,                       icone: "fa-solid fa-users" },
-    { valor: "anestesistas",  label: `Anestesistas${contagens.value.anestesistas != null ? ` (${contagens.value.anestesistas})` : ""}`,     icone: "fa-solid fa-user-doctor" },
+    { valor: "equipe",              label: `Equipe${contagens.value.equipe != null ? ` (${contagens.value.equipe})` : ""}`,                                                 icone: "fa-solid fa-users" },
+    { valor: "valores-profissional", label: `Valores profissional${contagens.value["valores-profissional"] != null ? ` (${contagens.value["valores-profissional"]})` : ""}`, icone: "fa-solid fa-user-clock" },
+    { valor: "anestesistas",        label: `Anestesistas${contagens.value.anestesistas != null ? ` (${contagens.value.anestesistas})` : ""}`,                               icone: "fa-solid fa-user-doctor" },
     { valor: "pacotes",       label: `Pacotes${contagens.value.pacotes != null ? ` (${contagens.value.pacotes})` : ""}`,                    icone: "fa-solid fa-box-open" },
     { valor: "outras",        label: "Outras configurações",                                                                                icone: "fa-solid fa-sliders" },
 ])
@@ -77,8 +79,9 @@ function mostrarBreve(texto: string) {
         <div class="tab-content">
             <ProcedimentosTab v-if="aba === 'procedimentos'" @contagem="(n) => setContagem('procedimentos', n)" />
             <ProdutosTab      v-else-if="aba === 'produtos'"      @contagem="(n) => setContagem('produtos', n)" />
-            <EquipeTab        v-else-if="aba === 'equipe'"        @contagem="(n) => setContagem('equipe', n)" />
-            <AnestesistasTab  v-else-if="aba === 'anestesistas'"  @contagem="(n) => setContagem('anestesistas', n)" />
+            <EquipeTab               v-else-if="aba === 'equipe'"               @contagem="(n) => setContagem('equipe', n)" />
+            <ValoresProfissionalTab  v-else-if="aba === 'valores-profissional'"  @contagem="(n) => setContagem('valores-profissional', n)" />
+            <AnestesistasTab         v-else-if="aba === 'anestesistas'"          @contagem="(n) => setContagem('anestesistas', n)" />
             <PacotesTab       v-else-if="aba === 'pacotes'"       @contagem="(n) => setContagem('pacotes', n)" />
             <OutrasConfigsTab v-else-if="aba === 'outras'" />
         </div>
