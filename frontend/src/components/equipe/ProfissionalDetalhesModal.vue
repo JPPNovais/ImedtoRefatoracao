@@ -6,6 +6,7 @@ import {
 import { permissaoService, type ModeloPermissao } from "@/services/permissaoService"
 import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
 import { useAuthStore } from "@/stores/authStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 
 /**
  * Modal de detalhes do profissional. 2 abas:
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthStore()
+const permissoes = usePermissoesStore()
 const aba = ref<"perfil" | "permissoes">("perfil")
 const modeloSelecionadoId = ref<number | null>(null)
 const salvando = ref(false)
@@ -57,10 +59,10 @@ const ehVinculoProprio = computed(() => props.profissional?.usuarioId === auth.u
 const podeRemover = computed(() => props.profissional && !ehDono.value && !ehVinculoProprio.value)
 const podeReativar = computed(() => props.profissional?.status === "Inativo" && !ehDono.value)
 
-// Campo editável de especialidade: apenas para linhas com vínculo formal (vinculoId != null).
-// A linha sintética do Dono (status='Dono', vinculoId=null) não tem especialidade editável (CA9).
-// O RBAC de Dono é verificado pelo backend — o front apenas oculta para UX (CA7).
-const podeEditarEspecialidade = computed(() => props.profissional?.vinculoId != null && !ehDono.value)
+// Campo editável de especialidade: requer vínculo formal (vinculoId != null, CA9)
+// E que o USUÁRIO LOGADO seja Dono (CA7). `ehDono` aqui é do profissional listado
+// e não deve ser usado para RBAC — apenas `permissoes.ehDono` reflete o papel do logado.
+const podeEditarEspecialidade = computed(() => props.profissional?.vinculoId != null && permissoes.ehDono)
 
 function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
     if (s === "Ativo" || s === "Dono")  return "success"
