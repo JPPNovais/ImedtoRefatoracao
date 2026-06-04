@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
-    AppButton, AppPageHeader, AppToast,
+    AppButton, AppConfirmDialog, AppPageHeader, AppToast,
 } from "@/components/ui"
 import AbaProfissionais     from "@/components/equipe/AbaProfissionais.vue"
 import AbaPapeis            from "@/components/equipe/AbaPapeis.vue"
@@ -155,12 +155,28 @@ function onDetalhesReativado(p: ProfissionalVinculado) {
     notificar(`${p.nomeCompleto || p.email} reativado(a) com sucesso.`)
 }
 
-async function onAcaoMassa(payload: { acao: "ativar" | "desativar" | "remover", ids: number[] }) {
+// ─── Ação em massa (confirmação via modal do design system) ──────────────────
+const acaoMassa = ref<{ acao: "ativar" | "desativar" | "remover", ids: number[] } | null>(null)
+const acaoMassaExecutando = ref(false)
+
+const acaoMassaVerbo = computed(() =>
+    acaoMassa.value?.acao === "ativar" ? "Reativar"
+        : acaoMassa.value?.acao === "remover" ? "Remover" : "Desativar",
+)
+const acaoMassaVariante = computed<"primary" | "danger">(() =>
+    acaoMassa.value?.acao === "ativar" ? "primary" : "danger",
+)
+
+function onAcaoMassa(payload: { acao: "ativar" | "desativar" | "remover", ids: number[] }) {
+    acaoMassa.value = payload
+}
+
+async function executarAcaoMassa() {
+    const payload = acaoMassa.value
+    if (!payload) return
+    acaoMassaExecutando.value = true
     // "Desativar" e "remover" reusam o mesmo endpoint (inativar). "Ativar" usa o
     // endpoint dedicado de reativar (Inativo → Ativo, sem novo convite).
-    const verbo = payload.acao === "ativar" ? "Reativar"
-        : payload.acao === "remover" ? "Remover" : "Desativar"
-    if (!confirm(`${verbo} ${payload.ids.length} profissional(is)?`)) return
 
     // Filtra ids que realmente fazem sentido para a ação — botões já escondem o
     // que não aplica, mas a seleção pode ser mista (ex: Ativos + Inativos).
@@ -171,6 +187,8 @@ async function onAcaoMassa(payload: { acao: "ativar" | "desativar" | "remover", 
 
     if (!aplicaveis.length) {
         notificar("Nenhum profissional aplicável para esta ação na seleção.", "info")
+        acaoMassaExecutando.value = false
+        acaoMassa.value = null
         return
     }
 
@@ -190,6 +208,43 @@ async function onAcaoMassa(payload: { acao: "ativar" | "desativar" | "remover", 
         : payload.acao === "remover" ? "removido(s)" : "desativado(s)"
     if (sucesso > 0) notificar(`${sucesso} profissional(is) ${sufixo}.`)
     if (erros.length) notificar(erros[0], "error")
+
+    acaoMassaExecutando.value = false
+    acaoMassa.value = null
+}
+
+// ─── Ação por linha (toggle ativar/desativar) ─────────────────────────────
+const acaoLinha = ref<{ acao: "ativar" | "desativar", vinculoId: number, profissional: ProfissionalVinculado } | null>(null)
+const acaoLinhaExecutando = ref(false)
+const linhaProcessandoId = ref<number | null>(null)
+
+const acaoLinhaVerbo = computed(() => acaoLinha.value?.acao === "ativar" ? "Reativar" : "Desativar")
+const acaoLinhaVariante = computed<"primary" | "danger">(() => acaoLinha.value?.acao === "ativar" ? "primary" : "danger")
+
+function onAcaoLinha(payload: { acao: "ativar" | "desativar", vinculoId: number, profissional: ProfissionalVinculado }) {
+    acaoLinha.value = payload
+}
+
+async function executarAcaoLinha() {
+    const payload = acaoLinha.value
+    if (!payload) return
+    acaoLinhaExecutando.value = true
+    linhaProcessandoId.value = payload.vinculoId
+    acaoLinha.value = null
+    try {
+        if (payload.acao === "ativar") await vinculoService.reativarVinculo(payload.vinculoId)
+        else                            await vinculoService.inativarVinculo(payload.vinculoId)
+        await carregar()
+        const nome = payload.profissional.nomeCompleto || payload.profissional.email
+        const sufixo = payload.acao === "ativar" ? "reativado(a)" : "desativado(a)"
+        notificar(`${nome} ${sufixo} com sucesso.`)
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Não foi possível realizar a operação.", "error")
+        await carregar()
+    } finally {
+        acaoLinhaExecutando.value = false
+        linhaProcessandoId.value = null
+    }
 }
 
 async function cancelarConvite(c: ProfissionalVinculado) {
@@ -280,9 +335,11 @@ async function reenviarConvite(c: ProfissionalVinculado) {
                 v-if="aba === 'profissionais'"
                 :profissionais="profissionais"
                 :modelos="modelos"
+                :linha-processando-id="linhaProcessandoId"
                 @abrir-detalhes="abrirDetalhes"
                 @abrir-convite="abrirConvite"
                 @acao-massa="onAcaoMassa"
+                @acao-linha="onAcaoLinha"
             />
             <AbaPapeis
                 v-else-if="aba === 'papeis'"
@@ -324,6 +381,30 @@ async function reenviarConvite(c: ProfissionalVinculado) {
             @atualizado="onDetalhesAtualizado"
             @removido="onDetalhesRemovido"
             @reativado="onDetalhesReativado"
+        />
+
+        <!-- Confirmação para ação por linha (toggle ativar/desativar) -->
+        <AppConfirmDialog
+            :aberto="acaoLinha !== null"
+            :titulo="acaoLinha ? `${acaoLinhaVerbo} profissional` : ''"
+            :mensagem="acaoLinha ? `${acaoLinhaVerbo} ${acaoLinha.profissional.nomeCompleto || acaoLinha.profissional.email}?` : ''"
+            :confirmar-rotulo="acaoLinhaVerbo"
+            :variante="acaoLinhaVariante"
+            :executando="acaoLinhaExecutando"
+            @confirmar="executarAcaoLinha"
+            @cancelar="acaoLinha = null"
+        />
+
+        <!-- Confirmação para ação em massa (bulk bar) -->
+        <AppConfirmDialog
+            :aberto="acaoMassa !== null"
+            :titulo="`${acaoMassaVerbo} profissionais`"
+            :mensagem="acaoMassa ? `${acaoMassaVerbo} ${acaoMassa.ids.length} profissional(is)?` : ''"
+            :confirmar-rotulo="acaoMassaVerbo"
+            :variante="acaoMassaVariante"
+            :executando="acaoMassaExecutando"
+            @confirmar="executarAcaoMassa"
+            @cancelar="acaoMassa = null"
         />
 
         <AppToast

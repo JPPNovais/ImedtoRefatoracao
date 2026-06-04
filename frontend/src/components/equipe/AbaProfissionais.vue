@@ -5,6 +5,7 @@ import {
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { useAuthStore } from "@/stores/authStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 import type { ProfissionalVinculado } from "@/services/vinculoService"
 import type { ModeloPermissao } from "@/services/permissaoService"
 
@@ -17,15 +18,19 @@ import type { ModeloPermissao } from "@/services/permissaoService"
 const props = defineProps<{
     profissionais: ProfissionalVinculado[]
     modelos: ModeloPermissao[]
+    /** VinculoId cuja ação de linha está em voo — desabilita o botão daquela linha (CA13). */
+    linhaProcessandoId?: number | null
 }>()
 
 const emit = defineEmits<{
     (e: "abrir-detalhes", p: ProfissionalVinculado): void
     (e: "abrir-convite"): void
     (e: "acao-massa", payload: { acao: "ativar" | "desativar" | "remover", ids: number[] }): void
+    (e: "acao-linha", payload: { acao: "ativar" | "desativar", vinculoId: number, profissional: ProfissionalVinculado }): void
 }>()
 
 const auth = useAuthStore()
+const permissoes = usePermissoesStore()
 
 // ─── Filtros locais ────────────────────────────────────────────────────────
 const buscaInput = ref("")
@@ -123,6 +128,31 @@ function statusLabel(s: string): string {
 
 function ehVinculoProprio(p: ProfissionalVinculado): boolean {
     return p.usuarioId === auth.usuario?.id
+}
+
+// ─── Ação por linha ────────────────────────────────────────────────────────
+// Botão de toggle (pause/play) só aparece para Dono ou usuário com gerir_profissionais.
+// Linha Dono nunca exibe o botão (R2).
+function podeVerBotaoLinha(p: ProfissionalVinculado): boolean {
+    if (p.status === "Dono") return false
+    return permissoes.ehDono || permissoes.podeExtra("gerir_profissionais")
+}
+
+// Play desabilitado quando vínculo nunca foi aceito (AceitoEm == null) — R3.
+function playDesabilitado(p: ProfissionalVinculado): boolean {
+    return p.status === "Inativo" && !p.aceitoEm
+}
+
+function tooltipBotaoLinha(p: ProfissionalVinculado): string {
+    if (playDesabilitado(p)) return "Vínculo nunca aceito — reenvie o convite na aba Convites"
+    return p.status === "Ativo" ? "Desativar profissional" : "Reativar profissional"
+}
+
+function emitirAcaoLinha(p: ProfissionalVinculado) {
+    if (p.vinculoId == null) return
+    if (playDesabilitado(p)) return
+    const acao = p.status === "Ativo" ? "desativar" : "ativar"
+    emit("acao-linha", { acao, vinculoId: p.vinculoId, profissional: p })
 }
 
 // ─── Ações em massa (delegadas — emite eventos para a view-pai) ───────────
@@ -267,6 +297,19 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
                     <button type="button" class="btn-icon-sm" title="Editar perfil e permissões" @click="emit('abrir-detalhes', p)">
                         <i class="fa-solid fa-pen-to-square"></i>
                     </button>
+                    <button
+                        v-if="podeVerBotaoLinha(p)"
+                        type="button"
+                        class="btn-icon-sm"
+                        :class="{ 'btn-icon-sm--pause': p.status === 'Ativo', 'btn-icon-sm--play': p.status !== 'Ativo' }"
+                        :title="tooltipBotaoLinha(p)"
+                        :disabled="playDesabilitado(p) || props.linhaProcessandoId === p.vinculoId"
+                        @click.stop="emitirAcaoLinha(p)"
+                    >
+                        <i v-if="props.linhaProcessandoId === p.vinculoId" class="fa-solid fa-spinner fa-spin"></i>
+                        <i v-else-if="p.status === 'Ativo'" class="fa-solid fa-circle-pause"></i>
+                        <i v-else class="fa-solid fa-circle-play"></i>
+                    </button>
                 </div>
                 <span v-if="ehVinculoProprio(p)" class="self-tag">Você</span>
             </div>
@@ -315,7 +358,7 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
 }
 .pros-thead, .pros-row {
     display: grid;
-    grid-template-columns: 36px 1.6fr 1fr 1.4fr 1fr 60px;
+    grid-template-columns: 36px 1.6fr 1fr 1.4fr 1fr 88px;
     gap: 16px;
     align-items: center;
     padding: 12px 18px;
@@ -383,9 +426,15 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
     transition: all 150ms;
 }
 .btn-icon-sm:hover { background: white; border-color: hsl(var(--secondary) / 0.15); color: hsl(var(--primary-dark)); }
+.btn-icon-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-icon-sm:disabled:hover { background: transparent; border-color: transparent; color: hsl(var(--secondary) / 0.6); }
+/* pause = ação de desativar (Ativo → Inativo): usa warning para indicar ação reversível */
+.btn-icon-sm--pause:hover { color: hsl(var(--warning)); }
+/* play = ação de reativar (Inativo → Ativo): usa success */
+.btn-icon-sm--play:hover { color: hsl(var(--success)); }
 
 .self-tag {
-    position: absolute; right: 60px; top: 50%; transform: translateY(-50%);
+    position: absolute; right: 88px; top: 50%; transform: translateY(-50%);
     font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
     background: hsl(var(--info) / 0.12); color: hsl(199 80% 35%);
 }
@@ -393,7 +442,7 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
 .muted { color: hsl(var(--secondary) / 0.45); font-size: 12px; }
 
 @media (max-width: 1100px) {
-    .pros-thead, .pros-row { grid-template-columns: 32px 1.6fr 1fr 1fr 60px; }
+    .pros-thead, .pros-row { grid-template-columns: 32px 1.6fr 1fr 1fr 88px; }
     .pros-thead > div:nth-child(4), .pros-row .pr-contact { display: none; }
 }
 </style>

@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Vinculos.Commands;
 using Imedto.Backend.Domain.Estabelecimentos;
+using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.Domain.Vinculos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -10,13 +11,16 @@ public class InativarVinculoCommandHandler : ICommandHandler<InativarVinculoComm
 {
     private readonly IVinculoRepository _vinculoRepo;
     private readonly IEstabelecimentoRepository _estabelecimentoRepo;
+    private readonly IModeloPermissaoRepository _permissoes;
 
     public InativarVinculoCommandHandler(
         IVinculoRepository vinculoRepo,
-        IEstabelecimentoRepository estabelecimentoRepo)
+        IEstabelecimentoRepository estabelecimentoRepo,
+        IModeloPermissaoRepository permissoes)
     {
         _vinculoRepo = vinculoRepo;
         _estabelecimentoRepo = estabelecimentoRepo;
+        _permissoes = permissoes;
     }
 
     public async Task Handle(InativarVinculoCommand command)
@@ -31,12 +35,16 @@ public class InativarVinculoCommandHandler : ICommandHandler<InativarVinculoComm
         if (vinculo.ProfissionalUsuarioId == estab.DonoUsuarioId)
             throw new BusinessException("O dono do estabelecimento não pode ser desativado.");
 
-        // O dono do estabelecimento OU o próprio profissional podem encerrar o vínculo.
-        var ehDono = estab.DonoUsuarioId == command.UsuarioSolicitanteId;
+        // Dono OU usuário com gerir_profissionais (pass-through pelo UsuarioTemPermissaoExtra)
+        // OU o próprio profissional encerrando o próprio vínculo.
         var ehProprioProfissional = vinculo.ProfissionalUsuarioId == command.UsuarioSolicitanteId;
+        var temPermissao = await _permissoes.UsuarioTemPermissaoExtra(
+            command.UsuarioSolicitanteId,
+            vinculo.EstabelecimentoId,
+            PermissoesExtras.GerirProfissionais);
 
-        if (!ehDono && !ehProprioProfissional)
-            throw new BusinessException("Apenas o dono do estabelecimento ou o próprio profissional podem inativar este vínculo.");
+        if (!ehProprioProfissional && !temPermissao)
+            throw new BusinessException("Você não tem permissão para inativar este vínculo.");
 
         vinculo.Inativar();
         await _vinculoRepo.Salvar(vinculo);
