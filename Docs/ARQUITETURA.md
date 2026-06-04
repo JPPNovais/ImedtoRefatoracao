@@ -227,6 +227,22 @@ A assinatura em nuvem é inerentemente assíncrona: o BirdID dispara PUSH no cel
 
 ---
 
+## Regra cross-cutting: Especialidade por vínculo/estabelecimento (briefing 2026-06-03_004)
+
+**A especialidade efetiva do profissional é atributo do vínculo com o estabelecimento**, com fallback para o cadastro global: `COALESCE(v.especialidade_convidada, p.especialidade)`.
+
+Essa regra se aplica em **todos os lugares** onde a especialidade do profissional é exibida ou impressa no contexto de um estabelecimento. Os três pontos canônicos de leitura são:
+
+1. **Lista interna de equipe** (`ListarProfissionaisDoEstabelecimento`): `VinculoQueryRepository.cs` — coluna `COALESCE(v.especialidade_convidada, p.especialidade) AS Especialidade`.
+2. **Lista pública/seletores** (`ListarProfissionaisPublicoDoEstabelecimento`): `VinculoQueryRepository.cs` — mesma expressão COALESCE na query pública (agenda/prontuário/orçamento).
+3. **PDFs/termos clínicos** (`{{profissional.especialidade}}`): `TermoResolverDeVariaveis.cs` — `COALESCE(v.especialidade_convidada, p.especialidade)` na query do `ProfissionalResolver` (o JOIN com `vinculo ... status='Ativo'` já existia para defense-in-depth multi-tenant).
+
+**Edição da especialidade do vínculo**: `PUT /api/estabelecimento/profissionais/{vinculoId}/especialidade` — restrito ao Dono. Grava em `v.especialidade_convidada`. Valor vazio limpa o campo (fallback volta ao global). Independe do status do vínculo (Convidado/Ativo/Inativo podem ter especialidade definida). A linha sintética do Dono (`vinculoId=null`) não tem especialidade de vínculo editável — segue usando `p.especialidade`.
+
+**Invariante de implementação**: nunca inverter o COALESCE para `COALESCE(p.especialidade, v.especialidade_convidada)` — isso faz o cadastro global vencer e ofusca a especialidade por estabelecimento (era o bug original).
+
+---
+
 ## Bounded Context: Agendamentos (briefing 2026-06-02_001)
 
 ### Máquina de estados do Agendamento
