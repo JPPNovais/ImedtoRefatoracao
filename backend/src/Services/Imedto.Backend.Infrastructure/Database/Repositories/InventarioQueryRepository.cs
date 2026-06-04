@@ -100,6 +100,7 @@ public class InventarioQueryRepository
     public async Task<PaginaMovimentacoesEstoqueDto> ListarMovimentacoes(
         long estabelecimentoId,
         long? itemInventarioId,
+        string? tipo,
         DateOnly? dataInicio,
         DateOnly? dataFim,
         int pagina,
@@ -119,6 +120,7 @@ public class InventarioQueryRepository
             WHERE  m.estabelecimento_id = @EstabelecimentoId
               AND  m.deletado_em IS NULL
               AND  (@ItemInventarioId::bigint IS NULL OR m.item_inventario_id = @ItemInventarioId::bigint)
+              AND  (@Tipo::text               IS NULL OR m.tipo = @Tipo::text)
               AND  (@DataInicio::timestamptz  IS NULL OR m.criado_em >= @DataInicio::timestamptz)
               AND  (@DataFim::timestamptz     IS NULL OR m.criado_em <= @DataFim::timestamptz);
 
@@ -141,6 +143,7 @@ public class InventarioQueryRepository
             WHERE m.estabelecimento_id = @EstabelecimentoId
               AND m.deletado_em IS NULL
               AND (@ItemInventarioId::bigint IS NULL OR m.item_inventario_id = @ItemInventarioId::bigint)
+              AND (@Tipo::text               IS NULL OR m.tipo = @Tipo::text)
               AND (@DataInicio::timestamptz  IS NULL OR m.criado_em >= @DataInicio::timestamptz)
               AND (@DataFim::timestamptz     IS NULL OR m.criado_em <= @DataFim::timestamptz)
             ORDER BY m.criado_em DESC
@@ -152,6 +155,7 @@ public class InventarioQueryRepository
         {
             EstabelecimentoId = estabelecimentoId,
             ItemInventarioId = itemInventarioId,
+            Tipo = string.IsNullOrWhiteSpace(tipo) ? null : tipo,
             DataInicio = dataInicio.HasValue ? (DateTime?)dataInicio.Value.ToDateTime(TimeOnly.MinValue) : null,
             DataFim = dataFim.HasValue ? (DateTime?)dataFim.Value.ToDateTime(TimeOnly.MaxValue) : null,
             Tamanho = tamanhoPagina,

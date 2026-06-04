@@ -8,8 +8,11 @@ import OrcamentoKpis   from "@/components/orcamento/OrcamentoKpis.vue"
 import OrcamentoTabela from "@/components/orcamento/OrcamentoTabela.vue"
 import { orcamentoService, type OrcamentoResumo, type OrcamentoStatus } from "@/services/orcamentoService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 
 const router = useRouter()
+const permissoes = usePermissoesStore()
+const podeConfigurar = computed(() => permissoes.pode("orcamento.configurar"))
 
 // ── Estado
 const orcamentos = ref<OrcamentoResumo[]>([])
@@ -132,6 +135,7 @@ onMounted(carregar)
         >
             <template #acoes>
                 <AppButton
+                    v-if="podeConfigurar"
                     variant="ghost"
                     icon="fa-solid fa-sliders"
                     @click="router.push('/configuracoes/orcamento')"
@@ -139,7 +143,7 @@ onMounted(carregar)
                     Configurações
                 </AppButton>
                 <AppButton variant="secondary" icon="fa-solid fa-file-export">Exportar</AppButton>
-                <AppButton icon="fa-solid fa-plus" @click="abrirNovoOrcamento">Novo orçamento</AppButton>
+                <AppButton v-if="podeConfigurar" icon="fa-solid fa-plus" @click="abrirNovoOrcamento">Novo orçamento</AppButton>
             </template>
         </AppPageHeader>
 

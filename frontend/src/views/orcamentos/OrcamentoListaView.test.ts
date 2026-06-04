@@ -20,38 +20,49 @@ vi.mock("@/composables/useDebouncedRef", () => ({
     useDebouncedRef: <T>(r: T) => r,
 }))
 
+// Controle de permissões por teste — padrão do projeto (ver HomeView.test.ts).
+const mockPode = vi.fn()
+vi.mock("@/stores/permissoesStore", () => ({
+    usePermissoesStore: vi.fn(() => ({ pode: mockPode })),
+}))
+
+function criarRouter() {
+    return createRouter({
+        history: createMemoryHistory(),
+        routes: [
+            { path: "/orcamentos", name: "Orcamentos", component: { template: "<div/>" } },
+            { path: "/orcamentos/novo", name: "OrcamentoNovo", component: { template: "<div/>" } },
+            { path: "/orcamentos/:id", name: "OrcamentoDetalhe", component: { template: "<div/>" } },
+            { path: "/configuracoes/orcamento", name: "OrcamentoSettings", component: { template: "<div/>" } },
+        ],
+    })
+}
+
+const STUBS = {
+    AppPageHeader: { template: "<header><slot/><slot name='acoes'/></header>" },
+    AppButton: { template: "<button @click=\"$emit('click')\"><slot/></button>" },
+    AppSelect: { template: "<select><slot/></select>" },
+    AppSearchInput: { template: "<input/>" },
+    AppPagination: { template: "<div/>" },
+    OrcamentoKpis: { template: "<div/>" },
+    OrcamentoTabela: { template: "<table/>" },
+}
+
 describe("OrcamentoListaView — fluxo de novo orçamento", () => {
     beforeEach(() => {
         mockListar.mockClear()
         mockCriar.mockClear()
+        // Por padrão, usuário possui permissão orcamento.configurar.
+        mockPode.mockReturnValue(true)
     })
 
     it("CA-1: clicar em 'Novo orçamento' navega para /orcamentos/novo SEM chamar POST de criação", async () => {
-        const router = createRouter({
-            history: createMemoryHistory(),
-            routes: [
-                { path: "/orcamentos", name: "Orcamentos", component: { template: "<div/>" } },
-                { path: "/orcamentos/novo", name: "OrcamentoNovo", component: { template: "<div/>" } },
-                { path: "/orcamentos/:id", name: "OrcamentoDetalhe", component: { template: "<div/>" } },
-                { path: "/configuracoes/orcamento", name: "OrcamentoSettings", component: { template: "<div/>" } },
-            ],
-        })
+        const router = criarRouter()
         await router.push("/orcamentos")
         await router.isReady()
 
         const wrapper = mount(OrcamentoListaView, {
-            global: {
-                plugins: [router],
-                stubs: {
-                    AppPageHeader: { template: "<header><slot/><slot name='acoes'/></header>" },
-                    AppButton: { template: "<button @click=\"$emit('click')\"><slot/></button>" },
-                    AppSelect: { template: "<select><slot/></select>" },
-                    AppSearchInput: { template: "<input/>" },
-                    AppPagination: { template: "<div/>" },
-                    OrcamentoKpis: { template: "<div/>" },
-                    OrcamentoTabela: { template: "<table/>" },
-                },
-            },
+            global: { plugins: [router], stubs: STUBS },
         })
         await flushPromises()
 
@@ -70,5 +81,23 @@ describe("OrcamentoListaView — fluxo de novo orçamento", () => {
         expect(mockCriar).not.toHaveBeenCalled()
         // Navegou para a rota nova.
         expect(router.currentRoute.value.name).toBe("OrcamentoNovo")
+    })
+
+    it("CA-2: sem permissão 'orcamento.configurar', botão 'Novo orçamento' não aparece", async () => {
+        // Simula usuário sem a permissão (ex: profissional sem acesso a orçamentos).
+        mockPode.mockReturnValue(false)
+
+        const router = criarRouter()
+        await router.push("/orcamentos")
+        await router.isReady()
+
+        const wrapper = mount(OrcamentoListaView, {
+            global: { plugins: [router], stubs: STUBS },
+        })
+        await flushPromises()
+
+        const botoes = wrapper.findAll("button")
+        const btnNovo = botoes.find(b => b.text().includes("Novo orçamento"))
+        expect(btnNovo, "botão 'Novo orçamento' NÃO deve existir sem permissão").toBeFalsy()
     })
 })

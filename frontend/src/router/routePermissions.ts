@@ -57,11 +57,14 @@ export const ROTAS_RESTRITAS: Record<string, RegraRota> = {
     CategoriasFinanceiras:    { acao: "financeiro.ver" },
     FormasPagamento:          { acao: "financeiro.ver" },
 
-    // Orçamentos
+    // Orçamentos — ver/detalhe exigem apenas leitura; criar/editar/configurar exigem
+    // orcamento.configurar (espelho do OrcamentoCatalogoController e OrcamentoController
+    // que exigem "criar"/"editar"/"configurar" nesses endpoints).
     Orcamentos:         { acao: "orcamento.ver" },
     OrcamentoDetalhe:   { acao: "orcamento.ver" },
-    OrcamentoForm:      { acao: "orcamento.ver" },
-    OrcamentoSettings:  { acao: "orcamento.ver" },
+    OrcamentoForm:      { acao: "orcamento.configurar" },
+    OrcamentoNovo:      { acao: "orcamento.configurar" },
+    OrcamentoSettings:  { acao: "orcamento.configurar" },
 
     // Estoque
     Inventario:           { acao: "estoque.ver" },

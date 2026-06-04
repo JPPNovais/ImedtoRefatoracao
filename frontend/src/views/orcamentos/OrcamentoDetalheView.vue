@@ -7,12 +7,15 @@ import { AppButton, AppCard, AppConfirmDialog } from "@/components/ui"
 import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
 import { formatData, formatDataHora } from "@/utils/datetime"
 import { labelTipoLocalCirurgia } from "@/utils/orcamentoLabels"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 
 const { gerarPdf } = useOrcamentoPdf()
 
 const route = useRoute()
 const router = useRouter()
 const orcamentoId = Number(route.params.id)
+const permissoes = usePermissoesStore()
+const podeConfigurar = computed(() => permissoes.pode("orcamento.configurar"))
 
 const orcamento = ref<Orcamento | null>(null)
 const carregando = ref(false)
@@ -129,7 +132,7 @@ onMounted(carregar)
                 <div class="det-header-r">
                     <AppButton variant="ghost" icon="fa-solid fa-file-pdf" @click="baixarPdf">PDF</AppButton>
                     <AppButton
-                        v-if="podeEditar"
+                        v-if="podeEditar && podeConfigurar"
                         variant="secondary"
                         icon="fa-solid fa-pen"
                         @click="editar"
@@ -341,7 +344,7 @@ onMounted(carregar)
                                 @click="executarAcao(() => orcamentoService.enviar(orcamentoId), 'Erro ao enviar.')"
                             >Enviar ao paciente</AppButton>
                             <AppButton
-                                v-if="podeEditar"
+                                v-if="podeEditar && podeConfigurar"
                                 block
                                 variant="secondary"
                                 icon="fa-solid fa-pen"

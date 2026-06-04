@@ -43,7 +43,7 @@ import { pacienteService, type PacienteBuscaRapida } from "@/services/pacienteSe
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
     AppButton, AppCard,
-    AppField, AppInput, AppDatePicker, AppTextarea, AppSelect,
+    AppField, AppInput, AppDatePicker, AppTextarea, AppSelect, AppEmptyState,
 } from "@/components/ui"
 import OrcamentoStatusPill from "@/components/orcamento/OrcamentoStatusPill.vue"
 import OrcamentoResumoSidebar from "@/components/orcamento/OrcamentoResumoSidebar.vue"
@@ -71,6 +71,19 @@ const orcamentoCarregado = ref<Orcamento | null>(null) // só em modo "editar"
 const carregando = ref(false)
 const salvando = ref(false)
 const erro = ref<string | null>(null)
+
+// Bloqueio de permissão: quando catálogos retornam 422, o form não pode ser usado.
+const bloqueioPermissao = ref(false)
+// Falhas isoladas de rede por catálogo (não-422): os outros selects ainda funcionam.
+const falhaCatalogos = ref({
+    cirurgias: false,
+    valores: false,
+    equipes: false,
+    implantes: false,
+    locais: false,
+    formasPagamento: false,
+    profissionais: false,
+})
 
 // Cabeçalho
 const pacienteId  = ref<number | null>(null)
@@ -142,15 +155,21 @@ const catLocais     = ref<ConfiguracaoLocalCirurgia[]>([])
 const formasPagamento = ref<FormaPagamento[]>([])
 const profissionaisPublicos = ref<ProfissionalPublico[]>([])
 
-// Paciente (modo criar — busca rápida)
+// Paciente (modo criar — combobox com busca embutida)
 const buscaPacienteInput = ref("")
 const buscaPaciente = useDebouncedRef(buscaPacienteInput)
 const pacientesEncontrados = ref<PacienteBuscaRapida[]>([])
 const buscandoPaciente = ref(false)
+const pacienteComboAberto = ref(false)
+const itemFocado = ref(-1)
 let pacBuscaReqId = 0
+// Selecionar/pré-selecionar escreve o nome no próprio input de busca; essa flag
+// evita que essa escrita programática dispare uma nova busca redundante.
+let ignorarProximaBusca = false
 
 watch(buscaPaciente, (termo) => {
     if (modo.value !== "criar") return
+    if (ignorarProximaBusca) { ignorarProximaBusca = false; return }
     void buscarPacientes(termo)
 })
 
@@ -168,9 +187,49 @@ async function buscarPacientes(termo: string | undefined) {
 }
 
 function onSelecionarPaciente(id: number) {
-    pacienteId.value = id
     const p = pacientesEncontrados.value.find(x => x.id === id)
+    pacienteId.value = id
     pacienteNome.value = p?.nomeCompleto ?? ""
+    ignorarProximaBusca = true
+    buscaPacienteInput.value = p?.nomeCompleto ?? ""
+    pacienteComboAberto.value = false
+    itemFocado.value = -1
+}
+
+// Digitar no campo reabre a lista; se o texto diverge do paciente já escolhido,
+// a seleção é invalidada até o usuário escolher de novo (evita salvar com nome
+// editado mas id antigo).
+function onBuscaPacienteInput(valor: string) {
+    buscaPacienteInput.value = valor
+    pacienteComboAberto.value = true
+    itemFocado.value = -1
+    if (valor !== pacienteNome.value) pacienteId.value = null
+}
+
+function onPacienteKeydown(e: KeyboardEvent) {
+    if (!pacienteComboAberto.value) {
+        if (e.key === "ArrowDown") { e.preventDefault(); pacienteComboAberto.value = true }
+        return
+    }
+    if (e.key === "ArrowDown") {
+        e.preventDefault()
+        itemFocado.value = Math.min(itemFocado.value + 1, pacientesEncontrados.value.length - 1)
+    } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        itemFocado.value = Math.max(itemFocado.value - 1, 0)
+    } else if (e.key === "Enter") {
+        if (itemFocado.value >= 0) {
+            e.preventDefault()
+            onSelecionarPaciente(pacientesEncontrados.value[itemFocado.value].id)
+        }
+    } else if (e.key === "Escape") {
+        pacienteComboAberto.value = false
+    }
+}
+
+// Delay para o mousedown do item disparar antes do fechamento.
+function onPacienteBlur() {
+    setTimeout(() => { pacienteComboAberto.value = false }, 150)
 }
 
 // Pré-seleciona paciente vindo via ?pacienteId=. Se não estiver na busca rápida
@@ -181,6 +240,8 @@ async function preselecionarPaciente(id: number) {
     if (existente) {
         pacienteId.value = id
         pacienteNome.value = existente.nomeCompleto
+        ignorarProximaBusca = true
+        buscaPacienteInput.value = existente.nomeCompleto
         return
     }
     try {
@@ -191,6 +252,8 @@ async function preselecionarPaciente(id: number) {
         ]
         pacienteId.value = id
         pacienteNome.value = p.nomeCompleto
+        ignorarProximaBusca = true
+        buscaPacienteInput.value = p.nomeCompleto
     } catch {
         // Acesso negado ou paciente inexistente — deixa o seletor vazio.
         pacienteId.value = null
@@ -452,8 +515,20 @@ const descontoValor = computed(() => tipoDesconto.value === "percentual"
 const totalComDesconto = computed(() => Math.max(0, subtotalPreview.value - descontoValor.value))
 
 // ── Carregamento de catálogos / orçamento ─────────────────────────────────
+
+/** Retorna true quando o erro é um 422 de permissão (BusinessException do backend). */
+function erroEhBloqueioPermissao(e: unknown): boolean {
+    const status = (e as any)?.response?.status
+    // Os endpoints de catálogo são GETs puros sem body — qualquer 422 vem de
+    // RequiresAcao ou FeatureGate, nunca de validação de dados.
+    return status === 422
+}
+
 async function carregarCatalogos() {
-    const [cirs, vals, eqs, imps, locs, fps, profs] = await Promise.all([
+    bloqueioPermissao.value = false
+    falhaCatalogos.value = { cirurgias: false, valores: false, equipes: false, implantes: false, locais: false, formasPagamento: false, profissionais: false }
+
+    const [rCirs, rVals, rEqs, rImps, rLocs, rFps, rProfs] = await Promise.allSettled([
         orcamentoCatalogoService.listarCirurgias(true),
         orcamentoCatalogoService.listarValoresProfissional(true),
         orcamentoCatalogoService.listarEquipes(true),
@@ -462,13 +537,37 @@ async function carregarCatalogos() {
         formaPagamentoService.listar(),
         vinculoService.listarProfissionaisPublico(),
     ])
-    catCirurgias.value = cirs
-    catValores.value = vals
-    catEquipes.value = eqs
-    catImplantes.value = imps
-    catLocais.value = locs
-    formasPagamento.value = fps
-    profissionaisPublicos.value = profs
+
+    const resultados = [rCirs, rVals, rEqs, rImps, rLocs, rFps, rProfs]
+
+    // Qualquer 422 em catálogo de orçamento é bloqueio de permissão (fonte: RequiresAcao
+    // no OrcamentoCatalogoController). Tem precedência sobre degradação graciosa (CA5).
+    if (resultados.some(r => r.status === "rejected" && erroEhBloqueioPermissao(r.reason))) {
+        bloqueioPermissao.value = true
+        return
+    }
+
+    // Sem bloqueio de permissão: aplica degradação graciosa — os que carregaram funcionam.
+    if (rCirs.status === "fulfilled") catCirurgias.value = rCirs.value
+    else falhaCatalogos.value.cirurgias = true
+
+    if (rVals.status === "fulfilled") catValores.value = rVals.value
+    else falhaCatalogos.value.valores = true
+
+    if (rEqs.status === "fulfilled") catEquipes.value = rEqs.value
+    else falhaCatalogos.value.equipes = true
+
+    if (rImps.status === "fulfilled") catImplantes.value = rImps.value
+    else falhaCatalogos.value.implantes = true
+
+    if (rLocs.status === "fulfilled") catLocais.value = rLocs.value
+    else falhaCatalogos.value.locais = true
+
+    if (rFps.status === "fulfilled") formasPagamento.value = rFps.value
+    else falhaCatalogos.value.formasPagamento = true
+
+    if (rProfs.status === "fulfilled") profissionaisPublicos.value = rProfs.value
+    else falhaCatalogos.value.profissionais = true
 }
 
 async function carregar() {
@@ -476,6 +575,9 @@ async function carregar() {
     erro.value = null
     try {
         await carregarCatalogos()
+
+        // Bloqueio de permissão: não prossegue com o restante do carregamento.
+        if (bloqueioPermissao.value) return
 
         if (modo.value === "editar" && orcamentoIdEditar.value) {
             const orc = await orcamentoService.obter(orcamentoIdEditar.value)
@@ -627,6 +729,18 @@ onMounted(carregar)
             <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
         </div>
 
+        <div v-else-if="bloqueioPermissao" class="bloqueio-permissao">
+            <AppEmptyState
+                icone="fa-solid fa-lock"
+                titulo="Sem permissão"
+                descricao="Você não tem permissão para configurar orçamentos."
+            >
+                <template #acao>
+                    <AppButton variant="ghost" icon="fa-solid fa-arrow-left" @click="voltar">Voltar</AppButton>
+                </template>
+            </AppEmptyState>
+        </div>
+
         <template v-else>
             <!-- Header -->
             <div class="form-header">
@@ -672,21 +786,58 @@ onMounted(carregar)
                                     <AppInput :model-value="pacienteNome" readonly />
                                 </template>
                                 <template v-else>
-                                    <input
-                                        type="search"
-                                        class="input-busca"
-                                        v-model="buscaPacienteInput"
-                                        placeholder="Buscar paciente por nome..."
-                                    />
-                                    <AppSelect
-                                        :model-value="pacienteId ?? 0"
-                                        @update:model-value="(v: unknown) => onSelecionarPaciente(Number(v))"
+                                    <div
+                                        class="paciente-combo"
+                                        role="combobox"
+                                        :aria-expanded="pacienteComboAberto"
+                                        aria-haspopup="listbox"
                                     >
-                                        <option :value="0">
-                                            {{ buscandoPaciente ? "Buscando..." : (pacientesEncontrados.length === 0 ? "Nenhum paciente encontrado" : "Selecione o paciente...") }}
-                                        </option>
-                                        <option v-for="p in pacientesEncontrados" :key="p.id" :value="p.id">{{ p.nomeCompleto }}</option>
-                                    </AppSelect>
+                                        <div class="combo-input-row">
+                                            <i class="fa-solid fa-magnifying-glass combo-icon" aria-hidden="true"></i>
+                                            <input
+                                                type="text"
+                                                class="combo-input"
+                                                :value="buscaPacienteInput"
+                                                placeholder="Buscar paciente por nome..."
+                                                autocomplete="off"
+                                                aria-autocomplete="list"
+                                                @input="onBuscaPacienteInput(($event.target as HTMLInputElement).value)"
+                                                @focus="pacienteComboAberto = true"
+                                                @keydown="onPacienteKeydown"
+                                                @blur="onPacienteBlur"
+                                            />
+                                            <span v-if="buscandoPaciente" class="combo-spinner" aria-hidden="true">
+                                                <i class="fa-solid fa-spinner fa-spin"></i>
+                                            </span>
+                                            <i
+                                                v-else-if="pacienteId"
+                                                class="fa-solid fa-circle-check combo-check"
+                                                aria-hidden="true"
+                                            ></i>
+                                        </div>
+
+                                        <ul v-show="pacienteComboAberto" class="combo-dropdown" role="listbox">
+                                            <li
+                                                v-if="buscandoPaciente && pacientesEncontrados.length === 0"
+                                                class="combo-estado"
+                                            >Buscando...</li>
+                                            <template v-else-if="pacientesEncontrados.length > 0">
+                                                <li
+                                                    v-for="(p, idx) in pacientesEncontrados"
+                                                    :key="p.id"
+                                                    class="combo-item"
+                                                    :class="{ 'combo-item--focado': idx === itemFocado, 'combo-item--ativo': p.id === pacienteId }"
+                                                    role="option"
+                                                    :aria-selected="p.id === pacienteId"
+                                                    @mousedown.prevent="onSelecionarPaciente(p.id)"
+                                                >
+                                                    <i class="fa-solid fa-user combo-item-icon" aria-hidden="true"></i>
+                                                    <span>{{ p.nomeCompleto }}</span>
+                                                </li>
+                                            </template>
+                                            <li v-else class="combo-estado">Nenhum paciente encontrado</li>
+                                        </ul>
+                                    </div>
                                 </template>
                             </AppField>
 
@@ -707,6 +858,10 @@ onMounted(carregar)
 
                     <!-- 2. Cirurgias -->
                     <AppCard title="Cirurgias">
+                        <div v-if="falhaCatalogos.cirurgias" class="aviso-falha-catalogo" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Não foi possível carregar o catálogo de cirurgias. Tente recarregar.
+                        </div>
                         <div class="bloco-vazio" v-if="cirurgias.length === 0">
                             <i class="fa-solid fa-scalpel"></i>
                             <p>Adicione pelo menos uma cirurgia.</p>
@@ -810,6 +965,10 @@ onMounted(carregar)
 
                     <!-- 3. Profissionais -->
                     <AppCard title="Profissionais">
+                        <div v-if="falhaCatalogos.valores" class="aviso-falha-catalogo" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Não foi possível carregar a tabela de valores profissionais. Tente recarregar.
+                        </div>
                         <div v-if="profissionais.length === 0" class="bloco-vazio">
                             <i class="fa-solid fa-user-doctor"></i>
                             <p>Nenhum profissional adicionado.</p>
@@ -854,6 +1013,10 @@ onMounted(carregar)
 
                     <!-- 4. Equipes especializadas (catálogo legado) -->
                     <AppCard title="Equipes especializadas">
+                        <div v-if="falhaCatalogos.equipes" class="aviso-falha-catalogo" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Não foi possível carregar o catálogo de equipes especializadas. Tente recarregar.
+                        </div>
                         <div v-if="equipes.length === 0" class="bloco-vazio">
                             <i class="fa-solid fa-users"></i><p>Nenhuma equipe especializada.</p>
                         </div>
@@ -888,6 +1051,10 @@ onMounted(carregar)
 
                     <!-- 5. Implantes -->
                     <AppCard title="Implantes">
+                        <div v-if="falhaCatalogos.implantes" class="aviso-falha-catalogo" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Não foi possível carregar o catálogo de implantes. Tente recarregar.
+                        </div>
                         <div v-if="implantes.length === 0" class="bloco-vazio">
                             <i class="fa-solid fa-microchip"></i><p>Nenhum implante.</p>
                         </div>
@@ -922,7 +1089,11 @@ onMounted(carregar)
 
                     <!-- 6. Local cirúrgico (5 opções, paridade legado) -->
                     <AppCard title="Local cirúrgico (anestesia + internação)">
-                        <div v-if="catLocais.length === 0" class="bloco-aviso">
+                        <div v-if="falhaCatalogos.locais" class="aviso-falha-catalogo" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Não foi possível carregar as configurações de local cirúrgico. Tente recarregar.
+                        </div>
+                        <div v-else-if="catLocais.length === 0" class="bloco-aviso">
                             <i class="fa-solid fa-triangle-exclamation"></i>
                             <p>
                                 Local cirúrgico não configurado para este estabelecimento.
@@ -987,6 +1158,10 @@ onMounted(carregar)
 
                     <!-- 8. Formas de pagamento -->
                     <AppCard title="Formas de pagamento">
+                        <div v-if="falhaCatalogos.formasPagamento" class="aviso-falha-catalogo" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            Não foi possível carregar as formas de pagamento. Tente recarregar.
+                        </div>
                         <div v-if="formas.length === 0" class="bloco-vazio">
                             <i class="fa-solid fa-credit-card"></i><p>Nenhuma forma de pagamento.</p>
                         </div>
@@ -1134,6 +1309,20 @@ onMounted(carregar)
 }
 .bloco-aviso a { color: hsl(var(--primary)); text-decoration: underline; }
 
+/* Aviso de falha de rede isolada em um catálogo — degradação graciosa (CA4) */
+.aviso-falha-catalogo {
+    background: hsl(45 96% 47% / 0.08); border: 1px solid hsl(45 96% 47% / 0.2);
+    color: hsl(35 90% 30%); padding: 10px 14px; border-radius: 6px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.85rem; margin-bottom: 8px;
+}
+
+/* Estado de bloqueio de permissão — centrado na área da tela (CA3) */
+.bloqueio-permissao {
+    display: flex; justify-content: center; align-items: center;
+    padding: 4rem 1rem;
+}
+
 .lista-cirurgias, .lista-vertical { display: flex; flex-direction: column; gap: 10px; }
 .linha-cirurgia {
     display: grid; grid-template-columns: 1fr auto auto auto auto;
@@ -1227,12 +1416,43 @@ onMounted(carregar)
     background: hsl(160 79% 39% / 0.08); color: hsl(160 79% 28%);
 }
 
-.input-busca {
-    width: 100%; padding: 8px 10px;
-    border: 1px solid hsl(var(--secondary) / 0.15); border-radius: 6px;
-    font-family: inherit; font-size: 14px; margin-bottom: 6px;
+/* Combobox de paciente (busca + lista num único controle) */
+.paciente-combo { position: relative; }
+.combo-input-row { position: relative; display: flex; align-items: center; }
+.combo-icon {
+    position: absolute; left: 10px; font-size: 12px;
+    color: hsl(var(--secondary) / 0.5); pointer-events: none;
 }
-.input-busca:focus { outline: 2px solid hsl(var(--primary) / 0.4); }
+.combo-input {
+    width: 100%; padding: 8px 30px 8px 30px;
+    border: 1px solid hsl(var(--secondary) / 0.15); border-radius: 6px;
+    font-family: inherit; font-size: 14px; box-sizing: border-box;
+}
+.combo-input:focus { outline: none; border-color: hsl(var(--primary)); box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2); }
+.combo-spinner, .combo-check {
+    position: absolute; right: 10px; font-size: 12px; pointer-events: none;
+}
+.combo-spinner { color: hsl(var(--secondary) / 0.5); }
+.combo-check { color: hsl(160 79% 39%); }
+
+.combo-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+    margin: 0; padding: 4px 0; list-style: none;
+    background: hsl(var(--card)); border: 1px solid hsl(var(--secondary) / 0.12);
+    border-radius: 8px; box-shadow: var(--shadow-md, 0 6px 20px rgb(0 0 0 / 0.12));
+    max-height: 260px; overflow-y: auto;
+}
+.combo-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; cursor: pointer; font-size: 14px;
+}
+.combo-item:hover, .combo-item--focado { background: hsl(var(--secondary) / 0.06); }
+.combo-item--ativo { color: hsl(var(--primary)); font-weight: 600; }
+.combo-item-icon { font-size: 11px; color: hsl(var(--secondary) / 0.45); }
+.combo-item--ativo .combo-item-icon { color: hsl(var(--primary)); }
+.combo-estado {
+    padding: 10px 12px; font-size: 13px; color: hsl(var(--secondary) / 0.6);
+}
 
 .texto-aux { color: var(--text-muted); font-size: 0.85em; margin: 0.5rem 0; }
 
