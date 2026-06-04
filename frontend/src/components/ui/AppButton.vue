@@ -3,7 +3,7 @@ import { computed } from "vue"
 import { Button } from "@imedto/ui"
 
 type Variant = "primary" | "secondary" | "danger" | "ghost" | "google" | "success"
-type Size    = "sm" | "md" | "lg"
+type Size    = "sm" | "md" | "lg" | "icon" | "icon-sm" | "icon-lg"
 type NativeType = "button" | "submit" | "reset"
 
 const props = withDefaults(defineProps<{
@@ -33,9 +33,12 @@ const dsVariant = computed(() => {
 
 const dsSize = computed(() => {
     switch (props.size) {
-        case "sm": return "sm"
-        case "lg": return "lg"
-        default:   return "default"
+        case "sm":      return "sm"
+        case "lg":      return "lg"
+        case "icon":    return "icon"
+        case "icon-sm": return "icon-sm"
+        case "icon-lg": return "icon-lg"
+        default:        return "default"
     }
 })
 

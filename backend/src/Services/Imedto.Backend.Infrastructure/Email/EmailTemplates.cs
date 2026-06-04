@@ -80,8 +80,12 @@ public static class EmailTemplates
     /// <paramref name="linkAceite"/> opcional: quando presente, CTA leva direto pra
     /// /auth/aceitar-convite?token=... (cenário do convidado novo, sem conta).
     /// Quando null, CTA leva pra /meus-convites (cenário de quem já tem conta).
+    ///
+    /// <paramref name="mensagemPersonalizada"/> opcional: bloco de mensagem do gestor.
+    /// Não é persistida — transita apenas para este e-mail.
+    /// LGPD: não logar o HTML produzido (pode conter conteúdo livre do gestor).
     /// </summary>
-    public static string ConviteVinculo(string appUrl, string? linkAceite = null)
+    public static string ConviteVinculo(string appUrl, string? linkAceite = null, string? mensagemPersonalizada = null)
     {
         var url = HtmlEscape(appUrl.TrimEnd('/'));
         var bloco = linkAceite is null
@@ -101,6 +105,18 @@ public static class EmailTemplates
                   O link é válido por 7 dias. Se já tiver uma conta com este e-mail, basta entrar e acessar <strong>Meus convites</strong>.
                 </p>
                 """;
+
+        // Bloco condicional da mensagem pessoal — só renderiza quando o gestor enviou algo.
+        var blocoMensagem = string.IsNullOrWhiteSpace(mensagemPersonalizada)
+            ? string.Empty
+            : $$"""
+
+                <div class="info-box">
+                  <p><strong>Mensagem de quem te convidou:</strong></p>
+                  <p style="white-space:pre-wrap;">{{HtmlEscape(mensagemPersonalizada.Trim())}}</p>
+                </div>
+                """;
+
         var conteudo = $$"""
             <h1>Você foi convidado para o Imedto</h1>
             <p>Olá,</p>
@@ -109,6 +125,7 @@ public static class EmailTemplates
               <p><strong>O que é o Imedto?</strong></p>
               <p>O Imedto é um sistema completo de gestão em saúde — agenda, prontuário eletrônico, financeiro e equipe num só lugar, com segurança e conformidade LGPD.</p>
             </div>
+            {{blocoMensagem}}
             {{bloco}}
             <div class="divider"></div>
             <p style="font-size:14px;color:#737373;">

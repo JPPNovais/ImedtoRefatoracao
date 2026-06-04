@@ -10,6 +10,8 @@ export interface ProfissionalVinculado {
     status: string
     modeloPermissaoId: number | null
     modeloPermissaoNome: string
+    /** null quando o vínculo nunca foi aceito (ex.: convite cancelado antes do aceite). */
+    aceitoEm?: string | null
     especialidade?: string | null
     conselho?: string | null
     profissao?: string | null
@@ -55,6 +57,7 @@ export interface ConvidarProfissionalRequest {
     telefone?: string | null
     especialidade?: string | null
     profissaoId?: number | null
+    mensagemPersonalizada?: string | null
 }
 
 export interface ConvidarProfissionalResponse {
@@ -137,6 +140,21 @@ export const vinculoService = {
         if (!id) throw new Error("Nenhum estabelecimento ativo.")
         await httpClient.post(
             `/estabelecimento/${id}/profissionais/${vinculoId}/reenviar-convite`,
+        )
+    },
+
+    /**
+     * Define (ou limpa) a especialidade do vínculo para este estabelecimento.
+     * Especialidade nula ou vazia limpa o campo — exibição volta a usar o cadastro
+     * global do profissional. Restrito ao Dono — backend retorna 422 se não for Dono.
+     */
+    async alterarEspecialidade(vinculoId: number, especialidade: string | null): Promise<void> {
+        const tenantStore = useTenantStore()
+        const id = tenantStore.ativo?.id
+        if (!id) throw new Error("Nenhum estabelecimento ativo.")
+        await httpClient.put(
+            `/estabelecimento/profissionais/${vinculoId}/especialidade`,
+            { especialidade: especialidade || null },
         )
     },
 }

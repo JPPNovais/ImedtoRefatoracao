@@ -127,7 +127,7 @@ public sealed class TermoResolverDeVariaveis : ITermoResolverDeVariaveis
                             p.conselho       AS Conselho,
                             p.uf             AS Uf,
                             p.numero_registro AS NumeroRegistro,
-                            p.especialidade  AS Especialidade
+                            COALESCE(v.especialidade_convidada, p.especialidade) AS Especialidade
                     FROM    public.profissionais p
                     INNER JOIN public.usuarios u
                             ON u.id = p.usuario_id

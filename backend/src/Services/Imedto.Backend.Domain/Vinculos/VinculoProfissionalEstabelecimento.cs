@@ -125,14 +125,18 @@ public class VinculoProfissionalEstabelecimento : Entity
         };
     }
 
-    /// <summary>Anexa <see cref="ProfissionalConvidadoEvent"/> — chamar após persistir o aggregate.</summary>
-    public virtual void MarcarComoConvidado()
+    /// <summary>
+    /// Anexa <see cref="ProfissionalConvidadoEvent"/> — chamar após persistir o aggregate.
+    /// <paramref name="mensagemPersonalizada"/> transita apenas para o e-mail; não é persistida.
+    /// </summary>
+    public virtual void MarcarComoConvidado(string? mensagemPersonalizada = null)
     {
         if (Id == 0)
             throw new InvalidOperationException("Vínculo ainda não foi persistido — Id é 0.");
 
         AddDomainEvent(new ProfissionalConvidadoEvent(
-            Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId));
+            Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId,
+            mensagemPersonalizada));
     }
 
     public virtual void Aceitar()
@@ -171,6 +175,17 @@ public class VinculoProfissionalEstabelecimento : Entity
         InativadoEm = null;
     }
 
+    /// <summary>
+    /// Define (ou limpa) a especialidade do vínculo para este estabelecimento.
+    /// String vazia ou nula → null (limpa o campo, fazendo cair no fallback global).
+    /// Normaliza e limita a 200 caracteres (mesmo padrão do convite).
+    /// Independe do status do vínculo — Convidado/Ativo/Inativo podem ter especialidade definida.
+    /// </summary>
+    public virtual void AtualizarEspecialidade(string especialidade)
+    {
+        EspecialidadeConvidada = NormalizarTexto(especialidade, 200);
+    }
+
     public virtual void AtualizarModeloPermissao(long novoModeloPermissaoId)
     {
         if (Status == VinculoStatus.Inativo)
@@ -197,13 +212,18 @@ public class VinculoProfissionalEstabelecimento : Entity
     /// O profissional precisará aceitar de novo, mas o histórico (datas anteriores) é preservado
     /// na linha — apenas <see cref="AceitoEm"/>/<see cref="InativadoEm"/> são zerados.
     /// </summary>
+    /// <summary>
+    /// Reativa um vínculo previamente inativado, transformando-o em novo Convite.
+    /// <paramref name="mensagemPersonalizada"/> transita apenas para o e-mail; não é persistida.
+    /// </summary>
     public virtual void ReativarComoConvite(
         long? novoModeloPermissaoId,
         Guid convidadoPorUsuarioId,
         string nomeConvidado = null,
         string telefoneConvidado = null,
         string especialidadeConvidada = null,
-        long? profissaoConvidadaId = null)
+        long? profissaoConvidadaId = null,
+        string? mensagemPersonalizada = null)
     {
         if (Status != VinculoStatus.Inativo)
             throw new BusinessException("Apenas vínculos inativos podem ser reativados.");
@@ -224,6 +244,7 @@ public class VinculoProfissionalEstabelecimento : Entity
         ProfissaoConvidadaId = profissaoConvidadaId is { } pid && pid > 0 ? pid : null;
 
         AddDomainEvent(new ProfissionalConvidadoEvent(
-            Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId));
+            Id, ProfissionalUsuarioId, EstabelecimentoId, ConvidadoPorUsuarioId,
+            mensagemPersonalizada));
     }
 }

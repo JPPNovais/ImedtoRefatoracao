@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import {
-    AppAvatar, AppButton, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
+    AppAvatar, AppButton, AppInput, AppModal, AppPermissionMatrix, AppRolePill, AppSelect, AppStatusPill,
 } from "@/components/ui"
 import { permissaoService, type ModeloPermissao } from "@/services/permissaoService"
 import { vinculoService, type ProfissionalVinculado } from "@/services/vinculoService"
@@ -35,12 +35,15 @@ const modeloSelecionadoId = ref<number | null>(null)
 const salvando = ref(false)
 const removendo = ref(false)
 const reativando = ref(false)
+const salvandoEspecialidade = ref(false)
+const especialidadeEditada = ref<string>("")
 const erro = ref<string | null>(null)
 
 watch(() => [props.profissional, props.aberto] as const, ([p, aberto]) => {
     if (!aberto || !p) return
     aba.value = "perfil"
     modeloSelecionadoId.value = p.modeloPermissaoId
+    especialidadeEditada.value = p.especialidade ?? ""
     erro.value = null
 }, { immediate: true })
 
@@ -54,11 +57,37 @@ const ehVinculoProprio = computed(() => props.profissional?.usuarioId === auth.u
 const podeRemover = computed(() => props.profissional && !ehDono.value && !ehVinculoProprio.value)
 const podeReativar = computed(() => props.profissional?.status === "Inativo" && !ehDono.value)
 
+// Campo editável de especialidade: apenas para linhas com vínculo formal (vinculoId != null).
+// A linha sintética do Dono (status='Dono', vinculoId=null) não tem especialidade editável (CA9).
+// O RBAC de Dono é verificado pelo backend — o front apenas oculta para UX (CA7).
+const podeEditarEspecialidade = computed(() => props.profissional?.vinculoId != null && !ehDono.value)
+
 function statusVariante(s: string): "success" | "warning" | "error" | "muted" {
     if (s === "Ativo" || s === "Dono")  return "success"
     if (s === "Convidado")              return "warning"
     if (s === "Bloqueado")              return "error"
     return "muted"
+}
+
+async function salvarEspecialidade() {
+    if (!props.profissional || salvandoEspecialidade.value) return
+    if (props.profissional.vinculoId == null) return  // Dono sintético — sem vínculo formal.
+    salvandoEspecialidade.value = true
+    erro.value = null
+    try {
+        await vinculoService.alterarEspecialidade(
+            props.profissional.vinculoId,
+            especialidadeEditada.value.trim() || null,
+        )
+        emit("atualizado", {
+            ...props.profissional,
+            especialidade: especialidadeEditada.value.trim() || null,
+        })
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Não foi possível atualizar a especialidade."
+    } finally {
+        salvandoEspecialidade.value = false
+    }
 }
 
 async function salvarPapel() {
@@ -185,10 +214,37 @@ function fechar() {
                         <span class="dado-label">Nome completo</span>
                         <span class="dado-valor">{{ profissional.nomeCompleto || "—" }}</span>
                     </div>
-                    <div v-if="profissional.especialidade" class="dado">
+
+                    <!-- Especialidade editável pelo Dono (vinculoId != null). Somente leitura para Dono sintético e não-Dono. -->
+                    <div v-if="podeEditarEspecialidade" class="dado dado-full especialidade-edit">
+                        <span class="dado-label">Especialidade neste estabelecimento</span>
+                        <div class="esp-row">
+                            <AppInput
+                                v-model="especialidadeEditada"
+                                placeholder="Ex.: Dermatologia (vazio = usa cadastro global)"
+                                :disabled="salvandoEspecialidade"
+                                maxlength="200"
+                            />
+                            <AppButton
+                                size="sm"
+                                icon="fa-solid fa-floppy-disk"
+                                :loading="salvandoEspecialidade"
+                                :disabled="salvandoEspecialidade"
+                                @click="salvarEspecialidade"
+                            >
+                                Salvar
+                            </AppButton>
+                        </div>
+                        <span class="da-hint">
+                            <i class="fa-solid fa-circle-info"></i>
+                            Deixe em branco para usar a especialidade do cadastro global do profissional.
+                        </span>
+                    </div>
+                    <div v-else-if="profissional.especialidade" class="dado">
                         <span class="dado-label">Especialidade</span>
                         <span class="dado-valor">{{ profissional.especialidade }}</span>
                     </div>
+
                     <div v-if="profissional.conselho" class="dado">
                         <span class="dado-label">Conselho</span>
                         <span class="dado-valor">{{ profissional.conselho }}</span>
@@ -210,14 +266,14 @@ function fechar() {
                             <AppButton
                                 v-if="podeRemover"
                                 variant="danger"
-                                size="sm"
+                                size="icon-sm"
                                 icon="fa-solid fa-trash"
                                 :loading="removendo"
                                 :disabled="removendo"
+                                title="Remover do estabelecimento"
+                                aria-label="Remover do estabelecimento"
                                 @click="remover"
-                            >
-                                Remover do estabelecimento
-                            </AppButton>
+                            />
                         </div>
                         <span v-if="ehDono" class="da-hint">
                             <i class="fa-solid fa-crown"></i> Dono da clínica não pode ser removido nem ter a permissão alterada.
@@ -307,6 +363,9 @@ function fechar() {
 .dado-label.danger { color: hsl(var(--error)); }
 .dado-valor { font-size: 14px; color: hsl(var(--primary-dark)); font-weight: 500; }
 .da-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.especialidade-edit { display: flex; flex-direction: column; gap: 6px; }
+.esp-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.esp-row > :first-child { flex: 1; min-width: 160px; }
 .da-hint, .rc-hint {
     display: inline-flex; align-items: center; gap: 6px;
     margin-top: 8px; font-size: 12px;

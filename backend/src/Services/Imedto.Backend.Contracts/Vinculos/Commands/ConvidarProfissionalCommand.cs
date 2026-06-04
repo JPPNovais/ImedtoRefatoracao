@@ -25,4 +25,11 @@ public class ConvidarProfissionalCommand : ICommand
     /// Validada contra <c>profissoes</c>; especialidade tem que pertencer a esta profissão.
     /// </summary>
     public long? ProfissaoId { get; set; }
+
+    /// <summary>
+    /// Mensagem pessoal opcional do gestor para o profissional convidado.
+    /// Transita apenas para o corpo do e-mail — não é persistida nem logada.
+    /// Máximo de 1000 caracteres (validado no handler).
+    /// </summary>
+    public string? MensagemPersonalizada { get; set; }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue"
+import { vMaska } from "maska/vue"
 import {
     AppButton, AppField, AppInput, AppModal, AppSelect, AppTextarea,
 } from "@/components/ui"
@@ -7,6 +8,28 @@ import { vinculoService } from "@/services/vinculoService"
 import { catalogoService } from "@/services/catalogoService"
 import type { ProfissaoCatalogo, EspecialidadeCatalogo } from "@/services/catalogoService"
 import type { ModeloPermissao } from "@/services/permissaoService"
+
+const LIMITE_MENSAGEM = 1000
+
+const TEMPLATES = [
+    {
+        id: "formal",
+        label: "Formal",
+        texto: "Olá! Você foi convidado(a) para integrar a equipe da nossa clínica em nosso sistema de gestão. Ao aceitar, você terá acesso à agenda e aos recursos necessários para o seu atendimento. Ficamos à disposição para qualquer dúvida.",
+    },
+    {
+        id: "amigavel",
+        label: "Amigável",
+        texto: "Oi! Que bom ter você com a gente 😊 Estamos te convidando para fazer parte da equipe da clínica. É só aceitar o convite para começar. Qualquer dúvida, estamos por aqui!",
+    },
+    {
+        id: "curto",
+        label: "Curto e direto",
+        texto: "Você foi convidado(a) para a equipe da clínica. Aceite o convite para acessar o sistema.",
+    },
+] as const
+
+type TemplateId = typeof TEMPLATES[number]["id"]
 
 /**
  * Modal de convite de profissional. Usa o role-selector visual do design
@@ -52,6 +75,21 @@ const form = reactive<Form>({
 
 const enviando = ref(false)
 const erro = ref<string | null>(null)
+const templateAtivo = ref<TemplateId | null>(null)
+
+function selecionarTemplate(id: TemplateId) {
+    if (templateAtivo.value === id) {
+        // segundo clique no mesmo chip: deseleciona e limpa
+        templateAtivo.value = null
+        form.mensagem = ""
+        return
+    }
+    templateAtivo.value = id
+    form.mensagem = TEMPLATES.find(t => t.id === id)!.texto
+}
+
+const charCount = computed(() => form.mensagem.length)
+const mensagemInvalida = computed(() => charCount.value > LIMITE_MENSAGEM)
 
 const profissoes = ref<ProfissaoCatalogo[]>([])
 const especialidades = ref<EspecialidadeCatalogo[]>([])
@@ -69,6 +107,7 @@ function reset() {
     form.mensagem = ""
     especialidades.value = []
     erro.value = null
+    templateAtivo.value = null
 }
 
 onMounted(async () => {
@@ -110,6 +149,7 @@ const valido = computed(() => {
     if (!form.email.includes("@") || !form.email.includes(".")) return false
     if (!form.modeloId) return false
     if (form.metodo === "whatsapp" && form.telefone.replace(/\D/g, "").length < 10) return false
+    if (mensagemInvalida.value) return false
     return true
 })
 
@@ -118,6 +158,7 @@ async function enviar() {
     enviando.value = true
     erro.value = null
     try {
+        const mensagemFinal = form.mensagem.trim() || null
         const r = await vinculoService.convidarProfissional({
             email: form.email.trim(),
             modeloPermissaoId: form.modeloId,
@@ -125,11 +166,13 @@ async function enviar() {
             telefone: form.telefone.trim() || null,
             especialidade: form.especialidade.trim() || null,
             profissaoId: form.profissaoId,
+            mensagemPersonalizada: mensagemFinal,
         })
         emit("enviado", { nome: form.nome, email: form.email, actionLink: r.actionLink })
         reset()
-    } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Não foi possível enviar o convite."
+    } catch {
+        // CA11: mensagem genérica — nunca expõe o conteúdo da mensagem no erro
+        erro.value = "Não foi possível enviar o convite. Tente novamente."
     } finally {
         enviando.value = false
     }
@@ -192,7 +235,7 @@ function fechar() {
             </AppField>
 
             <AppField :label="form.metodo === 'whatsapp' ? 'Telefone (obrigatório)' : 'Telefone (opcional)'" :required="form.metodo === 'whatsapp'">
-                <AppInput v-model="form.telefone" type="tel" placeholder="(11) 99999-9999" />
+                <AppInput v-model="form.telefone" v-maska="'(##) #####-####'" type="tel" placeholder="(11) 99999-9999" />
             </AppField>
 
             <AppField label="Permissão" required class="full">
@@ -240,13 +283,37 @@ function fechar() {
                 <AppInput v-model="form.conselho" placeholder="CRM 12.345-SP" />
             </AppField>
 
-            <AppField label="Mensagem personalizada (opcional)" class="full">
-                <AppTextarea
-                    v-model="form.mensagem"
-                    :rows="3"
-                    placeholder="Olá, gostaríamos de te convidar para fazer parte da nossa equipe..."
-                />
-            </AppField>
+            <!-- Seção de mensagem personalizada com chips de template e contador -->
+            <div class="full mensagem-section">
+                <label class="mensagem-label">Mensagem personalizada (opcional)</label>
+                <div class="template-chips">
+                    <AppButton
+                        v-for="t in TEMPLATES"
+                        :key="t.id"
+                        size="sm"
+                        :variant="templateAtivo === t.id ? 'primary' : 'ghost'"
+                        @click="selecionarTemplate(t.id)"
+                    >
+                        {{ t.label }}
+                    </AppButton>
+                </div>
+                <div :class="{ 'textarea-wrapper--erro': mensagemInvalida }">
+                    <AppTextarea
+                        v-model="form.mensagem"
+                        :rows="4"
+                        placeholder="Escolha um template acima ou escreva sua mensagem..."
+                    />
+                </div>
+                <div class="mensagem-footer">
+                    <span v-if="mensagemInvalida" class="contador-erro">
+                        Limite de {{ LIMITE_MENSAGEM }} caracteres atingido
+                    </span>
+                    <span v-else class="contador-neutro" />
+                    <span class="contador" :class="{ 'contador--erro': mensagemInvalida }">
+                        {{ charCount }}/{{ LIMITE_MENSAGEM }}
+                    </span>
+                </div>
+            </div>
         </div>
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
@@ -308,5 +375,29 @@ function fechar() {
 }
 .modelo-preview > span {
     font-size: 12px; color: hsl(var(--secondary) / 0.75); line-height: 1.4;
+}
+
+/* Seção de mensagem personalizada */
+.mensagem-section { display: flex; flex-direction: column; gap: 8px; }
+.mensagem-label {
+    display: block; font-size: 12px; font-weight: 600;
+    color: hsl(var(--primary-dark)); margin-bottom: 0;
+}
+.template-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mensagem-footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 16px;
+}
+.contador {
+    font-size: 11px; color: hsl(var(--secondary) / 0.55); flex-shrink: 0;
+}
+.contador--erro { color: hsl(var(--error)); font-weight: 600; }
+.contador-erro {
+    font-size: 11px; color: hsl(var(--error)); flex: 1;
+}
+.contador-neutro { flex: 1; }
+/* Wrapper de textarea com estado de erro */
+.textarea-wrapper--erro :deep(textarea) {
+    border-color: hsl(var(--error));
+    outline-color: hsl(var(--error));
 }
 </style>

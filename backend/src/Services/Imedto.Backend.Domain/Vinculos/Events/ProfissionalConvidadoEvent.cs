@@ -6,7 +6,8 @@ public record ProfissionalConvidadoEvent(
     long VinculoId,
     Guid ProfissionalUsuarioId,
     long EstabelecimentoId,
-    Guid ConvidadoPorUsuarioId) : IDomainEvent
+    Guid ConvidadoPorUsuarioId,
+    string? MensagemPersonalizada = null) : IDomainEvent
 {
     public DateTime OcorridoEm { get; } = DateTime.UtcNow;
 }

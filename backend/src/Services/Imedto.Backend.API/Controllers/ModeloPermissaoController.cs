@@ -103,6 +103,24 @@ public class ModeloPermissaoController : ControllerBase
 
         return NoContent();
     }
+
+    /// <summary>Define (ou limpa) a especialidade do vínculo para este estabelecimento.</summary>
+    [HttpPut("/api/estabelecimento/profissionais/{vinculoId:long}/especialidade")]
+    [RequiresPapel(TenantPapel.Dono)]
+    public async Task<ActionResult> AlterarEspecialidadeDoVinculo(long vinculoId, [FromBody] AlterarEspecialidadeDoVinculoDto dto)
+    {
+        var userId = Guid.Parse(User.FindFirst("sub")!.Value);
+
+        await _cmd.Send(new AlterarEspecialidadeDoVinculoCommand
+        {
+            VinculoId = vinculoId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Especialidade = dto.Especialidade,
+            UsuarioSolicitanteId = userId,
+        });
+
+        return NoContent();
+    }
 }
 
 public record CriarModeloPermissaoDto(
@@ -122,3 +140,5 @@ public record AtualizarModeloPermissaoDto(
     string? Descricao = null);
 
 public record AtribuirModeloAoVinculoDto(long ModeloPermissaoId);
+
+public record AlterarEspecialidadeDoVinculoDto(string? Especialidade);

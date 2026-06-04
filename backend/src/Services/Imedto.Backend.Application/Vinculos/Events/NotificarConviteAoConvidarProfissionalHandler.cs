@@ -71,7 +71,7 @@ public class NotificarConviteAoConvidarProfissionalHandler : IEventHandler<Profi
             await _email.EnviarAsync(
                 para: usuario.Email,
                 assunto: "Você foi convidado a um estabelecimento no Imedto",
-                corpoHtml: EmailTemplates.ConviteVinculo(appUrl, linkAceite),
+                corpoHtml: EmailTemplates.ConviteVinculo(appUrl, linkAceite, domainEvent.MensagemPersonalizada),
                 corpoTexto: "Você recebeu um convite para se vincular a um estabelecimento no Imedto. Acesse 'Meus convites' para revisar.");
         }
         catch (Exception ex)

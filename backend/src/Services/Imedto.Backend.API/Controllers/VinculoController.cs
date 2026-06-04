@@ -55,7 +55,8 @@ public class VinculoController : ControllerBase
             Nome = request.Nome,
             Telefone = request.Telefone,
             Especialidade = request.Especialidade,
-            ProfissaoId = request.ProfissaoId
+            ProfissaoId = request.ProfissaoId,
+            MensagemPersonalizada = request.MensagemPersonalizada
         });
 
         if (_env.IsDevelopment())
@@ -167,4 +168,5 @@ public record ConvidarProfissionalRequest(
     string Nome = null,
     string Telefone = null,
     string Especialidade = null,
-    long? ProfissaoId = null);
+    long? ProfissaoId = null,
+    string? MensagemPersonalizada = null);

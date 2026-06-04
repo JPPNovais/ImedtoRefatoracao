@@ -39,7 +39,7 @@ public class VinculoQueryRepository
                     mp.nome                    AS ModeloPermissaoNome,
                     v.convidado_em             AS ConvidadoEm,
                     v.aceito_em                AS AceitoEm,
-                    COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
+                    COALESCE(v.especialidade_convidada, p.especialidade) AS Especialidade,
                     p.conselho                 AS Conselho,
                     pr.nome                    AS Profissao,
                     p.foto_url                 AS FotoUrl
@@ -98,7 +98,7 @@ public class VinculoQueryRepository
         const string sql = """
             SELECT  v.profissional_usuario_id          AS UsuarioId,
                     COALESCE(u.nome_completo, v.nome_convidado) AS NomeCompleto,
-                    COALESCE(p.especialidade, v.especialidade_convidada) AS Especialidade,
+                    COALESCE(v.especialidade_convidada, p.especialidade) AS Especialidade,
                     p.conselho                         AS Conselho,
                     'Ativo'                            AS Status,
                     p.foto_url                         AS FotoUrl

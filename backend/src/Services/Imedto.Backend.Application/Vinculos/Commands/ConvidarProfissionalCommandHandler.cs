@@ -40,6 +40,14 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
 
     public async Task Handle(ConvidarProfissionalCommand command)
     {
+        // Valida e normaliza a mensagem personalizada antes de qualquer outra lógica.
+        var mensagem = string.IsNullOrWhiteSpace(command.MensagemPersonalizada)
+            ? null
+            : command.MensagemPersonalizada.Trim();
+
+        if (mensagem is not null && mensagem.Length > 1000)
+            throw new BusinessException("Mensagem personalizada deve ter no máximo 1000 caracteres.");
+
         var estab = await _estabelecimentoRepo.ObterPorId(command.EstabelecimentoId);
 
         if (estab.DonoUsuarioId != command.ConvidadoPorUsuarioId)
@@ -106,7 +114,8 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
                 command.Nome,
                 command.Telefone,
                 command.Especialidade,
-                command.ProfissaoId);
+                command.ProfissaoId,
+                mensagemPersonalizada: mensagem);
             vinculo = existente;
             await _vinculoRepo.Salvar(vinculo);
         }
@@ -122,8 +131,8 @@ public class ConvidarProfissionalCommandHandler : ICommandHandler<ConvidarProfis
                 command.Especialidade,
                 command.ProfissaoId);
 
-            await _vinculoRepo.Salvar(vinculo);    // popula Id
-            vinculo.MarcarComoConvidado();          // anexa event com Id correto
+            await _vinculoRepo.Salvar(vinculo);              // popula Id
+            vinculo.MarcarComoConvidado(mensagem);            // anexa event com Id correto
         }
 
         foreach (var evt in vinculo.DomainEvents)

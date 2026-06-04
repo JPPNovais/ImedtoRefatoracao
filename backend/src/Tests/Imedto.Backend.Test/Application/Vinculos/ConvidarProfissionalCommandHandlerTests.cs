@@ -267,4 +267,143 @@ public class ConvidarProfissionalCommandHandlerTests
 
         Assert.That(ex.Message, Does.Contain("pendente").IgnoreCase.Or.Contain("ativo").IgnoreCase);
     }
+
+    // ── CA4: mensagem com mais de 1000 chars → 422 (BusinessException) ────────
+
+    [Test]
+    public void Handle_MensagemPersonalizadaAcimaDe1000Chars_LancaBusinessException()
+    {
+        // Arrange
+        ConfigurarMocksBase();
+        _vinculoRepo
+            .Setup(r => r.ObterPorProfissionalEEstabelecimentoOuNulo(_profissionalId, EstabelecimentoId))
+            .ReturnsAsync((VinculoProfissionalEstabelecimento)null);
+
+        var cmd = new ConvidarProfissionalCommand
+        {
+            EstabelecimentoId = EstabelecimentoId,
+            ConvidadoPorUsuarioId = _donoId,
+            ProfissionalUsuarioId = _profissionalId,
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = ModeloId,
+            MensagemPersonalizada = new string('a', 1001)   // 1001 chars — inválido
+        };
+
+        // Act + Assert — back é a fonte de verdade (422 genérico via BusinessException)
+        var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(cmd));
+
+        Assert.That(ex.Message, Does.Contain("1000").Or.Contain("máximo").IgnoreCase);
+
+        // Vínculo NÃO deve ser criado
+        _vinculoRepo.Verify(r => r.Salvar(It.IsAny<VinculoProfissionalEstabelecimento>()), Times.Never);
+    }
+
+    // ── CA1: caminho feliz — com mensagem ─────────────────────────────────────
+
+    [Test]
+    public async Task Handle_ComMensagemPersonalizada_PublicaEventoComMensagem()
+    {
+        // Arrange
+        ConfigurarMocksBase();
+        _vinculoRepo
+            .Setup(r => r.ObterPorProfissionalEEstabelecimentoOuNulo(_profissionalId, EstabelecimentoId))
+            .ReturnsAsync((VinculoProfissionalEstabelecimento)null);
+
+        const string textoAmigavel = "Oi! Que bom ter você com a gente 😊 Estamos te convidando para fazer parte da equipe da clínica.";
+
+        var cmd = new ConvidarProfissionalCommand
+        {
+            EstabelecimentoId = EstabelecimentoId,
+            ConvidadoPorUsuarioId = _donoId,
+            ProfissionalUsuarioId = _profissionalId,
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = ModeloId,
+            MensagemPersonalizada = textoAmigavel
+        };
+
+        // Act
+        await _sut.Handle(cmd);
+
+        // Assert — evento publicado deve carregar a mensagem (incluindo o emoji).
+        // O bus publica como IDomainEvent (tipo inferido do loop); verificamos via Callback.
+        ProfissionalConvidadoEvent? eventoCapturado = null;
+        _eventBus.Invocations
+            .Where(i => i.Method.Name == nameof(IEventBus.Publish))
+            .Select(i => i.Arguments[0] as ProfissionalConvidadoEvent)
+            .Where(e => e is not null)
+            .ToList()
+            .ForEach(e => eventoCapturado = e);
+
+        Assert.That(eventoCapturado, Is.Not.Null, "ProfissionalConvidadoEvent não foi publicado.");
+        Assert.That(eventoCapturado!.ProfissionalUsuarioId, Is.EqualTo(_profissionalId));
+        Assert.That(eventoCapturado.MensagemPersonalizada, Is.EqualTo(textoAmigavel));
+    }
+
+    // ── CA3: mensagem vazia → e-mail sem bloco (evento com MensagemPersonalizada null) ─
+
+    [Test]
+    public async Task Handle_SemMensagemPersonalizada_PublicaEventoComMensagemNula()
+    {
+        // Arrange
+        ConfigurarMocksBase();
+        _vinculoRepo
+            .Setup(r => r.ObterPorProfissionalEEstabelecimentoOuNulo(_profissionalId, EstabelecimentoId))
+            .ReturnsAsync((VinculoProfissionalEstabelecimento)null);
+
+        var cmd = new ConvidarProfissionalCommand
+        {
+            EstabelecimentoId = EstabelecimentoId,
+            ConvidadoPorUsuarioId = _donoId,
+            ProfissionalUsuarioId = _profissionalId,
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = ModeloId,
+            MensagemPersonalizada = null    // sem mensagem → equivalente ao convite atual
+        };
+
+        // Act
+        await _sut.Handle(cmd);
+
+        // Assert — evento deve ter MensagemPersonalizada null (sem bloco no e-mail).
+        // O bus publica como IDomainEvent; inspecionamos as invocações diretamente.
+        var conviteEvt = _eventBus.Invocations
+            .Where(i => i.Method.Name == nameof(IEventBus.Publish))
+            .Select(i => i.Arguments[0] as ProfissionalConvidadoEvent)
+            .FirstOrDefault(e => e is not null);
+
+        Assert.That(conviteEvt, Is.Not.Null, "ProfissionalConvidadoEvent não foi publicado.");
+        Assert.That(conviteEvt!.MensagemPersonalizada, Is.Null);
+    }
+
+    [Test]
+    public async Task Handle_MensagemApenasWhitespace_TratadaComoVazia()
+    {
+        // Arrange
+        ConfigurarMocksBase();
+        _vinculoRepo
+            .Setup(r => r.ObterPorProfissionalEEstabelecimentoOuNulo(_profissionalId, EstabelecimentoId))
+            .ReturnsAsync((VinculoProfissionalEstabelecimento)null);
+
+        var cmd = new ConvidarProfissionalCommand
+        {
+            EstabelecimentoId = EstabelecimentoId,
+            ConvidadoPorUsuarioId = _donoId,
+            ProfissionalUsuarioId = _profissionalId,
+            ProfissionalEmail = "prof@clinica.com",
+            ModeloPermissaoId = ModeloId,
+            MensagemPersonalizada = "   "   // whitespace → equivale a vazio
+        };
+
+        // Act
+        await _sut.Handle(cmd);
+
+        // Assert — whitespace normalizado para null (sem bloco no e-mail).
+        // O bus publica como IDomainEvent; inspecionamos as invocações diretamente.
+        var conviteEvt = _eventBus.Invocations
+            .Where(i => i.Method.Name == nameof(IEventBus.Publish))
+            .Select(i => i.Arguments[0] as ProfissionalConvidadoEvent)
+            .FirstOrDefault(e => e is not null);
+
+        Assert.That(conviteEvt, Is.Not.Null, "ProfissionalConvidadoEvent não foi publicado.");
+        Assert.That(conviteEvt!.MensagemPersonalizada, Is.Null);
+    }
 }
