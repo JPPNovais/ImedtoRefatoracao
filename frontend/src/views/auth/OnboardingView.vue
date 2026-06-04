@@ -708,7 +708,7 @@ const stepperPassos = computed(() => [
                                 <i class="fa-solid fa-phone" aria-hidden="true"></i>
                                 <input
                                     v-model="clinica.telefone"
-                                    v-maska="'(##) ####-####'"
+                                    v-maska="{ mask: ['(##) ####-####', '(##) #####-####'] }"
                                     type="tel"
                                 />
                             </div>
