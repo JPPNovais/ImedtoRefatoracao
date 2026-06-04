@@ -84,9 +84,6 @@ function corIcone(cor?: string | null): string {
                             <h4>Permissões personalizadas</h4>
                             <span>Customizadas — só esta clínica vê</span>
                         </div>
-                        <button type="button" class="btn-icon-sm" title="Criar nova permissão" @click="emit('criar-papel')">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
                     </div>
                     <div v-if="customizados.length === 0" class="rl-empty">
                         <i class="fa-solid fa-shield-halved"></i>
@@ -214,14 +211,6 @@ function corIcone(cor?: string | null): string {
 }
 .rl-add-btn:hover { border-color: hsl(var(--primary) / 0.4); background: hsl(var(--primary) / 0.04); }
 
-.btn-icon-sm {
-    width: 32px; height: 32px; border-radius: 6px;
-    background: transparent; border: 1px solid transparent;
-    display: inline-flex; align-items: center; justify-content: center;
-    cursor: pointer; color: hsl(var(--secondary) / 0.6); font-size: 13px;
-    transition: all 150ms;
-}
-.btn-icon-sm:hover { background: white; border-color: hsl(var(--secondary) / 0.15); color: hsl(var(--primary-dark)); }
 .btn-text-sm {
     background: none; border: none; color: hsl(var(--primary));
     font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 0;

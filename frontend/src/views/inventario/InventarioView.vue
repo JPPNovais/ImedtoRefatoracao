@@ -39,6 +39,7 @@ const totalMovs = ref(0)
 const paginaMovs = ref(1)
 const tamanhoMovs = ref(20)
 const carregandoMovs = ref(false)
+const filtroTipoMovs = ref("todos")
 
 // Movimentações do drawer (item específico)
 const movDrawer = ref<MovimentacaoEstoque[]>([])
@@ -257,6 +258,7 @@ async function carregarMovimentacoes() {
     carregandoMovs.value = true
     try {
         const pg = await inventarioService.listarMovimentacoes({
+            tipo: filtroTipoMovs.value === "todos" ? undefined : filtroTipoMovs.value,
             pagina: paginaMovs.value,
             tamanho: tamanhoMovs.value,
         })
@@ -275,6 +277,8 @@ watch([paginaMovs, tamanhoMovs], carregarMovimentacoes)
 
 watch(filtroStatusItens, () => { paginaItens.value = 1; carregarItens() })
 watch(filtroCategoriaItens, () => { paginaItens.value = 1; carregarItens() })
+
+watch(filtroTipoMovs, () => { paginaMovs.value = 1; carregarMovimentacoes() })
 
 // Busca — a API atual de listagem de itens não tem filtro de busca, mas
 // passamos o parâmetro como futuro (a API pode suportá-lo sem quebra).
@@ -299,12 +303,6 @@ onMounted(async () => {
                     @click="router.push('/inventario/cadastros')"
                 >
                     Cadastros
-                </AppButton>
-                <AppButton
-                    variant="secondary"
-                    icon="fa-solid fa-cart-plus"
-                >
-                    Pedido de compra
                 </AppButton>
                 <AppButton
                     icon="fa-solid fa-plus"
@@ -367,7 +365,7 @@ onMounted(async () => {
                 @update:pagina="paginaMovs = $event"
                 @update:tamanho="tamanhoMovs = $event"
                 @busca-change="() => {}"
-                @filtro-tipo-change="() => {}"
+                @filtro-tipo-change="filtroTipoMovs = $event"
             />
 
             <!-- Compras -->

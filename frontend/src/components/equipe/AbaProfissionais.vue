@@ -277,7 +277,13 @@ function bulk(acao: "ativar" | "desativar" | "remover") {
 
                 <div class="pr-role">
                     <AppRolePill
-                        v-if="modeloDe(p)"
+                        v-if="p.status === 'Dono'"
+                        nome="Administrador"
+                        icone="fa-crown"
+                        cor="hsl(45 96% 42%)"
+                    />
+                    <AppRolePill
+                        v-else-if="modeloDe(p)"
                         :nome="modeloDe(p)!.nome"
                         :icone="modeloDe(p)!.icone"
                         :cor="modeloDe(p)!.cor"

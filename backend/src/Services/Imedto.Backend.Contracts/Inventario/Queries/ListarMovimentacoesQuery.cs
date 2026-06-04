@@ -7,6 +7,7 @@ public class ListarMovimentacoesQuery : IQuery<PaginaMovimentacoesEstoqueDto>
 {
     public long EstabelecimentoId { get; set; }
     public long? ItemInventarioId { get; set; }
+    public string? Tipo { get; set; }
     public DateOnly? DataInicio { get; set; }
     public DateOnly? DataFim { get; set; }
     public int Pagina { get; set; } = 1;

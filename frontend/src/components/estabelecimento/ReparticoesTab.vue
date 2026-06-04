@@ -19,13 +19,16 @@ function notificar(msg: string, variante: "info" | "success" | "error" = "succes
     toast.value = { msg, variante }
 }
 
-const filtroUnidadeId = ref<number | null>(null)
+const filtroUnidadeId = ref<string>("")
 const incluirInativas = ref(false)
 
 const salasFiltradas = computed(() => {
     let arr = salas.value
     if (!incluirInativas.value) arr = arr.filter(s => s.ativo)
-    if (filtroUnidadeId.value != null) arr = arr.filter(s => s.unidadeId === filtroUnidadeId.value)
+    if (filtroUnidadeId.value !== "") {
+        const uid = Number(filtroUnidadeId.value)
+        arr = arr.filter(s => s.unidadeId === uid)
+    }
     return arr
 })
 
@@ -245,8 +248,8 @@ onMounted(carregarTudo)
         <!-- ── Filtros (unidade + incluir inativas) ── -->
         <div v-if="salas.length > 0" class="filtros-row">
             <AppField v-if="unidades.length > 1" label="Filtrar por unidade" class="filt-unidade">
-                <AppSelect v-model.number="filtroUnidadeId">
-                    <option :value="null">Todas as unidades</option>
+                <AppSelect v-model="filtroUnidadeId">
+                    <option value="">Todas as unidades</option>
                     <option v-for="u in unidades" :key="u.id" :value="u.id">{{ u.nome }}</option>
                 </AppSelect>
             </AppField>

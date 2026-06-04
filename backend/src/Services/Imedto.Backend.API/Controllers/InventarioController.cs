@@ -112,6 +112,7 @@ public class InventarioController : ControllerBase
     [HttpGet("movimentacoes")]
     public async Task<ActionResult<PaginaMovimentacoesEstoqueDto>> ListarMovimentacoes(
         [FromQuery] long? itemInventarioId,
+        [FromQuery] string? tipo,
         [FromQuery] DateOnly? dataInicio,
         [FromQuery] DateOnly? dataFim,
         [FromQuery] int pagina = 1,
@@ -122,6 +123,7 @@ public class InventarioController : ControllerBase
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 ItemInventarioId = itemInventarioId,
+                Tipo = tipo,
                 DataInicio = dataInicio,
                 DataFim = dataFim,
                 Pagina = pagina,

@@ -152,7 +152,6 @@ onMounted(async () => {
             <aside class="painel painel-lista">
                 <div class="painel-cabecalho">
                     <span class="painel-titulo">Modelos cadastrados</span>
-                    <AppButton variant="ghost" size="sm" @click="resetarForm">+ Novo modelo</AppButton>
                 </div>
 
                 <div v-if="carregandoModelos" class="estado-loading-sm">Carregando modelos...</div>
@@ -161,7 +160,7 @@ onMounted(async () => {
                     <AppEmptyState
                         icone="📋"
                         titulo="Nenhum modelo cadastrado"
-                        descricao="Clique em &quot;Novo modelo&quot; para criar o primeiro."
+                        descricao="Use o formulário ao lado para criar o primeiro."
                     />
                 </div>
 

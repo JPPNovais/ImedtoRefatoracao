@@ -16,6 +16,7 @@ public class ListarMovimentacoesQueryHandlers : IRequestHandler<ListarMovimentac
         => _repo.ListarMovimentacoes(
             query.EstabelecimentoId,
             query.ItemInventarioId,
+            query.Tipo,
             query.DataInicio,
             query.DataFim,
             query.Pagina,

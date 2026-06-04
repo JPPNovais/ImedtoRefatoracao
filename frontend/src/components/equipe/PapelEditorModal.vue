@@ -317,8 +317,8 @@ function fechar() {
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 28px;
 }
-.role-preview b { font-size: 15px; color: hsl(var(--primary-dark)); font-weight: 700; }
-.role-preview span { font-size: 12px; color: hsl(var(--secondary) / 0.65); }
+.role-preview b { display: block; font-size: 15px; color: hsl(var(--primary-dark)); font-weight: 700; }
+.role-preview span { display: block; font-size: 12px; color: hsl(var(--secondary) / 0.65); }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-grid :deep(.full) { grid-column: 1 / -1; }

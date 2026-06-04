@@ -108,6 +108,7 @@ export const inventarioService = {
 
     async listarMovimentacoes(params?: {
         itemInventarioId?: number
+        tipo?: string
         dataInicio?: string
         dataFim?: string
         pagina?: number

@@ -163,6 +163,7 @@ function iconePorTipo(t: TipoLocalEstoque): string {
                 <div>Local</div>
                 <div>Tipo</div>
                 <div>Andar / setor</div>
+                <div>Responsável</div>
                 <div>Itens</div>
                 <div>Status</div>
                 <div></div>
@@ -191,6 +192,7 @@ function iconePorTipo(t: TipoLocalEstoque): string {
                     </div>
                     <div class="muted">{{ l.tipo }}</div>
                     <div class="muted">{{ l.andarSetor || "—" }}</div>
+                    <div class="muted">{{ l.responsavel || "—" }}</div>
                     <div class="muted">{{ l.quantidadeItens }}</div>
                     <div>
                         <AppStatusPill :label="l.ativo ? 'Ativo' : 'Inativo'" :variante="l.ativo ? 'success' : 'muted'" />
@@ -293,7 +295,7 @@ function iconePorTipo(t: TipoLocalEstoque): string {
 }
 .thead, .row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1.2fr 0.6fr 110px auto;
+    grid-template-columns: 2fr 1fr 1.2fr 1.2fr 0.6fr 110px auto;
     gap: 12px; align-items: center; padding: 11px 16px;
 }
 .thead {

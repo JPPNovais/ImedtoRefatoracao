@@ -467,6 +467,7 @@ onMounted(async () => {
     background: rgba(30, 27, 75, 0.05); border-radius: 999px;
 }
 .aba {
+    position: relative;
     border: none; background: none; cursor: pointer;
     padding: 0.35rem 0.95rem; border-radius: 999px;
     font-family: inherit; font-size: 0.78em; font-weight: 600;
@@ -478,6 +479,13 @@ onMounted(async () => {
     background: var(--primary-light, #ede9fe);
     color: var(--primary-dark, #4c1d95);
     box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.aba.ativa::after {
+    content: "";
+    position: absolute;
+    left: 0.95rem; right: 0.95rem; bottom: 0.18rem;
+    height: 2px; border-radius: 2px;
+    background: var(--primary, #7c3aed);
 }
 
 .aba-conteudo { animation: fadein 0.18s ease-out; }
