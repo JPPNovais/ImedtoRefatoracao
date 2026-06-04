@@ -13,6 +13,7 @@
  *   - Modal de edição/reagendamento: EditarAgendamentoModal (modal único com toggle inline)
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import {
     AppButton, AppCard, AppPageHeader, AppEmptyState, AppSelect,
     AppDateStrip, AppStatCard, AppField, AppInput, AppAvatarSelect,
@@ -36,6 +37,8 @@ import { dataISO, formatHora, hojeISO } from "@/utils/datetime"
 
 const auth = useAuthStore()
 const tenant = useTenantStore()
+const route = useRoute()
+const router = useRouter()
 
 // ─── Data selecionada ───
 // Usa "hoje em Brasília" como fonte da verdade — independente do fuso do navegador
@@ -248,6 +251,32 @@ onMounted(async () => {
         } catch { /* não crítico */ }
     }
     await Promise.all([carregarDia(), carregarContagens(), carregarListaEspera()])
+
+    // Deep-link: ?pacienteId=123 abre modal de novo agendamento pré-selecionando o paciente.
+    const pacienteIdParam = route.query.pacienteId
+    if (pacienteIdParam) {
+        const id = Number(pacienteIdParam)
+        if (!Number.isNaN(id) && id > 0) {
+            try {
+                const paciente = await pacienteService.obter(id)
+                const item: PacienteListaItem = {
+                    id: paciente.id,
+                    nomeCompleto: paciente.nomeCompleto,
+                    cpf: null,
+                    documentoInternacional: null,
+                    dataNascimento: paciente.dataNascimento ?? null,
+                    telefone: paciente.telefone ?? null,
+                    criadoEm: "",
+                    tags: [],
+                    qtdAlertas: 0,
+                }
+                encaixePaciente.value = item
+                await abrirModalNovo()
+            } catch { /* paciente não encontrado — ignora silenciosamente */ }
+        }
+        // Limpa query param para não re-disparar ao refresh
+        router.replace({ ...route, query: { ...route.query, pacienteId: undefined } })
+    }
 })
 
 onBeforeUnmount(() => {

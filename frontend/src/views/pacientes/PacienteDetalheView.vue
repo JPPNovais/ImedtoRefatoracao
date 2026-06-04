@@ -465,7 +465,7 @@ function orcStatusClass(s: string): string {
                             <h3><i class="fa-solid fa-bolt"></i> Próximas ações</h3>
                         </div>
                         <div class="next-actions">
-                            <div v-if="proximaConsulta" class="na-item" @click="router.push({ name: 'Agenda' })">
+                            <div v-if="proximaConsulta" class="na-item" @click="router.push({ name: 'Agenda', query: { pacienteId: String(pacienteId) } })">
                                 <div class="na-icon na-icon--appointment">
                                     <i class="fa-solid fa-calendar-check"></i>
                                 </div>
