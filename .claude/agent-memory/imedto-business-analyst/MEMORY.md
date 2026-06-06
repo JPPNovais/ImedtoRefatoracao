@@ -4,3 +4,4 @@
 - [Especialidade por vínculo/estabelecimento](project_especialidade_por_vinculo.md) — regra canônica COALESCE(v.especialidade_convidada, p.especialidade); 3 pontos de leitura; vale nos PDFs; sem migration.
 - [Modelo de permissão global: cópias vs live-link](project_modelo_permissao_global_copias_vs_livelink.md) — padrão de permissão editável no admin usa cópias materializadas + propagação cross-tenant, NÃO live-link (vínculo FK por tenant).
 - [AppPillToggle (toggle segmentado)](project_apppilltoggle_design_system.md) — componente canônico para escolha binária/segmentada; ainda não consta em Docs/DESIGN.md (backlog de doc).
+- [Pool de variáveis ↔ prontuário](project_pool_variaveis_vinculo_prontuario.md) — criação ao salvar evolução (sem ModelosProntuario), dedup acento-insensível reusa padrão-sistema, só `nome` (LGPD), Droga+AtividadeFisica removidos.

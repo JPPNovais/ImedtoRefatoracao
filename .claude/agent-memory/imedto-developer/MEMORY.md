@@ -6,3 +6,4 @@
 - [Modelos de permissão padrão sistema implementado](project_modelos_permissao_padrao_sistema.md) — briefing 2026-06-04_001; backend 0 erros, 1251 testes verdes; frontend build + 388 testes verdes; migration pendente com imedto-database.
 - [F1: orcamento_valor_profissional vazia é gap de UI, não bug](project_f1_valores_profissional_gap.md) — sem aba de cadastro em OrcamentoSettingsView; briefing próprio necessário.
 - [Visibilidade profissionais por papel implementada](project_visibilidade_profissionais_papel.md) — briefing 2026-06-04_007; AppPopover no DS; 19 testes verdes; 100% frontend.
+- [Pool variáveis autocomplete prontuário implementado](project_pool_variaveis_autocomplete.md) — briefing 2026-06-05_001; 5 tipos cabeados; AppAutocompleteCriavel no DS; backend 0 erros/1375 testes; frontend 458 testes verdes; migration pendente.
