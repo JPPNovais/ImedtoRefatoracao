@@ -1,0 +1,40 @@
+{
+  "name": "imedto-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Imedto Mobile — app do médico (Capacitor + Vue 3). Consome a API do backend Imedto; nada de acesso direto ao banco.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "cap:sync": "cap sync",
+    "cap:ios": "cap run ios",
+    "cap:android": "cap run android"
+  },
+  "dependencies": {
+    "@capacitor-community/speech-recognition": "^6.0.0",
+    "@capacitor-community/sqlite": "^6.0.2",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/camera": "^6.1.2",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/haptics": "^6.0.2",
+    "@capacitor/network": "^6.0.3",
+    "@capacitor/preferences": "^6.0.3",
+    "@capacitor/push-notifications": "^6.0.4",
+    "@capacitor/share": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2",
+    "capacitor-native-biometric": "^4.2.2",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.3",
+    "vue-tsc": "^2.1.10"
+  }
+}

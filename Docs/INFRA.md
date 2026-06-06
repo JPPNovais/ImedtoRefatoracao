@@ -30,6 +30,8 @@
 
 > **Atenção:** SG da EC2 (`sg-0555c057e7d4dc46b`) libera SSH `0.0.0.0/0` (necessário pro GitHub Actions runner). Em prod, restringir a ranges específicos.
 
+> **CORS da API (`Cors__AllowedOrigins` em `deploy/docker-compose.yml`):** além de `app.imedto.com`/`imedto.com`/`www.imedto.com`, inclui as origens do **app mobile** (Capacitor): `capacitor://localhost`, `https://localhost`, `http://localhost`, `ionic://localhost`. No device o app usa `CapacitorHttp` (HTTP nativo, isento de CORS) com cookie de sessão no cookie jar nativo; as origens acima cobrem WebView/preview no browser. O cookie de auth já é `SameSite=None; Secure` em produção (`AuthController`), pré-requisito para sessão cross-site. App em [`mobile/`](../mobile/).
+
 ## Database (Postgres 17 — container na própria EC2)
 
 > **2026-05-30 — saída do RDS.** Para reduzir custo no estágio de teste/baixo volume, o banco

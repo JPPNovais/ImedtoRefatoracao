@@ -62,6 +62,13 @@ services:
       Cors__AllowedOrigins__0: "https://app.imedto.com"
       Cors__AllowedOrigins__1: "https://imedto.com"
       Cors__AllowedOrigins__2: "https://www.imedto.com"
+      # App mobile (Capacitor): origens do WebView (iOS/Android) quando o app usa
+      # fetch do browser. No device o CapacitorHttp (HTTP nativo) não passa por CORS,
+      # mas mantemos estas origens liberadas para WebView/preview e robustez.
+      Cors__AllowedOrigins__3: "capacitor://localhost"
+      Cors__AllowedOrigins__4: "https://localhost"
+      Cors__AllowedOrigins__5: "http://localhost"
+      Cors__AllowedOrigins__6: "ionic://localhost"
     expose: ["5000"]
     depends_on:
       postgres:

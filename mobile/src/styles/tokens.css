@@ -1,0 +1,234 @@
+/* ─────────────────────────────────────────────────────────────
+   Imedto — Colors & Type tokens
+   Source of truth for the Imedto brand foundations.
+   Mirrors packages/design-system/src/styles/styles.css from the
+   Imedto codebase, with Nunito as the typeface.
+   ───────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
+
+/* Self-hosted FontAwesome Brands (uploaded). Used by .fa-brands when offline / Pro Kit not loaded.
+   Solid + Regular still come from the FA Free CDN — see preview/brand-iconography.html. */
+@font-face {
+  font-family: 'Font Awesome 6 Brands';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('fonts/Font_Awesome_6_Brands-Regular-400.otf') format('opentype');
+}
+
+:root {
+  /* ═════════════ COLOR — RAW (HSL channels for hsl(var(...))) ═════════════ */
+  --background: 240 33% 99%;
+  --foreground: 0 0% 24%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 24%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 24%;
+
+  --primary: 254 56% 38%;          /* #452B97 — Imedto purple */
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 240 33% 99%;    /* near-white app surface */
+  --primary-dark: 254 56% 21%;     /* #241554 — deep purple */
+
+  --secondary: 0 0% 24%;           /* near-black neutral text */
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 240 5% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 254 40% 95%;
+  --accent-foreground: 254 56% 38%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 254 56% 38%;
+  --radius: 0.5rem;
+
+  --success: 160 79% 39%;          /* #10B981 */
+  --success-foreground: 0 0% 100%;
+  --warning: 45 96% 47%;           /* #F59E0B */
+  --warning-foreground: 0 0% 15%;
+  --info: 199 89% 48%;             /* #3B82F6 */
+  --info-foreground: 0 0% 100%;
+  --error: 0 84% 60%;              /* #EF4444 */
+  --error-foreground: 0 0% 100%;
+  --neutral: 0 0% 100%;
+
+  --chart-1: 254 56% 38%;
+  --chart-2: 160 79% 39%;
+  --chart-3: 199 89% 48%;
+  --chart-4: 45 96% 47%;
+  --chart-5: 0 84% 60%;
+
+  /* ═════════════ COLOR — CONVENIENCE HEX (for raw HTML usage) ═════════════ */
+  --c-bg:           hsl(var(--background));
+  --c-fg:           hsl(var(--foreground));
+  --c-card:         hsl(var(--card));
+  --c-primary:      hsl(var(--primary));
+  --c-primary-light: hsl(var(--primary-light));
+  --c-primary-dark: hsl(var(--primary-dark));
+  --c-secondary:    hsl(var(--secondary));
+  --c-muted:        hsl(var(--muted));
+  --c-muted-fg:     hsl(var(--muted-foreground));
+  --c-accent:       hsl(var(--accent));
+  --c-border:       hsl(var(--border));
+  --c-success:      hsl(var(--success));
+  --c-warning:      hsl(var(--warning));
+  --c-info:         hsl(var(--info));
+  --c-error:        hsl(var(--error));
+  --c-neutral:      hsl(var(--neutral));
+
+  /* ═════════════ TYPE — FAMILIES ═════════════ */
+  --font-sans: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ═════════════ TYPE — WEIGHTS ═════════════ */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+
+  /* ═════════════ TYPE — SCALE (rem-based) ═════════════ */
+  --fs-xs:   0.75rem;   /* 12 */
+  --fs-sm:   0.875rem;  /* 14 */
+  --fs-base: 1rem;      /* 16 */
+  --fs-lg:   1.125rem;  /* 18 */
+  --fs-xl:   1.25rem;   /* 20 */
+  --fs-2xl:  1.5rem;    /* 24 */
+  --fs-3xl:  1.875rem;  /* 30 */
+  --fs-4xl:  2.25rem;   /* 36 */
+  --fs-5xl:  3rem;      /* 48 */
+
+  /* ═════════════ SPACING & RADII ═════════════ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  --radius-sm: calc(var(--radius) - 4px); /* 4px */
+  --radius-md: calc(var(--radius) - 2px); /* 6px */
+  --radius-lg: var(--radius);             /* 8px */
+  --radius-xl: 0.75rem;                   /* 12px — cards */
+  --radius-2xl: 1rem;                     /* 16px — hero cards */
+  --radius-full: 9999px;
+
+  /* ═════════════ SHADOWS — soft, low-contrast (medical/clean vibe) ═════════════ */
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow:     0 2px 8px -2px rgb(0 0 0 / 0.06), 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-md:  0 6px 18px -6px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-lg:  0 12px 32px -10px rgb(0 0 0 / 0.14);
+  --shadow-primary: 0 8px 24px -8px hsl(var(--primary) / 0.35);
+
+  /* ═════════════ MOTION ═════════════ */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+}
+
+/* ═════════════ BASE ═════════════ */
+* { box-sizing: border-box; }
+html, body {
+  font-family: var(--font-sans);
+  color: var(--c-secondary);
+  background: var(--c-primary-light);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═════════════ SEMANTIC TYPE — match Imedto's "first letter only" sentence-case rule ═════════════ */
+.h-display {
+  font-family: var(--font-display);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--fs-5xl);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--c-primary-dark);
+}
+.h1 {
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-4xl);
+  line-height: 1.1;
+  color: var(--c-primary-dark);
+  letter-spacing: -0.015em;
+}
+.h2 {
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-3xl);
+  line-height: 1.15;
+  color: var(--c-primary-dark);
+}
+.h3 {
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-2xl);
+  line-height: 1.2;
+  color: var(--c-primary-dark);
+}
+.h4 { /* matches @layer base h4 from Imedto styles */
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-xl);
+  line-height: 1.25;
+  color: var(--c-primary-dark);
+}
+.h5 {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-lg);
+  color: var(--c-secondary);
+}
+.body {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-regular);
+  color: var(--c-secondary);
+}
+.body-sm {
+  font-size: var(--fs-sm);
+  color: var(--c-secondary);
+}
+.caption {
+  font-size: var(--fs-xs);
+  color: hsl(var(--secondary) / 0.7);
+}
+.eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-primary);
+}
+
+/* ═════════════ FIELD LABELS — exact rules from Imedto styles.css ═════════════ */
+.field-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--c-secondary);
+  margin-bottom: 0.25rem;
+}
+.field-label-compact {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--c-secondary);
+  margin-bottom: 0.25rem;
+}
+.field-label-dense {
+  display: block;
+  font-size: 10px;
+  line-height: 1;
+  color: hsl(var(--secondary) / 0.6);
+  margin-bottom: 0.125rem;
+}
+

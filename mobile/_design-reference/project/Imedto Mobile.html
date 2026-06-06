@@ -1,0 +1,2267 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Imedto Mobile — Agenda</title>
+<link rel="icon" href="assets/imedto-favicon.png" />
+<link rel="stylesheet" href="styles/tokens.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
+<style>
+/* ════════════════ THEME LAYER (app-level vars for light + dark) ════════════════ */
+.app {
+  --app-bg: hsl(var(--background));
+  --app-card: #ffffff;
+  --app-card-2: hsl(var(--muted));
+  --app-border: hsl(var(--border));
+  --app-text: hsl(var(--secondary));
+  --app-text-dim: hsl(var(--secondary) / 0.62);
+  --app-text-faint: hsl(var(--secondary) / 0.45);
+  --app-muted-fg: hsl(var(--muted-foreground));
+  --brand: hsl(var(--primary));
+  --brand-strong: hsl(var(--primary-dark));
+  --brand-soft: hsl(var(--primary) / 0.08);
+  --brand-tint: hsl(var(--primary) / 0.06);
+  --c-on-card: var(--app-text);
+  --bar-bg: rgba(255,255,255,0.86);
+  --sheet-grip: hsl(var(--secondary) / 0.18);
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-pop: 0 12px 32px -10px rgb(0 0 0 / 0.18);
+}
+.app.dark {
+  --app-bg: #131019;
+  --app-card: #1c1828;
+  --app-card-2: #262134;
+  --app-border: #322c46;
+  --app-text: #ecebf4;
+  --app-text-dim: rgba(236,235,244,0.62);
+  --app-text-faint: rgba(236,235,244,0.4);
+  --app-muted-fg: #9b95ad;
+  --brand: #a288f2;
+  --brand-strong: #c2afff;
+  --brand-soft: rgba(162,136,242,0.18);
+  --brand-tint: rgba(162,136,242,0.1);
+  --bar-bg: rgba(28,24,40,0.84);
+  --sheet-grip: rgba(255,255,255,0.22);
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
+}
+
+/* ════════════════ CANVAS ════════════════ */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: var(--font-sans);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, hsl(254 56% 38% / 0.10), transparent 60%),
+    #ecebf2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 30px 16px 48px;
+}
+
+/* canvas chrome (outside the phone) */
+.chrome {
+  width: 393px; max-width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.chrome .label { display: flex; flex-direction: column; gap: 1px; }
+.chrome .label b { font-size: 14px; font-weight: 800; color: hsl(var(--primary-dark)); letter-spacing: -0.01em; }
+.chrome .label span { font-size: 11px; color: hsl(var(--secondary) / 0.5); font-weight: 600; }
+.theme-toggle {
+  display: inline-flex; background: #fff; border: 1px solid hsl(var(--border)); border-radius: var(--radius-full);
+  padding: 3px; gap: 2px; box-shadow: var(--shadow-sm);
+}
+.theme-toggle button {
+  border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700;
+  color: hsl(var(--secondary) / 0.55); padding: 6px 12px; border-radius: var(--radius-full);
+  display: inline-flex; align-items: center; gap: 6px; transition: all var(--dur-base) var(--ease-out);
+}
+.theme-toggle button.on { background: hsl(var(--primary)); color: #fff; }
+
+/* ════════════════ PHONE FRAME (cross-platform neutral) ════════════════ */
+.phone {
+  width: 393px; height: 852px; max-width: 100%;
+  background: #0b0a0f; border-radius: 50px; padding: 11px;
+  box-shadow: 0 40px 90px -30px rgb(40 24 90 / 0.5), 0 0 0 2px rgba(255,255,255,0.04) inset;
+  position: relative; flex: none;
+}
+.screen {
+  position: relative; width: 100%; height: 100%; border-radius: 40px; overflow: hidden;
+  background: var(--app-bg); color: var(--app-text);
+  display: flex; flex-direction: column;
+}
+
+/* status bar */
+.statusbar {
+  height: 50px; flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 26px 6px; font-size: 14px; font-weight: 700; color: var(--app-text); z-index: 30;
+  position: relative;
+}
+.statusbar .ind { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.notch { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); width: 116px; height: 30px; background: #0b0a0f; border-radius: 16px; z-index: 31; }
+
+/* ════════════════ TOP BAR (contextual) ════════════════ */
+.topbar {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 4px 16px 12px; background: var(--app-bg);
+}
+.switcher {
+  display: flex; align-items: center; gap: 10px; border: 0; background: transparent; cursor: pointer; font: inherit;
+  padding: 4px 8px 4px 4px; border-radius: var(--radius-full); min-width: 0;
+}
+.switcher:active { background: var(--brand-soft); }
+.switcher .badge {
+  width: 38px; height: 38px; flex: none; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, hsl(var(--primary)), hsl(var(--primary-dark))); color: #fff; font-size: 15px;
+}
+.switcher .meta { text-align: left; min-width: 0; }
+.switcher .meta b { display: flex; align-items: center; gap: 6px; font-size: 15.5px; font-weight: 800; color: var(--app-text); }
+.switcher .meta b i { font-size: 11px; color: var(--app-text-dim); }
+.switcher .meta span { display: block; font-size: 11.5px; color: var(--app-text-dim); font-weight: 600; }
+.topbar .tools { display: flex; align-items: center; gap: 4px; flex: none; }
+.iconbtn {
+  width: 40px; height: 40px; border-radius: var(--radius-full); border: 0; background: transparent; cursor: pointer;
+  color: var(--app-text); font-size: 17px; display: flex; align-items: center; justify-content: center; position: relative;
+}
+.iconbtn:active { background: var(--app-card-2); }
+.iconbtn .dot { position: absolute; top: 8px; right: 9px; width: 9px; height: 9px; border-radius: 50%; background: hsl(var(--error)); border: 2px solid var(--app-bg); }
+
+/* ════════════════ SCROLL BODY ════════════════ */
+.body { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; position: relative; }
+.body::-webkit-scrollbar { width: 0; }
+.view { display: none; padding: 4px 16px 120px; }
+.view.active { display: block; }
+
+/* pull to refresh */
+.ptr { height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--brand); transition: height var(--dur-base) var(--ease-out); }
+.ptr i { font-size: 16px; }
+.ptr.spin i { animation: sp 0.7s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* ════════════════ DATE STRIP ════════════════ */
+.datestrip { display: flex; align-items: center; gap: 4px; margin: 2px 0 14px; }
+.datestrip .arrow { width: 30px; height: 56px; border: 0; background: transparent; color: var(--app-text-dim); font-size: 14px; cursor: pointer; flex: none; }
+.datestrip .days { display: flex; gap: 6px; flex: 1; justify-content: space-between; }
+.dcell {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 7px 0 6px; border-radius: 14px;
+  cursor: pointer; border: 1.5px solid transparent;
+}
+.dcell .dow { font-size: 10.5px; font-weight: 700; color: var(--app-text-faint); text-transform: uppercase; letter-spacing: 0.03em; }
+.dcell .dnum { font-size: 15px; font-weight: 800; color: var(--app-text); }
+.dcell .ddot { width: 4px; height: 4px; border-radius: 50%; background: var(--brand); opacity: 0; }
+.dcell.has .ddot { opacity: 0.55; }
+.dcell.sel { background: var(--brand); border-color: var(--brand); }
+.dcell.sel .dow, .dcell.sel .dnum { color: #fff; }
+.dcell.sel .ddot { background: #fff; opacity: 0.9; }
+
+/* ════════════════ STAT MINI CARDS ════════════════ */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+.stat { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 11px 12px; box-shadow: var(--shadow-card); }
+.stat .n { font-size: 22px; font-weight: 800; color: var(--app-text); line-height: 1; }
+.stat .l { font-size: 11px; font-weight: 700; color: var(--app-text-dim); margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+.stat .l i { font-size: 10px; }
+.stat.ok .n { color: hsl(var(--success)); }
+
+/* ════════════════ SECTION LABELS ════════════════ */
+.sec-h { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 9px; }
+.sec-h .t { font-size: 11.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--app-text-faint); }
+.sec-h .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; color: var(--brand); background: var(--brand-soft); padding: 4px 10px; border-radius: var(--radius-full); white-space: nowrap; flex: none; }
+
+/* ════════════════ APPOINTMENT CARD ════════════════ */
+.appt {
+  background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl);
+  padding: 13px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-card);
+  position: relative; overflow: hidden;
+}
+.appt .accent { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
+.appt.alert .accent { background: hsl(var(--error)); }
+.appt .av { width: 42px; height: 42px; flex: none; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.appt .who { flex: 1 1 0; min-width: 0; }
+.appt .who .ln1 { display: flex; align-items: center; gap: 8px; }
+.appt .who .time { font-size: 14px; font-weight: 800; color: var(--app-text); flex: none; }
+.appt .who .nm { font-size: 14.5px; font-weight: 700; color: var(--app-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
+.appt .who .alert-dot { margin-left: 2px; }
+.appt .who .ln2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.appt .who .sub { font-size: 12px; color: var(--app-text-dim); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; }
+.appt .who .ln2 .pill { flex: none; margin-left: auto; }
+
+.alert-dot { width: 9px; height: 9px; border-radius: 50%; background: hsl(var(--error)); flex: none; box-shadow: 0 0 0 3px hsl(var(--error) / 0.16); }
+
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.pill i { font-size: 9px; }
+.p-success { background: hsl(var(--success) / 0.14); color: hsl(160 70% 34%); }
+.p-warning { background: hsl(var(--warning) / 0.18); color: hsl(35 88% 36%); }
+.p-error   { background: hsl(var(--error) / 0.12); color: hsl(var(--error)); }
+.p-info    { background: hsl(var(--info) / 0.12); color: hsl(var(--info)); }
+.p-muted   { background: var(--app-card-2); color: var(--app-text-dim); }
+.dark .p-success { color: #4fd6a3; }
+.dark .p-warning { color: #f4c44d; }
+
+/* próximo highlight */
+.next-card { border-color: hsl(var(--primary) / 0.28); box-shadow: 0 8px 22px -12px hsl(var(--primary) / 0.4); }
+.dark .next-card { border-color: var(--brand); }
+.next-card .time { color: var(--brand); }
+
+/* mais tarde list */
+.stack { display: flex; flex-direction: column; gap: 9px; }
+
+/* swipe row */
+.swipe { position: relative; border-radius: var(--radius-xl); }
+.swipe-actions { position: absolute; inset: 0; display: flex; justify-content: flex-end; gap: 0; border-radius: var(--radius-xl); overflow: hidden; }
+.swipe-actions button { border: 0; width: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font: inherit; font-size: 11px; font-weight: 800; color: #fff; cursor: pointer; }
+.swipe-actions .a-done { background: hsl(var(--success)); }
+.swipe-actions .a-miss { background: hsl(var(--error)); }
+.swipe-actions button i { font-size: 15px; }
+.swipe-card { position: relative; touch-action: pan-y; transition: transform var(--dur-base) var(--ease-out); will-change: transform; z-index: 1; }
+.swipe.open .swipe-card { transform: translateX(-144px); }
+
+/* empty placeholder for unbuilt tabs */
+.empty { text-align: center; padding: 80px 24px; color: var(--app-text-dim); }
+.empty i { font-size: 40px; color: var(--brand); opacity: 0.5; }
+.empty b { display: block; font-size: 16px; font-weight: 800; color: var(--app-text); margin: 16px 0 6px; }
+.empty p { font-size: 13px; }
+
+/* ════════════════ PACIENTES (Tela 3) ════════════════ */
+.psearch { position: relative; margin: 4px 0 12px; }
+.psearch > i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--app-text-faint); font-size: 14px; pointer-events: none; }
+.psearch input { width: 100%; padding: 12px 14px 12px 40px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14.5px; color: var(--app-text); outline: none; }
+.psearch input::placeholder { color: var(--app-text-faint); }
+.psearch input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.psearch .clr { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; border: 0; background: transparent; color: var(--app-text-faint); cursor: pointer; display: none; }
+.psearch.has-val .clr { display: block; }
+
+.fpills { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }
+.fpills::-webkit-scrollbar { height: 0; }
+.fpill { flex: none; padding: 8px 14px; border-radius: var(--radius-full); border: 1px solid var(--app-border); background: var(--app-card); font: inherit; font-size: 13px; font-weight: 700; color: var(--app-text-dim); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+.fpill .cnt { font-size: 11px; font-weight: 800; opacity: 0.65; }
+.fpill.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.fpill.on .cnt { opacity: 0.85; }
+
+.pcount { font-size: 11.5px; color: var(--app-text-faint); font-weight: 700; margin: 0 2px 10px; }
+.plist { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; }
+.prow { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--app-border); cursor: pointer; }
+.prow:last-child { border-bottom: 0; }
+.prow:active { background: var(--app-card-2); }
+.prow .av { width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.prow .pinfo { flex: 1; min-width: 0; }
+.prow .pinfo .pn { display: flex; align-items: center; gap: 8px; }
+.prow .pinfo .pn b { font-size: 14.5px; font-weight: 700; color: var(--app-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prow .pinfo .psub { font-size: 12px; color: var(--app-text-dim); font-weight: 600; margin-top: 2px; }
+.prow .chev { color: var(--app-text-faint); font-size: 13px; flex: none; }
+
+/* skeleton */
+.skrow { display: flex; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid var(--app-border); }
+.skrow:last-child { border-bottom: 0; }
+.sk { background: var(--app-card-2); border-radius: 6px; animation: pulse 1.2s var(--ease-in-out) infinite; }
+.sk-av { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+.sk-l { height: 11px; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* ════════════════ BOTTOM TAB BAR ════════════════ */
+.tabbar {
+  flex: none; height: 86px; padding: 8px 14px 22px; display: grid; grid-template-columns: repeat(5, 1fr);
+  align-items: center; background: var(--bar-bg); backdrop-filter: saturate(160%) blur(18px);
+  border-top: 1px solid var(--app-border); position: relative; z-index: 20;
+}
+.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; border: 0; background: transparent; cursor: pointer; font: inherit; color: var(--app-text-faint); padding: 4px 0; }
+.tab i { font-size: 19px; }
+.tab span { font-size: 10.5px; font-weight: 700; }
+.tab.on { color: var(--brand); }
+.tab .badge-n { position: absolute; }
+.tab.has-badge { position: relative; }
+.tab.has-badge .nb { position: absolute; top: 0; right: 50%; margin-right: -22px; background: hsl(var(--error)); color: #fff; font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bar-bg); }
+
+.fab-slot { display: flex; align-items: flex-start; justify-content: center; }
+.fab {
+  width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer; margin-top: -26px;
+  background: linear-gradient(150deg, hsl(var(--primary)), hsl(var(--primary-dark))); color: #fff; font-size: 23px;
+  box-shadow: 0 10px 24px -8px hsl(var(--primary) / 0.6); display: flex; align-items: center; justify-content: center;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+.fab:active { transform: scale(0.92); }
+.fab.rot { transform: rotate(45deg); }
+
+/* ════════════════ SHEETS + SCRIM ════════════════ */
+.scrim { position: absolute; inset: 0; background: rgba(15,10,30,0.46); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); z-index: 40; }
+.scrim.show { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; background: var(--app-card); z-index: 50;
+  border-radius: 24px 24px 0 0; padding: 10px 18px calc(22px + env(safe-area-inset-bottom));
+  transform: translateY(110%); transition: transform var(--dur-slow) var(--ease-out); box-shadow: var(--shadow-pop);
+}
+.sheet.show { transform: translateY(0); }
+.sheet .grip { width: 40px; height: 4px; border-radius: 2px; background: var(--sheet-grip); margin: 4px auto 14px; }
+.sheet .sh-title { font-size: 17px; font-weight: 800; color: var(--app-text); margin: 0 4px 4px; }
+.sheet .sh-sub { font-size: 12.5px; color: var(--app-text-dim); margin: 0 4px 14px; font-weight: 600; }
+
+/* action sheet rows */
+.act-row { display: flex; align-items: center; gap: 14px; padding: 13px 8px; border-radius: 14px; cursor: pointer; }
+.act-row:active { background: var(--app-card-2); }
+.act-row .ic { width: 44px; height: 44px; flex: none; border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.act-row .tx b { display: block; font-size: 15px; font-weight: 700; color: var(--app-text); }
+.act-row .tx span { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.act-row .chev { margin-left: auto; color: var(--app-text-faint); font-size: 14px; }
+.ic-violet { background: var(--brand-soft); color: var(--brand); }
+.ic-blue { background: hsl(var(--info) / 0.13); color: hsl(var(--info)); }
+.ic-green { background: hsl(var(--success) / 0.13); color: hsl(160 70% 36%); }
+.ic-amber { background: hsl(var(--warning) / 0.16); color: hsl(35 88% 38%); }
+
+/* establishment switch list */
+.estab { display: flex; align-items: center; gap: 13px; padding: 13px 8px; border-radius: 14px; cursor: pointer; }
+.estab:active { background: var(--app-card-2); }
+.estab .badge { width: 44px; height: 44px; flex: none; border-radius: 13px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; }
+.estab .tx { flex: 1; }
+.estab .tx b { display: block; font-size: 15px; font-weight: 800; color: var(--app-text); }
+.estab .tx .role { display: inline-flex; align-items: center; gap: 7px; margin-top: 3px; }
+.role-pill { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: var(--radius-full); background: var(--brand-soft); color: var(--brand); }
+.estab .tx .cnt { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.estab .check { width: 24px; height: 24px; border-radius: 50%; background: hsl(var(--success)); color: #fff; display: none; align-items: center; justify-content: center; font-size: 12px; }
+.estab.cur .check { display: flex; }
+.estab.cur { background: var(--brand-tint); }
+
+/* toast */
+.toast { position: absolute; left: 16px; right: 16px; top: 56px; background: var(--app-card); border: 1px solid var(--app-border); border-left: 4px solid hsl(var(--success)); border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow-pop); display: flex; align-items: center; gap: 11px; font-size: 13px; font-weight: 700; color: var(--app-text); z-index: 60; transform: translateY(-160%); transition: transform var(--dur-slow) var(--ease-out); }
+.toast.show { transform: translateY(0); }
+.toast { transform: translateY(-240%); }
+.toast i { color: hsl(var(--success)); font-size: 16px; }
+
+/* ════════════════ PUSH SCREENS (drill-in, slide from right) ════════════════ */
+.push {
+  position: absolute; top: 50px; left: 0; right: 0; bottom: 0; background: var(--app-bg); color: var(--app-text);
+  z-index: 38; transform: translateX(100%); transition: transform var(--dur-slow) var(--ease-out);
+  display: flex; flex-direction: column;
+}
+.push.show { transform: translateX(0); }
+.push-head { flex: none; display: flex; align-items: center; gap: 4px; padding: 8px 10px 10px; }
+.push-head .ph-title { font-size: 17px; font-weight: 800; color: var(--app-text); flex: 1; }
+.push-body { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 4px 18px 40px; }
+.push-body::-webkit-scrollbar { width: 0; }
+
+/* detalhe do agendamento */
+.ag-time { display: flex; align-items: center; gap: 8px; font-size: 15.5px; font-weight: 800; color: var(--app-text); margin: 2px 2px 10px; white-space: nowrap; }
+.ag-time .sep { color: var(--app-text-faint); }
+#agStatus { margin: 0 0 18px 2px; }
+
+.pat-card { width: 100%; display: flex; align-items: center; gap: 13px; background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 14px; text-align: left; cursor: pointer; box-shadow: var(--shadow-card); margin-bottom: 20px; font: inherit; }
+.pat-card:active { background: var(--app-card-2); }
+.pat-card .av { width: 48px; height: 48px; flex: none; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
+.pat-card .pc-tx { flex: 1; min-width: 0; }
+.pat-card .pc-tx b { display: block; font-size: 16px; font-weight: 800; color: var(--app-text); }
+.pat-card .pc-tx > span { font-size: 12.5px; color: var(--app-text-dim); font-weight: 600; }
+.pat-card .chev { color: var(--app-text-faint); font-size: 15px; flex: none; }
+.alert-mini { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11.5px; font-weight: 800; color: hsl(var(--error)); background: hsl(var(--error) / 0.12); padding: 4px 9px; border-radius: var(--radius-full); }
+
+.f-label { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--app-text-faint); margin: 0 2px 8px; }
+.ag-obs { background: var(--app-card-2); border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 22px; font-size: 14px; color: var(--app-text); line-height: 1.5; }
+
+.btn-primary-lg { width: 100%; background: linear-gradient(150deg, hsl(var(--primary)), hsl(var(--primary-dark))); color: #fff; border: 0; padding: 15px; border-radius: var(--radius-lg); font: inherit; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer; box-shadow: var(--shadow-primary); margin-bottom: 10px; }
+.btn-primary-lg:active { transform: scale(0.985); }
+.btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.btn-soft { flex: 1; padding: 14px; border-radius: var(--radius-lg); border: 0; font: inherit; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.btn-soft.ok { background: hsl(var(--success) / 0.13); color: hsl(160 70% 34%); }
+.btn-soft.danger { background: hsl(var(--error) / 0.11); color: hsl(var(--error)); }
+.dark .btn-soft.ok { color: #4fd6a3; }
+.btn-outline { width: 100%; padding: 14px; border-radius: var(--radius-lg); border: 1px solid var(--app-border); background: var(--app-card); color: var(--app-text); font: inherit; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer; margin-bottom: 10px; }
+.btn-outline:active { background: var(--app-card-2); }
+.btn-outline .fa-whatsapp { color: #25D366; }
+
+/* confirm dialog */
+.dialog-scrim { position: absolute; inset: 0; background: rgba(15,10,30,0.5); opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); z-index: 54; }
+.dialog-scrim.show { opacity: 1; pointer-events: auto; }
+.dialog { position: absolute; left: 28px; right: 28px; top: 50%; transform: translateY(-50%) scale(0.94); opacity: 0; pointer-events: none; background: var(--app-card); border-radius: 22px; padding: 24px 22px 20px; z-index: 55; box-shadow: var(--shadow-pop); text-align: center; transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+.dialog.show { opacity: 1; pointer-events: auto; transform: translateY(-50%) scale(1); }
+.dlg-ic { width: 54px; height: 54px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: hsl(var(--error) / 0.12); color: hsl(var(--error)); }
+.dialog b { font-size: 17px; font-weight: 800; color: var(--app-text); display: block; margin-bottom: 7px; }
+.dialog p { font-size: 13.5px; color: var(--app-text-dim); margin-bottom: 20px; line-height: 1.5; font-weight: 600; }
+.dlg-actions { display: flex; gap: 10px; }
+.dlg-actions button { flex: 1; margin: 0; }
+.btn-danger { padding: 13px; border-radius: var(--radius-lg); border: 0; background: hsl(var(--error)); color: #fff; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+
+/* share sheet */
+.share-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 4px 2px 6px; }
+.share-item { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; font-size: 11px; font-weight: 700; color: var(--app-text-dim); border: 0; background: transparent; font-family: inherit; }
+.share-item .si { width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #fff; }
+.si-wa { background: #25D366; } .si-mail { background: hsl(var(--info)); } .si-msg { background: hsl(var(--success)); }
+.si-copy { background: var(--app-card-2); color: var(--app-text); }
+
+/* ════════════════ FICHA DO PACIENTE (Tela 4) ════════════════ */
+.ficha-hero { text-align: center; padding: 6px 0 2px; }
+.av-xl { width: 78px; height: 78px; border-radius: 50%; margin: 0 auto 12px; background: var(--brand-soft); color: var(--brand); font-size: 27px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.ficha-hero .fn { font-size: 20px; font-weight: 800; color: var(--app-text); }
+.ficha-hero .fmeta { font-size: 13px; color: var(--app-text-dim); font-weight: 600; margin-top: 3px; }
+.pii-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 13px 0 6px; }
+.pii { display: inline-flex; align-items: center; gap: 7px; background: var(--app-card-2); border-radius: var(--radius-full); padding: 7px 13px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--app-text-dim); cursor: pointer; border: 0; white-space: nowrap; }
+.pii i { font-size: 10px; color: var(--app-text-faint); }
+.pii.revealed { color: var(--app-text); }
+.pii.revealed i { color: hsl(var(--success)); }
+.reveal-hint { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11.5px; color: var(--app-text-faint); font-weight: 700; margin-bottom: 18px; }
+
+.alert-banner { background: hsl(var(--error) / 0.10); border: 1px solid hsl(var(--error) / 0.3); border-radius: var(--radius-xl); padding: 14px 15px; margin-bottom: 8px; display: flex; gap: 12px; align-items: flex-start; }
+.alert-banner .ic { width: 38px; height: 38px; border-radius: 11px; background: hsl(var(--error) / 0.15); color: hsl(var(--error)); display: flex; align-items: center; justify-content: center; font-size: 16px; flex: none; }
+.alert-banner .lbl { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: hsl(var(--error)); }
+.alert-banner b { display: block; font-size: 15px; font-weight: 800; color: var(--app-text); margin-top: 3px; line-height: 1.3; }
+.audit-note { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--app-text-faint); font-weight: 700; margin: 0 2px 18px; }
+
+.ftabs { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 2px; }
+.ftabs::-webkit-scrollbar { height: 0; }
+.ftab { flex: none; padding: 8px 15px; border-radius: var(--radius-full); border: 1px solid var(--app-border); background: var(--app-card); font: inherit; font-size: 13px; font-weight: 700; color: var(--app-text-dim); cursor: pointer; white-space: nowrap; }
+.ftab.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.fpanel { display: none; }
+.fpanel.on { display: block; }
+
+.evo-card { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 13px 14px; box-shadow: var(--shadow-card); margin-bottom: 9px; }
+.evo-card .eh { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.evo-card .eh b { font-size: 14px; font-weight: 700; color: var(--app-text); }
+.evo-card .eh .dt { font-size: 12px; color: var(--app-text-faint); font-weight: 700; flex: none; }
+.evo-card .who2 { font-size: 12px; color: var(--app-text-dim); font-weight: 600; margin-top: 3px; }
+.evo-card .att { margin-top: 9px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--brand); font-weight: 700; background: var(--brand-soft); padding: 4px 9px; border-radius: var(--radius-full); }
+.doc-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--app-border); }
+.doc-row:last-child { border-bottom: 0; }
+.doc-row .di { width: 36px; height: 36px; border-radius: 10px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 14px; background: var(--brand-soft); color: var(--brand); }
+.doc-row .dx { flex: 1; min-width: 0; }
+.doc-row .dx b { display: block; font-size: 13.5px; font-weight: 700; color: var(--app-text); }
+.doc-row .dx span { font-size: 11.5px; color: var(--app-text-dim); font-weight: 600; }
+.tab-empty { text-align: center; padding: 30px 16px; color: var(--app-text-dim); }
+.tab-empty i { font-size: 26px; color: var(--brand); opacity: 0.4; }
+.tab-empty p { font-size: 13px; margin-top: 10px; font-weight: 600; }
+
+.fact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0 16px; }
+.fact { display: flex; align-items: center; gap: 10px; padding: 12px 13px; border-radius: var(--radius-lg); border: 1px solid var(--app-border); background: var(--app-card); font: inherit; font-weight: 700; font-size: 13.5px; color: var(--app-text); cursor: pointer; }
+.fact:active { background: var(--app-card-2); }
+.fact .fi { width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
+.audit-foot { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 11.5px; color: var(--app-text-faint); font-weight: 700; padding: 6px 0 2px; }
+
+/* biometric prompt */
+.bio-ic { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; background: var(--brand-soft); color: var(--brand); }
+
+/* ════════════════ PRONTUÁRIO (Tela 5) ════════════════ */
+.push-foot { flex: none; padding: 12px 18px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--app-border); background: var(--app-bg); }
+.pr-ctx { display: flex; align-items: center; gap: 12px; padding: 4px 0 16px; }
+.pr-ctx .av { width: 44px; height: 44px; flex: none; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.pr-ctx b { display: block; font-size: 15.5px; font-weight: 800; color: var(--app-text); }
+.pr-ctx span { font-size: 12.5px; color: var(--app-text-dim); font-weight: 600; }
+
+.timeline { position: relative; }
+.timeline.timeline::before { content: ''; position: absolute; left: 6px; top: 8px; bottom: 8px; width: 2px; background: var(--app-border); }
+.timeline .tl-item { position: relative; padding-left: 24px; margin-bottom: 14px; }
+.timeline .tl-item::before { content: ''; position: absolute; left: 1px; top: 8px; width: 12px; height: 12px; border-radius: 50%; background: var(--brand); border: 2px solid var(--app-bg); }
+.tl-card { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 13px 14px; box-shadow: var(--shadow-card); }
+.tl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tl-head b { font-size: 14.5px; font-weight: 700; color: var(--app-text); }
+.tl-head .dt { font-size: 12px; color: var(--app-text-faint); font-weight: 700; flex: none; }
+.tl-by { font-size: 12px; color: var(--app-text-dim); font-weight: 600; margin-top: 3px; }
+.tl-snip { font-size: 13px; color: var(--app-text); line-height: 1.5; margin-top: 8px; }
+.tl-card .att { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--brand); font-weight: 700; background: var(--brand-soft); padding: 4px 9px; border-radius: var(--radius-full); }
+
+/* nova evolução — tall sheet */
+.sheet-tall { top: 9%; display: flex; flex-direction: column; padding: 0; }
+.sheet-tall .sheet-head { flex: none; padding: 10px 18px 6px; }
+.sheet-tall .sheet-body { flex: 1; overflow-y: auto; padding: 8px 18px 16px; }
+.sheet-tall .sheet-body::-webkit-scrollbar { width: 0; }
+.sheet-tall .sheet-foot { flex: none; padding: 12px 18px calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--app-border); background: var(--app-card); }
+.sh-row { display: flex; align-items: center; justify-content: space-between; }
+.sheet-x { width: 32px; height: 32px; border: 0; background: transparent; color: var(--app-text-dim); font-size: 18px; cursor: pointer; }
+
+.sel-wrap { position: relative; margin-bottom: 14px; }
+.sel-wrap > i { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--app-text-faint); font-size: 12px; }
+.msel { width: 100%; padding: 12px 36px 12px 13px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14px; font-weight: 600; color: var(--app-text); appearance: none; -webkit-appearance: none; outline: none; cursor: pointer; }
+.msel:focus { border-color: var(--brand); }
+
+.evo-ta-wrap { position: relative; margin-bottom: 16px; }
+#evoText { width: 100%; min-height: 130px; padding: 12px 12px 12px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14.5px; color: var(--app-text); resize: none; outline: none; line-height: 1.5; }
+#evoText:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+#evoText::placeholder { color: var(--app-text-faint); }
+.mic { position: absolute; right: 10px; bottom: 10px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--brand-soft); color: var(--brand); cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.mic.listening { background: hsl(var(--error) / 0.14); color: hsl(var(--error)); animation: pulse 1s var(--ease-in-out) infinite; }
+.listen-hint { display: none; align-items: center; gap: 7px; font-size: 12px; color: hsl(var(--error)); font-weight: 700; margin: -8px 2px 14px; }
+.listen-hint.on { display: flex; }
+.listen-hint .wave { display: inline-flex; gap: 2px; }
+.listen-hint .wave span { width: 3px; height: 11px; background: hsl(var(--error)); border-radius: 2px; animation: wv 0.8s var(--ease-in-out) infinite; }
+.listen-hint .wave span:nth-child(2){ animation-delay: 0.15s; } .listen-hint .wave span:nth-child(3){ animation-delay: 0.3s; }
+@keyframes wv { 0%,100%{ transform: scaleY(0.5);} 50%{ transform: scaleY(1);} }
+
+.att-btns { display: flex; gap: 10px; margin-bottom: 12px; }
+.att-btns button { flex: 1; padding: 13px; border: 1px dashed var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); color: var(--app-text); font: inherit; font-weight: 700; font-size: 13.5px; display: flex; gap: 9px; align-items: center; justify-content: center; cursor: pointer; }
+.att-btns button:active { background: var(--app-card-2); }
+.att-btns button i { color: var(--brand); }
+.att-thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
+.thumb { width: 72px; height: 72px; border-radius: 12px; background: var(--app-card-2); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--app-text-faint); font-size: 20px; border: 1px solid var(--app-border); }
+.thumb .rm { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: 0; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.thumb .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(0,0,0,0.15); }
+.thumb .prog .bar { height: 100%; width: 0; background: var(--brand); transition: width 1s linear; }
+.thumb.done .prog { display: none; }
+.thumb .done-check { position: absolute; bottom: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: hsl(var(--success)); color: #fff; font-size: 9px; display: none; align-items: center; justify-content: center; }
+.thumb.done .done-check { display: flex; }
+
+/* ════════════════ AVISOS / NOTIFICAÇÕES (Tela 6) ════════════════ */
+.av-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 2px 14px; }
+.av-head .ttl { font-size: 13px; font-weight: 800; color: var(--app-text-dim); }
+.av-head .ttl b { color: var(--brand); }
+.mark-read { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 800; color: var(--brand); cursor: pointer; padding: 6px 4px; }
+.mark-read:disabled { color: var(--app-text-faint); }
+.av-group { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--app-text-faint); margin: 16px 2px 8px; }
+.av-list { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; }
+.notif { display: flex; gap: 11px; padding: 13px 14px; border-bottom: 1px solid var(--app-border); cursor: pointer; align-items: flex-start; }
+.notif:last-child { border-bottom: 0; }
+.notif:active { background: var(--app-card-2); }
+.notif .udot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); flex: none; margin-top: 15px; visibility: hidden; }
+.notif.unread .udot { visibility: visible; }
+.notif .nic { width: 38px; height: 38px; flex: none; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.notif .ntx { flex: 1; min-width: 0; }
+.notif .ntx b { display: block; font-size: 14px; font-weight: 700; color: var(--app-text); }
+.notif.unread .ntx b { font-weight: 800; }
+.notif .ntx .ns { font-size: 12.5px; color: var(--app-text-dim); font-weight: 600; margin-top: 2px; }
+.notif .ntx .nt { font-size: 11px; color: var(--app-text-faint); font-weight: 700; margin-top: 5px; display: block; }
+.nic.c-info { background: hsl(var(--info) / 0.13); color: hsl(var(--info)); }
+.nic.c-error { background: hsl(var(--error) / 0.12); color: hsl(var(--error)); }
+.nic.c-warning { background: hsl(var(--warning) / 0.16); color: hsl(35 88% 38%); }
+.nic.c-success { background: hsl(var(--success) / 0.13); color: hsl(160 70% 36%); }
+.nic.c-violet { background: var(--brand-soft); color: var(--brand); }
+
+/* push banner (foreground push) */
+.push-banner { position: absolute; top: 54px; left: 10px; right: 10px; background: var(--app-card); border: 1px solid var(--app-border); border-radius: 16px; box-shadow: var(--shadow-pop); padding: 11px 13px; display: flex; gap: 11px; align-items: center; z-index: 58; transform: translateY(-180%); transition: transform var(--dur-slow) var(--ease-out); cursor: pointer; }
+.push-banner.show { transform: translateY(0); }
+.push-banner .pic { width: 36px; height: 36px; flex: none; border-radius: 9px; background: linear-gradient(150deg, hsl(var(--primary)), hsl(var(--primary-dark))); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.push-banner .pbtx { flex: 1; min-width: 0; }
+.push-banner .pbtx .pbk { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--app-text-faint); }
+.push-banner .pbtx b { display: block; font-size: 13.5px; font-weight: 800; color: var(--app-text); margin-top: 1px; }
+.push-banner .pbtx span { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.push-banner .pbtime { font-size: 10.5px; color: var(--app-text-faint); font-weight: 700; align-self: flex-start; flex: none; }
+
+/* ════════════════ RECEITA / DOCUMENTOS (Telas 7–9) ════════════════ */
+.rc-patient { display: flex; align-items: center; gap: 12px; background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 12px 14px; box-shadow: var(--shadow-card); margin-bottom: 18px; cursor: pointer; width: 100%; font: inherit; text-align: left; }
+.rc-patient:active { background: var(--app-card-2); }
+.rc-patient .av { width: 42px; height: 42px; flex: none; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.rc-patient .rx { flex: 1; min-width: 0; }
+.rc-patient .rx b { font-size: 15px; font-weight: 800; color: var(--app-text); display: block; }
+.rc-patient .rx span { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.rc-patient .chev { margin-left: auto; color: var(--app-text-faint); font-size: 14px; flex: none; }
+
+.fav-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.fav-chip { padding: 8px 13px; border-radius: var(--radius-full); border: 1px solid var(--app-border); background: var(--app-card); font: inherit; font-size: 12.5px; font-weight: 700; color: var(--app-text); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.fav-chip:active { background: var(--brand-soft); border-color: var(--brand); }
+.fav-chip.add { color: var(--brand); border-style: dashed; }
+.fav-chip.add i { color: var(--brand); }
+
+.rc-items { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+.rc-item { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 12px 12px 12px 14px; box-shadow: var(--shadow-card); display: flex; align-items: flex-start; gap: 8px; }
+.rc-item .rd { flex: 1; min-width: 0; }
+.rc-item .rd b { font-size: 14px; font-weight: 700; color: var(--app-text); display: block; }
+.rc-item .rd .pos { font-size: 12.5px; color: var(--app-text-dim); font-weight: 600; margin-top: 3px; }
+.rc-item .ed, .rc-item .rm2 { width: 32px; height: 32px; border-radius: 8px; cursor: pointer; flex: none; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+.rc-item .ed { border: 1px solid var(--app-border); background: var(--app-card); color: var(--app-text-dim); }
+.rc-item .rm2 { border: 0; background: transparent; color: var(--app-text-faint); font-size: 14px; }
+.rc-empty { text-align: center; padding: 20px; color: var(--app-text-faint); font-size: 12.5px; font-weight: 600; border: 1px dashed var(--app-border); border-radius: var(--radius-xl); margin-bottom: 12px; }
+.rc-add { width: 100%; padding: 13px; border: 1px dashed var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); color: var(--brand); font: inherit; font-weight: 800; font-size: 13.5px; display: flex; gap: 8px; align-items: center; justify-content: center; cursor: pointer; }
+
+/* sign dialog */
+.sign-spin { width: 50px; height: 50px; border-radius: 50%; border: 4px solid var(--brand-soft); border-top-color: var(--brand); margin: 4px auto 16px; animation: sp 0.8s linear infinite; }
+#signStep { font-size: 14px; font-weight: 700; color: var(--app-text); }
+.sign-sub { font-size: 12px; color: var(--app-text-faint); font-weight: 600; margin-top: 8px; }
+
+/* success */
+.ok-hero { text-align: center; padding: 26px 0 8px; }
+.ok-check { width: 76px; height: 76px; border-radius: 50%; background: hsl(var(--success) / 0.12); color: hsl(var(--success)); font-size: 34px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.ok-hero h3 { font-size: 21px; font-weight: 800; color: var(--app-text); }
+.ok-hero p { font-size: 13px; color: var(--app-text-dim); margin-top: 6px; font-weight: 600; }
+.ok-sig { display: inline-flex; gap: 7px; align-items: center; margin-top: 16px; font-size: 12px; font-weight: 800; color: hsl(160 70% 34%); background: hsl(var(--success) / 0.12); padding: 7px 14px; border-radius: var(--radius-full); }
+.dark .ok-sig { color: #4fd6a3; }
+
+/* med search sheet rows */
+.med-row { display: flex; align-items: center; gap: 12px; padding: 13px 4px; border-bottom: 1px solid var(--app-border); cursor: pointer; }
+.med-row:last-child { border-bottom: 0; }
+.med-row:active { background: var(--app-card-2); }
+.med-row .mi { width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.med-row b { font-size: 14px; font-weight: 700; color: var(--app-text); flex: 1; }
+.med-row .add-i { color: var(--brand); font-size: 16px; }
+
+/* posologia sheet fields */
+.pos-grid { display: grid; gap: 12px; margin-bottom: 4px; }
+.pos-grid label { display: block; }
+.pos-grid .field-label2 { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--app-text-faint); margin-bottom: 6px; }
+.pos-grid input { width: 100%; padding: 11px 12px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14px; color: var(--app-text); outline: none; }
+.pos-grid input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+
+/* ════════════════ ATESTADO / EXAME (Telas 8–9) ════════════════ */
+.tap-field { width: 100%; display: flex; align-items: center; gap: 10px; padding: 13px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14px; font-weight: 600; color: var(--app-text); cursor: pointer; margin-bottom: 14px; text-align: left; }
+.tap-field.placeholder { color: var(--app-text-faint); }
+.tap-field i.lead { color: var(--brand); font-size: 14px; }
+.tap-field .chev { margin-left: auto; color: var(--app-text-faint); font-size: 12px; }
+.stepper { display: flex; align-items: center; border: 1px solid var(--app-border); border-radius: var(--radius-lg); overflow: hidden; width: fit-content; margin-bottom: 16px; }
+.stepper button { width: 46px; height: 46px; border: 0; background: var(--app-card); color: var(--brand); font-size: 16px; cursor: pointer; }
+.stepper button:active { background: var(--app-card-2); }
+.stepper button:disabled { color: var(--app-text-faint); }
+.stepper .val { min-width: 92px; text-align: center; font-weight: 800; font-size: 16px; color: var(--app-text); border-left: 1px solid var(--app-border); border-right: 1px solid var(--app-border); height: 46px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.stepper .val small { font-weight: 700; color: var(--app-text-dim); font-size: 12.5px; }
+#atObs, #exInd, #naObs { width: 100%; min-height: 84px; padding: 12px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14.5px; color: var(--app-text); resize: none; outline: none; line-height: 1.5; }
+#atObs:focus, #exInd:focus, #naObs:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.ex-search { margin-bottom: 12px; }
+.fav-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.fav-chip.on i { color: #fff; }
+
+/* ════════════════ ORÇAMENTO (Tela 11) ════════════════ */
+.orc-proc { font-size: 15px; font-weight: 700; color: var(--app-text); margin-bottom: 18px; }
+.orc-items { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; margin-bottom: 12px; }
+.orc-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--app-border); font-size: 14px; }
+.orc-line:last-child { border-bottom: 0; }
+.orc-line .ln-t { color: var(--app-text); font-weight: 600; }
+.orc-line .ln-v { color: var(--app-text); font-weight: 700; flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.orc-total { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--brand-tint); border-radius: var(--radius-xl); margin-bottom: 8px; }
+.orc-total .tt { font-size: 12px; font-weight: 800; color: var(--app-text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.orc-total .tv { font-size: 20px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.orc-readonly { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 12px; color: var(--app-text-faint); font-weight: 700; padding: 14px; border: 1px dashed var(--app-border); border-radius: var(--radius-lg); }
+
+/* ════════════════ MAIS / PERFIL (Tela 12) ════════════════ */
+.mais-profile { display: flex; align-items: center; gap: 14px; background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 16px; box-shadow: var(--shadow-card); margin: 4px 0 22px; cursor: pointer; }
+.mais-profile .av { width: 56px; height: 56px; flex: none; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px; }
+.mais-profile .mx { flex: 1; min-width: 0; }
+.mais-profile .mx b { font-size: 16.5px; font-weight: 800; color: var(--app-text); display: block; }
+.mais-profile .mx .crm { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 800; color: var(--brand); background: var(--brand-soft); padding: 3px 9px; border-radius: var(--radius-full); }
+.mais-profile .chev { margin-left: auto; color: var(--app-text-faint); flex: none; }
+.set-list { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; margin-bottom: 18px; }
+.set-row { display: flex; align-items: center; gap: 13px; padding: 13px 14px; border-bottom: 1px solid var(--app-border); cursor: pointer; }
+.set-row:last-child { border-bottom: 0; }
+.set-row:active { background: var(--app-card-2); }
+.set-row .si { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex: none; background: var(--brand-soft); color: var(--brand); }
+.set-row .st { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; color: var(--app-text); }
+.set-row .st small { display: block; font-size: 12px; color: var(--app-text-dim); font-weight: 600; margin-top: 1px; }
+.set-row .rt { color: var(--app-text-faint); font-size: 13px; flex: none; }
+.set-row.danger .si { background: hsl(var(--error) / 0.1); color: hsl(var(--error)); }
+.set-row.danger .st { color: hsl(var(--error)); }
+.switch { width: 46px; height: 28px; border-radius: var(--radius-full); background: var(--app-border); position: relative; cursor: pointer; border: 0; flex: none; transition: background var(--dur-base) var(--ease-out); }
+.switch.on { background: var(--brand); }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform var(--dur-base) var(--ease-out); box-shadow: var(--shadow-sm); }
+.switch.on::after { transform: translateX(18px); }
+.seg { display: flex; gap: 4px; background: var(--app-card-2); border-radius: 11px; padding: 3px; margin-bottom: 18px; }
+.seg button { flex: 1; padding: 9px 6px; border: 0; background: transparent; border-radius: 8px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--app-text-dim); cursor: pointer; }
+.seg button.on { background: var(--app-card); color: var(--brand); box-shadow: var(--shadow-sm); }
+.app-version { text-align: center; font-size: 11.5px; color: var(--app-text-faint); font-weight: 600; padding: 4px 0 8px; }
+
+/* ════════════════ LOGIN + SELETOR (Telas 0 / 0b) ════════════════ */
+.light-only { display: block; } .dark-only { display: none; }
+.app.dark .light-only { display: none; } .app.dark .dark-only { display: block; }
+.fs-layer { position: absolute; top: 50px; left: 0; right: 0; bottom: 0; background: var(--app-bg); z-index: 62; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity var(--dur-base) var(--ease-out); }
+.fs-layer.show { opacity: 1; pointer-events: auto; }
+.login-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 28px 30px; }
+.login-logo { height: 30px; align-self: center; margin-bottom: 30px; }
+.login-wrap h1 { font-size: 22px; font-weight: 800; color: var(--app-text); }
+.login-wrap .sub { font-size: 13.5px; color: var(--app-text-dim); margin: 6px 0 24px; font-weight: 600; }
+.lfield { margin-bottom: 14px; }
+.linput-wrap { position: relative; }
+.linput { width: 100%; padding: 13px 14px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14.5px; color: var(--app-text); outline: none; }
+.linput::placeholder { color: var(--app-text-faint); }
+.linput:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: 0; background: transparent; color: var(--app-text-faint); cursor: pointer; font-size: 14px; }
+.lerror { display: none; align-items: center; gap: 7px; font-size: 12.5px; color: hsl(var(--error)); font-weight: 700; margin: -2px 2px 12px; }
+.lerror.on { display: flex; }
+.forgot { display: block; text-align: right; font-size: 12.5px; color: var(--brand); font-weight: 700; margin: 6px 2px 20px; cursor: pointer; }
+.ldiv { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--app-text-faint); font-size: 12px; font-weight: 600; }
+.ldiv::before, .ldiv::after { content: ''; flex: 1; height: 1px; background: var(--app-border); }
+.bio-btn { width: 100%; padding: 14px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); color: var(--app-text); font: inherit; font-weight: 800; font-size: 14px; display: flex; gap: 10px; align-items: center; justify-content: center; cursor: pointer; }
+.bio-btn i { color: var(--brand); font-size: 17px; }
+.bio-btn:active { background: var(--app-card-2); }
+
+.sel-wrap2 { flex: 1; padding: 30px 24px; overflow-y: auto; }
+.sel-wrap2 h1 { font-size: 22px; font-weight: 800; color: var(--app-text); margin-bottom: 4px; }
+.sel-wrap2 .sub { font-size: 13.5px; color: var(--app-text-dim); font-weight: 600; margin-bottom: 22px; }
+.sel-card { display: flex; align-items: center; gap: 14px; background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 16px; box-shadow: var(--shadow-card); margin-bottom: 12px; cursor: pointer; width: 100%; text-align: left; font: inherit; }
+.sel-card:active { background: var(--app-card-2); }
+.sel-card .badge { width: 48px; height: 48px; flex: none; border-radius: 13px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; }
+.sel-card .tx { flex: 1; min-width: 0; }
+.sel-card .tx b { display: block; font-size: 16px; font-weight: 800; color: var(--app-text); }
+.sel-card .tx .role { display: inline-flex; align-items: center; gap: 8px; margin-top: 5px; }
+.sel-card .tx .cnt { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.sel-card .chev { color: var(--app-text-faint); flex: none; }
+
+/* ════════════════ ESTADOS GLOBAIS G1 / G3 ════════════════ */
+.offline-bar { display: none; align-items: center; gap: 8px; justify-content: center; padding: 8px 14px; background: hsl(var(--warning) / 0.16); color: hsl(35 88% 30%); font-size: 12px; font-weight: 800; flex: none; }
+.offline-bar.on { display: flex; }
+.dark .offline-bar { color: #f4c44d; }
+.g1-ic { width: 74px; height: 74px; border-radius: 50%; background: hsl(var(--warning) / 0.15); color: hsl(35 88% 42%); font-size: 30px; display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; }
+.g1-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: stretch; padding: 0 28px 30px; text-align: center; }
+.g1-wrap h1 { font-size: 22px; font-weight: 800; color: var(--app-text); }
+.g1-wrap .sub { font-size: 13.5px; color: var(--app-text-dim); margin: 8px 0 24px; font-weight: 600; line-height: 1.55; }
+
+/* demo state controls (outside the device — review aid) */
+.demo-bar { width: 393px; max-width: 100%; display: flex; align-items: center; gap: 8px; font-size: 11px; color: hsl(var(--secondary) / 0.45); font-weight: 700; flex-wrap: wrap; }
+.demo-bar button { border: 1px solid hsl(var(--border)); background: #fff; border-radius: var(--radius-full); padding: 5px 12px; font: inherit; font-size: 11px; font-weight: 700; color: hsl(var(--secondary) / 0.6); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.demo-bar button.on { background: hsl(var(--primary)); color: #fff; border-color: transparent; }
+
+/* ════════════════ SPLASH / TELA DE CARREGAMENTO ════════════════ */
+.splash { position: absolute; inset: 0; z-index: 80; background: linear-gradient(160deg, hsl(var(--primary-dark)) 0%, hsl(var(--primary)) 55%, hsl(var(--primary-dark)) 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; transition: opacity 0.5s var(--ease-out); }
+.splash.hide { opacity: 0; pointer-events: none; }
+.splash img { height: 36px; animation: splashLogo 0.7s var(--ease-out) both; }
+@keyframes splashLogo { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+.splash .ring { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.22); border-top-color: #fff; animation: sp 0.8s linear infinite; }
+.splash .tagline { position: absolute; bottom: 34px; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#2a1a63">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#241554"/><stop offset="0.55" stop-color="#452B97"/><stop offset="1" stop-color="#241554"/>
+      </linearGradient>
+    </defs>
+    <rect width="1200" height="800" fill="url(#tg)"/>
+    <rect x="468" y="250" width="264" height="264" rx="60" fill="#ffffff"/>
+    <rect x="528" y="316" width="144" height="132" rx="22" fill="none" stroke="#452B97" stroke-width="20"/>
+    <line x1="528" y1="356" x2="672" y2="356" stroke="#452B97" stroke-width="20"/>
+    <line x1="560" y1="300" x2="560" y2="334" stroke="#452B97" stroke-width="20" stroke-linecap="round"/>
+    <line x1="640" y1="300" x2="640" y2="334" stroke="#452B97" stroke-width="20" stroke-linecap="round"/>
+    <path d="M566 398 l28 28 l44 -52" fill="none" stroke="#15B27E" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="600" y="588" font-family="Nunito, system-ui, sans-serif" font-size="58" font-weight="800" fill="#ffffff" text-anchor="middle">imedto</text>
+  </svg>
+</template>
+<div class="chrome">
+  <div class="label"><b>Imedto Mobile</b><span>Fundação · navegação · agenda</span></div>
+  <div class="theme-toggle" id="themeToggle">
+    <button data-theme="light" class="on"><i class="fa-regular fa-sun"></i> Claro</button>
+    <button data-theme="dark"><i class="fa-regular fa-moon"></i> Escuro</button>
+  </div>
+</div>
+<div class="demo-bar">
+  <span>Estados:</span>
+  <button data-state="offline"><i class="fa-solid fa-wifi"></i> Offline</button>
+  <button data-state="assinatura"><i class="fa-regular fa-clock"></i> Assinatura expirada</button>
+  <button data-state="login"><i class="fa-solid fa-arrow-right-to-bracket"></i> Tela de login</button>
+</div>
+
+<div class="app" id="app">
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screen">
+    <!-- status bar -->
+    <div class="statusbar">
+      <div class="t">9:18</div>
+      <div class="ind"><i class="fa-solid fa-signal"></i><i class="fa-solid fa-wifi"></i><i class="fa-solid fa-battery-three-quarters"></i></div>
+    </div>
+
+    <!-- top bar -->
+    <div class="topbar">
+      <button class="switcher" id="openSwitcher">
+        <span class="badge"><i class="fa-solid fa-hospital"></i></span>
+        <span class="meta">
+          <b id="estabName">Clínica Vida <i class="fa-solid fa-chevron-down"></i></b>
+          <span id="estabRole">Dono · 12 hoje</span>
+        </span>
+      </button>
+      <div class="tools" id="topTools">
+        <button class="iconbtn" id="agSearchBtn" title="Buscar"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="iconbtn" id="agFilterBtn" title="Filtrar"><i class="fa-solid fa-sliders"></i><span class="dot" id="agFilterDot" style="display:none;"></span></button>
+      </div>
+    </div>
+
+    <!-- offline bar (G3) -->
+    <div class="offline-bar" id="offlineBar"><i class="fa-solid fa-wifi"></i> Sem conexão — mostrando dados salvos de 9:18</div>
+
+    <!-- scroll body -->
+    <div class="body" id="scrollBody">
+
+      <!-- ════════ AGENDA ════════ -->
+      <section class="view active" id="view-agenda" data-screen-label="Agenda do dia">
+        <div class="ptr" id="ptr"><i class="fa-solid fa-arrow-rotate-right"></i></div>
+
+        <!-- search bar (toggled from top bar) -->
+        <div class="psearch" id="agendaSearchBar" style="display:none;margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="agendaSearch" type="text" placeholder="Buscar paciente na agenda…" autocomplete="off" />
+          <button class="clr" id="agendaSearchClr" aria-label="Limpar"><i class="fa-solid fa-circle-xmark"></i></button>
+        </div>
+
+        <!-- date strip -->
+        <div class="datestrip">
+          <button class="arrow"><i class="fa-solid fa-chevron-left"></i></button>
+          <div class="days" id="days"></div>
+          <button class="arrow"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+
+        <div id="agendaNormal">
+          <!-- mini stats -->
+          <div class="stats">
+            <div class="stat"><div class="n">12</div><div class="l"><i class="fa-regular fa-calendar"></i> Agendados</div></div>
+            <div class="stat ok"><div class="n">4</div><div class="l"><i class="fa-solid fa-circle-check"></i> Atendidos</div></div>
+            <div class="stat"><div class="n">0</div><div class="l"><i class="fa-regular fa-circle-xmark"></i> Faltas</div></div>
+          </div>
+
+          <!-- próximo -->
+          <div class="sec-h"><div class="t">Próximo</div><div class="chip" id="nextChip"><i class="fa-regular fa-clock"></i> em 12 min</div></div>
+          <div id="nextCard" style="margin-bottom:22px;"></div>
+
+          <!-- mais tarde -->
+          <div class="sec-h"><div class="t">Mais tarde</div></div>
+          <div class="stack" id="laterList"></div>
+        </div>
+
+        <!-- results (search/filter active) -->
+        <div id="agendaResults" style="display:none;">
+          <div class="sec-h"><div class="t" id="agendaResultsLabel">Resultados</div><button class="chip" id="agendaClearFilter" style="border:0;cursor:pointer;"><i class="fa-solid fa-xmark"></i> Limpar</button></div>
+          <div class="stack" id="agendaResultsList"></div>
+          <div class="empty" id="agendaResultsEmpty" style="display:none;padding:48px 24px;"><i class="fa-regular fa-calendar"></i><b>Nada encontrado</b><p>Ajuste a busca ou os filtros.</p></div>
+        </div>
+      </section>
+
+      <!-- ════════ OTHER TABS (placeholders for now) ════════ -->
+      <section class="view" id="view-pacientes" data-screen-label="Pacientes">
+        <div class="psearch" id="pSearchWrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="pSearch" type="text" placeholder="Buscar paciente..." autocomplete="off" />
+          <button class="clr" id="pClear" aria-label="Limpar"><i class="fa-solid fa-circle-xmark"></i></button>
+        </div>
+        <div class="fpills" id="pPills">
+          <button class="fpill on" data-f="todos">Todos <span class="cnt" data-cnt="todos"></span></button>
+          <button class="fpill" data-f="alerta">Com alerta <span class="cnt" data-cnt="alerta"></span></button>
+          <button class="fpill" data-f="recentes">Recentes <span class="cnt" data-cnt="recentes"></span></button>
+        </div>
+        <div class="pcount" id="pCount"></div>
+        <div class="plist" id="plist"></div>
+        <div class="empty" id="pEmpty" style="display:none;"><i class="fa-regular fa-folder-open"></i><b id="pEmptyT">Nada encontrado</b><p id="pEmptyMsg">Tente outro nome ou filtro.</p></div>
+      </section>
+      <section class="view" id="view-avisos" data-screen-label="Avisos">
+        <div class="av-head">
+          <div class="ttl"><b id="avUnread">3</b> não lidos</div>
+          <button class="mark-read" id="avMarkAll"><i class="fa-solid fa-check-double"></i> Marcar todas lidas</button>
+        </div>
+        <div id="avContent"></div>
+        <div class="empty" id="avEmpty" style="display:none;"><i class="fa-regular fa-bell-slash"></i><b>Tudo em dia</b><p>Você não tem avisos no momento.</p></div>
+      </section>
+      <section class="view" id="view-mais" data-screen-label="Mais">
+        <button class="mais-profile" id="profileRow">
+          <span class="av">MC</span>
+          <span class="mx"><b>Dra. Marina Castro</b><span class="crm">CRM 123456-SP · Clínica geral</span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+
+        <div class="f-label">Estabelecimento</div>
+        <div class="set-list">
+          <div class="set-row" id="maisSwitch"><span class="si"><i class="fa-solid fa-hospital"></i></span><span class="st">Trocar estabelecimento<small id="maisCurrentEstab">Clínica Vida · Dono</small></span><i class="fa-solid fa-chevron-right rt"></i></div>
+        </div>
+
+        <div class="f-label">Preferências</div>
+        <div class="set-list">
+          <div class="set-row"><span class="si"><i class="fa-regular fa-bell"></i></span><span class="st">Notificações push<small>Lembretes, cancelamentos, receitas</small></span><button class="switch on" data-toggle="push"></button></div>
+          <div class="set-row"><span class="si"><i class="fa-solid fa-fingerprint"></i></span><span class="st">Biometria<small>Face ID / digital ao abrir</small></span><button class="switch on" data-toggle="bio"></button></div>
+        </div>
+
+        <div class="f-label">Tema</div>
+        <div class="seg" id="themeSeg">
+          <button data-th="light">Claro</button>
+          <button data-th="dark">Escuro</button>
+          <button data-th="auto">Automático</button>
+        </div>
+
+        <div class="f-label">Gestão</div>
+        <div class="set-list">
+          <div class="set-row" data-ext="Equipe e permissões"><span class="si"><i class="fa-solid fa-users-gear"></i></span><span class="st">Equipe e permissões</span><i class="fa-solid fa-arrow-up-right-from-square rt"></i></div>
+          <div class="set-row" data-ext="Automações"><span class="si"><i class="fa-solid fa-bolt"></i></span><span class="st">Automações</span><i class="fa-solid fa-arrow-up-right-from-square rt"></i></div>
+          <div class="set-row" data-ext="Assinatura e plano"><span class="si"><i class="fa-solid fa-crown"></i></span><span class="st">Assinatura e plano</span><i class="fa-solid fa-arrow-up-right-from-square rt"></i></div>
+        </div>
+
+        <div class="set-list">
+          <div class="set-row" id="helpRow"><span class="si"><i class="fa-regular fa-circle-question"></i></span><span class="st">Ajuda e suporte</span><i class="fa-solid fa-chevron-right rt"></i></div>
+          <div class="set-row danger" id="logoutRow"><span class="si"><i class="fa-solid fa-right-from-bracket"></i></span><span class="st">Sair</span></div>
+        </div>
+        <div class="app-version">Imedto Mobile · versão 1.0.0</div>
+      </section>
+    </div>
+
+    <!-- tab bar -->
+    <div class="tabbar">
+      <button class="tab on" data-tab="agenda"><i class="fa-regular fa-calendar"></i><span>Agenda</span></button>
+      <button class="tab" data-tab="pacientes"><i class="fa-solid fa-user-group"></i><span>Pacientes</span></button>
+      <div class="fab-slot"><button class="fab" id="fab"><i class="fa-solid fa-plus"></i></button></div>
+      <button class="tab has-badge" data-tab="avisos"><i class="fa-regular fa-bell"></i><span class="nb">3</span><span>Avisos</span></button>
+      <button class="tab" data-tab="mais"><i class="fa-solid fa-ellipsis"></i><span>Mais</span></button>
+    </div>
+
+    <!-- scrim -->
+    <div class="scrim" id="scrim"></div>
+
+    <!-- action sheet (FAB) -->
+    <div class="sheet" id="actionSheet">
+      <div class="grip"></div>
+      <div class="sh-title">Ações rápidas</div>
+      <div class="sh-sub">As ações disponíveis seguem suas permissões.</div>
+      <div class="act-row" data-action="receita"><div class="ic ic-violet"><i class="fa-solid fa-prescription"></i></div><div class="tx"><b>Nova receita</b><span>Favoritos · assinar · enviar</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
+      <div class="act-row" data-action="atestado"><div class="ic ic-green"><i class="fa-solid fa-file-medical"></i></div><div class="tx"><b>Atestado</b><span>CID · dias · assinar</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
+      <div class="act-row" data-action="exame"><div class="ic ic-blue"><i class="fa-solid fa-flask"></i></div><div class="tx"><b>Pedido de exame</b><span>Selecionar exames · assinar</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
+      <div class="act-row" data-action="agendamento"><div class="ic ic-amber"><i class="fa-regular fa-calendar-plus"></i></div><div class="tx"><b>Novo agendamento</b><span>Marcar uma consulta</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
+    </div>
+
+    <!-- establishment switcher sheet -->
+    <div class="sheet" id="estabSheet">
+      <div class="grip"></div>
+      <div class="sh-title">Trocar estabelecimento</div>
+      <div class="sh-sub">Troca o contexto: agenda, pacientes e permissões.</div>
+      <div class="estab cur" data-name="Clínica Vida" data-role="Dono · 12 hoje">
+        <div class="badge" style="background:linear-gradient(150deg,hsl(var(--primary)),hsl(var(--primary-dark)));"><i class="fa-solid fa-hospital"></i></div>
+        <div class="tx"><b>Clínica Vida</b><div class="role"><span class="role-pill">Dono</span><span class="cnt">12 consultas hoje</span></div></div>
+        <div class="check"><i class="fa-solid fa-check"></i></div>
+      </div>
+      <div class="estab" data-name="Hospital Norte" data-role="Médico · 4 hoje">
+        <div class="badge" style="background:linear-gradient(150deg,hsl(var(--info)),hsl(199 89% 32%));"><i class="fa-solid fa-hospital"></i></div>
+        <div class="tx"><b>Hospital Norte</b><div class="role"><span class="role-pill">Médico</span><span class="cnt">4 consultas hoje</span></div></div>
+        <div class="check"><i class="fa-solid fa-check"></i></div>
+      </div>
+      <div class="estab" data-name="Consultório Aliança" data-role="Médico · 7 hoje">
+        <div class="badge" style="background:linear-gradient(150deg,hsl(160 70% 38%),hsl(160 70% 26%));"><i class="fa-solid fa-stethoscope"></i></div>
+        <div class="tx"><b>Consultório Aliança</b><div class="role"><span class="role-pill">Médico</span><span class="cnt">7 consultas hoje</span></div></div>
+        <div class="check"><i class="fa-solid fa-check"></i></div>
+      </div>
+    </div>
+
+    <!-- ════════ G1 — Assinatura expirada ════════ -->
+    <div class="fs-layer" id="assinaturaLayer" data-screen-label="Assinatura expirada">
+      <div class="g1-wrap">
+        <div class="g1-ic"><i class="fa-regular fa-clock"></i></div>
+        <h1>Sua assinatura expirou</h1>
+        <p class="sub">Renove para voltar a acessar agenda, pacientes e prontuários. Seu login e perfil continuam acessíveis.</p>
+        <button class="btn-primary-lg" id="g1Renew" style="margin:0;"><i class="fa-solid fa-arrow-up-right-from-square"></i> Renovar assinatura</button>
+        <button class="btn-outline" id="g1Support" style="margin-top:10px;"><i class="fa-regular fa-comments"></i> Falar com suporte</button>
+      </div>
+    </div>
+
+    <!-- splash / tela de carregamento -->
+    <div class="splash" id="splash">
+      <img src="assets/imedto-logo-white.png" alt="Imedto" />
+      <div class="ring"></div>
+      <div class="tagline">Gestão clínica simplificada</div>
+    </div>
+
+    <!-- toast -->
+    <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toastMsg">Pronto</span></div>
+
+    <!-- push banner (foreground push) -->
+    <div class="push-banner" id="pushBanner">
+      <div class="pic"><i class="fa-solid fa-bell"></i></div>
+      <div class="pbtx"><div class="pbk">Imedto</div><b id="pbTitle">Novo agendamento</b><span id="pbBody">Lucas Prado · 16:30 hoje</span></div>
+      <div class="pbtime">agora</div>
+    </div>
+
+    <!-- ════════ Tela 0 — Login + biometria ════════ -->
+    <div class="fs-layer" id="loginLayer" data-screen-label="Login">
+      <div class="login-wrap">
+        <img class="login-logo light-only" src="assets/imedto-logo.png" alt="Imedto" />
+        <img class="login-logo dark-only" src="assets/imedto-logo-white.png" alt="Imedto" />
+        <h1>Bem-vindo de volta</h1>
+        <p class="sub">Preencha os campos abaixo para acessar sua conta.</p>
+        <div class="lfield">
+          <label class="f-label">E-mail</label>
+          <div class="linput-wrap"><input class="linput" id="loginEmail" type="email" placeholder="seu@email.com" value="marina.castro@imedto.com" autocomplete="off" /></div>
+        </div>
+        <div class="lfield">
+          <label class="f-label">Senha</label>
+          <div class="linput-wrap"><input class="linput" id="loginPass" type="password" placeholder="••••••••" value="123456" /><button class="eye" id="loginEye"><i class="fa-regular fa-eye"></i></button></div>
+        </div>
+        <div class="lerror" id="loginError"><i class="fa-solid fa-circle-exclamation"></i> Verifique seu e-mail e senha e tente novamente.</div>
+        <span class="forgot" id="forgotLink">Esqueci minha senha</span>
+        <button class="btn-primary-lg" id="loginBtn" style="margin:0;"><i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar</button>
+        <div class="ldiv">ou</div>
+        <button class="bio-btn" id="bioLoginBtn"><i class="fa-solid fa-fingerprint"></i> Entrar com biometria</button>
+      </div>
+    </div>
+
+    <!-- ════════ Tela 0b — Seletor de estabelecimento ════════ -->
+    <div class="fs-layer" id="seletorLayer" data-screen-label="Seletor de estabelecimento">
+      <div class="sel-wrap2">
+        <h1>Onde você vai atender?</h1>
+        <p class="sub">Escolha o estabelecimento para esta sessão.</p>
+        <button class="sel-card" data-name="Clínica Vida" data-role="Dono" data-count="12">
+          <span class="badge" style="background:linear-gradient(150deg,hsl(var(--primary)),hsl(var(--primary-dark)));"><i class="fa-solid fa-hospital"></i></span>
+          <span class="tx"><b>Clínica Vida</b><span class="role"><span class="role-pill">Dono</span><span class="cnt">12 consultas hoje</span></span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+        <button class="sel-card" data-name="Hospital Norte" data-role="Médico" data-count="4">
+          <span class="badge" style="background:linear-gradient(150deg,hsl(var(--info)),hsl(199 89% 32%));"><i class="fa-solid fa-hospital"></i></span>
+          <span class="tx"><b>Hospital Norte</b><span class="role"><span class="role-pill">Médico</span><span class="cnt">4 consultas hoje</span></span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+        <button class="sel-card" data-name="Consultório Aliança" data-role="Médico" data-count="7">
+          <span class="badge" style="background:linear-gradient(150deg,hsl(160 70% 38%),hsl(160 70% 26%));"><i class="fa-solid fa-stethoscope"></i></span>
+          <span class="tx"><b>Consultório Aliança</b><span class="role"><span class="role-pill">Médico</span><span class="cnt">7 consultas hoje</span></span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ════════ PUSH: Detalhe do agendamento (Tela 2) ════════ -->
+    <div class="push" id="push-agendamento" data-screen-label="Detalhe do agendamento">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Agendamento</div>
+        <button class="iconbtn"><i class="fa-solid fa-ellipsis"></i></button>
+      </div>
+      <div class="push-body">
+        <div class="ag-time"><span id="agTime">09:30 – 10:00</span><span class="sep">·</span><span id="agSala">Sala 2</span></div>
+        <span class="pill p-warning" id="agStatus"><i class="fa-solid fa-circle"></i> Agendado</span>
+
+        <button class="pat-card" id="agPatient">
+          <span class="av" id="agAv">MS</span>
+          <span class="pc-tx">
+            <b id="agName">Maria Silva</b>
+            <span id="agMeta">34 anos · Retorno</span>
+            <span class="alert-mini" id="agAlertMini"><i class="fa-solid fa-triangle-exclamation"></i> Alerta clínico</span>
+          </span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+
+        <div id="agObsWrap">
+          <div class="f-label">Observações</div>
+          <div class="ag-obs" id="agObs">Paciente pós-operatório.</div>
+        </div>
+
+        <div class="f-label">Ações</div>
+        <button class="btn-primary-lg" id="agStart"><i class="fa-solid fa-play"></i> Iniciar atendimento</button>
+        <div class="btn-row">
+          <button class="btn-soft ok" data-act="atendido"><i class="fa-solid fa-check"></i> Atendido</button>
+          <button class="btn-soft danger" data-act="faltou"><i class="fa-solid fa-xmark"></i> Faltou</button>
+        </div>
+        <button class="btn-outline" data-act="reagendar"><i class="fa-solid fa-arrows-rotate"></i> Reagendar</button>
+        <button class="btn-outline" id="agShare"><i class="fa-brands fa-whatsapp"></i> Enviar confirmação</button>
+      </div>
+    </div>
+
+    <!-- ════════ PUSH: Ficha do paciente (Tela 4) ════════ -->
+    <div class="push" id="push-ficha" data-screen-label="Ficha do paciente">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title" id="fcTitle">Ficha</div>
+        <button class="iconbtn"><i class="fa-solid fa-ellipsis"></i></button>
+      </div>
+      <div class="push-body">
+        <div class="ficha-hero">
+          <div class="av-xl" id="fcAv">MS</div>
+          <div class="fn" id="fcName">Maria Silva</div>
+          <div class="fmeta" id="fcMeta">34 anos · F</div>
+          <div class="pii-row">
+            <button class="pii" id="fcPhone"><i class="fa-solid fa-phone"></i><span>(11) 9••••-••••</span></button>
+            <button class="pii" id="fcCpf"><i class="fa-solid fa-id-card"></i><span>CPF •••.•••.•••-••</span></button>
+          </div>
+          <div class="reveal-hint" id="fcRevealHint"><i class="fa-solid fa-fingerprint"></i> Toque para revelar dados sensíveis</div>
+        </div>
+
+        <div class="alert-banner" id="fcAlert">
+          <div class="ic"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div><span class="lbl">Alerta clínico</span><b id="fcAlertText">Alergia grave a penicilina</b></div>
+        </div>
+        <div class="audit-note" id="fcAuditNote"><i class="fa-solid fa-eye"></i> Este acesso é auditado</div>
+
+        <div class="ftabs" id="fcTabs">
+          <button class="ftab on" data-ft="hist">Histórico</button>
+          <button class="ftab" data-ft="pront">Prontuário</button>
+          <button class="ftab" data-ft="docs">Documentos</button>
+          <button class="ftab" data-ft="orc">Orçamentos</button>
+        </div>
+
+        <div class="fpanel on" data-fp="hist"><div class="f-label">Últimas evoluções</div><div id="fcHist"></div></div>
+        <div class="fpanel" data-fp="pront">
+          <div id="fcPront"></div>
+          <button class="btn-outline" id="fcOpenPront" style="margin-top:6px;"><i class="fa-solid fa-file-waveform"></i> Abrir prontuário completo</button>
+        </div>
+        <div class="fpanel" data-fp="docs"><div id="fcDocs"></div></div>
+        <div class="fpanel" data-fp="orc"><div id="fcOrc"></div></div>
+
+        <div class="f-label" style="margin-top:18px;">Ações</div>
+        <div class="fact-grid">
+          <button class="fact" data-fact="evolucao"><span class="fi ic-violet"><i class="fa-solid fa-plus"></i></span> Evolução</button>
+          <button class="fact" data-fact="receita"><span class="fi ic-violet"><i class="fa-solid fa-prescription"></i></span> Receita</button>
+          <button class="fact" data-fact="atestado"><span class="fi ic-green"><i class="fa-solid fa-file-medical"></i></span> Atestado</button>
+          <button class="fact" data-fact="exame"><span class="fi ic-blue"><i class="fa-solid fa-flask"></i></span> Exame</button>
+        </div>
+        <div class="audit-foot"><i class="fa-solid fa-shield-halved"></i> Este acesso foi registrado em seu nome</div>
+      </div>
+    </div>
+
+    <!-- ════════ PUSH: Prontuário (Tela 5) ════════ -->
+    <div class="push" id="push-prontuario" data-screen-label="Prontuário">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Prontuário</div>
+        <button class="iconbtn"><i class="fa-solid fa-ellipsis"></i></button>
+      </div>
+      <div class="push-body">
+        <div class="pr-ctx"><div class="av" id="prAv">MS</div><div><b id="prName">Maria Silva</b><span id="prMeta">34 anos · F</span></div></div>
+        <div class="f-label">Linha do tempo</div>
+        <div id="prTimeline" class="timeline"></div>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="prNew" style="margin:0;"><i class="fa-solid fa-plus"></i> Nova evolução</button></div>
+    </div>
+
+    <!-- nova evolução (bottom sheet) -->
+    <div class="sheet sheet-tall" id="evoSheet">
+      <div class="sheet-head">
+        <div class="grip"></div>
+        <div class="sh-row"><div class="sh-title">Nova evolução</div><button class="sheet-x" id="evoClose"><i class="fa-solid fa-xmark"></i></button></div>
+      </div>
+      <div class="sheet-body">
+        <div class="f-label">Modelo</div>
+        <div class="sel-wrap">
+          <select class="msel" id="evoModelo">
+            <option>Retorno</option><option>Consulta</option><option>Avaliação</option><option>Pós-operatório</option><option>Evolução livre</option>
+          </select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="f-label">Evolução</div>
+        <div class="evo-ta-wrap">
+          <textarea id="evoText" placeholder="Descreva a evolução do paciente…"></textarea>
+          <button class="mic" id="evoMic" title="Ditado por voz"><i class="fa-solid fa-microphone"></i></button>
+        </div>
+        <div class="listen-hint" id="listenHint"><span class="wave"><span></span><span></span><span></span></span> Ouvindo… toque para parar</div>
+        <div class="f-label">Anexos</div>
+        <div class="att-btns">
+          <button data-att="foto"><i class="fa-solid fa-camera"></i> Foto</button>
+          <button data-att="galeria"><i class="fa-regular fa-images"></i> Galeria</button>
+        </div>
+        <div class="att-thumbs" id="evoThumbs"></div>
+      </div>
+      <div class="sheet-foot">
+        <button class="btn-primary-lg" id="evoSave" style="margin:0;"><i class="fa-solid fa-floppy-disk"></i> Salvar evolução</button>
+      </div>
+    </div>
+
+    <!-- ════════ PUSH: Receita / documento assinável (Tela 7) ════════ -->
+    <div class="push" id="push-receita" data-screen-label="Nova receita">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title" id="rcHeadTitle">Nova receita</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <button class="rc-patient" id="rcPatient">
+          <span class="av" id="rcAv">MS</span>
+          <span class="rx"><b id="rcName">Maria Silva</b><span id="rcSub">34 anos · F</span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+
+        <div class="f-label">Tipo de receita</div>
+        <div class="sel-wrap">
+          <select class="msel" id="rcTipo"><option>Simples</option><option>Controlada (especial)</option><option>Antimicrobiano</option></select>
+          <i class="fa-solid fa-chevron-down"></i>
+        </div>
+
+        <div class="f-label"><i class="fa-solid fa-star" style="color:hsl(var(--warning));font-size:11px;"></i> Favoritos</div>
+        <div class="fav-chips" id="rcFavs"></div>
+
+        <div class="f-label">Itens da receita</div>
+        <div class="rc-items" id="rcItems"></div>
+        <button class="rc-add" id="rcAdd"><i class="fa-solid fa-plus"></i> Adicionar medicamento</button>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="rcSign" style="margin:0;"><i class="fa-solid fa-signature"></i> Assinar e gerar</button></div>
+    </div>
+
+    <!-- ════════ PUSH: Atestado (Tela 8) ════════ -->
+    <div class="push" id="push-atestado" data-screen-label="Atestado">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Atestado</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <button class="rc-patient" id="atPatient">
+          <span class="av" id="atAv">MS</span>
+          <span class="rx"><b id="atName">Maria Silva</b><span id="atSub">34 anos · F</span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+        <div class="f-label">Dias de afastamento</div>
+        <div class="stepper">
+          <button id="atMinus"><i class="fa-solid fa-minus"></i></button>
+          <div class="val"><span id="atDias">2</span> <small>dias</small></div>
+          <button id="atPlus"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div class="f-label">A partir de</div>
+        <button class="tap-field" id="atDate"><i class="fa-regular fa-calendar lead"></i> Hoje, 05/06/2026 <i class="fa-solid fa-chevron-down chev"></i></button>
+        <div class="f-label">CID-10 (opcional)</div>
+        <button class="tap-field placeholder" id="atCid"><i class="fa-solid fa-hashtag lead"></i> <span id="atCidLabel">Selecionar CID-10</span> <i class="fa-solid fa-chevron-right chev"></i></button>
+        <div class="f-label">Observações (opcional)</div>
+        <textarea id="atObs" placeholder="Ex.: necessita de repouso domiciliar…"></textarea>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="atSign" style="margin:0;"><i class="fa-solid fa-signature"></i> Assinar e gerar</button></div>
+    </div>
+
+    <!-- ════════ PUSH: Pedido de exame (Tela 9) ════════ -->
+    <div class="push" id="push-exame" data-screen-label="Pedido de exame">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Pedido de exame</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <button class="rc-patient" id="exPatient">
+          <span class="av" id="exAv">MS</span>
+          <span class="rx"><b id="exName">Maria Silva</b><span id="exSub">34 anos · F</span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+        <div class="f-label">Exames <span id="exCount" style="color:var(--brand);"></span></div>
+        <div class="psearch ex-search"><i class="fa-solid fa-magnifying-glass"></i><input id="exSearch" type="text" placeholder="Buscar exame…" autocomplete="off" /></div>
+        <div class="fav-chips" id="exChips"></div>
+        <div class="f-label">Indicação clínica</div>
+        <textarea id="exInd" placeholder="Hipótese diagnóstica / motivo do pedido…"></textarea>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="exSign" style="margin:0;"><i class="fa-solid fa-signature"></i> Assinar e gerar</button></div>
+    </div>
+
+    <!-- ════════ PUSH: Orçamento — ver e aprovar (Tela 11) ════════ -->
+    <div class="push" id="push-orcamento" data-screen-label="Orçamento">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title" id="orcNum">Orçamento</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <span class="pill p-warning" id="orcStatus" style="margin-bottom:16px;display:inline-flex;"><i class="fa-solid fa-circle"></i> Aguardando aprovação</span>
+        <button class="rc-patient" id="orcPatient">
+          <span class="av" id="orcAv">JS</span>
+          <span class="rx"><b id="orcName">João Souza</b><span id="orcSub">51 anos · M</span></span>
+        </button>
+        <div class="f-label">Procedimento</div>
+        <div class="orc-proc" id="orcProc">Implante unitário + coroa</div>
+        <div class="f-label">Itens</div>
+        <div class="orc-items" id="orcItems"></div>
+        <div class="orc-total"><span class="tt">Total</span><span class="tv" id="orcTotal">R$ 3.400,00</span></div>
+        <div class="orc-readonly" id="orcReadonly" style="display:none;margin-top:8px;"><i class="fa-solid fa-lock"></i> Somente leitura · sem permissão para aprovar</div>
+      </div>
+      <div class="push-foot" id="orcFoot">
+        <div class="btn-row" style="margin:0;">
+          <button class="btn-soft danger" id="orcReject" style="flex:1;"><i class="fa-solid fa-xmark"></i> Recusar</button>
+          <button class="btn-primary-lg" id="orcApprove" style="flex:1;margin:0;"><i class="fa-solid fa-check"></i> Aprovar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CID picker sheet -->
+    <div class="sheet sheet-tall" id="cidSheet">
+      <div class="sheet-head">
+        <div class="grip"></div>
+        <div class="sh-row"><div class="sh-title">CID-10</div><button class="sheet-x" id="cidClose"><i class="fa-solid fa-xmark"></i></button></div>
+      </div>
+      <div class="sheet-body">
+        <div class="psearch" style="margin-top:6px;"><i class="fa-solid fa-magnifying-glass"></i><input id="cidSearch" type="text" placeholder="Buscar código ou doença…" autocomplete="off" /></div>
+        <div id="cidList"></div>
+      </div>
+    </div>
+
+    <!-- ════════ PUSH: Documento assinado (sucesso, reutilizável) ════════ -->
+    <div class="push" id="push-signok" data-screen-label="Documento assinado">
+      <div class="push-head"><span style="width:40px;"></span><div class="ph-title" id="okHead">Concluído</div><span style="width:40px;"></span></div>
+      <div class="push-body">
+        <div class="ok-hero">
+          <div class="ok-check"><i class="fa-solid fa-circle-check"></i></div>
+          <h3 id="okTitle">Receita assinada</h3>
+          <p id="okSummary">Maria Silva · 2 itens · receita simples</p>
+          <div class="ok-sig"><i class="fa-solid fa-shield-halved"></i> Assinada digitalmente · ANVISA</div>
+        </div>
+      </div>
+      <div class="push-foot">
+        <button class="btn-primary-lg" id="okSend" style="margin:0 0 10px;"><i class="fa-brands fa-whatsapp"></i> Enviar ao paciente</button>
+        <div class="btn-row" style="margin:0;">
+          <button class="btn-soft ok" id="okPdf" style="flex:1;"><i class="fa-regular fa-file-pdf"></i> Ver PDF</button>
+          <button class="btn-soft" id="okDone" style="flex:1;background:var(--app-card-2);color:var(--app-text);"><i class="fa-solid fa-check"></i> Concluir</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- med search sheet -->
+    <div class="sheet sheet-tall" id="medSheet">
+      <div class="sheet-head">
+        <div class="grip"></div>
+        <div class="sh-row"><div class="sh-title">Adicionar medicamento</div><button class="sheet-x" id="medClose"><i class="fa-solid fa-xmark"></i></button></div>
+      </div>
+      <div class="sheet-body">
+        <div class="psearch" style="margin-top:6px;"><i class="fa-solid fa-magnifying-glass"></i><input id="medSearch" type="text" placeholder="Buscar medicamento…" autocomplete="off" /></div>
+        <div id="medList"></div>
+      </div>
+    </div>
+
+    <!-- posologia sheet -->
+    <div class="sheet" id="posSheet">
+      <div class="grip"></div>
+      <div class="sh-title" id="posMed">Posologia</div>
+      <div class="sh-sub">Ajuste a administração e a duração.</div>
+      <div class="pos-grid">
+        <label><span class="field-label2">Quantidade e forma</span><input id="posQtd" type="text" value="1 comprimido" /></label>
+        <label><span class="field-label2">Frequência</span><input id="posFreq" type="text" value="8/8h" /></label>
+        <label><span class="field-label2">Duração</span><input id="posDur" type="text" value="7 dias" /></label>
+      </div>
+      <button class="btn-primary-lg" id="posApply" style="margin-top:14px;"><i class="fa-solid fa-check"></i> Aplicar</button>
+    </div>
+
+    <!-- sign dialog -->
+    <div class="dialog-scrim" id="signScrim"></div>
+    <div class="dialog" id="signDialog">
+      <div class="sign-spin"></div>
+      <b id="signStep">Validando certificado…</b>
+      <div class="sign-sub">Assinatura digital com validade legal</div>
+    </div>
+
+    <!-- ════════ PUSH: Novo agendamento ════════ -->
+    <div class="push" id="push-novoagend" data-screen-label="Novo agendamento">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Novo agendamento</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <div class="f-label">Paciente</div>
+        <button class="rc-patient" id="naPatient" style="margin-bottom:16px;">
+          <span class="av" id="naAv" style="background:var(--app-card-2);color:var(--app-text-faint);"><i class="fa-solid fa-user"></i></span>
+          <span class="rx"><b id="naName">Selecionar paciente</b><span id="naSub">Toque para escolher</span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+
+        <div class="f-label">Data</div>
+        <button class="tap-field" id="naDate"><i class="fa-regular fa-calendar lead"></i> Hoje, 05/06/2026 <i class="fa-solid fa-chevron-down chev"></i></button>
+
+        <div class="f-label">Horário</div>
+        <div class="fav-chips" id="naTimes"></div>
+
+        <div class="f-label">Tipo de atendimento</div>
+        <div class="sel-wrap"><select class="msel" id="naTipo"><option>Consulta</option><option>Retorno</option><option>Avaliação</option><option>Primeira consulta</option></select><i class="fa-solid fa-chevron-down"></i></div>
+
+        <div class="f-label">Sala</div>
+        <div class="sel-wrap"><select class="msel" id="naSala"><option>Sala 1</option><option>Sala 2</option><option>Sala 3</option></select><i class="fa-solid fa-chevron-down"></i></div>
+
+        <div class="f-label">Observações (opcional)</div>
+        <textarea id="naObs" placeholder="Motivo, preparo, encaminhamento…"></textarea>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="naSave" style="margin:0;"><i class="fa-regular fa-calendar-check"></i> Agendar consulta</button></div>
+    </div>
+
+    <!-- patient picker sheet -->
+    <div class="sheet sheet-tall" id="patSheet">
+      <div class="sheet-head">
+        <div class="grip"></div>
+        <div class="sh-row"><div class="sh-title">Selecionar paciente</div><button class="sheet-x" id="patClose"><i class="fa-solid fa-xmark"></i></button></div>
+      </div>
+      <div class="sheet-body">
+        <div class="psearch" style="margin-top:6px;"><i class="fa-solid fa-magnifying-glass"></i><input id="patSearch" type="text" placeholder="Buscar paciente…" autocomplete="off" /></div>
+        <div id="patList"></div>
+      </div>
+    </div>
+
+    <!-- agenda filter sheet -->
+    <div class="sheet" id="agendaFilterSheet">
+      <div class="grip"></div>
+      <div class="sh-row"><div class="sh-title">Filtrar agenda</div><button class="sheet-x" id="agFilterClose"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="sh-sub" style="margin-top:2px;">Filtre o dia por status e sala.</div>
+      <div class="f-label">Status</div>
+      <div class="fav-chips" id="agStatusChips">
+        <button class="fav-chip on" data-st="todos">Todos</button>
+        <button class="fav-chip" data-st="Confirmou">Confirmados</button>
+        <button class="fav-chip" data-st="Agendado">Agendados</button>
+      </div>
+      <div class="f-label">Sala</div>
+      <div class="fav-chips" id="agSalaChips">
+        <button class="fav-chip on" data-sl="todas">Todas</button>
+        <button class="fav-chip" data-sl="Sala 1">Sala 1</button>
+        <button class="fav-chip" data-sl="Sala 2">Sala 2</button>
+        <button class="fav-chip" data-sl="Sala 3">Sala 3</button>
+      </div>
+      <div class="f-label">Alerta clínico</div>
+      <div class="fav-chips" id="agAlertChips">
+        <button class="fav-chip on" data-al="todos">Todos</button>
+        <button class="fav-chip" data-al="alerta"><i class="fa-solid fa-triangle-exclamation" style="color:hsl(var(--error));font-size:11px;"></i> Com alerta</button>
+      </div>
+      <button class="btn-primary-lg" id="agFilterApply" style="margin-top:8px;"><i class="fa-solid fa-check"></i> Aplicar filtros</button>
+    </div>
+
+    <!-- share sheet -->
+    <div class="sheet" id="shareSheet">
+      <div class="grip"></div>
+      <div class="sh-title" id="shareTitle">Enviar para o paciente</div>
+      <div class="sh-sub" id="shareSub">Link público para confirmar presença.</div>
+      <div class="share-grid">
+        <button class="share-item" data-share="WhatsApp"><span class="si si-wa"><i class="fa-brands fa-whatsapp"></i></span>WhatsApp</button>
+        <button class="share-item" data-share="E-mail"><span class="si si-mail"><i class="fa-solid fa-envelope"></i></span>E-mail</button>
+        <button class="share-item" data-share="Mensagem"><span class="si si-msg"><i class="fa-solid fa-comment"></i></span>Mensagem</button>
+        <button class="share-item" data-share="Link copiado"><span class="si si-copy"><i class="fa-solid fa-link"></i></span>Copiar</button>
+      </div>
+    </div>
+
+    <!-- confirm dialog -->
+    <div class="dialog-scrim" id="dialogScrim"></div>
+    <div class="dialog" id="confirmDialog">
+      <div class="dlg-ic" id="dlgIc"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <b id="dlgTitle">Marcar como faltou?</b>
+      <p id="dlgMsg">O paciente será registrado como ausente. A ação fica no histórico do agendamento.</p>
+      <div class="dlg-actions">
+        <button class="btn-outline" id="dlgCancel" style="margin:0;">Cancelar</button>
+        <button class="btn-danger" id="dlgConfirm">Confirmar</button>
+      </div>
+    </div>
+
+    <!-- biometric prompt -->
+    <div class="dialog-scrim" id="bioScrim"></div>
+    <div class="dialog" id="bioDialog">
+      <div class="bio-ic"><i class="fa-solid fa-fingerprint"></i></div>
+      <b>Confirme sua identidade</b>
+      <p>Os dados sensíveis deste paciente são protegidos. A revelação fica registrada.</p>
+      <div class="dlg-actions">
+        <button class="btn-outline" id="bioCancel" style="margin:0;">Agora não</button>
+        <button class="btn-primary-lg" id="bioConfirm" style="margin:0;"><i class="fa-solid fa-fingerprint"></i> Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ───── theme ───── */
+const app = document.getElementById('app');
+function applyThemeMode(mode){
+  const dark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  app.classList.toggle('dark', dark);
+  document.querySelectorAll('#themeToggle button').forEach(x => x.classList.toggle('on', x.dataset.theme === (dark ? 'dark' : 'light')));
+  document.querySelectorAll('#themeSeg button').forEach(x => x.classList.toggle('on', x.dataset.th === mode));
+  localStorage.setItem('imedto-theme-mode', mode);
+}
+document.getElementById('themeToggle').addEventListener('click', e => { const b = e.target.closest('button'); if (b) applyThemeMode(b.dataset.theme); });
+document.getElementById('themeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) applyThemeMode(b.dataset.th); });
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (localStorage.getItem('imedto-theme-mode') === 'auto') applyThemeMode('auto'); });
+applyThemeMode(localStorage.getItem('imedto-theme-mode') || 'light');
+
+/* ───── date strip ───── */
+const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const week = [
+  {dow:'Seg', n:1, has:true}, {dow:'Ter', n:2, has:true}, {dow:'Qua', n:3, has:false},
+  {dow:'Qui', n:4, has:true}, {dow:'Sex', n:5, has:true, sel:true}, {dow:'Sáb', n:6, has:false}, {dow:'Dom', n:7, has:false},
+];
+document.getElementById('days').innerHTML = week.map(d =>
+  `<div class="dcell ${d.sel?'sel':''} ${d.has?'has':''}"><span class="dow">${d.dow}</span><span class="dnum">${d.n}</span><span class="ddot"></span></div>`
+).join('');
+document.querySelectorAll('.dcell').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('.dcell').forEach(x => x.classList.remove('sel'));
+  c.classList.add('sel');
+}));
+
+/* ───── appointments (single source) ───── */
+const appts = [
+  {id:'maria', initials:'MS', time:'09:30', end:'10:00', name:'Maria Silva', age:34, sex:'F', type:'Retorno', sala:'Sala 2', status:['p-warning','fa-circle','Agendado'], alert:true, alertText:'Alergia grave a penicilina', obs:'Paciente pós-operatório. Avaliar cicatrização e queixa de dor leve.', next:true, mins:'em 12 min'},
+  {id:'joao', initials:'JS', time:'10:00', end:'10:30', name:'João Souza', age:51, sex:'M', type:'Consulta', sala:'Sala 1', status:['p-success','fa-circle-check','Confirmou'], alert:false, obs:'Acompanhamento de hipertensão arterial.'},
+  {id:'ana', initials:'AL', time:'10:30', end:'11:00', name:'Ana Lima', age:29, sex:'F', type:'Avaliação', sala:'Sala 2', status:['p-warning','fa-circle','Agendado'], alert:false, obs:''},
+  {id:'carlos', initials:'CM', time:'11:15', end:'11:45', name:'Carlos Mendes', age:45, sex:'M', type:'Retorno', sala:'Sala 1', status:['p-warning','fa-circle','Agendado'], alert:false, obs:''},
+  {id:'bea', initials:'BR', time:'14:00', end:'14:30', name:'Beatriz Rocha', age:38, sex:'F', type:'Consulta', sala:'Sala 3', status:['p-warning','fa-circle','Agendado'], alert:true, alertText:'Anticoagulante de uso contínuo', obs:''},
+];
+const apptById = id => appts.find(a => a.id === id);
+function apptInner(a){
+  return `<div class="accent"></div><div class="av">${a.initials}</div>
+  <div class="who">
+    <div class="ln1"><span class="time">${a.time}</span><span class="nm">${a.name}</span>${a.alert?'<span class="alert-dot"></span>':''}</div>
+    <div class="ln2"><span class="sub">${a.type} · ${a.sala}</span><span class="pill ${a.status[0]}"><i class="fa-solid ${a.status[1]}"></i> ${a.status[2]}</span></div>
+  </div>`;
+}
+const nextA = appts.find(a => a.next);
+document.getElementById('nextChip').innerHTML = `<i class="fa-regular fa-clock"></i> ${nextA.mins}`;
+document.getElementById('nextCard').innerHTML = `<div class="appt next-card ${nextA.alert?'alert':''}" data-id="${nextA.id}">${apptInner(nextA)}</div>`;
+function apptRowsHTML(list){
+  return list.map(a => `
+  <div class="swipe">
+    <div class="swipe-actions">
+      <button class="a-done"><i class="fa-solid fa-check"></i>Atendido</button>
+      <button class="a-miss"><i class="fa-solid fa-xmark"></i>Faltou</button>
+    </div>
+    <div class="swipe-card appt ${a.alert?'alert':''}" data-id="${a.id}">${apptInner(a)}</div>
+  </div>`).join('');
+}
+function attachSwipeIn(container){
+  container.querySelectorAll('.swipe').forEach(sw => {
+    const card = sw.querySelector('.swipe-card');
+    let x0=null, dx=0, open=false, moved=false;
+    card.addEventListener('pointerdown', e => { x0 = e.clientX; dx=0; moved=false; card.style.transition='none'; });
+    card.addEventListener('pointermove', e => {
+      if (x0===null) return;
+      const raw = e.clientX - x0;
+      if (Math.abs(raw) > 6) moved = true;
+      dx = raw + (open?-144:0);
+      dx = Math.max(-144, Math.min(0, dx));
+      card.style.transform = `translateX(${dx}px)`;
+    });
+    const end = () => {
+      if (x0===null) return; card.style.transition='';
+      if (!moved) { card.style.transform=''; x0=null; openAgendamento(card.dataset.id); return; }
+      open = dx < -60; sw.classList.toggle('open', open);
+      card.style.transform=''; x0=null;
+    };
+    card.addEventListener('pointerup', end);
+    card.addEventListener('pointercancel', end);
+    card.addEventListener('pointerleave', e => { if (x0!==null) end(); });
+    sw.querySelectorAll('.swipe-actions button').forEach(b => b.addEventListener('click', e => {
+      e.stopPropagation();
+      sw.classList.remove('open');
+      showToast(b.classList.contains('a-done') ? 'Marcado como atendido' : 'Marcado como faltou');
+    }));
+  });
+}
+function renderLaterList(){
+  const el = document.getElementById('laterList');
+  el.innerHTML = apptRowsHTML(appts.filter(a => !a.next));
+  attachSwipeIn(el);
+}
+renderLaterList();
+
+/* tap an appointment → open detail (Tela 2) */
+document.getElementById('nextCard').querySelector('.appt').addEventListener('click', function(){ openAgendamento(this.dataset.id); });
+
+/* ───── agenda: busca + filtro (top bar contextual) ───── */
+let agendaQuery = '', agStatus = 'todos', agSala = 'todas', agAlert = 'todos';
+function agFiltersActive(){ return agStatus !== 'todos' || agSala !== 'todas' || agAlert !== 'todos'; }
+function renderAgenda(){
+  const active = agendaQuery.trim() || agFiltersActive();
+  const normal = document.getElementById('agendaNormal'), results = document.getElementById('agendaResults');
+  document.getElementById('agFilterDot').style.display = agFiltersActive() ? 'block' : 'none';
+  if (!active){ normal.style.display = 'block'; results.style.display = 'none'; return; }
+  normal.style.display = 'none'; results.style.display = 'block';
+  const q = agendaQuery.trim();
+  const list = appts.filter(a => {
+    const okName = !q || norm(a.name).includes(norm(q));
+    const okStatus = agStatus === 'todos' || a.status[2] === agStatus;
+    const okSala = agSala === 'todas' || a.sala === agSala;
+    const okAlert = agAlert === 'todos' || a.alert;
+    return okName && okStatus && okSala && okAlert;
+  });
+  document.getElementById('agendaResultsLabel').textContent = `Resultados · ${list.length}`;
+  const listEl = document.getElementById('agendaResultsList');
+  if (list.length){ listEl.innerHTML = apptRowsHTML(list); attachSwipeIn(listEl); document.getElementById('agendaResultsEmpty').style.display = 'none'; }
+  else { listEl.innerHTML = ''; document.getElementById('agendaResultsEmpty').style.display = 'block'; }
+}
+const agendaSearchBar = document.getElementById('agendaSearchBar'), agendaSearch = document.getElementById('agendaSearch');
+document.getElementById('agSearchBtn').addEventListener('click', () => {
+  const open = agendaSearchBar.style.display !== 'none';
+  if (open){ agendaSearchBar.style.display = 'none'; agendaQuery = ''; agendaSearch.value = ''; agendaSearchBar.classList.remove('has-val'); renderAgenda(); }
+  else { agendaSearchBar.style.display = 'block'; agendaSearch.focus(); }
+});
+agendaSearch.addEventListener('input', () => { agendaQuery = agendaSearch.value; agendaSearchBar.classList.toggle('has-val', agendaQuery.length > 0); renderAgenda(); });
+document.getElementById('agendaSearchClr').addEventListener('click', () => { agendaSearch.value = ''; agendaQuery = ''; agendaSearchBar.classList.remove('has-val'); renderAgenda(); agendaSearch.focus(); });
+document.getElementById('agFilterBtn').addEventListener('click', () => {
+  document.querySelectorAll('#agStatusChips .fav-chip').forEach(c => c.classList.toggle('on', c.dataset.st === agStatus));
+  document.querySelectorAll('#agSalaChips .fav-chip').forEach(c => c.classList.toggle('on', c.dataset.sl === agSala));
+  document.querySelectorAll('#agAlertChips .fav-chip').forEach(c => c.classList.toggle('on', c.dataset.al === agAlert));
+  openSheet('agendaFilterSheet');
+});
+document.getElementById('agFilterClose').addEventListener('click', closeSheets);
+document.querySelectorAll('#agStatusChips .fav-chip').forEach(c => c.addEventListener('click', () => { document.querySelectorAll('#agStatusChips .fav-chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); }));
+document.querySelectorAll('#agSalaChips .fav-chip').forEach(c => c.addEventListener('click', () => { document.querySelectorAll('#agSalaChips .fav-chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); }));
+document.querySelectorAll('#agAlertChips .fav-chip').forEach(c => c.addEventListener('click', () => { document.querySelectorAll('#agAlertChips .fav-chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); }));
+document.getElementById('agFilterApply').addEventListener('click', () => {
+  agStatus = document.querySelector('#agStatusChips .fav-chip.on').dataset.st;
+  agSala = document.querySelector('#agSalaChips .fav-chip.on').dataset.sl;
+  agAlert = document.querySelector('#agAlertChips .fav-chip.on').dataset.al;
+  closeSheets(); renderAgenda();
+});
+document.getElementById('agendaClearFilter').addEventListener('click', () => {
+  agendaQuery = ''; agendaSearch.value = ''; agendaSearchBar.classList.remove('has-val'); agendaSearchBar.style.display = 'none';
+  agStatus = 'todos'; agSala = 'todas'; agAlert = 'todos'; renderAgenda();
+});
+function updateTopbarTools(tab){ document.getElementById('topTools').style.display = tab === 'agenda' ? 'flex' : 'none'; }
+
+/* ───── push screens (drill-in stack) ───── */
+const screenStack = [];
+function pushScreen(id){ document.getElementById(id).classList.add('show'); screenStack.push(id); }
+function popScreen(){ const id = screenStack.pop(); if (id) document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('[data-pop]').forEach(b => b.addEventListener('click', popScreen));
+
+/* ───── Tela 2 — detalhe do agendamento ───── */
+let currentAppt = null;
+function openAgendamento(id){
+  const a = apptById(id); if (!a) return; currentAppt = a;
+  document.getElementById('agTime').textContent = `${a.time} – ${a.end}`;
+  document.getElementById('agSala').textContent = a.sala;
+  const st = document.getElementById('agStatus');
+  st.className = `pill ${a.status[0]}`;
+  st.innerHTML = `<i class="fa-solid ${a.status[1]}"></i> ${a.status[2]}`;
+  document.getElementById('agAv').textContent = a.initials;
+  document.getElementById('agName').textContent = a.name;
+  document.getElementById('agMeta').textContent = `${a.age} anos · ${a.type}`;
+  document.getElementById('agAlertMini').style.display = a.alert ? 'inline-flex' : 'none';
+  const obsWrap = document.getElementById('agObsWrap');
+  if (a.obs){ obsWrap.style.display='block'; document.getElementById('agObs').textContent = a.obs; }
+  else obsWrap.style.display='none';
+  pushScreen('push-agendamento');
+}
+document.getElementById('agStart').addEventListener('click', () => { if (currentAppt) openProntuario(currentAppt.name, true); });
+document.getElementById('agPatient').addEventListener('click', () => { if (currentAppt) openFicha(currentAppt.name); });
+document.querySelector('[data-act="reagendar"]').addEventListener('click', () => showToast('Abrindo reagendamento'));
+document.querySelector('[data-act="atendido"]').addEventListener('click', () => { showToast('Marcado como atendido'); popScreen(); });
+document.querySelector('[data-act="faltou"]').addEventListener('click', () => {
+  openConfirm('Marcar como faltou?', 'O paciente será registrado como ausente. A ação fica no histórico do agendamento.', () => { showToast('Marcado como faltou'); popScreen(); });
+});
+function openShareSheet(title, sub){ document.getElementById('shareTitle').textContent = title; document.getElementById('shareSub').textContent = sub; openSheet('shareSheet'); }
+document.getElementById('agShare').addEventListener('click', () => openShareSheet('Enviar confirmação', 'Link público para o paciente confirmar presença.'));
+document.querySelectorAll('.share-item').forEach(s => s.addEventListener('click', () => { closeSheets(); showToast(s.dataset.share === 'Link copiado' ? 'Link copiado' : 'Compartilhado via ' + s.dataset.share); }));
+
+/* ───── confirm dialog ───── */
+const dialogScrim = document.getElementById('dialogScrim'), confirmDialog = document.getElementById('confirmDialog');
+let confirmCb = null;
+function openConfirm(title, msg, cb){
+  document.getElementById('dlgTitle').textContent = title;
+  document.getElementById('dlgMsg').textContent = msg;
+  confirmCb = cb; confirmDialog.classList.add('show'); dialogScrim.classList.add('show');
+}
+function closeConfirm(){ confirmDialog.classList.remove('show'); dialogScrim.classList.remove('show'); confirmCb = null; }
+document.getElementById('dlgCancel').addEventListener('click', closeConfirm);
+dialogScrim.addEventListener('click', closeConfirm);
+document.getElementById('dlgConfirm').addEventListener('click', () => { const cb = confirmCb; closeConfirm(); if (cb) cb(); });
+
+/* ───── Tela 4 — ficha do paciente ───── */
+const patientExtra = {
+  'Maria Silva': { phone:['(11) 9••••-••••','(11) 99812-3477'], cpf:['•••.•••.789-00','312.456.789-00'], alertText:'Alergia grave a penicilina',
+    evo:[{dt:'02/06',t:'Retorno pós-operatório',by:'Dr. Você · Clínica Vida',att:2,s:'Cicatrização adequada, sem sinais flogísticos. Mantida orientação de repouso e retorno em 14 dias.'},{dt:'18/05',t:'Consulta inicial',by:'Dr. Você · Clínica Vida',s:'Paciente encaminhada para procedimento. Solicitados exames pré-operatórios.'}],
+    docs:[{i:'fa-prescription',t:'Receita simples',s:'02/06 · assinada'},{i:'fa-file-medical',t:'Atestado · 2 dias',s:'18/05 · assinado'}], orc:[] },
+  'João Souza': { phone:['(11) 9••••-••••','(11) 98461-2290'], cpf:['•••.•••.220-13','487.221.220-13'],
+    evo:[{dt:'28/05',t:'Acompanhamento de hipertensão',by:'Dr. Você · Clínica Vida',s:'PA 130/85 mmHg. Ajuste de dose do anti-hipertensivo. Controle em 30 dias.'}], docs:[], orc:[{n:'#1042',s:'Aguardando aprovação',st:'p-warning',stt:'Aguardando'}] },
+  'Ana Lima': { evo:[{dt:'30/05',t:'Avaliação dermatológica',by:'Dr. Você · Clínica Vida',att:1,s:'Lesão em região dorsal em acompanhamento. Foto registrada para comparação.'}], docs:[{i:'fa-flask',t:'Pedido de exame',s:'30/05 · assinado'}], orc:[] },
+  'Beatriz Rocha': { alertText:'Anticoagulante de uso contínuo', evo:[], docs:[], orc:[] },
+  'Carlos Mendes': { evo:[{dt:'12/05',t:'Retorno ortopédico',by:'Dr. Você · Clínica Vida',s:'Evolução favorável. Fisioterapia mantida por mais 3 semanas.'}], docs:[], orc:[] },
+  'Antônio Dias': { alertText:'Marca-passo · arritmia controlada', evo:[{dt:'10/05',t:'Avaliação cardiológica',by:'Dr. Você · Clínica Vida',att:1,s:'ECG estável. Mantido anticoagulante e seguimento semestral.'}], docs:[], orc:[] },
+};
+const fc = id => document.getElementById(id);
+let piiRevealed = false;
+let currentFicha = null;
+function tabEmpty(msg){ return `<div class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>${msg}</p></div>`; }
+function evoHTML(list){ return list.map(e => `<div class="evo-card"><div class="eh"><b>${e.t}</b><span class="dt">${e.dt}</span></div><div class="who2">${e.by}</div>${e.att?`<div class="att"><i class="fa-solid fa-paperclip"></i> ${e.att} ${e.att>1?'anexos':'anexo'}</div>`:''}</div>`).join(''); }
+
+function openFicha(name){
+  currentFicha = name;
+  const p = patients.find(x => x.name === name) || { name, initials: name.split(' ').map(w=>w[0]).slice(0,2).join(''), age:'—', sex:'—', alert:false };
+  const ex = patientExtra[name] || {};
+  fc('fcTitle').textContent = name;
+  fc('fcAv').textContent = p.initials;
+  fc('fcName').textContent = p.name;
+  fc('fcMeta').textContent = `${p.age} anos · ${p.sex}`;
+  // PII masked
+  const phone = ex.phone || ['(11) 9••••-••••','(11) 99000-0000'];
+  const cpf = ex.cpf || ['•••.•••.•••-••','000.000.000-00'];
+  fc('fcPhone').dataset.masked = phone[0]; fc('fcPhone').dataset.real = phone[1];
+  fc('fcCpf').dataset.masked = cpf[0]; fc('fcCpf').dataset.real = cpf[1];
+  maskPii();
+  // alert
+  if (p.alert){ fc('fcAlert').style.display = 'flex'; fc('fcAlertText').textContent = ex.alertText || 'Atenção clínica registrada'; fc('fcAuditNote').style.display = 'flex'; }
+  else { fc('fcAlert').style.display = 'none'; fc('fcAuditNote').style.display = 'none'; }
+  // panels
+  fc('fcHist').innerHTML = (ex.evo && ex.evo.length) ? evoHTML(ex.evo) : tabEmpty('Sem evoluções registradas.');
+  fc('fcPront').innerHTML = (ex.evo && ex.evo.length) ? evoHTML(ex.evo) : tabEmpty('Prontuário ainda vazio.');
+  fc('fcDocs').innerHTML = (ex.docs && ex.docs.length)
+    ? `<div class="plist" style="padding:0 14px;">${ex.docs.map(d=>`<div class="doc-row"><div class="di"><i class="fa-solid ${d.i}"></i></div><div class="dx"><b>${d.t}</b><span>${d.s}</span></div><i class="fa-solid fa-chevron-right" style="color:var(--app-text-faint);font-size:13px;"></i></div>`).join('')}</div>`
+    : tabEmpty('Nenhum documento emitido.');
+  fc('fcOrc').innerHTML = (ex.orc && ex.orc.length)
+    ? `<div class="plist" style="padding:0 14px;">${ex.orc.map(o=>`<div class="doc-row" data-orc="${o.n}" style="cursor:pointer;"><div class="di" style="background:hsl(var(--warning)/.15);color:hsl(35 88% 38%)"><i class="fa-solid fa-file-invoice-dollar"></i></div><div class="dx"><b>Orçamento ${o.n}</b><span>${o.s}</span></div><i class="fa-solid fa-chevron-right" style="color:var(--app-text-faint);font-size:13px;"></i></div>`).join('')}</div>`
+    : tabEmpty('Nenhum orçamento.');
+  fc('fcOrc').querySelectorAll('[data-orc]').forEach(r => r.addEventListener('click', () => openOrcamento(r.dataset.orc)));
+  setFichaTab('hist');
+  pushScreen('push-ficha');
+}
+function setFichaTab(key){
+  document.querySelectorAll('#fcTabs .ftab').forEach(t => t.classList.toggle('on', t.dataset.ft === key));
+  document.querySelectorAll('#push-ficha .fpanel').forEach(p => p.classList.toggle('on', p.dataset.fp === key));
+}
+document.querySelectorAll('#fcTabs .ftab').forEach(t => t.addEventListener('click', () => setFichaTab(t.dataset.ft)));
+
+/* PII reveal (biometric-gated) */
+function maskPii(){
+  piiRevealed = false;
+  [fc('fcPhone'), fc('fcCpf')].forEach(b => { b.classList.remove('revealed'); b.querySelector('span').textContent = b.dataset.masked; });
+  fc('fcRevealHint').innerHTML = '<i class="fa-solid fa-fingerprint"></i> Toque para revelar dados sensíveis';
+}
+function revealPii(){
+  piiRevealed = true;
+  [fc('fcPhone'), fc('fcCpf')].forEach(b => { b.classList.add('revealed'); b.querySelector('span').textContent = b.dataset.real; });
+  fc('fcRevealHint').innerHTML = '<i class="fa-solid fa-circle-check" style="color:hsl(var(--success))"></i> Dados revelados — acesso registrado';
+}
+const bioDialog = fc('bioDialog'), bioScrim = fc('bioScrim');
+function openBio(){ if (piiRevealed) return; bioDialog.classList.add('show'); bioScrim.classList.add('show'); }
+function closeBio(){ bioDialog.classList.remove('show'); bioScrim.classList.remove('show'); }
+fc('fcRevealHint').addEventListener('click', openBio);
+fc('fcPhone').addEventListener('click', () => { if (!piiRevealed) openBio(); });
+fc('fcCpf').addEventListener('click', () => { if (!piiRevealed) openBio(); });
+fc('bioCancel').addEventListener('click', closeBio);
+bioScrim.addEventListener('click', closeBio);
+fc('bioConfirm').addEventListener('click', () => { closeBio(); revealPii(); showToast('Dados revelados — acesso registrado'); });
+
+/* ficha actions */
+const factMsg = { evolucao:'Nova evolução', receita:'Nova receita', atestado:'Novo atestado', exame:'Pedido de exame' };
+document.querySelectorAll('#push-ficha .fact').forEach(b => b.addEventListener('click', () => {
+  const f = b.dataset.fact;
+  if (f === 'evolucao') openProntuario(currentFicha, true);
+  else if (f === 'receita') openReceita(currentFicha);
+  else if (f === 'atestado') openAtestado(currentFicha);
+  else if (f === 'exame') openExame(currentFicha);
+}));
+fc('fcOpenPront').addEventListener('click', () => openProntuario(currentFicha));
+
+/* ───── Tela 5 — prontuário + nova evolução ───── */
+function openProntuario(name, withSheet){
+  const p = patients.find(x => x.name === name) || { name:name||'Paciente', initials:(name||'P').split(' ').map(w=>w[0]).slice(0,2).join(''), age:'—', sex:'—' };
+  const ex = patientExtra[name] || {};
+  fc('prAv').textContent = p.initials;
+  fc('prName').textContent = p.name;
+  fc('prMeta').textContent = `${p.age} anos · ${p.sex}`;
+  const evo = ex.evo || [];
+  const tl = fc('prTimeline');
+  if (evo.length){
+    tl.className = 'timeline';
+    tl.innerHTML = evo.map(e => tlCardHTML(e.t, e.dt, e.by, e.s, e.att)).join('');
+  } else {
+    tl.className = '';
+    tl.innerHTML = `<div class="tab-empty" id="prEmpty"><i class="fa-regular fa-file-lines"></i><p>Nenhuma evolução registrada.<br>Toque em “Nova evolução” para começar.</p></div>`;
+  }
+  pushScreen('push-prontuario');
+  if (withSheet) setTimeout(() => openSheet('evoSheet'), 340);
+}
+function tlCardHTML(t, dt, by, s, att){
+  return `<div class="tl-item"><div class="tl-card"><div class="tl-head"><b>${t}</b><span class="dt">${dt}</span></div><div class="tl-by">${by}</div>${s?`<p class="tl-snip">${s}</p>`:''}${att?`<div class="att"><i class="fa-solid fa-paperclip"></i> ${att} ${att>1?'anexos':'anexo'}</div>`:''}</div></div>`;
+}
+fc('prNew').addEventListener('click', () => openSheet('evoSheet'));
+
+/* nova evolução sheet */
+const evoText = fc('evoText'), evoMic = fc('evoMic'), listenHint = fc('listenHint'), evoThumbs = fc('evoThumbs'), evoSave = fc('evoSave');
+fc('evoClose').addEventListener('click', closeSheets);
+// voice dictation (simulated)
+let listening = false, micT;
+function startMic(){ listening = true; evoMic.classList.add('listening'); listenHint.classList.add('on'); micT = setTimeout(() => { const cur = evoText.value.trim(); evoText.value = (cur ? cur + ' ' : '') + 'Paciente refere melhora da dor, sem novas queixas no momento.'; stopMic(); }, 1800); }
+function stopMic(){ listening = false; evoMic.classList.remove('listening'); listenHint.classList.remove('on'); clearTimeout(micT); }
+evoMic.addEventListener('click', () => listening ? stopMic() : startMic());
+listenHint.addEventListener('click', stopMic);
+// attachments (camera / gallery) with upload progress
+function addThumb(){
+  const el = document.createElement('div'); el.className = 'thumb uploading';
+  el.innerHTML = `<i class="fa-regular fa-image"></i><button class="rm"><i class="fa-solid fa-xmark"></i></button><div class="prog"><div class="bar"></div></div><div class="done-check"><i class="fa-solid fa-check"></i></div>`;
+  evoThumbs.appendChild(el);
+  requestAnimationFrame(() => { el.querySelector('.bar').style.width = '100%'; });
+  setTimeout(() => { el.classList.remove('uploading'); el.classList.add('done'); }, 1100);
+  el.querySelector('.rm').addEventListener('click', () => el.remove());
+}
+document.querySelectorAll('#evoSheet .att-btns button').forEach(b => b.addEventListener('click', addThumb));
+// save
+function resetEvoForm(){ evoText.value=''; evoThumbs.innerHTML=''; fc('evoModelo').selectedIndex=0; stopMic(); }
+evoSave.addEventListener('click', () => {
+  if (!evoText.value.trim()){ showToast('Escreva a evolução antes de salvar'); return; }
+  evoSave.disabled = true; evoSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando…';
+  setTimeout(() => {
+    const modelo = fc('evoModelo').value; const att = evoThumbs.querySelectorAll('.thumb').length;
+    const tl = fc('prTimeline'); tl.className = 'timeline';
+    fc('prEmpty')?.remove();
+    tl.insertAdjacentHTML('afterbegin', tlCardHTML(modelo, 'Hoje', 'Dr. Você · Clínica Vida', escapeHtml(evoText.value.trim()), att));
+    closeSheets(); resetEvoForm();
+    evoSave.disabled = false; evoSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar evolução';
+    showToast('Evolução salva');
+  }, 1300);
+});
+function escapeHtml(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ───── Tela 6 — avisos / notificações ───── */
+const notifs = [
+  {g:'Hoje', cat:'c-info', icon:'fa-calendar-plus', title:'Novo agendamento', sub:'Maria Silva · 10:30 hoje', time:'há 5 min', unread:true, deep:'agenda'},
+  {g:'Hoje', cat:'c-error', icon:'fa-calendar-xmark', title:'Consulta cancelada', sub:'João Souza · 14:00', time:'há 1 h', unread:true, deep:'agenda'},
+  {g:'Hoje', cat:'c-success', icon:'fa-file-circle-check', title:'Receita assinada', sub:'Pronta para envio ao paciente', time:'há 2 h', unread:false, deep:'receita'},
+  {g:'Ontem', cat:'c-warning', icon:'fa-bell', title:'Lembrete de agenda', sub:'3 consultas amanhã', time:'ontem 18:00', unread:true, deep:'agenda'},
+  {g:'Ontem', cat:'c-success', icon:'fa-circle-check', title:'Presença confirmada', sub:'Ana Lima · 30/05', time:'ontem 17:20', unread:false, deep:'agenda'},
+  {g:'Anteriores', cat:'c-violet', icon:'fa-user-plus', title:'Vínculo aceito', sub:'Hospital Norte · Médico', time:'28/05', unread:false, deep:'mais'},
+  {g:'Anteriores', cat:'c-success', icon:'fa-prescription', title:'Receita pronta', sub:'Carlos Mendes', time:'27/05', unread:false, deep:'receita'},
+];
+function renderAvisos(){
+  const content = document.getElementById('avContent');
+  let html = '';
+  ['Hoje','Ontem','Anteriores'].forEach(g => {
+    const items = notifs.map((n,i)=>({n,i})).filter(x => x.n.g === g);
+    if (!items.length) return;
+    html += `<div class="av-group">${g}</div><div class="av-list">`;
+    items.forEach(({n,i}) => { html += `<div class="notif ${n.unread?'unread':''}" data-idx="${i}"><span class="udot"></span><span class="nic ${n.cat}"><i class="fa-solid ${n.icon}"></i></span><span class="ntx"><b>${n.title}</b><span class="ns">${n.sub}</span><span class="nt">${n.time}</span></span></div>`; });
+    html += `</div>`;
+  });
+  content.innerHTML = html;
+  content.querySelectorAll('.notif').forEach(el => el.addEventListener('click', () => onNotif(parseInt(el.dataset.idx), el)));
+  updateAvisos();
+}
+function updateAvisos(){
+  const unread = notifs.filter(n => n.unread).length;
+  document.querySelector('.av-head .ttl').innerHTML = unread > 0 ? `<b>${unread}</b> não lidos` : 'Tudo lido';
+  document.getElementById('avMarkAll').disabled = unread === 0;
+  const nb = document.querySelector('.tab[data-tab="avisos"] .nb');
+  if (unread > 0){ nb.style.display = 'flex'; nb.textContent = unread; } else nb.style.display = 'none';
+}
+function onNotif(i, el){
+  if (notifs[i].unread){ notifs[i].unread = false; el.classList.remove('unread'); updateAvisos(); }
+  const n = notifs[i];
+  if (n.deep === 'agenda'){ document.querySelector('.tab[data-tab="agenda"]').click(); showToast('Abrindo: ' + n.title); }
+  else if (n.deep === 'receita'){ showToast('Abrindo receita'); }
+  else showToast('Abrindo: ' + n.title);
+}
+document.getElementById('avMarkAll').addEventListener('click', () => {
+  notifs.forEach(n => n.unread = false);
+  document.querySelectorAll('#avContent .notif').forEach(el => el.classList.remove('unread'));
+  updateAvisos(); showToast('Todas marcadas como lidas');
+});
+renderAvisos();
+
+/* ───── push banner (foreground push) ───── */
+const pushBanner = document.getElementById('pushBanner');
+let pbT;
+function showPush(){ pushBanner.classList.add('show'); clearTimeout(pbT); pbT = setTimeout(() => pushBanner.classList.remove('show'), 5200); }
+pushBanner.addEventListener('click', () => { pushBanner.classList.remove('show'); clearTimeout(pbT); document.querySelector('.tab[data-tab="agenda"]').click(); showToast('Abrindo agendamento'); });
+
+/* ───── Tela 7 — receita rápida ───── */
+const FAVS = [
+  {name:'Amoxicilina 500mg', pos:'1 cápsula · 8/8h · 7 dias'},
+  {name:'Dipirona 1g', pos:'1 comprimido · 6/6h se dor'},
+  {name:'Losartana 50mg', pos:'1 comprimido · 1x/dia'},
+  {name:'Omeprazol 20mg', pos:'1 cápsula · em jejum · 14 dias'},
+];
+const MEDS = ['Amoxicilina 500mg','Dipirona 1g','Losartana 50mg','Omeprazol 20mg','Ibuprofeno 600mg','Azitromicina 500mg','Metformina 850mg','Prednisona 20mg','Paracetamol 750mg','Cefalexina 500mg'];
+let rcItems = [];
+let posEditIdx = null;
+
+function openReceita(name){
+  const pname = name || currentFicha || 'Maria Silva';
+  const p = patients.find(x => x.name === pname) || { name: pname, initials: pname.split(' ').map(w=>w[0]).slice(0,2).join(''), age:'—', sex:'—' };
+  document.getElementById('rcAv').textContent = p.initials;
+  document.getElementById('rcName').textContent = p.name;
+  document.getElementById('rcSub').textContent = `${p.age} anos · ${p.sex}`;
+  document.getElementById('rcTipo').selectedIndex = 0;
+  rcItems = [ { ...FAVS[0] } ];
+  renderRcFavs(); renderRcItems();
+  pushScreen('push-receita');
+}
+function renderRcFavs(){
+  const el = document.getElementById('rcFavs');
+  el.innerHTML = FAVS.map((f,i) => `<button class="fav-chip" data-fav="${i}"><i class="fa-solid fa-star" style="color:hsl(var(--warning));"></i> ${f.name}</button>`).join('')
+    + `<button class="fav-chip add" id="favSearch"><i class="fa-solid fa-magnifying-glass"></i> Buscar</button>`;
+  el.querySelectorAll('[data-fav]').forEach(c => c.addEventListener('click', () => { rcItems.push({ ...FAVS[+c.dataset.fav] }); renderRcItems(); }));
+  document.getElementById('favSearch').addEventListener('click', () => openMedSheet());
+}
+function renderRcItems(){
+  const el = document.getElementById('rcItems');
+  if (!rcItems.length){ el.innerHTML = `<div class="rc-empty">Nenhum medicamento. Toque num favorito ou em “Adicionar”.</div>`; return; }
+  el.innerHTML = rcItems.map((it,i) => `<div class="rc-item"><div class="rd"><b>${it.name}</b><div class="pos">${it.pos}</div></div><button class="ed" data-ed="${i}"><i class="fa-solid fa-pen"></i></button><button class="rm2" data-rm="${i}"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+  el.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => { rcItems.splice(+b.dataset.rm,1); renderRcItems(); }));
+  el.querySelectorAll('[data-ed]').forEach(b => b.addEventListener('click', () => openPos(+b.dataset.ed)));
+}
+document.getElementById('rcAdd').addEventListener('click', () => openMedSheet());
+document.getElementById('rcPatient').addEventListener('click', () => showToast('Selecionar outro paciente'));
+
+/* med search sheet */
+function openMedSheet(){ document.getElementById('medSearch').value=''; renderMedList(''); openSheet('medSheet'); }
+function renderMedList(q){
+  const nq = q.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const list = MEDS.filter(m => m.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(nq));
+  const el = document.getElementById('medList');
+  el.innerHTML = list.length ? list.map(m => `<div class="med-row" data-med="${m}"><div class="mi"><i class="fa-solid fa-pills"></i></div><b>${m}</b><i class="fa-solid fa-plus add-i"></i></div>`).join('') : `<div class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>Nenhum medicamento encontrado.</p></div>`;
+  el.querySelectorAll('[data-med]').forEach(r => r.addEventListener('click', () => { const fav = FAVS.find(f => f.name === r.dataset.med); rcItems.push(fav ? { ...fav } : { name: r.dataset.med, pos:'1 dose · conforme orientação' }); renderRcItems(); closeSheets(); showToast('Adicionado: ' + r.dataset.med); }));
+}
+document.getElementById('medSearch').addEventListener('input', e => renderMedList(e.target.value));
+document.getElementById('medClose').addEventListener('click', closeSheets);
+
+/* posologia sheet */
+function openPos(i){
+  posEditIdx = i; const it = rcItems[i];
+  document.getElementById('posMed').textContent = it.name;
+  const parts = it.pos.split(' · ');
+  document.getElementById('posQtd').value = parts[0] || '1 comprimido';
+  document.getElementById('posFreq').value = parts[1] || '8/8h';
+  document.getElementById('posDur').value = parts[2] || '7 dias';
+  openSheet('posSheet');
+}
+document.getElementById('posApply').addEventListener('click', () => {
+  if (posEditIdx === null) return;
+  const q = document.getElementById('posQtd').value.trim(), f = document.getElementById('posFreq').value.trim(), d = document.getElementById('posDur').value.trim();
+  rcItems[posEditIdx].pos = [q,f,d].filter(Boolean).join(' · ');
+  renderRcItems(); closeSheets(); posEditIdx = null;
+});
+
+/* sign flow */
+const signScrim = document.getElementById('signScrim'), signDialog = document.getElementById('signDialog');
+function runSign(onDone){
+  signScrim.classList.add('show'); signDialog.classList.add('show');
+  const steps = ['Validando certificado…','Assinando (ANVISA)…','Gerando PDF…'];
+  let i = 0; document.getElementById('signStep').textContent = steps[0];
+  const iv = setInterval(() => { i++; if (i < steps.length) document.getElementById('signStep').textContent = steps[i]; }, 720);
+  setTimeout(() => { clearInterval(iv); signScrim.classList.remove('show'); signDialog.classList.remove('show'); onDone(); }, 2300);
+}
+document.getElementById('rcSign').addEventListener('click', () => {
+  if (!rcItems.length){ showToast('Adicione ao menos um medicamento'); return; }
+  const pname = document.getElementById('rcName').textContent;
+  const tipo = document.getElementById('rcTipo').value.toLowerCase();
+  runSign(() => {
+    document.getElementById('okHead').textContent = 'Receita assinada';
+    document.getElementById('okTitle').textContent = 'Receita assinada';
+    document.getElementById('okSummary').textContent = `${pname} · ${rcItems.length} ${rcItems.length>1?'itens':'item'} · receita ${tipo.split(' ')[0]}`;
+    okShareCtx = { title:'Enviar receita', sub:'PDF assinado ou link seguro para o paciente.' };
+    pushScreen('push-signok');
+  });
+});
+
+/* success buttons (shared) */
+let okShareCtx = { title:'Enviar documento', sub:'PDF assinado para o paciente.' };
+document.getElementById('okSend').addEventListener('click', () => openShareSheet(okShareCtx.title, okShareCtx.sub));
+document.getElementById('okPdf').addEventListener('click', () => showToast('Abrindo PDF'));
+document.getElementById('okDone').addEventListener('click', () => { popScreen(); popScreen(); showToast('Documento concluído'); });
+
+/* ───── Telas 8 & 9 — atestado / pedido de exame ───── */
+function resolvePatient(name){
+  const pname = name || currentFicha || 'Maria Silva';
+  return patients.find(x => x.name === pname) || { name: pname, initials: pname.split(' ').map(w=>w[0]).slice(0,2).join(''), age:'—', sex:'—' };
+}
+function fillPatientCard(prefix, p){
+  document.getElementById(prefix+'Av').textContent = p.initials;
+  document.getElementById(prefix+'Name').textContent = p.name;
+  document.getElementById(prefix+'Sub').textContent = `${p.age} anos · ${p.sex}`;
+}
+
+/* Atestado */
+const CIDS = [
+  {c:'J00', n:'Resfriado comum'}, {c:'J03', n:'Amigdalite aguda'}, {c:'J11', n:'Influenza'},
+  {c:'I10', n:'Hipertensão essencial'}, {c:'E11', n:'Diabetes mellitus tipo 2'}, {c:'M54.5', n:'Dor lombar baixa'},
+  {c:'K29', n:'Gastrite'}, {c:'F41', n:'Transtorno de ansiedade'}, {c:'B34', n:'Infecção viral'}, {c:'R51', n:'Cefaleia'},
+];
+let atDias = 2, selectedCid = null;
+function openAtestado(name){
+  fillPatientCard('at', resolvePatient(name));
+  atDias = 2; document.getElementById('atDias').textContent = atDias; updateAtMinus();
+  selectedCid = null; const c = document.getElementById('atCid'); c.classList.add('placeholder'); document.getElementById('atCidLabel').textContent = 'Selecionar CID-10';
+  document.getElementById('atObs').value = '';
+  pushScreen('push-atestado');
+}
+function updateAtMinus(){ document.getElementById('atMinus').disabled = atDias <= 1; }
+document.getElementById('atMinus').addEventListener('click', () => { if (atDias > 1){ atDias--; document.getElementById('atDias').textContent = atDias; updateAtMinus(); } });
+document.getElementById('atPlus').addEventListener('click', () => { if (atDias < 30){ atDias++; document.getElementById('atDias').textContent = atDias; updateAtMinus(); } });
+document.getElementById('atDate').addEventListener('click', () => showToast('Selecionar data de início'));
+document.getElementById('atCid').addEventListener('click', openCidSheet);
+function openCidSheet(){ document.getElementById('cidSearch').value=''; renderCidList(''); openSheet('cidSheet'); }
+function renderCidList(q){
+  const nq = q.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const list = CIDS.filter(x => (x.c+' '+x.n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(nq));
+  const el = document.getElementById('cidList');
+  el.innerHTML = list.length ? list.map(x => `<div class="med-row" data-cid="${x.c}"><div class="mi"><i class="fa-solid fa-hashtag"></i></div><b>${x.c} · ${x.n}</b><i class="fa-solid fa-plus add-i"></i></div>`).join('') : `<div class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>Nenhum CID encontrado.</p></div>`;
+  el.querySelectorAll('[data-cid]').forEach(r => r.addEventListener('click', () => {
+    const x = CIDS.find(c => c.c === r.dataset.cid); selectedCid = x;
+    document.getElementById('atCid').classList.remove('placeholder');
+    document.getElementById('atCidLabel').textContent = `${x.c} · ${x.n}`;
+    closeSheets();
+  }));
+}
+document.getElementById('cidSearch').addEventListener('input', e => renderCidList(e.target.value));
+document.getElementById('cidClose').addEventListener('click', closeSheets);
+document.getElementById('atSign').addEventListener('click', () => {
+  const pname = document.getElementById('atName').textContent;
+  runSign(() => {
+    document.getElementById('okHead').textContent = 'Atestado assinado';
+    document.getElementById('okTitle').textContent = 'Atestado assinado';
+    document.getElementById('okSummary').textContent = `${pname} · ${atDias} ${atDias>1?'dias':'dia'}${selectedCid?' · CID '+selectedCid.c:''}`;
+    okShareCtx = { title:'Enviar atestado', sub:'PDF assinado ou link seguro para o paciente.' };
+    pushScreen('push-signok');
+  });
+});
+
+/* Pedido de exame */
+const EXAMES = ['Hemograma completo','Glicemia de jejum','Colesterol total e frações','TSH','Creatinina','EAS (urina tipo 1)','Raio-X de tórax','Ultrassom abdominal','Eletrocardiograma','TGO / TGP'];
+let exSelected = new Set();
+function openExame(name){
+  fillPatientCard('ex', resolvePatient(name));
+  exSelected = new Set(); document.getElementById('exSearch').value=''; document.getElementById('exInd').value='';
+  renderExChips(''); pushScreen('push-exame');
+}
+function renderExChips(q){
+  const nq = q.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const list = EXAMES.filter(m => m.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(nq));
+  const el = document.getElementById('exChips');
+  el.innerHTML = list.map(m => `<button class="fav-chip ${exSelected.has(m)?'on':''}" data-ex="${m}">${exSelected.has(m)?'<i class="fa-solid fa-check"></i> ':''}${m}</button>`).join('');
+  el.querySelectorAll('[data-ex]').forEach(c => c.addEventListener('click', () => { const m = c.dataset.ex; exSelected.has(m) ? exSelected.delete(m) : exSelected.add(m); renderExChips(document.getElementById('exSearch').value); updateExCount(); }));
+  updateExCount();
+}
+function updateExCount(){ const n = exSelected.size; document.getElementById('exCount').textContent = n ? `· ${n} selecionado${n>1?'s':''}` : ''; }
+document.getElementById('exSearch').addEventListener('input', e => renderExChips(e.target.value));
+document.getElementById('exSign').addEventListener('click', () => {
+  if (!exSelected.size){ showToast('Selecione ao menos um exame'); return; }
+  const pname = document.getElementById('exName').textContent; const n = exSelected.size;
+  runSign(() => {
+    document.getElementById('okHead').textContent = 'Pedido gerado';
+    document.getElementById('okTitle').textContent = 'Pedido de exame gerado';
+    document.getElementById('okSummary').textContent = `${pname} · ${n} ${n>1?'exames':'exame'}`;
+    okShareCtx = { title:'Enviar pedido de exame', sub:'PDF assinado ou link seguro para o paciente.' };
+    pushScreen('push-signok');
+  });
+});
+
+/* ───── Tela 11 — orçamento (ver e aprovar) ───── */
+let currentRole = 'Dono';
+const orcamentos = {
+  '#1042': { n:'#1042', patient:'João Souza', proc:'Implante unitário + coroa de porcelana',
+    items:[{t:'Implante de titânio',v:'1.200,00'},{t:'Coroa de porcelana',v:'1.400,00'},{t:'Anestesia / sedação',v:'800,00'}], total:'3.400,00', status:'Aguardando' },
+};
+let currentOrc = null;
+function openOrcamento(id){
+  const o = orcamentos[id]; if (!o) return; currentOrc = o;
+  const p = patients.find(x => x.name === o.patient) || { name:o.patient, initials:o.patient.split(' ').map(w=>w[0]).slice(0,2).join(''), age:'—', sex:'—' };
+  document.getElementById('orcNum').textContent = 'Orçamento ' + o.n;
+  document.getElementById('orcAv').textContent = p.initials;
+  document.getElementById('orcName').textContent = o.patient;
+  document.getElementById('orcSub').textContent = `${p.age} anos · ${p.sex}`;
+  document.getElementById('orcProc').textContent = o.proc;
+  document.getElementById('orcItems').innerHTML = o.items.map(it => `<div class="orc-line"><span class="ln-t">${it.t}</span><span class="ln-v">R$ ${it.v}</span></div>`).join('');
+  document.getElementById('orcTotal').textContent = 'R$ ' + o.total;
+  setOrcStatus(o.status);
+  // permission degradation (G2): only 'Dono' has orcamento.aprovar
+  const canApprove = currentRole === 'Dono' && o.status === 'Aguardando';
+  document.getElementById('orcFoot').style.display = canApprove ? 'block' : 'none';
+  document.getElementById('orcReadonly').style.display = (currentRole !== 'Dono' && o.status === 'Aguardando') ? 'flex' : 'none';
+  pushScreen('push-orcamento');
+}
+function setOrcStatus(st){
+  const el = document.getElementById('orcStatus');
+  const map = { 'Aguardando':['p-warning','fa-circle','Aguardando aprovação'], 'Aprovado':['p-success','fa-circle-check','Aprovado'], 'Recusado':['p-error','fa-circle-xmark','Recusado'] };
+  const m = map[st] || map['Aguardando'];
+  el.className = 'pill ' + m[0]; el.style.marginBottom = '16px'; el.style.display = 'inline-flex';
+  el.innerHTML = `<i class="fa-solid ${m[1]}"></i> ${m[2]}`;
+}
+document.getElementById('orcApprove').addEventListener('click', () => {
+  currentOrc.status = 'Aprovado'; setOrcStatus('Aprovado');
+  document.getElementById('orcFoot').style.display = 'none';
+  showToast('Orçamento aprovado');
+});
+document.getElementById('orcReject').addEventListener('click', () => {
+  openConfirm('Recusar orçamento?', 'O orçamento será marcado como recusado. O paciente pode ser notificado.', () => {
+    currentOrc.status = 'Recusado'; setOrcStatus('Recusado');
+    document.getElementById('orcFoot').style.display = 'none';
+    showToast('Orçamento recusado');
+  });
+});
+
+/* ───── Tela 12 — mais / perfil ───── */
+function syncMaisEstab(){ const el = document.getElementById('maisCurrentEstab'); if (el) el.textContent = document.getElementById('estabName').textContent.trim() + ' · ' + currentRole; }
+syncMaisEstab();
+document.getElementById('profileRow').addEventListener('click', () => showToast('Editar perfil'));
+document.getElementById('maisSwitch').addEventListener('click', () => openSheet('estabSheet'));
+document.querySelectorAll('#view-mais .switch').forEach(s => s.addEventListener('click', () => { s.classList.toggle('on'); const on = s.classList.contains('on'); const k = s.dataset.toggle; showToast((k==='push'?'Notificações push':'Biometria') + (on?' ativada':' desativada')); }));
+document.querySelectorAll('#view-mais [data-ext]').forEach(r => r.addEventListener('click', () => showToast('Abrindo no navegador: ' + r.dataset.ext)));
+document.getElementById('helpRow').addEventListener('click', () => showToast('Abrindo ajuda e suporte'));
+document.getElementById('logoutRow').addEventListener('click', () => openConfirm('Sair da conta?', 'Você precisará entrar novamente com e-mail e senha ou biometria.', () => { showToast('Sessão encerrada'); showLogin(); }));
+
+/* ───── Telas 0 / 0b — login + seletor de estabelecimento ───── */
+const loginLayer = document.getElementById('loginLayer'), seletorLayer = document.getElementById('seletorLayer');
+function showLogin(){ loginLayer.classList.add('show'); seletorLayer.classList.remove('show'); document.getElementById('loginError').classList.remove('on'); }
+function showSeletor(){ seletorLayer.classList.add('show'); loginLayer.classList.remove('show'); }
+document.getElementById('loginEye').addEventListener('click', () => { const p = document.getElementById('loginPass'); const reveal = p.type === 'password'; p.type = reveal ? 'text' : 'password'; document.getElementById('loginEye').innerHTML = `<i class="fa-regular fa-eye${reveal?'-slash':''}"></i>`; });
+document.getElementById('forgotLink').addEventListener('click', () => showToast('Enviamos instruções para seu e-mail'));
+document.getElementById('loginBtn').addEventListener('click', () => {
+  const em = document.getElementById('loginEmail').value.trim(), pw = document.getElementById('loginPass').value.trim();
+  if (!em || !pw){ document.getElementById('loginError').classList.add('on'); return; }
+  document.getElementById('loginError').classList.remove('on');
+  const b = document.getElementById('loginBtn'); b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando…';
+  setTimeout(() => { b.disabled = false; b.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar'; showSeletor(); }, 1000);
+});
+document.getElementById('bioLoginBtn').addEventListener('click', () => {
+  const b = document.getElementById('bioLoginBtn'); b.innerHTML = '<i class="fa-solid fa-fingerprint fa-fade"></i> Autenticando…';
+  setTimeout(() => { b.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Entrar com biometria'; showSeletor(); }, 950);
+});
+let pushTriggered = false;
+function enterApp(name, role, count){
+  document.getElementById('estabName').innerHTML = name + ' <i class="fa-solid fa-chevron-down"></i>';
+  document.getElementById('estabRole').textContent = `${role} · ${count} hoje`;
+  currentRole = role; syncMaisEstab();
+  document.querySelectorAll('#estabSheet .estab').forEach(x => x.classList.toggle('cur', x.dataset.name === name));
+  loginLayer.classList.remove('show'); seletorLayer.classList.remove('show');
+  document.querySelector('.tab[data-tab="agenda"]').click();
+  if (!pushTriggered){ pushTriggered = true; setTimeout(showPush, 4200); }
+}
+document.querySelectorAll('.sel-card').forEach(c => c.addEventListener('click', () => enterApp(c.dataset.name, c.dataset.role, c.dataset.count)));
+showLogin();
+
+/* ───── estados globais G1 (assinatura) / G3 (offline) — controles de revisão ───── */
+const offlineBar = document.getElementById('offlineBar'), assinaturaLayer = document.getElementById('assinaturaLayer');
+document.querySelectorAll('.demo-bar button').forEach(b => b.addEventListener('click', () => {
+  const s = b.dataset.state;
+  if (s === 'offline'){ const on = offlineBar.classList.toggle('on'); b.classList.toggle('on', on); if (!on) showToast('Reconectado — sincronizando'); }
+  else if (s === 'assinatura'){ const on = assinaturaLayer.classList.toggle('show'); b.classList.toggle('on', on); }
+  else if (s === 'login'){ showLogin(); }
+}));
+document.getElementById('g1Renew').addEventListener('click', () => showToast('Abrindo checkout no navegador'));
+document.getElementById('g1Support').addEventListener('click', () => showToast('Abrindo suporte'));
+window.addEventListener('offline', () => { offlineBar.classList.add('on'); document.querySelector('.demo-bar [data-state="offline"]').classList.add('on'); });
+window.addEventListener('online', () => { offlineBar.classList.remove('on'); document.querySelector('.demo-bar [data-state="offline"]').classList.remove('on'); showToast('Reconectado — sincronizando'); });
+
+/* ───── splash / tela de carregamento ───── */
+setTimeout(() => { const s = document.getElementById('splash'); if (s){ s.classList.add('hide'); setTimeout(() => { s.style.display = 'none'; }, 550); } }, 1800);
+
+/* ───── Tela — novo agendamento ───── */
+const NA_TIMES = ['08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00'];
+let naPatientSel = null, naTimeSel = null;
+function openNovoAgend(){
+  naPatientSel = currentFicha ? (patients.find(p => p.name === currentFicha) || null) : null;
+  naTimeSel = null;
+  syncNaPatient();
+  document.getElementById('naTipo').selectedIndex = 0;
+  document.getElementById('naSala').selectedIndex = 0;
+  document.getElementById('naObs').value = '';
+  document.getElementById('naTimes').innerHTML = NA_TIMES.map(t => `<button class="fav-chip" data-time="${t}">${t}</button>`).join('');
+  document.querySelectorAll('#naTimes .fav-chip').forEach(c => c.addEventListener('click', () => {
+    naTimeSel = c.dataset.time;
+    document.querySelectorAll('#naTimes .fav-chip').forEach(x => x.classList.toggle('on', x === c));
+  }));
+  pushScreen('push-novoagend');
+}
+function syncNaPatient(){
+  const av = document.getElementById('naAv'), nm = document.getElementById('naName'), sb = document.getElementById('naSub');
+  if (naPatientSel){ av.textContent = naPatientSel.initials; av.style.background = 'var(--brand-soft)'; av.style.color = 'var(--brand)'; nm.textContent = naPatientSel.name; sb.textContent = `${naPatientSel.age} anos · ${naPatientSel.sex}`; }
+  else { av.innerHTML = '<i class="fa-solid fa-user"></i>'; av.style.background = 'var(--app-card-2)'; av.style.color = 'var(--app-text-faint)'; nm.textContent = 'Selecionar paciente'; sb.textContent = 'Toque para escolher'; }
+}
+document.getElementById('naDate').addEventListener('click', () => showToast('Selecionar data'));
+document.getElementById('naPatient').addEventListener('click', () => { renderPatList(''); document.getElementById('patSearch').value = ''; openSheet('patSheet'); });
+document.getElementById('patClose').addEventListener('click', closeSheets);
+function renderPatList(q){
+  const nq = norm(q);
+  const list = patients.filter(p => norm(p.name).includes(nq));
+  const el = document.getElementById('patList');
+  el.innerHTML = list.length ? list.map(p => `<div class="med-row" data-pat="${p.name}"><div class="mi" style="border-radius:50%;">${p.initials}</div><b>${p.name}<small style="display:block;font-size:11.5px;color:var(--app-text-dim);font-weight:600;">${p.age} anos · ${p.sex}</small></b><i class="fa-solid fa-plus add-i"></i></div>`).join('') : `<div class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>Nenhum paciente encontrado.</p></div>`;
+  el.querySelectorAll('[data-pat]').forEach(r => r.addEventListener('click', () => { naPatientSel = patients.find(p => p.name === r.dataset.pat); syncNaPatient(); closeSheets(); }));
+}
+document.getElementById('patSearch').addEventListener('input', e => renderPatList(e.target.value));
+function addMinutes(t, m){ const [h, mi] = t.split(':').map(Number); const d = new Date(2000,0,1,h,mi+m); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+document.getElementById('naSave').addEventListener('click', () => {
+  if (!naPatientSel){ showToast('Selecione o paciente'); return; }
+  if (!naTimeSel){ showToast('Selecione um horário'); return; }
+  const b = document.getElementById('naSave'); b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Agendando…';
+  setTimeout(() => {
+    const p = naPatientSel;
+    appts.push({ id: 'new' + Date.now(), initials: p.initials, time: naTimeSel, end: addMinutes(naTimeSel, 30), name: p.name, age: p.age, sex: p.sex, type: document.getElementById('naTipo').value, sala: document.getElementById('naSala').value, status: ['p-warning','fa-circle','Agendado'], alert: !!p.alert, obs: document.getElementById('naObs').value.trim() });
+    appts.sort((x, y) => (x.next ? -1 : y.next ? 1 : x.time.localeCompare(y.time)));
+    renderLaterList();
+    b.disabled = false; b.innerHTML = '<i class="fa-regular fa-calendar-check"></i> Agendar consulta';
+    popScreen();
+    document.querySelector('.tab[data-tab="agenda"]').click();
+    showToast(`Consulta agendada · ${naTimeSel} ${p.name.split(' ')[0]}`);
+  }, 1100);
+});
+
+/* ───── tabs ───── */
+const titles = { agenda:'Agenda', pacientes:'Pacientes', avisos:'Avisos', mais:'Mais' };
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  const tab = t.dataset.tab;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x===t));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id===`view-${tab}`));
+  document.getElementById('scrollBody').scrollTop = 0;
+  if (tab === 'pacientes') ensurePacientes();
+  updateTopbarTools(tab);
+}));
+
+/* ───── Tela 3 — pacientes ───── */
+const patients = [
+  {initials:'MS', name:'Maria Silva', age:34, sex:'F', last:'02/06', alert:true, recent:true},
+  {initials:'JS', name:'João Souza', age:51, sex:'M', last:'28/05', alert:false, recent:true},
+  {initials:'AL', name:'Ana Lima', age:29, sex:'F', last:'30/05', alert:false, recent:true},
+  {initials:'BR', name:'Beatriz Rocha', age:38, sex:'F', last:'03/06', alert:true, recent:true},
+  {initials:'CM', name:'Carlos Mendes', age:45, sex:'M', last:'12/05', alert:false, recent:false},
+  {initials:'RG', name:'Rafael Gomes', age:33, sex:'M', last:'01/06', alert:false, recent:true},
+  {initials:'LF', name:'Lúcia Ferreira', age:47, sex:'F', last:'15/05', alert:false, recent:false},
+  {initials:'PA', name:'Pedro Alves', age:62, sex:'M', last:'20/04', alert:false, recent:false},
+  {initials:'SM', name:'Sofia Martins', age:27, sex:'F', last:'22/05', alert:false, recent:false},
+  {initials:'AD', name:'Antônio Dias', age:71, sex:'M', last:'10/05', alert:true, recent:false},
+];
+const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+let pacientesLoaded = false, activeFilter = 'todos', searchQ = '';
+
+// filter pill counts
+document.querySelector('[data-cnt="todos"]').textContent = patients.length;
+document.querySelector('[data-cnt="alerta"]').textContent = patients.filter(p=>p.alert).length;
+document.querySelector('[data-cnt="recentes"]').textContent = patients.filter(p=>p.recent).length;
+
+function skeletonHTML(){
+  return Array(6).fill(0).map(()=>`<div class="skrow"><div class="sk sk-av"></div><div style="flex:1"><div class="sk sk-l" style="width:55%"></div><div class="sk sk-l" style="width:34%;margin-top:8px"></div></div></div>`).join('');
+}
+function ensurePacientes(){
+  if (pacientesLoaded) return;
+  document.getElementById('plist').innerHTML = skeletonHTML();
+  setTimeout(()=>{ pacientesLoaded = true; applyPacientes(); }, 750);
+}
+function applyPacientes(){
+  let list = patients.slice();
+  if (activeFilter === 'alerta') list = list.filter(p=>p.alert);
+  else if (activeFilter === 'recentes') list = list.filter(p=>p.recent);
+  if (searchQ) list = list.filter(p => norm(p.name).includes(norm(searchQ)));
+  const plist = document.getElementById('plist'), empty = document.getElementById('pEmpty'), count = document.getElementById('pCount');
+  if (!list.length){
+    plist.style.display = 'none'; empty.style.display = 'block'; count.textContent = '';
+    document.getElementById('pEmptyT').textContent = searchQ ? 'Nada encontrado' : 'Nenhum paciente';
+    document.getElementById('pEmptyMsg').textContent = searchQ ? `Sem resultados para “${searchQ}”.` : 'Nenhum paciente neste filtro.';
+    return;
+  }
+  empty.style.display = 'none'; plist.style.display = 'block';
+  count.textContent = `${list.length} ${list.length===1?'paciente':'pacientes'}`;
+  plist.innerHTML = list.map(p => `
+    <div class="prow" data-name="${p.name}">
+      <div class="av">${p.initials}</div>
+      <div class="pinfo">
+        <div class="pn"><b>${p.name}</b>${p.alert?'<span class="alert-dot" title="Alerta clínico"></span>':''}</div>
+        <div class="psub">${p.age} anos · ${p.sex} · últ. ${p.last}</div>
+      </div>
+      <i class="fa-solid fa-chevron-right chev"></i>
+    </div>`).join('');
+  plist.querySelectorAll('.prow').forEach(r => r.addEventListener('click', () => openFicha(r.dataset.name)));
+}
+// pills
+document.querySelectorAll('#pPills .fpill').forEach(p => p.addEventListener('click', () => {
+  document.querySelectorAll('#pPills .fpill').forEach(x => x.classList.toggle('on', x===p));
+  activeFilter = p.dataset.f; if (pacientesLoaded) applyPacientes();
+}));
+// search (debounced)
+let searchT;
+const pSearch = document.getElementById('pSearch'), pSearchWrap = document.getElementById('pSearchWrap');
+pSearch.addEventListener('input', () => {
+  pSearchWrap.classList.toggle('has-val', pSearch.value.length>0);
+  clearTimeout(searchT);
+  searchT = setTimeout(() => { searchQ = pSearch.value.trim(); if (pacientesLoaded) applyPacientes(); }, 250);
+});
+document.getElementById('pClear').addEventListener('click', () => { pSearch.value=''; searchQ=''; pSearchWrap.classList.remove('has-val'); applyPacientes(); pSearch.focus(); });
+
+/* ───── sheets ───── */
+const scrim = document.getElementById('scrim');
+const fab = document.getElementById('fab');
+function openSheet(id){ document.getElementById(id).classList.add('show'); scrim.classList.add('show'); }
+function closeSheets(){ document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show')); scrim.classList.remove('show'); fab.classList.remove('rot'); }
+fab.addEventListener('click', () => { const s=document.getElementById('actionSheet'); if(s.classList.contains('show')){closeSheets();} else {openSheet('actionSheet'); fab.classList.add('rot');} });
+document.getElementById('openSwitcher').addEventListener('click', () => openSheet('estabSheet'));
+scrim.addEventListener('click', closeSheets);
+
+/* establishment switch */
+document.querySelectorAll('.estab').forEach(e => e.addEventListener('click', () => {
+  document.querySelectorAll('.estab').forEach(x => x.classList.remove('cur'));
+  e.classList.add('cur');
+  document.getElementById('estabName').innerHTML = e.dataset.name + ' <i class="fa-solid fa-chevron-down"></i>';
+  document.getElementById('estabRole').textContent = e.dataset.role;
+  currentRole = e.dataset.role.split(' ')[0];
+  syncMaisEstab();
+  closeSheets();
+  showToast('Contexto trocado para ' + e.dataset.name);
+}));
+document.querySelectorAll('.act-row').forEach(r => r.addEventListener('click', () => {
+  const a = r.dataset.action; closeSheets();
+  if (a === 'receita') setTimeout(() => openReceita(null), 60);
+  else if (a === 'atestado') setTimeout(() => openAtestado(null), 60);
+  else if (a === 'exame') setTimeout(() => openExame(null), 60);
+  else setTimeout(() => openNovoAgend(), 60);
+}));
+
+/* toast */
+let toastT;
+function showToast(msg){ const t=document.getElementById('toast'); document.getElementById('toastMsg').textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* pull to refresh */
+const body = document.getElementById('scrollBody'), ptr = document.getElementById('ptr');
+let py=null;
+body.addEventListener('pointerdown', e => { if (body.scrollTop<=0) py=e.clientY; });
+body.addEventListener('pointermove', e => {
+  if (py===null) return; const d = e.clientY-py;
+  if (d>0 && body.scrollTop<=0){ ptr.style.height = Math.min(54, d*0.5)+'px'; }
+});
+body.addEventListener('pointerup', () => {
+  if (py===null) return;
+  if (parseInt(ptr.style.height)>30){ ptr.classList.add('spin'); ptr.style.height='40px'; setTimeout(()=>{ptr.classList.remove('spin');ptr.style.height='0px'; showToast('Agenda atualizada');},1100); }
+  else ptr.style.height='0px';
+  py=null;
+});
+</script>
+</body>
+</html>
