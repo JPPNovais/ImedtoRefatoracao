@@ -208,7 +208,11 @@ export const useAuthStore = defineStore("auth", () => {
         await hidratarUsuario(data.usuario)
         useProfissionalStore().setProfissional(data.profissional)
         if (!onboardingPendente.value) {
-            useTenantStore().popularEstabelecimentos(data.estabelecimentos)
+            // Respeita o último estabelecimento acessado (persistido server-side).
+            // Sem isso, o login pelo formulário sempre cairia em lista[0] e ignoraria
+            // a troca de estabelecimento feita na sessão anterior — espelha main.ts.
+            const ultimoId = data.usuario.ultimoEstabelecimentoId ?? null
+            useTenantStore().popularEstabelecimentos(data.estabelecimentos, ultimoId)
         }
         ativarRealtime()
     }
