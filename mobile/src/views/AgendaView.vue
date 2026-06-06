@@ -2,9 +2,10 @@
 import { computed, onActivated, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { agendaService } from "@/services/agenda.service"
-import type { Agendamento, ContagemPorDia } from "@/types"
+import type { Agendamento } from "@/types"
 import { useUiStore } from "@/stores/ui"
-import { norm, horaDe } from "@/lib/format"
+import { usePermissoesStore } from "@/stores/permissoes"
+import { norm, horaDe, toISODate } from "@/lib/format"
 import AppAvatar from "@/components/ui/AppAvatar.vue"
 import AppStatusPill from "@/components/ui/AppStatusPill.vue"
 import SwipeableRow from "@/components/ui/SwipeableRow.vue"
@@ -12,10 +13,13 @@ import BottomSheet from "@/components/ui/BottomSheet.vue"
 
 const router = useRouter()
 const ui = useUiStore()
+const permissoes = usePermissoesStore()
+
+// RBAC: só quem pode editar agenda vê as ações de atender/faltar.
+const podeEditarAgenda = computed(() => permissoes.pode("agenda.editar"))
 
 const DOW = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
-const hoje = new Date("2026-06-05T09:18:00")
-const selectedISO = ref(hoje.toISOString().slice(0, 10))
+const selectedISO = ref(toISODate(new Date())) // data real (local, sem shift de UTC)
 
 const week = computed(() => {
   const base = new Date(selectedISO.value + "T12:00:00")
@@ -24,14 +28,20 @@ const week = computed(() => {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const iso = d.toISOString().slice(0, 10)
+    const iso = toISODate(d)
     return { iso, dow: DOW[d.getDay()], n: d.getDate(), sel: iso === selectedISO.value }
   })
 })
 
 const appts = ref<Agendamento[]>([])
-const stats = ref<ContagemPorDia | null>(null)
 const carregando = ref(true)
+
+// Stats do dia derivados da própria lista (robusto ao shape do DTO de contagem).
+const stats = computed(() => ({
+  agendados: appts.value.filter((a) => !["Cancelado"].includes(a.status)).length,
+  atendidos: appts.value.filter((a) => a.status === "Concluido").length,
+  faltas: appts.value.filter((a) => a.status === "Faltou").length,
+}))
 
 // Busca + filtro (top bar contextual)
 const searchOpen = ref(false)
@@ -61,12 +71,11 @@ const resultados = computed(() => {
 async function carregar() {
   carregando.value = true
   try {
-    const [pagina, contagem] = await Promise.all([
-      agendaService.listar({ dataInicio: selectedISO.value, dataFim: selectedISO.value }),
-      agendaService.contagemPorDia(selectedISO.value, selectedISO.value),
-    ])
+    const pagina = await agendaService.listar({
+      dataInicio: selectedISO.value,
+      dataFim: selectedISO.value,
+    })
     appts.value = pagina.itens
-    stats.value = contagem[0] ?? null
   } catch {
     ui.toast("Não foi possível carregar a agenda", "error")
   } finally {
@@ -81,8 +90,37 @@ function selecionarDia(iso: string) {
   selectedISO.value = iso
   void carregar()
 }
+function mudarDia(delta: number) {
+  const d = new Date(selectedISO.value + "T12:00:00")
+  d.setDate(d.getDate() + delta)
+  selecionarDia(toISODate(d))
+}
 function abrir(a: Agendamento) {
   router.push(`/agenda/${a.id}`)
+}
+async function marcarAtendido(a: Agendamento) {
+  try {
+    await agendaService.concluir(a.id)
+    ui.toast("Marcado como atendido")
+    await carregar()
+  } catch {
+    ui.toast("Não foi possível concluir", "error")
+  }
+}
+function marcarFaltou(a: Agendamento) {
+  ui.openConfirm({
+    title: "Marcar como faltou?",
+    msg: "O paciente será registrado como ausente.",
+    onConfirm: async () => {
+      try {
+        await agendaService.cancelar(a.id, "Faltou")
+        ui.toast("Marcado como faltou")
+        await carregar()
+      } catch {
+        ui.toast("Não foi possível registrar", "error")
+      }
+    },
+  })
 }
 function aplicarFiltros() {
   filterOpen.value = false
@@ -128,7 +166,7 @@ async function onTouchEnd() {
 <template>
   <section class="view" @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd">
     <!-- Ferramentas contextuais no top bar -->
-    <Teleport to="#topbar-tools">
+    <Teleport defer to="#topbar-tools">
       <button class="iconbtn" title="Buscar" @click="searchOpen = !searchOpen">
         <i class="fa-solid fa-magnifying-glass"></i>
       </button>
@@ -147,7 +185,7 @@ async function onTouchEnd() {
 
     <!-- date strip -->
     <div class="datestrip">
-      <button class="arrow"><i class="fa-solid fa-chevron-left"></i></button>
+      <button class="arrow" @click="mudarDia(-1)"><i class="fa-solid fa-chevron-left"></i></button>
       <div class="days">
         <div
           v-for="d in week"
@@ -161,7 +199,7 @@ async function onTouchEnd() {
           <span class="ddot"></span>
         </div>
       </div>
-      <button class="arrow"><i class="fa-solid fa-chevron-right"></i></button>
+      <button class="arrow" @click="mudarDia(1)"><i class="fa-solid fa-chevron-right"></i></button>
     </div>
 
     <!-- Normal -->
@@ -204,14 +242,32 @@ async function onTouchEnd() {
 
         <div class="sec-h"><div class="t">Mais tarde</div></div>
         <div class="stack">
-          <SwipeableRow
-            v-for="a in maisTarde"
-            :key="a.id"
-            @open="abrir(a)"
-            @done="ui.toast('Marcado como atendido')"
-            @miss="ui.toast('Marcado como faltou')"
-          >
-            <div class="appt" :class="{ alert: a.temAlertaClinico }">
+          <template v-for="a in maisTarde" :key="a.id">
+            <!-- Com permissão de editar: swipe revela atender/faltar -->
+            <SwipeableRow
+              v-if="podeEditarAgenda"
+              @open="abrir(a)"
+              @done="marcarAtendido(a)"
+              @miss="marcarFaltou(a)"
+            >
+              <div class="appt" :class="{ alert: a.temAlertaClinico }">
+                <div class="accent"></div>
+                <AppAvatar :nome="a.pacienteNome" />
+                <div class="who">
+                  <div class="ln1">
+                    <span class="time">{{ horaDe(a.inicioPrevisto) }}</span>
+                    <span class="nm">{{ a.pacienteNome }}</span>
+                    <span v-if="a.temAlertaClinico" class="alert-dot"></span>
+                  </div>
+                  <div class="ln2">
+                    <span class="sub">{{ a.tipoServico }} · {{ a.salaNome || "—" }}</span>
+                    <AppStatusPill :status="a.status" />
+                  </div>
+                </div>
+              </div>
+            </SwipeableRow>
+            <!-- Sem permissão: só leitura (sem ações) -->
+            <div v-else class="appt" :class="{ alert: a.temAlertaClinico }" @click="abrir(a)">
               <div class="accent"></div>
               <AppAvatar :nome="a.pacienteNome" />
               <div class="who">
@@ -226,7 +282,7 @@ async function onTouchEnd() {
                 </div>
               </div>
             </div>
-          </SwipeableRow>
+          </template>
           <div v-if="!proximo && !maisTarde.length" class="empty">
             <i class="fa-regular fa-calendar"></i><b>Nenhuma consulta hoje 🎉</b><p>Aproveite o tempo livre.</p>
           </div>

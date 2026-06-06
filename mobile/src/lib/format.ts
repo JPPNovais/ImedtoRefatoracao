@@ -19,6 +19,14 @@ export function idade(dataNascimento?: string | null): number | null {
   return Math.floor(diff / (365.25 * 24 * 3600 * 1000))
 }
 
+/** Data local em yyyy-MM-dd (sem shift de fuso, ao contrário de toISOString). */
+export function toISODate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
 export function horaDe(iso: string): string {
   const d = new Date(iso)
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
@@ -43,7 +51,7 @@ export function norm(s: string): string {
     .replace(/[\u0300-\u036f]/g, "")
 }
 
-/** Mapeia status do agendamento → variante de pill (cor + ícone + label). */
+/** Mapeia status (agendamento ou orçamento) → variante de pill (cor + ícone + label). */
 export function statusPill(status: string): { cls: string; icon: string; label: string } {
   switch (status) {
     case "Confirmado":
@@ -56,8 +64,18 @@ export function statusPill(status: string): { cls: string; icon: string; label: 
       return { cls: "p-error", icon: "fa-circle-xmark", label: "Faltou" }
     case "EmAtendimento":
       return { cls: "p-info", icon: "fa-circle", label: "Em atendimento" }
-    default:
+    // Orçamentos
+    case "Aprovado":
+      return { cls: "p-success", icon: "fa-circle-check", label: "Aprovado" }
+    case "Recusado":
+      return { cls: "p-error", icon: "fa-circle-xmark", label: "Recusado" }
+    case "Aguardando aprovação":
+    case "Aguardando":
+      return { cls: "p-warning", icon: "fa-circle", label: "Aguardando aprovação" }
+    case "Agendado":
       return { cls: "p-warning", icon: "fa-circle", label: "Agendado" }
+    default:
+      return { cls: "p-warning", icon: "fa-circle", label: status || "Agendado" }
   }
 }
 

@@ -24,7 +24,7 @@ watch(
 </script>
 
 <template>
-  <Teleport to=".screen">
+  <Teleport defer to=".screen">
     <div class="scrim" :class="{ show: open }" @click="close"></div>
     <div class="sheet" :class="{ show: open, 'sheet-tall': tall }">
       <template v-if="tall">

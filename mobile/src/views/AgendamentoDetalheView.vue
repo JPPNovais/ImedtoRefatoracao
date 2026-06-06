@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { agendaService } from "@/services/agenda.service"
 import type { Agendamento } from "@/types"
 import { useUiStore } from "@/stores/ui"
+import { usePermissoesStore } from "@/stores/permissoes"
 import { useShare } from "@/native/useShare"
 import { horaDe, iniciais } from "@/lib/format"
 import AppStatusPill from "@/components/ui/AppStatusPill.vue"
@@ -11,7 +12,12 @@ import AppStatusPill from "@/components/ui/AppStatusPill.vue"
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
+const permissoes = usePermissoesStore()
 const share = useShare()
+
+// RBAC (G2): edição da agenda e abertura do prontuário respeitam o vínculo.
+const podeEditar = computed(() => permissoes.pode("agenda.editar"))
+const podeProntuario = computed(() => permissoes.pode("prontuario.ver"))
 
 const id = Number(route.params.id)
 const ag = ref<Agendamento | null>(null)
@@ -105,12 +111,12 @@ async function enviarConfirmacao() {
       </div>
 
       <div class="f-label">Ações</div>
-      <button class="btn-primary-lg" @click="iniciarAtendimento"><i class="fa-solid fa-play"></i> Iniciar atendimento</button>
-      <div class="btn-row">
+      <button v-if="podeProntuario" class="btn-primary-lg" @click="iniciarAtendimento"><i class="fa-solid fa-play"></i> Iniciar atendimento</button>
+      <div v-if="podeEditar" class="btn-row">
         <button class="btn-soft ok" @click="marcarAtendido"><i class="fa-solid fa-check"></i> Atendido</button>
         <button class="btn-soft danger" @click="marcarFaltou"><i class="fa-solid fa-xmark"></i> Faltou</button>
       </div>
-      <button class="btn-outline" @click="ui.toast('Abrindo reagendamento')"><i class="fa-solid fa-arrows-rotate"></i> Reagendar</button>
+      <button v-if="podeEditar" class="btn-outline" @click="ui.toast('Abrindo reagendamento')"><i class="fa-solid fa-arrows-rotate"></i> Reagendar</button>
       <button class="btn-outline" @click="enviarConfirmacao"><i class="fa-brands fa-whatsapp"></i> Enviar confirmação</button>
     </div>
   </div>

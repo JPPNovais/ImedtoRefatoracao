@@ -42,9 +42,12 @@ onMounted(async () => {
 <template>
   <div class="app" :class="{ dark: ui.isDark }">
     <div class="screen">
-      <RouterView v-slot="{ Component }">
+      <RouterView v-slot="{ Component, route: r }">
         <Transition :name="transitionName">
-          <component :is="Component" />
+          <component
+            :is="Component"
+            :key="r.meta.layout === 'push' ? r.fullPath : 'tabs'"
+          />
         </Transition>
       </RouterView>
 

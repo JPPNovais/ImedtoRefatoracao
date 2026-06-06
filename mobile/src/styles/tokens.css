@@ -7,15 +7,9 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 
-/* Self-hosted FontAwesome Brands (uploaded). Used by .fa-brands when offline / Pro Kit not loaded.
-   Solid + Regular still come from the FA Free CDN — see preview/brand-iconography.html. */
-@font-face {
-  font-family: 'Font Awesome 6 Brands';
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url('fonts/Font_Awesome_6_Brands-Regular-400.otf') format('opentype');
-}
+/* FontAwesome (Solid/Regular/Brands) vem do CDN no index.html. O @font-face
+   self-hosted do protótipo foi removido (a fonte não é empacotada aqui e
+   gerava erro de OTS parsing no console). */
 
 :root {
   /* ═════════════ COLOR — RAW (HSL channels for hsl(var(...))) ═════════════ */

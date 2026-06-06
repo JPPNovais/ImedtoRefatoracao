@@ -57,7 +57,7 @@ defineExpose({ iniciar, sucesso })
 
 <template>
   <!-- Animação de assinatura -->
-  <Teleport to=".screen">
+  <Teleport defer to=".screen">
     <div class="dialog-scrim" :class="{ show: assinando }"></div>
     <div class="dialog" :class="{ show: assinando }">
       <div class="sign-spin"></div>

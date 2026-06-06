@@ -6,13 +6,20 @@ import { prontuarioService } from "@/services/prontuario.service"
 import { orcamentoService } from "@/services/orcamento.service"
 import type { Evolucao, Orcamento, Paciente } from "@/types"
 import { useUiStore } from "@/stores/ui"
+import { usePermissoesStore } from "@/stores/permissoes"
 import { useBiometric } from "@/native/useBiometric"
 import { iniciais, idade, dataCurta } from "@/lib/format"
 
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
+const permissoes = usePermissoesStore()
 const biometric = useBiometric()
+
+// RBAC: ações da ficha respeitam o vínculo (G2).
+const podeProntuario = computed(() => permissoes.pode("prontuario.ver"))
+const podePrescrever = computed(() => permissoes.pode("prescricao"))
+const podeOrcamento = computed(() => permissoes.pode("orcamento.ver"))
 
 const id = Number(route.params.id)
 const paciente = ref<Paciente | null>(null)
@@ -108,9 +115,9 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
 
       <div class="ftabs">
         <button class="ftab" :class="{ on: tab === 'hist' }" @click="tab = 'hist'">Histórico</button>
-        <button class="ftab" :class="{ on: tab === 'pront' }" @click="tab = 'pront'">Prontuário</button>
+        <button v-if="podeProntuario" class="ftab" :class="{ on: tab === 'pront' }" @click="tab = 'pront'">Prontuário</button>
         <button class="ftab" :class="{ on: tab === 'docs' }" @click="tab = 'docs'">Documentos</button>
-        <button class="ftab" :class="{ on: tab === 'orc' }" @click="tab = 'orc'">Orçamentos</button>
+        <button v-if="podeOrcamento" class="ftab" :class="{ on: tab === 'orc' }" @click="tab = 'orc'">Orçamentos</button>
       </div>
 
       <div v-show="tab === 'hist'" class="fpanel on">
@@ -133,7 +140,7 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
           </div>
         </div>
         <div v-else class="tab-empty"><i class="fa-regular fa-file-lines"></i><p>Prontuário ainda vazio.</p></div>
-        <button class="btn-outline" style="margin-top: 6px" @click="router.push(`/paciente/${id}/prontuario`)">
+        <button v-if="podeProntuario" class="btn-outline" style="margin-top: 6px" @click="router.push(`/paciente/${id}/prontuario`)">
           <i class="fa-solid fa-file-waveform"></i> Abrir prontuário completo
         </button>
       </div>
@@ -153,13 +160,15 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
         <div v-else class="tab-empty"><i class="fa-regular fa-file"></i><p>Nenhum orçamento.</p></div>
       </div>
 
-      <div class="f-label" style="margin-top: 18px">Ações</div>
-      <div class="fact-grid">
-        <button class="fact" @click="acao('evolucao')"><span class="fi ic-violet"><i class="fa-solid fa-plus"></i></span> Evolução</button>
-        <button class="fact" @click="acao('receita')"><span class="fi ic-violet"><i class="fa-solid fa-prescription"></i></span> Receita</button>
-        <button class="fact" @click="acao('atestado')"><span class="fi ic-green"><i class="fa-solid fa-file-medical"></i></span> Atestado</button>
-        <button class="fact" @click="acao('exame')"><span class="fi ic-blue"><i class="fa-solid fa-flask"></i></span> Exame</button>
-      </div>
+      <template v-if="podeProntuario || podePrescrever">
+        <div class="f-label" style="margin-top: 18px">Ações</div>
+        <div class="fact-grid">
+          <button v-if="podeProntuario" class="fact" @click="acao('evolucao')"><span class="fi ic-violet"><i class="fa-solid fa-plus"></i></span> Evolução</button>
+          <button v-if="podePrescrever" class="fact" @click="acao('receita')"><span class="fi ic-violet"><i class="fa-solid fa-prescription"></i></span> Receita</button>
+          <button v-if="podePrescrever" class="fact" @click="acao('atestado')"><span class="fi ic-green"><i class="fa-solid fa-file-medical"></i></span> Atestado</button>
+          <button v-if="podePrescrever" class="fact" @click="acao('exame')"><span class="fi ic-blue"><i class="fa-solid fa-flask"></i></span> Exame</button>
+        </div>
+      </template>
       <div class="audit-foot"><i class="fa-solid fa-shield-halved"></i> Este acesso foi registrado em seu nome</div>
     </div>
   </div>

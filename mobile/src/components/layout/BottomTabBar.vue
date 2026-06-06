@@ -3,11 +3,17 @@ import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { useNotificacoesStore } from "@/stores/notificacoes"
 import { useUiStore } from "@/stores/ui"
+import { usePermissoesStore } from "@/stores/permissoes"
 
 const route = useRoute()
 const router = useRouter()
 const notificacoes = useNotificacoesStore()
 const ui = useUiStore()
+const permissoes = usePermissoesStore()
+
+// RBAC: abas sem permissão somem (G2).
+const verAgenda = computed(() => permissoes.pode("agenda.ver"))
+const verPacientes = computed(() => permissoes.pode("pacientes.ver"))
 
 const activeTab = computed(() => (route.meta.tab as string) || "")
 
@@ -21,10 +27,10 @@ function openActions() {
 
 <template>
   <div class="tabbar">
-    <button class="tab" :class="{ on: activeTab === 'agenda' }" @click="go('agenda')">
+    <button v-if="verAgenda" class="tab" :class="{ on: activeTab === 'agenda' }" @click="go('agenda')">
       <i class="fa-regular fa-calendar"></i><span>Agenda</span>
     </button>
-    <button class="tab" :class="{ on: activeTab === 'pacientes' }" @click="go('pacientes')">
+    <button v-if="verPacientes" class="tab" :class="{ on: activeTab === 'pacientes' }" @click="go('pacientes')">
       <i class="fa-solid fa-user-group"></i><span>Pacientes</span>
     </button>
     <div class="fab-slot">

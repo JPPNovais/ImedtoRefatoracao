@@ -29,7 +29,7 @@ const acoes = computed<Acao[]>(() =>
     { key: "receita", rota: "/receita", titulo: "Nova receita", sub: "Favoritos · assinar · enviar", icon: "fa-prescription", cor: "ic-violet", pode: permissoes.pode("prescricao") },
     { key: "atestado", rota: "/atestado", titulo: "Atestado", sub: "CID · dias · assinar", icon: "fa-file-medical", cor: "ic-green", pode: permissoes.pode("prescricao") },
     { key: "exame", rota: "/exame", titulo: "Pedido de exame", sub: "Selecionar exames · assinar", icon: "fa-flask", cor: "ic-blue", pode: permissoes.pode("prescricao") },
-    { key: "agendamento", rota: "/novo-agendamento", titulo: "Novo agendamento", sub: "Marcar uma consulta", icon: "fa-calendar-plus", cor: "ic-amber", pode: permissoes.pode("agenda") },
+    { key: "agendamento", rota: "/novo-agendamento", titulo: "Novo agendamento", sub: "Marcar uma consulta", icon: "fa-calendar-plus", cor: "ic-amber", pode: permissoes.pode("agenda.criar") },
   ].filter((a) => a.pode),
 )
 
