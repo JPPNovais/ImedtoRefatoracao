@@ -11,7 +11,7 @@ import FuncionamentoTab from "@/components/estabelecimento/FuncionamentoTab.vue"
 import UnidadesTab from "@/components/estabelecimento/UnidadesTab.vue"
 import ReparticoesTab from "@/components/estabelecimento/ReparticoesTab.vue"
 import ListasVariaveisTab from "@/components/estabelecimento/ListasVariaveisTab.vue"
-import { AppButton, AppPhotoUpload, AppConfirmDialog, AppToast } from "@/components/ui"
+import { AppButton, AppPhotoUpload, AppConfirmDialog, AppToast, AppTabs } from "@/components/ui"
 
 const router = useRouter()
 const tenant = useTenantStore()
@@ -59,6 +59,15 @@ const UFS_BRASIL = [
 // Aba ativa — mesma estrutura do legado.
 type Aba = "geral" | "dados" | "funcionamento" | "unidades" | "reparticoes" | "variaveis"
 const abaAtiva = ref<Aba>("geral")
+
+const abas: { valor: Aba; label: string; icone: string }[] = [
+    { valor: "geral",         label: "Geral",                   icone: "fa-solid fa-sliders" },
+    { valor: "dados",         label: "Dados do estabelecimento", icone: "fa-solid fa-building" },
+    { valor: "funcionamento", label: "Funcionamento",           icone: "fa-solid fa-clock" },
+    { valor: "unidades",      label: "Unidades",                icone: "fa-solid fa-location-dot" },
+    { valor: "reparticoes",   label: "Repartições",             icone: "fa-solid fa-sitemap" },
+    { valor: "variaveis",     label: "Listas de variáveis",     icone: "fa-solid fa-list" },
+]
 
 async function carregar() {
     carregando.value = true
@@ -188,39 +197,14 @@ onMounted(async () => {
             </div>
         </div>
 
-        <!-- ── Abas (padrão do legado) ── -->
-        <nav class="abas">
-            <button
-                class="aba"
-                :class="{ ativa: abaAtiva === 'geral' }"
-                @click="abaAtiva = 'geral'"
-            >Geral</button>
-            <button
-                class="aba"
-                :class="{ ativa: abaAtiva === 'dados' }"
-                @click="abaAtiva = 'dados'"
-            >Dados do estabelecimento</button>
-            <button
-                class="aba"
-                :class="{ ativa: abaAtiva === 'funcionamento' }"
-                @click="abaAtiva = 'funcionamento'"
-            >Funcionamento</button>
-            <button
-                class="aba"
-                :class="{ ativa: abaAtiva === 'unidades' }"
-                @click="abaAtiva = 'unidades'"
-            >Unidades</button>
-            <button
-                class="aba"
-                :class="{ ativa: abaAtiva === 'reparticoes' }"
-                @click="abaAtiva = 'reparticoes'"
-            >Repartições</button>
-            <button
-                class="aba"
-                :class="{ ativa: abaAtiva === 'variaveis' }"
-                @click="abaAtiva = 'variaveis'"
-            >Listas de variáveis</button>
-        </nav>
+        <!-- ── Abas (mesmo padrão underline das Configurações de orçamento) ── -->
+        <AppTabs
+            :model-value="abaAtiva"
+            :abas="abas"
+            variante="underline"
+            aria-label="Seções das configurações do estabelecimento"
+            @update:model-value="(v: any) => (abaAtiva = v as Aba)"
+        />
 
         <!-- ── Aba Geral ── -->
         <section v-if="abaAtiva === 'geral'" class="aba-conteudo">
@@ -460,35 +444,7 @@ onMounted(async () => {
 .page-titulo { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.2rem; }
 .page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
 
-/* ── Abas (pill horizontal como no legado) ── */
-.abas {
-    display: inline-flex; flex-wrap: wrap; gap: 4px;
-    padding: 4px;
-    background: rgba(30, 27, 75, 0.05); border-radius: 999px;
-}
-.aba {
-    position: relative;
-    border: none; background: none; cursor: pointer;
-    padding: 0.35rem 0.95rem; border-radius: 999px;
-    font-family: inherit; font-size: 0.78em; font-weight: 600;
-    color: rgba(30, 27, 75, 0.55); transition: all 0.12s;
-    white-space: nowrap;
-}
-.aba:hover:not(.ativa) { color: rgba(30, 27, 75, 0.8); }
-.aba.ativa {
-    background: var(--primary-light, #ede9fe);
-    color: var(--primary-dark, #4c1d95);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-}
-.aba.ativa::after {
-    content: "";
-    position: absolute;
-    left: 0.95rem; right: 0.95rem; bottom: 0.18rem;
-    height: 2px; border-radius: 2px;
-    background: var(--primary, #7c3aed);
-}
-
-.aba-conteudo { animation: fadein 0.18s ease-out; }
+.aba-conteudo { animation: fadein 0.18s ease-out; margin-top: 1.25rem; }
 @keyframes fadein {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
