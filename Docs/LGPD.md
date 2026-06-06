@@ -76,6 +76,15 @@ A Fase 2 introduz um novo ponto de coleta de dado operacional para o fluxo públ
 
 **Referência cruzada**: padrão idêntico ao já documentado para Termos (`termo_emitido_acesso_log`). Se a política de retenção for alterada para Termos, aplicar o mesmo ajuste aqui.
 
+## Pool de variáveis do prontuário — minimização de dados (briefing 2026-06-05_001)
+
+A tabela `prontuario_variaveis_pool` guarda nomes genéricos de itens clínicos (ex.: "Dipirona", "Hipertensão") — **não é PII de paciente**. Regras de uso:
+
+- **Só o campo `nome` vira item de pool.** A extração automática ao salvar evolução (`PoolExtratorEvolucao`) coleta apenas os campos `nome`/`parentesco` dos arrays mapeados. Campos livres (`observacao`, `dose`, `frequencia`, `motivo`, `ano`, `doencas`, `comentario`) **jamais** viram itens de pool — contêm contexto clínico específico de paciente.
+- **Sem audit extra para criação no pool.** A criação automática ocorre dentro do fluxo de `RegistrarEvolucao`, que já audita a escrita no prontuário. Itens de pool são dados de catálogo (não de paciente), portanto não exigem linha adicional em audit table.
+- **Dedup canônica é LGPD-segura.** A normalização (trim + lower + sem acento) ocorre em memória antes de criar item; não persiste a forma bruta digitada pelo profissional quando colide com existente.
+- **Sem PII em log.** Nenhum campo livre (que pode conter nome/contexto do paciente) transita por `_logger.*`. `PoolExtratorEvolucao` opera em silêncio — falha-suave sem log de dados da evolução.
+
 ## Checklist multi-tenant — premissa não-negociável
 
 Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento, **assinatura digital**), valide:

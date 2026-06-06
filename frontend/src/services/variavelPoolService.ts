@@ -1,14 +1,14 @@
 import httpClient from "./httpClient"
 
+// Tipos válidos: briefing 2026-06-05_001. Droga e AtividadeFisica removidos.
+// Expectativa permanece válido no enum mas sem campo no prontuário nesta entrega.
 export type TipoVariavelPool =
     | "Alergia"
     | "Medicamento"
     | "Doenca"
     | "Cirurgia"
-    | "Droga"
     | "RelacaoFamiliar"
     | "Expectativa"
-    | "AtividadeFisica"
 
 export interface VariavelPool {
     id: number

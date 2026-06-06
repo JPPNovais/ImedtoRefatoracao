@@ -1,7 +1,12 @@
-<!-- História familiar: pai, mãe, parentes com doenças hereditárias. -->
+<!-- História familiar: pai, mãe, parentes com doenças hereditárias.
+     Briefing 2026-06-05_001: campo "parentesco" usa AppAutocompleteCriavel
+     (tipo RelacaoFamiliar), substituindo o AppSelect fixo. Label atualizado
+     para "Relação familiar". Campos doencas/comentario permanecem livres.
+-->
 <script setup lang="ts">
-import { computed } from "vue"
-import { AppButton, AppInput, AppTextarea, AppSelect } from "@/components/ui"
+import { computed, onMounted, ref } from "vue"
+import { AppButton, AppInput, AppTextarea, AppAutocompleteCriavel } from "@/components/ui"
+import { variavelPoolService } from "@/services/variavelPoolService"
 
 interface Parente { parentesco: string; doencas: string; comentario: string }
 interface HfData {
@@ -20,14 +25,6 @@ function atualizar(patch: Partial<HfData>) {
     emit("update:modelValue", { ...props.modelValue, ...patch })
 }
 
-const PARENTESCOS = [
-    "Irmão(ã)", "Meio-irmão materno", "Meio-irmão paterno",
-    "Filho(a)", "Neto(a)",
-    "Avó materna", "Avô materno", "Avó paterna", "Avô paterno",
-    "Tio(a) materno", "Tio(a) paterno",
-    "Primo(a)", "Sobrinho(a)",
-]
-
 const parentes = computed(() => props.modelValue.parentes ?? [])
 
 function addParente() {
@@ -42,6 +39,23 @@ function setParente(idx: number, field: keyof Parente, valor: string) {
     lista[idx] = { ...lista[idx], [field]: valor }
     atualizar({ parentes: lista })
 }
+
+// ── Pool de variáveis RelacaoFamiliar ─────────────────────────────────────────
+const opcoesParentesco  = ref<string[]>([])
+const poolCarregando    = ref(true)
+const poolErro          = ref(false)
+
+onMounted(async () => {
+    try {
+        const items = await variavelPoolService.listar("RelacaoFamiliar")
+        opcoesParentesco.value = items.map(i => i.nome)
+    } catch {
+        poolErro.value = true
+        // CA11: degrada para input puro — não bloqueia o preenchimento.
+    } finally {
+        poolCarregando.value = false
+    }
+})
 </script>
 
 <template>
@@ -93,15 +107,16 @@ function setParente(idx: number, field: keyof Parente, valor: string) {
                 <div v-for="(p, i) in parentes" :key="i" class="parente-card">
                     <div class="grade-parente">
                         <div class="campo">
-                            <label>Grau de parentesco</label>
-                            <AppSelect
+                            <label>Relação familiar</label>
+                            <AppAutocompleteCriavel
                                 :model-value="p.parentesco"
+                                :opcoes="opcoesParentesco"
+                                placeholder="Ex: Irmão(ã), Primo(a)..."
                                 :disabled="readOnly"
-                                @update:model-value="(v) => setParente(i, 'parentesco', String(v))"
-                            >
-                                <option value="">Selecione...</option>
-                                <option v-for="g in PARENTESCOS" :key="g" :value="g">{{ g }}</option>
-                            </AppSelect>
+                                :carregando="poolCarregando"
+                                :erro="poolErro"
+                                @update:model-value="(v) => setParente(i, 'parentesco', v)"
+                            />
                         </div>
                         <div class="campo">
                             <label>Doenças hereditárias</label>

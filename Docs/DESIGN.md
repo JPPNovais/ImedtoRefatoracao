@@ -132,6 +132,34 @@ Painel flutuante genérico e reutilizável, ancorado a um elemento gatilho. Loca
 </AppPopover>
 ```
 
+### `AppAutocompleteCriavel` (briefing 2026-06-05_001)
+
+Typeahead de texto livre com sugestões do pool de variáveis. Localização: [`frontend/src/components/ui/AppAutocompleteCriavel.vue`](../frontend/src/components/ui/AppAutocompleteCriavel.vue).
+
+**Diferença fundamental de `AppSelectComCriacao`:**
+- `AppSelectComCriacao` — select por **id** (`v-model: number`); criação via modal; vincula a entidade mestre pelo id.
+- `AppAutocompleteCriavel` — typeahead por **string nome** (`v-model: string`); valores inéditos são aceitos livremente; a criação no pool ocorre no backend ao salvar a evolução (`PoolExtratorEvolucao`).
+
+**Props:**
+- `modelValue: string` — o nome como string.
+- `opcoes: string[]` — lista de nomes do tipo (padrão-sistema + estabelecimento, já carregada).
+- `placeholder?: string`
+- `disabled?: boolean`
+- `carregando?: boolean` — enquanto verdadeiro, input desabilitado + sem dropdown.
+- `erro?: boolean` — quando verdadeiro, degrada para input de texto puro (CA11); preenchimento e salvamento continuam funcionando.
+
+**Comportamento:**
+- Dropdown abre ao focar ou digitar.
+- Filtro client-side (normalização: trim + lower + sem acento), sem request por tecla.
+- Lista vazia → mensagem "Nenhuma opção cadastrada — digite para criar uma nova".
+- Navegação por teclado: ↑↓ destaca, Enter seleciona, Esc fecha.
+- Fecha ao clicar fora.
+
+**Uso nos prontuários:**
+- `SecaoHistoriaPregressa.vue`: campos `nome` de alergias, medicações, cirurgias, doenças.
+- `SecaoHistoriaFamiliar.vue`: campo `parentesco` de parentes (tipo RelacaoFamiliar).
+- As listas são carregadas uma vez no `onMounted` da seção via `variavelPoolService.listar(tipo)`.
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

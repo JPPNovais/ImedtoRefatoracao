@@ -82,7 +82,8 @@ public class ProntuarioIntegrationTests : IntegrationTestBase
             new PacienteRepository(ctx),
             new ModeloDeProntuarioRepository(ctx),
             new ProntuarioAcessoLogService(ctx),
-            new Mock<IEventBus>().Object);
+            new Mock<IEventBus>().Object,
+            new PoolExtratorEvolucao(new ProntuarioVariavelPoolRepository(ctx)));
 
     private RegistrarExportacaoProntuarioCommandHandler ExportarProntSut(AppDbContext ctx) =>
         new(new PacienteRepository(ctx),

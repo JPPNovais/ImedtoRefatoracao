@@ -492,6 +492,7 @@ public static class Container
         services.AddSingleton<VariavelPoolQueryRepository>();
 
         // Prontuários (aggregate + evoluções)
+        services.AddScoped<PoolExtratorEvolucao>(); // extração automática de itens do pool ao salvar evolução
         services.AddScoped<IniciarProntuarioCommandHandler>();
         services.AddScoped<RegistrarEvolucaoCommandHandler>();
         services.AddScoped<RegistrarExportacaoProntuarioCommandHandler>();

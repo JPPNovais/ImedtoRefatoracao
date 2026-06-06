@@ -7,6 +7,7 @@ using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
 using NUnit.Framework;
+using System.Collections.Generic;
 
 namespace Imedto.Backend.Test.Application.Prontuarios;
 
@@ -19,6 +20,7 @@ public class RegistrarEvolucaoCommandHandlerTests
     private Mock<IModeloDeProntuarioRepository> _modeloRepo;
     private Mock<IProntuarioAcessoLogService> _acessoLog;
     private Mock<IEventBus> _eventBus;
+    private Mock<IProntuarioVariavelPoolRepository> _poolRepo;
     private RegistrarEvolucaoCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -35,9 +37,16 @@ public class RegistrarEvolucaoCommandHandlerTests
         _modeloRepo = new Mock<IModeloDeProntuarioRepository>();
         _acessoLog = new Mock<IProntuarioAcessoLogService>();
         _eventBus = new Mock<IEventBus>();
+        _poolRepo = new Mock<IProntuarioVariavelPoolRepository>();
+        // Retorna lista vazia por padrão (nenhum item existente no pool)
+        _poolRepo.Setup(r => r.ListarAtivosPorTipo(It.IsAny<long>(), It.IsAny<TipoVariavelPool>()))
+                 .ReturnsAsync(new List<ProntuarioVariavelPool>());
+        _poolRepo.Setup(r => r.Salvar(It.IsAny<ProntuarioVariavelPool>()))
+                 .Returns(Task.CompletedTask);
         _sut = new RegistrarEvolucaoCommandHandler(
             _prontuarioRepo.Object, _evolucaoRepo.Object, _pacienteRepo.Object,
-            _modeloRepo.Object, _acessoLog.Object, _eventBus.Object);
+            _modeloRepo.Object, _acessoLog.Object, _eventBus.Object,
+            new PoolExtratorEvolucao(_poolRepo.Object));
     }
 
     private static Paciente PacienteAtivo() =>

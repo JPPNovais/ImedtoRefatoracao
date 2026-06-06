@@ -11,15 +11,14 @@ defineProps<{
     podeEditar: boolean
 }>()
 
+// Briefing 2026-06-05_001: Droga e AtividadeFisica removidos do pool.
 const TIPOS: { valor: TipoVariavelPool; label: string; descricao: string }[] = [
     { valor: "Alergia",         label: "Alergias",              descricao: "Substâncias e materiais que causam reação alérgica nos pacientes." },
     { valor: "Medicamento",     label: "Medicamentos",          descricao: "Medicamentos em uso ou prescritos." },
     { valor: "Doenca",          label: "Doenças",               descricao: "Doenças e condições crônicas, hereditárias ou agudas." },
     { valor: "Cirurgia",        label: "Cirurgias",             descricao: "Histórico cirúrgico do paciente, para o prontuário. Não alimenta o catálogo de cirurgias do orçamento (cadastrado em Configurações do orçamento)." },
-    { valor: "Droga",           label: "Drogas",                descricao: "Drogas e substâncias ilícitas de uso relatado pelo paciente." },
     { valor: "RelacaoFamiliar", label: "Relações familiares",   descricao: "Parentesco e relações familiares relevantes para o histórico clínico." },
     { valor: "Expectativa",     label: "Expectativas",          descricao: "Expectativas do paciente em relação ao tratamento." },
-    { valor: "AtividadeFisica", label: "Atividades físicas",    descricao: "Atividades físicas praticadas regularmente pelo paciente." },
 ]
 
 const tipoAtivo = ref<TipoVariavelPool>("Alergia")

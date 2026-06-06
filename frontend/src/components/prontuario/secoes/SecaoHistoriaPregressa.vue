@@ -1,10 +1,13 @@
 <!--
   História pregressa (HPP): alergias, medicações, cirurgias, doenças.
   Cada uma tem toggle Sim/Não e lista dinâmica de itens. Alinhado ao legado.
+  Briefing 2026-06-05_001: campos `nome` usam AppAutocompleteCriavel alimentado
+  pelo pool de variáveis por tipo. Campos livres permanecem AppInput.
 -->
 <script setup lang="ts">
-import { computed } from "vue"
-import { AppButton, AppInput, AppTextarea, AppSelect } from "@/components/ui"
+import { computed, onMounted, ref } from "vue"
+import { AppButton, AppInput, AppTextarea, AppSelect, AppAutocompleteCriavel } from "@/components/ui"
+import { variavelPoolService } from "@/services/variavelPoolService"
 
 interface Alergia { nome: string; observacao: string }
 interface Medicacao { nome: string; dose: string; frequencia: string; motivo: string; observacoes: string }
@@ -92,6 +95,35 @@ const alergias    = computed(() => props.modelValue.alergias ?? [])
 const medicacoes  = computed(() => props.modelValue.medicacoes ?? [])
 const cirurgias   = computed(() => props.modelValue.cirurgias ?? [])
 const doencas     = computed(() => props.modelValue.doencas ?? [])
+
+// ── Pool de variáveis por tipo ────────────────────────────────────────────────
+// Carregadas uma vez por seção; filtro client-side (CA: sem request por tecla).
+const opcoesAlergia    = ref<string[]>([])
+const opcoesMedicacao  = ref<string[]>([])
+const opcoesCirurgia   = ref<string[]>([])
+const opcoesDoenca     = ref<string[]>([])
+const poolCarregando   = ref(true)
+const poolErro         = ref(false)
+
+onMounted(async () => {
+    try {
+        const [al, med, cir, doe] = await Promise.all([
+            variavelPoolService.listar("Alergia"),
+            variavelPoolService.listar("Medicamento"),
+            variavelPoolService.listar("Cirurgia"),
+            variavelPoolService.listar("Doenca"),
+        ])
+        opcoesAlergia.value   = al.map(i => i.nome)
+        opcoesMedicacao.value = med.map(i => i.nome)
+        opcoesCirurgia.value  = cir.map(i => i.nome)
+        opcoesDoenca.value    = doe.map(i => i.nome)
+    } catch {
+        poolErro.value = true
+        // CA11: degrada para input texto puro — não bloqueia o preenchimento.
+    } finally {
+        poolCarregando.value = false
+    }
+})
 </script>
 
 <template>
@@ -118,11 +150,14 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 
             <div v-if="modelValue.alergiasTem" class="lista">
                 <div v-for="(a, i) in alergias" :key="i" class="item-linha">
-                    <AppInput
+                    <AppAutocompleteCriavel
                         :model-value="a.nome"
+                        :opcoes="opcoesAlergia"
                         placeholder="Alergia (ex: Dipirona, Amendoim)"
                         :disabled="readOnly"
-                        @update:model-value="(v) => setItemField('alergias', i, 'nome', String(v))"
+                        :carregando="poolCarregando"
+                        :erro="poolErro"
+                        @update:model-value="(v) => setItemField('alergias', i, 'nome', v)"
                     />
                     <AppInput
                         :model-value="a.observacao"
@@ -169,11 +204,14 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
                     <div class="grade-med">
                         <div class="campo">
                             <label>Medicamento</label>
-                            <AppInput
+                            <AppAutocompleteCriavel
                                 :model-value="m.nome"
+                                :opcoes="opcoesMedicacao"
                                 placeholder="Nome do medicamento"
                                 :disabled="readOnly"
-                                @update:model-value="(v) => setItemField('medicacoes', i, 'nome', String(v))"
+                                :carregando="poolCarregando"
+                                :erro="poolErro"
+                                @update:model-value="(v) => setItemField('medicacoes', i, 'nome', v)"
                             />
                         </div>
                         <div class="campo">
@@ -248,11 +286,14 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 
             <div v-if="modelValue.cirurgiasTem" class="lista">
                 <div v-for="(c, i) in cirurgias" :key="i" class="item-grade-cirurgia">
-                    <AppInput
+                    <AppAutocompleteCriavel
                         :model-value="c.nome"
+                        :opcoes="opcoesCirurgia"
                         placeholder="Cirurgia realizada"
                         :disabled="readOnly"
-                        @update:model-value="(v) => setItemField('cirurgias', i, 'nome', String(v))"
+                        :carregando="poolCarregando"
+                        :erro="poolErro"
+                        @update:model-value="(v) => setItemField('cirurgias', i, 'nome', v)"
                     />
                     <AppInput
                         :model-value="c.ano" type="number" min="1900" max="2100"
@@ -303,11 +344,14 @@ const doencas     = computed(() => props.modelValue.doencas ?? [])
 
             <div v-if="modelValue.doencasTem" class="lista">
                 <div v-for="(d, i) in doencas" :key="i" class="item-linha">
-                    <AppInput
+                    <AppAutocompleteCriavel
                         :model-value="d.nome"
+                        :opcoes="opcoesDoenca"
                         placeholder="Doença"
                         :disabled="readOnly"
-                        @update:model-value="(v) => setItemField('doencas', i, 'nome', String(v))"
+                        :carregando="poolCarregando"
+                        :erro="poolErro"
+                        @update:model-value="(v) => setItemField('doencas', i, 'nome', v)"
                     />
                     <AppInput
                         :model-value="d.observacao"

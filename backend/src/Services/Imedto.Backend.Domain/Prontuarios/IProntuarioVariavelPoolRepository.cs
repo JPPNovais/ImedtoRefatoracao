@@ -10,7 +10,18 @@ public interface IProntuarioVariavelPoolRepository
     /// </summary>
     Task<ProntuarioVariavelPool?> ObterPorIdOuNulo(long id, long estabelecimentoId);
 
+    /// <summary>
+    /// Verifica duplicidade considerando padrão-sistema OU do estabelecimento.
+    /// A comparação usa <see cref="NormalizadorPool.Normalizar"/> (trim + lower + sem acento).
+    /// </summary>
     Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, TipoVariavelPool tipo, string nome, long ignorarId);
+
+    /// <summary>
+    /// Carrega todos os itens ativos (padrão-sistema + do estabelecimento) de um tipo para
+    /// comparação de dedup em memória. Usado pela extração automática ao salvar evolução.
+    /// </summary>
+    Task<IReadOnlyList<ProntuarioVariavelPool>> ListarAtivosPorTipo(long estabelecimentoId, TipoVariavelPool tipo);
+
     Task Salvar(ProntuarioVariavelPool item);
     Task Excluir(ProntuarioVariavelPool item);
 }

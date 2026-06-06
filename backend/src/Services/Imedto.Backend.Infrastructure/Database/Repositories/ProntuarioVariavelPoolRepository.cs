@@ -16,13 +16,38 @@ public class ProntuarioVariavelPoolRepository : IProntuarioVariavelPoolRepositor
         await _context.ProntuarioVariaveisPool
             .FirstOrDefaultAsync(p => p.Id == id && p.EstabelecimentoId == estabelecimentoId);
 
-    public async Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, TipoVariavelPool tipo, string nome, long ignorarId) =>
+    /// <summary>
+    /// Dedup canônica: considera padrão-sistema OU do estabelecimento.
+    /// Carrega candidatos em memória e aplica NormalizadorPool para
+    /// comparação insensível a acento (sem extensão unaccent no Postgres).
+    /// </summary>
+    public async Task<bool> ExisteOutraComMesmoNome(long estabelecimentoId, TipoVariavelPool tipo, string nome, long ignorarId)
+    {
+        var nomeNorm = NormalizadorPool.Normalizar(nome);
+        if (string.IsNullOrEmpty(nomeNorm)) return false;
+
+        var candidatos = await _context.ProntuarioVariaveisPool
+            .AsNoTracking()
+            .Where(p => (p.EhPadraoSistema || p.EstabelecimentoId == estabelecimentoId)
+                     && p.Tipo == tipo
+                     && p.Id != ignorarId)
+            .Select(p => p.Nome)
+            .ToListAsync();
+
+        return candidatos.Any(n => NormalizadorPool.Normalizar(n) == nomeNorm);
+    }
+
+    /// <summary>
+    /// Lista todos os itens ativos (padrão-sistema + do estabelecimento) de um tipo.
+    /// Usado pela extração automática ao salvar evolução para dedup em memória.
+    /// </summary>
+    public async Task<IReadOnlyList<ProntuarioVariavelPool>> ListarAtivosPorTipo(long estabelecimentoId, TipoVariavelPool tipo) =>
         await _context.ProntuarioVariaveisPool
             .AsNoTracking()
-            .AnyAsync(p => p.EstabelecimentoId == estabelecimentoId
-                        && p.Tipo == tipo
-                        && p.Nome.ToLower() == nome.ToLower()
-                        && p.Id != ignorarId);
+            .Where(p => (p.EhPadraoSistema || p.EstabelecimentoId == estabelecimentoId)
+                     && p.Tipo == tipo
+                     && p.Ativo)
+            .ToListAsync();
 
     public async Task Salvar(ProntuarioVariavelPool item)
     {

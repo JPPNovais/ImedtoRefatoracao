@@ -17,7 +17,7 @@ public class AdicionarVariavelPoolCommandHandler : ICommandHandler<AdicionarVari
     public async Task Handle(AdicionarVariavelPoolCommand command)
     {
         if (!Enum.TryParse<TipoVariavelPool>(command.Tipo, ignoreCase: true, out var tipo))
-            throw new BusinessException("Tipo inválido. Use: Alergia, Medicamento, Doenca, Cirurgia, Droga, RelacaoFamiliar, Expectativa, AtividadeFisica.");
+            throw new BusinessException("Tipo inválido. Use: Alergia, Medicamento, Doenca, Cirurgia, RelacaoFamiliar, Expectativa.");
 
         if (await _repository.ExisteOutraComMesmoNome(command.EstabelecimentoId, tipo, command.Nome ?? string.Empty, 0))
             throw new BusinessException("Já existe uma opção com esse nome para esta lista.");

@@ -1,3 +1,4 @@
+export { default as AppAutocompleteCriavel } from "./AppAutocompleteCriavel.vue"
 export { default as AppBadge }        from "./AppBadge.vue"
 export { default as AppCheckbox }     from "./AppCheckbox.vue"
 export { default as AppDatePicker }   from "./AppDatePicker.vue"

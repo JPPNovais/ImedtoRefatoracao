@@ -37,15 +37,15 @@ export interface VariavelPadraoSistemaDetalheDto extends VariavelPadraoSistemaLi
     // sem campos extras além da lista — backend retorna o mesmo
 }
 
+// Briefing 2026-06-05_001: Droga e AtividadeFisica removidos do pool.
+// Expectativa permanece válida mas sem campo de prontuário nesta entrega.
 export const TIPOS_VARIAVEL_POOL: Record<string, string> = {
     Alergia: "Alergia",
     Medicamento: "Medicamento",
     Doenca: "Doença",
     Cirurgia: "Cirurgia",
-    Droga: "Droga",
     RelacaoFamiliar: "Relação familiar",
     Expectativa: "Expectativa",
-    AtividadeFisica: "Atividade física",
 }
 
 // ─── Regiões anatômicas (árvore) ─────────────────────────────────────────────

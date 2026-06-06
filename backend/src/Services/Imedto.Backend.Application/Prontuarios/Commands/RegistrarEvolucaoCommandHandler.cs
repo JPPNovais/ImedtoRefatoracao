@@ -14,6 +14,7 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
     private readonly IModeloDeProntuarioRepository _modeloRepo;
     private readonly IProntuarioAcessoLogService _acessoLog;
     private readonly IEventBus _eventBus;
+    private readonly PoolExtratorEvolucao _poolExtrator;
 
     public RegistrarEvolucaoCommandHandler(
         IProntuarioRepository prontuarioRepo,
@@ -21,7 +22,8 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         IPacienteRepository pacienteRepo,
         IModeloDeProntuarioRepository modeloRepo,
         IProntuarioAcessoLogService acessoLog,
-        IEventBus eventBus)
+        IEventBus eventBus,
+        PoolExtratorEvolucao poolExtrator)
     {
         _prontuarioRepo = prontuarioRepo;
         _evolucaoRepo = evolucaoRepo;
@@ -29,6 +31,7 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         _modeloRepo = modeloRepo;
         _acessoLog = acessoLog;
         _eventBus = eventBus;
+        _poolExtrator = poolExtrator;
     }
 
     public async Task Handle(RegistrarEvolucaoCommand command)
@@ -71,6 +74,11 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
 
         await _acessoLog.RegistrarAsync(
             prontuario.Id, command.AutorUsuarioId, command.EstabelecimentoId, TipoAcessoProntuario.Escrita);
+
+        // Extrai valores inéditos dos campos mapeados e cria itens no pool do estabelecimento.
+        // Transacional com o salvamento (CA16): falha-suave — nunca interrompe a evolução.
+        // CA6: não exige permissão ModelosProntuario (qualquer profissional com acesso ao prontuário).
+        await _poolExtrator.ExtrairECriar(command.EstabelecimentoId, command.ConteudoJson);
 
         foreach (var evt in evolucao.DomainEvents)
             await _eventBus.Publish(evt);

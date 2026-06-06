@@ -132,7 +132,7 @@ Wave 2 entregou tabelas paralelas (`imedto_modelo_prontuario_global`, `imedto_va
 | Entidade | Tabela legado | Endpoint admin | Como tenant consome |
 |---|---|---|---|
 | Modelo de prontuário | `modelo_de_prontuario` (`eh_padrao_sistema=true`, `estabelecimento_id=NULL`) | `/api/admin/modelos-globais` | Queries do tenant fazem `WHERE (eh_padrao_sistema=true OR estabelecimento_id=@X)` — padrão-sistema aparece automaticamente |
-| Variável pool | `prontuario_variaveis_pool` (`eh_padrao_sistema=true`, `estabelecimento_id=NULL`) | `/api/admin/variaveis-globais` (filtro `?categoria=`) | Idem — categorias clínicas via enum `TipoVariavelPool` (Alergia/Medicamento/Doenca/Cirurgia/Droga/RelacaoFamiliar/Expectativa/AtividadeFisica) |
+| Variável pool | `prontuario_variaveis_pool` (`eh_padrao_sistema=true`, `estabelecimento_id=NULL`) | `/api/admin/variaveis-globais` (filtro `?categoria=`) | Idem — categorias clínicas via enum `TipoVariavelPool` (**Alergia, Medicamento, Doenca, Cirurgia, RelacaoFamiliar, Expectativa**). Droga e AtividadeFisica removidos (briefing 2026-06-05_001). |
 | Região anatômica | `regioes_anatomicas_catalogo` (sem `estabelecimento_id` — global por construção, 144 registros hierárquicos) | `/api/admin/regioes-globais` | Exame físico consome direto da tabela; admin edita via tree view |
 
 **Consequências:**
@@ -176,6 +176,28 @@ Os catálogos globais descritos acima (modelo de prontuário, variável pool, re
 | Modelo de prontuário | `modelo_de_prontuario` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
 | Variável pool | `prontuario_variaveis_pool` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
 | Região anatômica | `regioes_anatomicas_catalogo` | global por construção | acessa diretamente | Live-link |
+
+#### Vínculo pool ↔ prontuário (briefing 2026-06-05_001)
+
+Desde 2026-06-06, o pool de variáveis está conectado aos campos do prontuário de duas formas:
+
+**1. Autocomplete (front):** os campos `nome` das seções HPP (alergias, medicações, cirurgias, doenças) e o campo `parentesco` da história familiar usam `AppAutocompleteCriavel`, que carrega a lista por tipo via `variavelPoolService.listar(tipo)` uma vez por abertura de seção. Filtro client-side — sem request por tecla.
+
+**2. Criação automática (back):** ao salvar uma evolução, `PoolExtratorEvolucao` (injetado em `RegistrarEvolucaoCommandHandler`) percorre o `ConteudoJson` nos 5 campos mapeados e cria itens inéditos no pool do estabelecimento, transacionalmente:
+
+| Campo JSON | Tipo do pool |
+|---|---|
+| `hpp.alergias[].nome` | Alergia |
+| `hpp.medicacoes[].nome` | Medicamento |
+| `hpp.cirurgias[].nome` | Cirurgia |
+| `hpp.doencas[].nome` | Doenca |
+| `h-familiar.parentes[].parentesco` | RelacaoFamiliar |
+
+**Dedup canônica:** trim + lower + remoção de diacríticos (via `NormalizadorPool.Normalizar`), aplicada em memória. Idêntica no CRUD manual (`AdicionarVariavelPoolCommandHandler`) e na extração automática. Considera padrão-sistema como existente — não cria cópia para o estabelecimento.
+
+**Permissão:** criação automática via evolução não exige `ModelosProntuario` (qualquer profissional com acesso ao prontuário). CRUD manual via `ProntuarioTemplateController` continua exigindo `ModelosProntuario`.
+
+**Falha-suave:** JSON inválido ou chave ausente não interrompe o salvamento da evolução — `PoolExtratorEvolucao` degrada silenciosamente.
 | **Modelo de permissão** | `modelo_permissao_estabelecimento` | `estabelecimento_id=NULL`, `eh_padrao=true` | FK via cópia `(estabelecimento_id=@X, eh_padrao=true)` | **Cópia materializada + propagação** |
 
 ### Dashboard Admin (Wave 6)
