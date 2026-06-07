@@ -23,6 +23,15 @@ const salvando = ref(false)
 // Validação frontend: ≥ 20 chars (espelho da regra de backend).
 const gratuidadeMotivoValido = computed(() => gratuidadeMotivo.value.trim().length >= 20)
 
+// Mensagem explícita do que ainda falta para habilitar o botão.
+const bloqueio = computed(() => {
+    const g = gratuidadeMotivo.value.trim().length
+    if (g < 20) return `Faltam ${20 - g} caractere(s) em "Motivo da gratuidade".`
+    const m = motivo.value.trim().length
+    if (m < 10) return `Faltam ${10 - m} caractere(s) em "Motivo administrativo".`
+    return ""
+})
+
 async function salvar() {
     if (!gratuidadeMotivoValido.value) {
         erro.value = "Motivo da gratuidade deve ter pelo menos 20 caracteres."
@@ -83,6 +92,9 @@ async function salvar() {
             </AppField>
 
             <p v-if="erro" class="campo-erro">{{ erro }}</p>
+            <p v-else-if="bloqueio && !salvando" class="campo-bloqueio">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ bloqueio }}
+            </p>
         </div>
 
         <template #rodape>
@@ -110,5 +122,14 @@ async function salvar() {
     color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0;
+}
+
+.campo-bloqueio {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8125rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 </style>

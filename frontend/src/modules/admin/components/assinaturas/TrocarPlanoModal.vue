@@ -27,6 +27,14 @@ const planosOpcoes = computed(() =>
     props.planos.map(p => ({ value: p.id, label: p.nome }))
 )
 
+// Mensagem explícita do que ainda falta para habilitar o botão.
+const bloqueio = computed(() => {
+    if (!planoId.value) return "Selecione um plano."
+    const m = motivo.value.trim().length
+    if (m < 10) return `Faltam ${10 - m} caractere(s) no motivo.`
+    return ""
+})
+
 async function salvar() {
     if (!planoId.value) {
         erro.value = "Selecione um plano."
@@ -84,6 +92,9 @@ async function salvar() {
             </AppField>
 
             <p v-if="erro" class="campo-erro">{{ erro }}</p>
+            <p v-else-if="bloqueio && !salvando" class="campo-bloqueio">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ bloqueio }}
+            </p>
         </div>
 
         <template #rodape>
@@ -121,5 +132,14 @@ async function salvar() {
     color: hsl(var(--destructive));
     font-size: 0.8125rem;
     margin: 0;
+}
+
+.campo-bloqueio {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.8125rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 </style>
