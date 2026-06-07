@@ -126,7 +126,9 @@ function statusVariante(status: string): "success" | "error" | "warning" | "mute
                                         :aria-label="`Ver detalhe de ${item.nomeFantasia}`"
                                         title="Ver detalhe"
                                         @click="irParaDetalhe(item.id)"
-                                    />
+                                    >
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>

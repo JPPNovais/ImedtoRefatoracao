@@ -129,7 +129,9 @@ function statusVariante(status: string): "success" | "error" | "warning" | "mute
                                     :disabled="store.revelandoCpf"
                                     aria-label="Revelar CPF completo do dono"
                                     @click="modalRevelarAberto = true"
-                                />
+                                >
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
                             </template>
                         </dd>
                         <template v-if="store.erroRevelarCpf">
