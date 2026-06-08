@@ -97,6 +97,30 @@ O isolamento físico do módulo é mantido: só importa de `@/components/ui/`, `
 **Componentes de domínio compartilhados (tenant + admin):**
 - `ModeloProntuarioBuilder.vue` em `components/ui/` — builder visual de modelos de prontuário, compartilhado entre `ModelosProntuarioView` (tenant, `/configuracoes/modelos-prontuario`) e `ModelosGlobaisFormView` (admin global). Aceita `v-model:nome`, `v-model:descricao`, `v-model:estruturaJson` (string JSON, shape array `[{ chave, titulo, tipo, ordem }]`) e emite `update:valido`. A constante exportada `SECOES_MODELO_PRONTUARIO` é a **fonte única de verdade** das 17 seções suportadas pelo prontuário — nenhuma outra cópia desse catálogo deve existir no front. Reordenação via botões ↑/↓ (drag-and-drop é extensão futura). Retrocompatível com JSON manual criado antes do builder: seções com chaves fora das 17 conhecidas são preservadas intactas com aviso visual. Adicionado em Wave 5 (briefing `planejamentos/2026-05-30_005_admin-global-wave5-builder-visual.md`).
 
+## Componentes de seleção segmentada
+
+### `AppPillToggle` (briefing 2026-06-08_001)
+
+Toggle segmentado para escolha entre opções mutuamente exclusivas. Localização: [`frontend/src/components/ui/AppPillToggle.vue`](../frontend/src/components/ui/AppPillToggle.vue) (wrapper do `PillToggle` do design system em `design-system/src/components/pill-toggle/`).
+
+**API (genérica, `T extends string | number`):**
+- `modelValue: T` — valor atualmente selecionado. Não precisa estar em `opcoes` para evitar erros; passar `""` como estado neutro é válido.
+- `opcoes: Array<{ valor: T; label: string; icone?: string; icon?: string }>` — lista de opções exibidas como pílulas.
+- `@update:modelValue` — emitido ao clicar em uma opção.
+
+**Comportamento:** fundo `bg-muted`, opção ativa com `bg-primary text-primary-foreground`. Clique emite imediatamente — adequado para fluxos onde a seleção avança o estado (ex: escolha de lado → avança passo do popup).
+
+**Caso de uso canônico:** passo de lateralidade do `RegionSelectorPopup` (Direito / Esquerdo / Ambos) — a seleção é uma ação que avança o fluxo, não um toggle persistente de estado.
+
+**Exemplo:**
+```vue
+<AppPillToggle
+  model-value=""
+  :opcoes="[{ valor: 'D', label: 'Direito' }, { valor: 'E', label: 'Esquerdo' }]"
+  @update:model-value="onEscolher($event)"
+/>
+```
+
 ## Componentes de exibição contextual
 
 ### `AppPopover` (briefing 2026-06-04_007)
