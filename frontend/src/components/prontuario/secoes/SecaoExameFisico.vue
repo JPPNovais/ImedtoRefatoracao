@@ -34,7 +34,7 @@ const BodyMap = defineAsyncComponent(() => import("@/components/exame-fisico/Bod
 export interface RegiaoAnatomicaSelecionada {
     regiao_id: string
     caminho: string
-    lateralidade: "D" | "E" | "bilateral" | null
+    lateralidade: "D" | "E" | "bilateral" | "misto" | null
     texto_exame: string
     achados: string
     observacoes: string
@@ -277,27 +277,100 @@ function onRegiaoClicada(regiao: RegiaoMapaSubset) {
     selectorAberto.value = true
 }
 
+/**
+ * Resolve o ancestral comum mais próximo de um conjunto de ids de região.
+ *
+ * Estratégia: para cada região, coleta a cadeia de ancestrais (do nível-1 até
+ * ela mesma). O ancestral comum é o nó mais profundo presente em todas as
+ * cadeias. Se apenas 1 região for passada, o ancestral comum é ela própria.
+ * Se não houver ancestral comum (caso improvável no catálogo), usa o nível-1
+ * da primeira região como fallback.
+ */
+function getAncestralComum(ids: string[]): string | null {
+    if (ids.length === 0) return null
+    if (ids.length === 1) return ids[0]
+
+    // Monta a cadeia de ancestrais para cada id (do root até o id inclusive).
+    function cadeia(regiaoId: string): string[] {
+        const result: string[] = []
+        let atual = catalogoRegioes.value.find(r => r.id === regiaoId)
+        while (atual) {
+            result.unshift(atual.id)
+            atual = atual.pai_id ? catalogoRegioes.value.find(r => r.id === atual!.pai_id) : undefined
+        }
+        return result
+    }
+
+    const cadeias = ids.map(cadeia)
+    // Itera pelos índices do menor comprimento; para no primeiro nó que diverge.
+    const minLen = Math.min(...cadeias.map(c => c.length))
+    let ancestral: string | null = null
+    for (let i = 0; i < minLen; i++) {
+        const candidato = cadeias[0][i]
+        if (cadeias.every(c => c[i] === candidato)) {
+            ancestral = candidato
+        } else {
+            break
+        }
+    }
+    return ancestral ?? getAncestorNivel1Id(ids[0])
+}
+
 function onConfirmarRegioes(
     selecoes: Array<{ regiaoId: string; lateralidade: "D" | "E" | "bilateral" | null }>,
 ) {
-    const novas = [...regioes.value]
-    for (const sel of selecoes) {
-        const jaExiste = novas.some(r => r.regiao_id === sel.regiaoId && r.lateralidade === sel.lateralidade)
-        if (jaExiste) continue
-        const caminho = sel.lateralidade === "bilateral"
-            ? caminhoNeutro(getCaminho(sel.regiaoId))
-            : getCaminho(sel.regiaoId)
-        novas.push({
-            regiao_id: sel.regiaoId,
+    // Defensive: confirmação sem seleções não cria card (R1/UX).
+    if (selecoes.length === 0) return
+
+    // Dedupe intra-confirmação: mesma sub-parte (regiaoId + lateralidade) entra
+    // uma única vez no agregado (R5 intra-confirmação).
+    const vistas = new Set<string>()
+    const unicas = selecoes.filter(sel => {
+        const chave = `${sel.regiaoId}|${sel.lateralidade ?? ""}`
+        if (vistas.has(chave)) return false
+        vistas.add(chave)
+        return true
+    })
+
+    // R2 — texto_exame: concatenação dos templates, uma por linha, texto puro.
+    const textoExame = unicas.map(sel => getTemplate(sel.regiaoId)).join("\n")
+
+    // R3 — regiao_id do card = ancestral comum mais profundo das sub-partes.
+    const regiaoId = getAncestralComum(unicas.map(s => s.regiaoId)) ?? unicas[0].regiaoId
+
+    // R6 — lateralidade do card resolvida das sub-partes.
+    const lats = unicas.map(s => s.lateralidade)
+    let lateralidade: RegiaoAnatomicaSelecionada["lateralidade"]
+    if (lats.every(l => l === null)) {
+        lateralidade = null
+    } else if (lats.every(l => l === "D")) {
+        lateralidade = "D"
+    } else if (lats.every(l => l === "E")) {
+        lateralidade = "E"
+    } else if (lats.every(l => l === "bilateral")) {
+        lateralidade = "bilateral"
+    } else {
+        lateralidade = "misto"
+    }
+
+    // R3 — caminho do card: neutralizado quando bilateral ou misto.
+    const caminhoBase = getCaminho(regiaoId)
+    const caminho = (lateralidade === "bilateral" || lateralidade === "misto")
+        ? caminhoNeutro(caminhoBase)
+        : caminhoBase
+
+    substituirRegioes([
+        ...regioes.value,
+        {
+            regiao_id: regiaoId,
             caminho,
-            lateralidade: sel.lateralidade,
-            texto_exame: getTemplate(sel.regiaoId),
+            lateralidade,
+            texto_exame: textoExame,
             achados: "",
             observacoes: "",
             timestamp: new Date().toISOString(),
-        })
-    }
-    substituirRegioes(novas)
+        },
+    ])
 }
 
 function removerRegiao(index: number) {

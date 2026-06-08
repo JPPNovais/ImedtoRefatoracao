@@ -178,8 +178,11 @@ async function iniciarProntuario() {
 }
 
 // Mapeia lateralidade do modelo local p/ backend (mesmo mapeamento que vivia em ExameFisicoTab).
-const LATERALIDADE_LOCAL_PARA_BACKEND: Record<string, string> = {
+const LATERALIDADE_LOCAL_PARA_BACKEND: Record<string, string | null> = {
     D: "Direita", E: "Esquerda", bilateral: "Bilateral",
+    // "misto" = lados diferentes nas sub-partes — backend não tem este conceito;
+    // envia null para o campo estruturado (detalhe fica no texto do card, R8).
+    misto: null,
 }
 
 async function salvarEvolucao() {

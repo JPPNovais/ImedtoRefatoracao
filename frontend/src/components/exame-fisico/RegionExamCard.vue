@@ -5,7 +5,7 @@ import { AppButton } from '@/components/ui'
 export interface RegiaoExaminada {
   regiao_id: string
   caminho: string
-  lateralidade: 'D' | 'E' | 'bilateral' | null
+  lateralidade: 'D' | 'E' | 'bilateral' | 'misto' | null
   texto_exame: string
   achados: string
   observacoes: string
@@ -41,6 +41,7 @@ function getLateralidadeLabel(lat: string | null): string {
   if (lat === 'D') return 'Direito'
   if (lat === 'E') return 'Esquerdo'
   if (lat === 'bilateral') return 'Bilateral'
+  if (lat === 'misto') return 'Vários lados'
   return ''
 }
 </script>
