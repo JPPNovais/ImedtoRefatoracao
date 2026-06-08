@@ -1,26 +1,169 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
-import { useRouter } from "vue-router"
+/**
+ * EstabelecimentoView — layout master-detail de configurações do estabelecimento.
+ *
+ * Sub-nav (~248px) à esquerda com 3 grupos e 10 seções + busca client-side.
+ * Painel de detalhe à direita que monta o componente da seção ativa sob demanda.
+ *
+ * Deep-link bidirecional via ?secao= (router.replace, espelhando OrcamentoSettingsView).
+ * Seção default: "dados". Seção inválida/sem permissão → cai em "dados".
+ *
+ * Painéis pesados (5 views externas) carregados via defineAsyncComponent + v-if:
+ * painel não-ativo não monta nem dispara consulta (R1).
+ *
+ * RBAC por ocultação: gates reaproveitados de routePermissions.ts/permissoesStore (R4).
+ */
+import { type ComputedRef, computed, defineAsyncComponent, onMounted, ref, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { redimensionarImagem } from "@/services/imageUtils"
 import { invalidarCacheEstabelecimentoAtivo } from "@/composables/usePdfHeader"
 import { useTenantStore } from "@/stores/tenantStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
+import { AppButton, AppPhotoUpload, AppConfirmDialog, AppToast, AppPageHeader, AppSearchInput } from "@/components/ui"
 import FuncionamentoTab from "@/components/estabelecimento/FuncionamentoTab.vue"
 import UnidadesTab from "@/components/estabelecimento/UnidadesTab.vue"
 import ReparticoesTab from "@/components/estabelecimento/ReparticoesTab.vue"
 import ListasVariaveisTab from "@/components/estabelecimento/ListasVariaveisTab.vue"
-import { AppButton, AppPhotoUpload, AppConfirmDialog, AppToast, AppTabs } from "@/components/ui"
 
-const router = useRouter()
-const tenant = useTenantStore()
+// ─── Painéis lazy (defineAsyncComponent → não montam até a seção ser aberta) ─
+const PainelAutomacoes      = defineAsyncComponent(() => import("@/views/automacoes/AutomacoesView.vue"))
+const PainelModelosPront    = defineAsyncComponent(() => import("@/views/configuracoes/ModelosProntuarioView.vue"))
+const PainelIa              = defineAsyncComponent(() => import("@/views/configuracoes/MinhaIaSettingsView.vue"))
+const PainelAssinatura      = defineAsyncComponent(() => import("@/views/assinatura/MinhaAssinaturaView.vue"))
+const PainelTermos          = defineAsyncComponent(() => import("@/components/termos/TermosPainelEmbutido.vue"))
+
+// ─── Stores e router ──────────────────────────────────────────────────────────
+const route   = useRoute()
+const router  = useRouter()
+const tenant  = useTenantStore()
 const permissoes = usePermissoesStore()
 
-// Atalho "Termos" só aparece para quem efetivamente pode gerenciar — o gate da
-// rota é o mesmo, mas evitamos mostrar card "fantasma" que redirecionaria.
-const podeGerenciarTermos = computed(() => permissoes.pode("termos.gerenciar_modelos"))
+// ─── Permissões (gates reaproveitados de routePermissions.ts — R4) ────────────
+// podeExtra e pode já retornam true para Dono (ver permissoesStore).
+const podeVerTermos    = computed(() => permissoes.pode("termos.gerenciar_modelos"))
+const podeVerIa        = computed(() => permissoes.podeExtra("config_estabelecimento"))
+const podeVerModelos   = computed(() => permissoes.podeExtra("modelos_prontuario"))
+const podeVerAutomacoes= computed(() => permissoes.podeExtra("automacao_config"))
+const podeEditar       = ref(false)
 
+// ─── Definição dos grupos e seções ────────────────────────────────────────────
+type SecaoId =
+    | "dados" | "funcionamento" | "unidades" | "reparticoes"
+    | "modelos-prontuario" | "termos" | "variaveis"
+    | "automacoes" | "ia" | "assinatura"
+
+interface SecaoItem {
+    id: SecaoId
+    label: string
+    icone: string
+    // Visibilidade pode ser um computed ref booleano ou literal true (sempre visível)
+    visivel: ComputedRef<boolean> | true
+}
+
+interface GrupoNav {
+    label: string
+    secoes: SecaoItem[]
+}
+
+const GRUPOS_NAV: GrupoNav[] = [
+    {
+        label: "Estabelecimento",
+        secoes: [
+            { id: "dados",          label: "Dados",                icone: "fa-solid fa-building",       visivel: true },
+            { id: "funcionamento",  label: "Funcionamento",        icone: "fa-solid fa-clock",           visivel: true },
+            { id: "unidades",       label: "Unidades",             icone: "fa-solid fa-location-dot",    visivel: true },
+            { id: "reparticoes",    label: "Repartições",          icone: "fa-solid fa-sitemap",         visivel: true },
+        ],
+    },
+    {
+        label: "Modelos e listas",
+        secoes: [
+            { id: "modelos-prontuario", label: "Modelos de prontuário",    icone: "fa-solid fa-notes-medical",  visivel: podeVerModelos },
+            { id: "termos",             label: "Termos de consentimento",  icone: "fa-solid fa-file-signature", visivel: podeVerTermos },
+            { id: "variaveis",          label: "Listas de variáveis",      icone: "fa-solid fa-list",           visivel: true },
+        ],
+    },
+    {
+        label: "Recursos",
+        secoes: [
+            { id: "automacoes", label: "Automações",          icone: "fa-solid fa-bolt",    visivel: podeVerAutomacoes },
+            { id: "ia",         label: "Configurações de IA", icone: "fa-solid fa-wand-magic-sparkles", visivel: podeVerIa },
+            { id: "assinatura", label: "Assinatura",          icone: "fa-solid fa-star",    visivel: true },
+        ],
+    },
+]
+
+// ─── Busca client-side no sub-nav ──────────────────────────────────────────────
+const buscaNav = ref("")
+
+const gruposFiltrados = computed(() => {
+    const q = buscaNav.value.trim().toLowerCase()
+    return GRUPOS_NAV.map(g => ({
+        ...g,
+        secoes: g.secoes.filter(s => {
+            const visivel = s.visivel === true ? true : s.visivel.value
+            if (!visivel) return false
+            if (!q) return true
+            return s.label.toLowerCase().includes(q)
+        }),
+    })).filter(g => g.secoes.length > 0)
+})
+
+// ─── Seção ativa (deep-link bidirecional com ?secao=) ─────────────────────────
+const TODAS_SECOES: SecaoId[] = [
+    "dados", "funcionamento", "unidades", "reparticoes",
+    "modelos-prontuario", "termos", "variaveis",
+    "automacoes", "ia", "assinatura",
+]
+
+function secaoValida(s: string | null | undefined): s is SecaoId {
+    return TODAS_SECOES.includes(s as SecaoId)
+}
+
+function secaoPermitida(id: SecaoId): boolean {
+    switch (id) {
+        case "termos":             return podeVerTermos.value
+        case "ia":                 return podeVerIa.value
+        case "modelos-prontuario": return podeVerModelos.value
+        case "automacoes":         return podeVerAutomacoes.value
+        default:                   return true
+    }
+}
+
+function resolverSecaoInicial(): SecaoId {
+    const q = route.query.secao as string | undefined
+    if (secaoValida(q) && secaoPermitida(q)) return q
+    return "dados"
+}
+
+const secaoAtiva = ref<SecaoId>(resolverSecaoInicial())
+
+// Sincroniza seção → URL (replace para não poluir histórico)
+watch(secaoAtiva, (s) => {
+    const q = route.query.secao
+    if (q !== s) {
+        router.replace({ query: { ...route.query, secao: s } })
+    }
+})
+
+// Sincroniza URL → seção (navegação por link externo / botão voltar)
+watch(() => route.query.secao, (q) => {
+    const s = q as string | undefined
+    if (secaoValida(s) && secaoPermitida(s) && s !== secaoAtiva.value) {
+        secaoAtiva.value = s
+    } else if (!secaoValida(s)) {
+        secaoAtiva.value = "dados"
+    }
+})
+
+function navegarPara(id: SecaoId) {
+    if (!secaoPermitida(id)) return
+    secaoAtiva.value = id
+}
+
+// ─── Dados do estabelecimento (aba Dados) ─────────────────────────────────────
 const carregando = ref(false)
 const salvando   = ref(false)
 const erro       = ref<string | null>(null)
@@ -35,9 +178,6 @@ const endereco     = ref("")
 const cidade       = ref("")
 const estado       = ref("")
 
-// 27 UFs do Brasil + entrada vazia inicial. Validação de 2 letras já vive
-// no aggregate Estabelecimento.AtualizarEndereco; aqui apenas restringimos a
-// opção via <select> (UX). 422 do backend é fonte da verdade.
 const UFS_BRASIL = [
     { value: "", label: "—" },
     { value: "AC", label: "AC - Acre" }, { value: "AL", label: "AL - Alagoas" },
@@ -55,19 +195,6 @@ const UFS_BRASIL = [
     { value: "SP", label: "SP - São Paulo" }, { value: "SE", label: "SE - Sergipe" },
     { value: "TO", label: "TO - Tocantins" },
 ] as const
-
-// Aba ativa — mesma estrutura do legado.
-type Aba = "geral" | "dados" | "funcionamento" | "unidades" | "reparticoes" | "variaveis"
-const abaAtiva = ref<Aba>("geral")
-
-const abas: { valor: Aba; label: string; icone: string }[] = [
-    { valor: "geral",         label: "Geral",                   icone: "fa-solid fa-sliders" },
-    { valor: "dados",         label: "Dados do estabelecimento", icone: "fa-solid fa-building" },
-    { valor: "funcionamento", label: "Funcionamento",           icone: "fa-solid fa-clock" },
-    { valor: "unidades",      label: "Unidades",                icone: "fa-solid fa-location-dot" },
-    { valor: "reparticoes",   label: "Repartições",             icone: "fa-solid fa-sitemap" },
-    { valor: "variaveis",     label: "Listas de variáveis",     icone: "fa-solid fa-list" },
-]
 
 async function carregar() {
     carregando.value = true
@@ -125,12 +252,7 @@ async function salvar() {
     }
 }
 
-const podeEditar = ref(true)
-
 // ─── Foto / logo do estabelecimento ──────────────────────────────────────────
-// Edição local da fotoUrl (não persistimos em outro lugar — o reload reidrata via
-// `carregar`). O componente AppPhotoUpload já valida tipo/tamanho client-side
-// antes de emitir; o handler espelha o backend (422 é fonte da verdade).
 const enviandoFoto    = ref(false)
 const erroFoto        = ref<string | null>(null)
 const toastFoto       = ref<{ texto: string; tipo: "success" | "error" } | null>(null)
@@ -141,12 +263,9 @@ async function aoEnviarFoto(arquivo: File) {
     erroFoto.value = null
     enviandoFoto.value = true
     try {
-        // Redimensiona para 512x512 antes do envio — mesmo padrão do upload de foto
-        // do profissional (em torno de 50-100 KB, suficiente para a logo em PDFs).
         const reduzida = await redimensionarImagem(arquivo, 512, 0.85)
         const novaUrl = await estabelecimentoService.uploadFoto(estab.value.id, reduzida)
         estab.value = { ...estab.value, fotoUrl: novaUrl }
-        // Próximo PDF gerado nesta sessão re-baixa a logo (cache de PDF é por sessão).
         invalidarCacheEstabelecimentoAtivo()
         toastFoto.value = { texto: "Foto atualizada com sucesso.", tipo: "success" }
     } catch (e: any) {
@@ -157,7 +276,6 @@ async function aoEnviarFoto(arquivo: File) {
 }
 
 function aoErroValidacaoFoto(mensagem: string) {
-    // Espelho UX da validação que o backend também faz — não chega a bater na API.
     erroFoto.value = mensagem
 }
 
@@ -189,233 +307,232 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="app-page estab">
-        <div class="page-header">
-            <div>
-                <h1 class="page-titulo">Configurações do estabelecimento</h1>
-                <p class="page-sub">Complete as informações básicas e cadastre as repartições.</p>
-            </div>
-        </div>
-
-        <!-- ── Abas (mesmo padrão underline das Configurações de orçamento) ── -->
-        <AppTabs
-            :model-value="abaAtiva"
-            :abas="abas"
-            variante="underline"
-            aria-label="Seções das configurações do estabelecimento"
-            @update:model-value="(v: any) => (abaAtiva = v as Aba)"
+    <div class="app-page app-page--wide estab-config">
+        <AppPageHeader
+            titulo="Configurações do estabelecimento"
+            subtitulo="Gerencie dados, funcionamento, recursos e assinatura do estabelecimento."
         />
 
-        <!-- ── Aba Geral ── -->
-        <section v-if="abaAtiva === 'geral'" class="aba-conteudo">
-            <h3 class="secao-titulo">Configurações gerais</h3>
-            <p class="secao-sub">Acesse as configurações avançadas e recursos adicionais do seu estabelecimento.</p>
-
-            <div class="atalhos">
-                <div class="atalho-card">
-                    <div class="atalho-icone">🤖</div>
-                    <div class="atalho-info">
-                        <h4 class="atalho-titulo">Automações</h4>
-                        <p class="atalho-desc">Configure automações de tarefas, lembretes e notificações do sistema.</p>
-                        <AppButton @click="router.push({ name: 'Automacoes' })">
-                            Acessar automações
-                        </AppButton>
-                    </div>
+        <div class="md-layout">
+            <!-- ══ SUB-NAV (~248px) ══════════════════════════════════════════ -->
+            <nav class="md-subnav" aria-label="Seções de configuração">
+                <div class="subnav-busca">
+                    <AppSearchInput v-model="buscaNav" placeholder="Buscar seção…" />
                 </div>
 
-                <div class="atalho-card">
-                    <div class="atalho-icone">📋</div>
-                    <div class="atalho-info">
-                        <h4 class="atalho-titulo">Modelos de prontuário</h4>
-                        <p class="atalho-desc">Configure os modelos de prontuário utilizados nos atendimentos do estabelecimento.</p>
-                        <AppButton @click="router.push({ name: 'ModelosProntuario' })">
-                            Gerenciar modelos
-                        </AppButton>
-                    </div>
+                <div v-for="grupo in gruposFiltrados" :key="grupo.label" class="subnav-grupo">
+                    <p class="subnav-grupo-label">{{ grupo.label }}</p>
+                    <ul class="subnav-lista">
+                        <li v-for="s in grupo.secoes" :key="s.id">
+                            <button
+                                type="button"
+                                class="subnav-item"
+                                :class="{ ativo: secaoAtiva === s.id }"
+                                @click="navegarPara(s.id)"
+                            >
+                                <i :class="[s.icone, 'subnav-icone']" aria-hidden="true" />
+                                <span>{{ s.label }}</span>
+                            </button>
+                        </li>
+                    </ul>
                 </div>
 
-                <div class="atalho-card">
-                    <div class="atalho-icone">✨</div>
-                    <div class="atalho-info">
-                        <h4 class="atalho-titulo">Configurações de IA</h4>
-                        <p class="atalho-desc">Defina o comportamento da IA usada em sugestões, resumos e automações do estabelecimento.</p>
-                        <AppButton @click="router.push({ name: 'IaSettings' })">
-                            Configurar IA
-                        </AppButton>
-                    </div>
+                <div v-if="gruposFiltrados.length === 0" class="subnav-sem-resultado">
+                    Nenhuma seção encontrada.
                 </div>
+            </nav>
 
-                <div v-if="podeGerenciarTermos" class="atalho-card">
-                    <div class="atalho-icone">📝</div>
-                    <div class="atalho-info">
-                        <h4 class="atalho-titulo">Termos de consentimento</h4>
-                        <p class="atalho-desc">Gerencie os modelos de termos que serão emitidos para os pacientes (LGPD, cirúrgico, imagem, etc.).</p>
-                        <AppButton @click="router.push({ name: 'TermosModelos' })">
-                            Gerenciar termos
-                        </AppButton>
-                    </div>
-                </div>
+            <!-- ══ PAINEL DE DETALHE ══════════════════════════════════════════ -->
+            <div class="md-painel">
+                <!-- ── Dados ─────────────────────────────────────────────── -->
+                <section v-if="secaoAtiva === 'dados'" class="painel-secao">
+                    <div v-if="carregando" class="estado-msg">Carregando...</div>
 
-                <div class="atalho-card">
-                    <div class="atalho-icone">⭐</div>
-                    <div class="atalho-info">
-                        <h4 class="atalho-titulo">Assinatura</h4>
-                        <p class="atalho-desc">Veja seu plano atual, datas de cobrança e gerencie a assinatura do estabelecimento.</p>
-                        <AppButton @click="router.push({ name: 'MinhaAssinatura' })">
-                            Ver assinatura
-                        </AppButton>
-                    </div>
-                </div>
-            </div>
-        </section>
+                    <div v-else-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
 
-        <!-- ── Aba Dados ── -->
-        <section v-else-if="abaAtiva === 'dados'" class="aba-conteudo">
-            <div v-if="carregando" class="estado-msg">Carregando...</div>
+                    <div v-else class="card">
+                        <p v-if="!podeEditar" class="aviso-somente-leitura">
+                            Apenas o dono pode alterar estes dados. Você está visualizando em modo leitura.
+                        </p>
 
-            <div v-else-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
-
-            <div v-else class="card">
-                <p v-if="!podeEditar" class="aviso-somente-leitura">
-                    Apenas o dono pode alterar estes dados. Você está visualizando em modo leitura.
-                </p>
-
-                <!-- Foto / logo institucional -->
-                <AppPhotoUpload
-                    :foto-url="estab.fotoUrl"
-                    :iniciais-fallback="estab.nomeFantasia"
-                    titulo="Logo do estabelecimento"
-                    descricao="Aparece nos PDFs de receita, prontuário, orçamentos e relatórios. JPG, PNG, WebP ou GIF até 2 MB. Recomendado: imagem quadrada de 400×400px."
-                    :loading="enviandoFoto"
-                    :disabled="!podeEditar"
-                    motivo-disabled="Apenas o dono pode alterar a foto."
-                    :erro="erroFoto"
-                    @upload="aoEnviarFoto"
-                    @remover="pedirRemocaoFoto"
-                    @erro-validacao="aoErroValidacaoFoto"
-                />
-
-                <div class="separador-foto" />
-
-                <div class="grade-2">
-                    <div class="campo">
-                        <label class="campo-label">Nome fantasia <span class="obrig">*</span></label>
-                        <input v-model="nomeFantasia" class="input-field" :disabled="!podeEditar" />
-                    </div>
-                    <div class="campo">
-                        <label class="campo-label">Razão social</label>
-                        <input v-model="razaoSocial" class="input-field" :disabled="!podeEditar" />
-                    </div>
-                </div>
-
-                <div class="grade-2">
-                    <div class="campo">
-                        <label class="campo-label">CNPJ</label>
-                        <input
-                            v-model="cnpj"
-                            v-maska="'##.###.###/####-##'"
-                            class="input-field"
-                            placeholder="00.000.000/0000-00"
+                        <AppPhotoUpload
+                            :foto-url="estab.fotoUrl"
+                            :iniciais-fallback="estab.nomeFantasia"
+                            titulo="Logo do estabelecimento"
+                            descricao="Aparece nos PDFs de receita, prontuário, orçamentos e relatórios. JPG, PNG, WebP ou GIF até 2 MB. Recomendado: imagem quadrada de 400×400px."
+                            :loading="enviandoFoto"
                             :disabled="!podeEditar"
+                            motivo-disabled="Apenas o dono pode alterar a foto."
+                            :erro="erroFoto"
+                            @upload="aoEnviarFoto"
+                            @remover="pedirRemocaoFoto"
+                            @erro-validacao="aoErroValidacaoFoto"
                         />
-                    </div>
-                    <div class="campo">
-                        <label class="campo-label">Telefone</label>
-                        <input
-                            v-model="telefone"
-                            v-maska="'(##) #####-####'"
-                            class="input-field"
-                            type="tel"
-                            placeholder="(00) 00000-0000"
-                            :disabled="!podeEditar"
-                        />
-                    </div>
-                </div>
 
-                <div class="campo">
-                    <label class="campo-label">Endereço</label>
-                    <input
-                        v-model="endereco"
-                        class="input-field"
-                        placeholder="Rua, número, bairro"
-                        :disabled="!podeEditar"
+                        <div class="separador-foto" />
+
+                        <div class="grade-2">
+                            <div class="campo">
+                                <label class="campo-label">Nome fantasia <span class="obrig">*</span></label>
+                                <input v-model="nomeFantasia" class="input-field" :disabled="!podeEditar" />
+                            </div>
+                            <div class="campo">
+                                <label class="campo-label">Razão social</label>
+                                <input v-model="razaoSocial" class="input-field" :disabled="!podeEditar" />
+                            </div>
+                        </div>
+
+                        <div class="grade-2">
+                            <div class="campo">
+                                <label class="campo-label">CNPJ</label>
+                                <input
+                                    v-model="cnpj"
+                                    v-maska="'##.###.###/####-##'"
+                                    class="input-field"
+                                    placeholder="00.000.000/0000-00"
+                                    :disabled="!podeEditar"
+                                />
+                            </div>
+                            <div class="campo">
+                                <label class="campo-label">Telefone</label>
+                                <input
+                                    v-model="telefone"
+                                    v-maska="'(##) #####-####'"
+                                    class="input-field"
+                                    type="tel"
+                                    placeholder="(00) 00000-0000"
+                                    :disabled="!podeEditar"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="campo">
+                            <label class="campo-label">Endereço</label>
+                            <input
+                                v-model="endereco"
+                                class="input-field"
+                                placeholder="Rua, número, bairro"
+                                :disabled="!podeEditar"
+                            />
+                        </div>
+
+                        <div class="grade-cidade-uf">
+                            <div class="campo">
+                                <label class="campo-label">Cidade</label>
+                                <input
+                                    v-model="cidade"
+                                    class="input-field"
+                                    maxlength="100"
+                                    placeholder="Ex.: São Paulo"
+                                    :disabled="!podeEditar"
+                                />
+                            </div>
+                            <div class="campo">
+                                <label class="campo-label">Estado / UF</label>
+                                <select
+                                    v-model="estado"
+                                    class="input-field"
+                                    :disabled="!podeEditar"
+                                >
+                                    <option v-for="uf in UFS_BRASIL" :key="uf.value" :value="uf.value">
+                                        {{ uf.label }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <p v-if="erro" class="msg-erro">{{ erro }}</p>
+                        <p v-if="msg"  class="msg-ok">{{ msg }}</p>
+
+                        <div class="card-footer">
+                            <AppButton
+                                :disabled="salvando || !podeEditar || !nomeFantasia.trim()"
+                                :loading="salvando"
+                                @click="salvar"
+                            >{{ salvando ? "Salvando..." : "Salvar alterações" }}</AppButton>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── Funcionamento ──────────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'funcionamento'" class="painel-secao">
+                    <div v-if="carregando" class="estado-msg">Carregando...</div>
+                    <div v-else-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
+                    <FuncionamentoTab
+                        v-else
+                        :estabelecimento="estab"
+                        :pode-editar="podeEditar"
+                        @atualizado="carregar"
                     />
-                </div>
+                </section>
 
-                <div class="grade-cidade-uf">
-                    <div class="campo">
-                        <label class="campo-label">Cidade</label>
-                        <input
-                            v-model="cidade"
-                            class="input-field"
-                            maxlength="100"
-                            placeholder="Ex.: São Paulo"
-                            :disabled="!podeEditar"
-                        />
+                <!-- ── Unidades ───────────────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'unidades'" class="painel-secao">
+                    <div v-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
+                    <UnidadesTab
+                        v-else
+                        :estabelecimento-id="estab.id"
+                        :pode-editar="podeEditar"
+                    />
+                </section>
+
+                <!-- ── Repartições ────────────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'reparticoes'" class="painel-secao">
+                    <div v-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
+                    <ReparticoesTab
+                        v-else
+                        :estabelecimento-id="estab.id"
+                        :pode-editar="podeEditar"
+                    />
+                </section>
+
+                <!-- ── Modelos de prontuário (lazy) ───────────────────────── -->
+                <section v-else-if="secaoAtiva === 'modelos-prontuario'" class="painel-secao">
+                    <div v-if="!podeVerModelos" class="estado-sem-permissao">
+                        <i class="fa-solid fa-lock" />
+                        <p>Você não tem permissão para acessar esta seção.</p>
                     </div>
-                    <div class="campo">
-                        <label class="campo-label">Estado / UF</label>
-                        <select
-                            v-model="estado"
-                            class="input-field"
-                            :disabled="!podeEditar"
-                        >
-                            <option v-for="uf in UFS_BRASIL" :key="uf.value" :value="uf.value">
-                                {{ uf.label }}
-                            </option>
-                        </select>
+                    <PainelModelosPront v-else />
+                </section>
+
+                <!-- ── Termos de consentimento (lazy) ─────────────────────── -->
+                <section v-else-if="secaoAtiva === 'termos'" class="painel-secao">
+                    <div v-if="!podeVerTermos" class="estado-sem-permissao">
+                        <i class="fa-solid fa-lock" />
+                        <p>Você não tem permissão para acessar esta seção.</p>
                     </div>
-                </div>
+                    <PainelTermos v-else />
+                </section>
 
-                <p v-if="erro" class="msg-erro">{{ erro }}</p>
-                <p v-if="msg"  class="msg-ok">{{ msg }}</p>
+                <!-- ── Listas de variáveis ────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'variaveis'" class="painel-secao">
+                    <ListasVariaveisTab :pode-editar="podeEditar" />
+                </section>
 
-                <div class="card-footer">
-                    <AppButton
-                        :disabled="salvando || !podeEditar || !nomeFantasia.trim()"
-                        :loading="salvando"
-                        @click="salvar"
-                    >{{ salvando ? "Salvando..." : "Salvar alterações" }}</AppButton>
-                </div>
+                <!-- ── Automações (lazy) ──────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'automacoes'" class="painel-secao">
+                    <div v-if="!podeVerAutomacoes" class="estado-sem-permissao">
+                        <i class="fa-solid fa-lock" />
+                        <p>Você não tem permissão para acessar esta seção.</p>
+                    </div>
+                    <PainelAutomacoes v-else />
+                </section>
+
+                <!-- ── Configurações de IA (lazy) ─────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'ia'" class="painel-secao">
+                    <div v-if="!podeVerIa" class="estado-sem-permissao">
+                        <i class="fa-solid fa-lock" />
+                        <p>Você não tem permissão para acessar esta seção.</p>
+                    </div>
+                    <PainelIa v-else />
+                </section>
+
+                <!-- ── Assinatura (lazy) ──────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'assinatura'" class="painel-secao">
+                    <PainelAssinatura />
+                </section>
             </div>
-        </section>
-
-        <!-- ── Aba Funcionamento ── -->
-        <section v-else-if="abaAtiva === 'funcionamento'" class="aba-conteudo">
-            <div v-if="carregando" class="estado-msg">Carregando...</div>
-            <div v-else-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
-            <FuncionamentoTab
-                v-else
-                :estabelecimento="estab"
-                :pode-editar="podeEditar"
-                @atualizado="carregar"
-            />
-        </section>
-
-        <!-- ── Aba Unidades ── -->
-        <section v-else-if="abaAtiva === 'unidades'" class="aba-conteudo">
-            <div v-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
-            <UnidadesTab
-                v-else
-                :estabelecimento-id="estab.id"
-                :pode-editar="podeEditar"
-            />
-        </section>
-
-        <!-- ── Aba Repartições ── -->
-        <section v-else-if="abaAtiva === 'reparticoes'" class="aba-conteudo">
-            <div v-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
-            <ReparticoesTab
-                v-else
-                :estabelecimento-id="estab.id"
-                :pode-editar="podeEditar"
-            />
-        </section>
-
-        <!-- ── Aba Listas de variáveis ── -->
-        <section v-else-if="abaAtiva === 'variaveis'" class="aba-conteudo">
-            <ListasVariaveisTab :pode-editar="podeEditar" />
-        </section>
+        </div>
 
         <!-- Confirmação destrutiva da remoção de foto -->
         <AppConfirmDialog
@@ -429,7 +546,6 @@ onMounted(async () => {
             @confirmar="confirmarRemocaoFoto"
         />
 
-        <!-- Feedback de upload/remoção -->
         <AppToast
             v-if="toastFoto"
             :mensagem="toastFoto.texto"
@@ -440,82 +556,185 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.page-header { margin-bottom: 1.25rem; }
-.page-titulo { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.2rem; }
-.page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
+/* ─── Layout master-detail ──────────────────────────────────────────────────── */
+.md-layout {
+    display: grid;
+    grid-template-columns: 248px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
 
-.aba-conteudo { animation: fadein 0.18s ease-out; margin-top: 1.25rem; }
+/* O header externo (PageHeader) traz mb-6 próprio; somado ao gap do app-page
+   sobrava muito espaço acima do menu/painel. Zeramos o mb-6 do header externo
+   — o gap do app-page (1.5rem) já separa o header do conteúdo. */
+.estab-config > :deep(.mb-6:first-child) {
+    margin-bottom: 0;
+}
+
+@media (max-width: 860px) {
+    .md-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── Sub-nav ───────────────────────────────────────────────────────────────── */
+.md-subnav {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    padding: 0.75rem 0.5rem;
+    position: sticky;
+    top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.subnav-busca {
+    padding: 0 0.25rem 0.5rem;
+    border-bottom: 1px solid hsl(var(--border));
+    margin-bottom: 0.25rem;
+}
+/* AppSearchInput tem min-width: 280px (contexto de filtros de lista largos);
+   no sub-nav de 248px isso transborda — neutralizamos só aqui. */
+.subnav-busca :deep(.app-search-input) {
+    min-width: 0;
+}
+
+.subnav-grupo { margin-top: 0.5rem; }
+.subnav-grupo-label {
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: hsl(var(--muted-foreground));
+    padding: 0 0.75rem;
+    margin: 0 0 0.25rem;
+}
+
+.subnav-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.subnav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: calc(var(--radius) - 2px);
+    border: none;
+    background: transparent;
+    color: hsl(var(--foreground) / 0.75);
+    font-size: 0.875em;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s, color 0.12s;
+}
+.subnav-item:hover {
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
+}
+.subnav-item.ativo {
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    font-weight: 600;
+}
+.subnav-item.ativo .subnav-icone { color: hsl(var(--primary)); }
+
+.subnav-icone { width: 16px; text-align: center; font-size: 0.85em; flex-shrink: 0; }
+
+.subnav-sem-resultado {
+    font-size: 0.82em;
+    color: hsl(var(--muted-foreground));
+    text-align: center;
+    padding: 1rem;
+}
+
+/* ─── Painel de detalhe ─────────────────────────────────────────────────────── */
+.md-painel { min-width: 0; }
+
+/* As views reusadas (Assinatura, IA, Automações, Modelos) trazem o wrapper
+   `.app-page` (max-width + margin:0 auto + padding de página). Aninhado no
+   painel isso centraliza o conteúdo e cria vãos enormes — a página de
+   Configurações já é o `.app-page` externo. Neutralizamos o chrome interno
+   para o conteúdo preencher o painel. */
+.md-painel :deep(.app-page) {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    gap: 1.25rem;
+}
+/* O PageHeader das views reusadas traz mb-6 (24px) próprio; somado ao gap do
+   app-page, dobrava o espaço header→conteúdo dentro do painel. Zeramos só o
+   mb-6 do header (1º filho) — o gap do painel cuida do ritmo. Mantém o header
+   e seus botões de ação (ex.: "Ver planos" na Assinatura). */
+.md-painel :deep(.app-page > .mb-6:first-child) {
+    margin-bottom: 0;
+}
+/* Igualar o tamanho do título dos painéis reusados (PageHeader usa text-2xl =
+   1.5rem) ao do painel de Termos (.lista-titulo, 1.05em). */
+.md-painel :deep(.app-page > .mb-6:first-child h1) {
+    font-size: 1.05rem;
+    line-height: 1.3;
+}
+
+.painel-secao { animation: fadein 0.18s ease-out; }
 @keyframes fadein {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
-.secao-titulo { font-size: 0.95em; font-weight: 700; margin: 0 0 0.3rem; }
-.secao-sub    { font-size: 0.82em; color: var(--text-muted); margin: 0 0 1rem; }
+.estado-msg {
+    text-align: center; color: hsl(var(--muted-foreground));
+    padding: 3rem 1rem; font-size: 0.9em;
+}
 
-/* ── Atalhos (cards na aba Geral) ── */
-.atalhos {
-    display: grid; gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+.estado-sem-permissao {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.75rem; padding: 3rem 1rem;
+    color: hsl(var(--muted-foreground)); font-size: 0.9em;
+    text-align: center;
 }
-.atalho-card {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 1rem 1.25rem;
-    display: flex; gap: 1rem; align-items: flex-start;
-}
-.atalho-icone {
-    font-size: 1.5rem; width: 44px; height: 44px;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--primary-light, #ede9fe); border-radius: 10px; flex-shrink: 0;
-}
-.atalho-info { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
-.atalho-titulo { font-size: 0.92em; font-weight: 700; margin: 0; }
-.atalho-desc { font-size: 0.82em; color: var(--text-muted); margin: 0 0 0.5rem; }
+.estado-sem-permissao i { font-size: 2rem; opacity: 0.4; }
+.estado-sem-permissao p { margin: 0; }
 
-/* ── Card padrão ── */
+/* ─── Card padrão (seção Dados) ─────────────────────────────────────────────── */
 .card {
-    background: var(--bg-card); border: 1px solid var(--border);
+    background: hsl(var(--card)); border: 1px solid hsl(var(--border));
     border-radius: var(--radius); padding: 1.75rem;
     display: flex; flex-direction: column; gap: 1.25rem;
 }
-.card-em-breve { align-items: flex-start; gap: 0.5rem; }
+.card-footer { display: flex; justify-content: flex-end; }
 
 .aviso-somente-leitura {
     background: #fef3c7; color: #92400e; padding: 0.65rem 0.9rem;
     border-radius: var(--radius); font-size: 0.82em; margin: 0;
 }
 
-.em-breve-tag {
-    background: #fef3c7; color: #92400e;
-    padding: 0.4rem 0.75rem; border-radius: 999px;
-    font-size: 0.78em; font-weight: 700; margin: 0.5rem 0 0;
-}
-
-.card-footer { display: flex; justify-content: flex-end; }
-
-/* Linha sutil separando a logo do bloco de campos textuais. */
-.separador-foto {
-    height: 1px; background: var(--border); margin: 0.25rem 0;
-}
+.separador-foto { height: 1px; background: hsl(var(--border)); margin: 0.25rem 0; }
 
 .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .grade-cidade-uf { display: grid; grid-template-columns: 1fr 220px; gap: 1rem; }
 
 .campo       { display: flex; flex-direction: column; gap: 0.3rem; }
-.campo-label { font-size: 0.82em; font-weight: 600; color: var(--text-muted); }
-.obrig       { color: var(--danger); }
+.campo-label { font-size: 0.82em; font-weight: 600; color: hsl(var(--muted-foreground)); }
+.obrig       { color: hsl(var(--destructive)); }
 
 .input-field {
-    padding: 0.5rem 0.75rem; border: 1px solid var(--border-strong);
+    padding: 0.5rem 0.75rem; border: 1px solid hsl(var(--border-strong, var(--border)));
     border-radius: var(--radius); font-family: inherit; font-size: 0.875em;
-    background: var(--bg-card); color: var(--text);
+    background: hsl(var(--card)); color: hsl(var(--foreground));
 }
-.input-field:focus    { outline: none; border-color: var(--primary); }
-.input-field:disabled { background: #f9fafb; color: var(--text-muted); cursor: not-allowed; }
+.input-field:focus    { outline: none; border-color: hsl(var(--primary)); }
+.input-field:disabled { background: hsl(var(--muted)); color: hsl(var(--muted-foreground)); cursor: not-allowed; }
 
-.msg-erro { color: var(--danger); font-size: 0.875em; margin: 0; }
-.msg-ok   { color: #15803d;      font-size: 0.875em; margin: 0; }
+.msg-erro { color: hsl(var(--destructive)); font-size: 0.875em; margin: 0; }
+.msg-ok   { color: hsl(var(--success, 142 76% 36%)); font-size: 0.875em; margin: 0; }
 
-.estado-msg { text-align: center; color: var(--text-muted); padding: 3rem 1rem; font-size: 0.9em; }
-
+@media (max-width: 860px) {
+    .grade-2 { grid-template-columns: 1fr; }
+    .grade-cidade-uf { grid-template-columns: 1fr; }
+    .md-subnav { position: static; }
+}
 </style>

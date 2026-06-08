@@ -184,6 +184,28 @@ Typeahead de texto livre com sugestões do pool de variáveis. Localização: [`
 - `SecaoHistoriaFamiliar.vue`: campo `parentesco` de parentes (tipo RelacaoFamiliar).
 - As listas são carregadas uma vez no `onMounted` da seção via `variavelPoolService.listar(tipo)`.
 
+## Padrão master-detail de página de configurações (briefing 2026-06-08_002)
+
+A página `/estabelecimento` usa layout **master-detail**: sub-nav agrupada (~248px) à esquerda + painel de detalhe à direita que troca conforme a seção selecionada. Padrão aplicado em `EstabelecimentoView.vue`.
+
+### Estrutura
+
+- **Sub-nav lateral**: 3 grupos rotulados ("Estabelecimento", "Modelos e listas", "Recursos") com busca client-side no topo. Itens condicionados a permissão são ocultados (RBAC por ocultação, R4 — gates de `permissoesStore`). Largura fixa ~248px; em <860px colapsa para coluna única.
+- **Painel de detalhe**: monta o componente da seção ativa. Seções não-abertas **não montam** o componente nem disparam consultas (lazy-load real via `v-if` por seção + `defineAsyncComponent` para painéis pesados externos). **Nunca usar `v-show`** — manteria o componente montado e dispararia consultas de fundo.
+- **Deep-link via `?secao=`**: sincronizado bidirecionalmente com o router via `router.replace` (não `push`) para não poluir o histórico. Espelha o padrão `?aba=` de `OrcamentoSettingsView`/`TermosListaView`/`RelatoriosView`. Seção inválida ou sem permissão cai na seção default ("dados").
+
+### Painéis inline (reuso de componentes existentes)
+
+Seções que eram views separadas são embarcadas via `defineAsyncComponent` — o componente existente é **reusado, não reescrito**. Para o editor de Termos, o estado lista ↔ editor é gerenciado localmente no componente `TermosPainelEmbutido.vue`, sem navegação de rota (R7).
+
+### Rotas antigas → redirects
+
+As rotas `/automacoes`, `/configuracoes/ia`, `/minha-assinatura`, `/configuracoes/modelos-prontuario`, `/configuracoes/termos` (e sub-rotas) redirecionam para `/estabelecimento?secao=<id>`, espelhando o padrão de aliases de Relatórios em `router/index.ts`.
+
+### Item de backlog
+
+Quando houver um segundo caso de uso de master-detail, extrair para componente genérico do design system (ex: `AppMasterDetail`/`AppSubNav`). Esta entrega resolve exclusivamente a página de configurações — sem extração prematura.
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

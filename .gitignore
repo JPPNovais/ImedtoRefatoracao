@@ -55,5 +55,7 @@ coverage/
 .claude_settings.json
 .worktrees/
 .claude/worktrees/
+# Memória local dos agentes da pipeline (não versionar; .claude/agents/ continua versionado)
+**/.claude/agent-memory/
 .security-key
 logs/security/

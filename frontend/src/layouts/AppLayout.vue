@@ -68,10 +68,10 @@ const navMain = computed(() => {
     return ITENS_MENU.filter(i => podeAcessarRota(i.name, helpers))
 })
 
-// Configurações no footer agrupa várias telas (Estabelecimento, IA, modelos
-// de prontuário). Mostrar enquanto qualquer uma delas estiver acessível, e
-// apontar para a primeira que o usuário pode abrir — evita router redirecionar
-// para Home se ele só tem `modelos_prontuario`, por exemplo.
+// Configurações no footer aponta sempre para /estabelecimento (master-detail unificado).
+// Mostrar enquanto qualquer das seções de configuração estiver acessível.
+// IaSettings/ModelosProntuario/TermosModelos são agora redirects — checamos
+// a permissão pelo gate real (Estabelecimento já abarca Dono + config_estabelecimento).
 const ROTAS_CONFIG = ["Estabelecimento", "IaSettings", "ModelosProntuario", "TermosModelos"] as const
 const configDestino = computed(() => {
     const helpers = {
@@ -79,7 +79,7 @@ const configDestino = computed(() => {
         pode: (k: string) => permissoes.pode(k),
         podeExtra: (k: string) => permissoes.podeExtra(k),
     }
-    return ROTAS_CONFIG.find(n => podeAcessarRota(n, helpers)) ?? null
+    return ROTAS_CONFIG.find(n => podeAcessarRota(n, helpers)) ? "Estabelecimento" : null
 })
 const podeVerConfig = computed(() => configDestino.value !== null)
 
@@ -102,9 +102,11 @@ const activeMap: Record<string, string> = {
     MeusConvites: "Equipe",
 }
 
-// "Configurações" no footer agrupa todas as telas de configuração do estabelecimento.
+// "Configurações" no footer — ativo quando a rota ativa é Estabelecimento (master-detail)
+// ou qualquer das rotas que agora redirecionam para lá. Planos mantém como
+// sub-rota autônoma de assinatura.
 const configuracoesAtiva = computed(() => {
-    const sub = ["Estabelecimento", "IaSettings", "MinhaAssinatura", "Planos", "ModelosProntuario", "TermosModelos", "TermosNovo", "TermosEditar"]
+    const sub = ["Estabelecimento", "IaSettings", "MinhaAssinatura", "ModelosProntuario", "TermosModelos", "TermosNovo", "TermosEditar", "Automacoes"]
     return sub.includes(route.name as string)
 })
 

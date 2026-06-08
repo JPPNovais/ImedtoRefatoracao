@@ -12,7 +12,7 @@ const upsell = useUpsellStore()
 
 function irParaAssinatura() {
     upsell.fechar()
-    router.push({ name: "MinhaAssinatura" })
+    router.push({ path: "/estabelecimento", query: { secao: "assinatura" } })
 }
 </script>
 

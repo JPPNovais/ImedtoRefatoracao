@@ -83,12 +83,10 @@ export const ROTAS_RESTRITAS: Record<string, RegraRota> = {
     Automacoes:         { extras: ["automacao_config"] },
 
     // Termos de consentimento — só quem pode gerenciar modelos enxerga a tela.
-    // Backend exige `termos.gerenciar_modelos` para CRUD (controller); para
-    // listar, basta a área `termos`. A view de lista também é o ponto de
-    // entrada de criação/clonagem, então gateamos pelo direito mais forte.
+    // TermosModelos redireciona para /estabelecimento?secao=termos; a permissão
+    // real é checada dentro do painel inline (ocultação por RBAC).
+    // TermosNovo/TermosEditar também são redirects — sem gate de rota próprio.
     TermosModelos:      { acao: "termos.gerenciar_modelos" },
-    TermosNovo:         { acao: "termos.gerenciar_modelos" },
-    TermosEditar:       { acao: "termos.gerenciar_modelos" },
 
     // Cirurgias — vinculadas a prontuário.
     CirurgiaDetalhe:    { acao: "prontuario.ver" },

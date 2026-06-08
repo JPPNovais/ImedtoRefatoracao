@@ -9,6 +9,8 @@ import { adminRoutes } from "@/modules/admin/router"
 /**
  * Rotas isentas do bloqueio por assinatura — necessárias para o fluxo de
  * upgrade/contato/logout. Espelha a lógica do legado em router/index.ts.
+ * MinhaAssinatura agora redireciona para /estabelecimento?secao=assinatura,
+ * mas mantemos o nome aqui para preservar compatibilidade do guard.
  */
 const ROTAS_ISENTAS_ASSINATURA = new Set([
     "Login",
@@ -16,7 +18,7 @@ const ROTAS_ISENTAS_ASSINATURA = new Set([
     "Onboarding",
     "AssinaturaExpirada",
     "Planos",
-    "MinhaAssinatura",
+    "Estabelecimento",
 ])
 
 const APP = { layout: "app" } as const
@@ -112,31 +114,27 @@ const router = createRouter({
             name: "ModelosPermissao",
             redirect: { name: "Equipe", query: { aba: "papeis" } },
         },
+        // Rotas internalizadas no master-detail de Configurações — redirecionam
+        // para /estabelecimento?secao=<id> (espelhando bloco de aliases de Relatórios).
         {
             path: "/configuracoes/modelos-prontuario",
             name: "ModelosProntuario",
-            component: () => import("@/views/configuracoes/ModelosProntuarioView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "modelos-prontuario" } },
         },
-
-        // Termos de consentimento (modelos)
         {
             path: "/configuracoes/termos",
             name: "TermosModelos",
-            component: () => import("@/views/configuracoes/TermosListaView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "termos" } },
         },
         {
             path: "/configuracoes/termos/novo",
             name: "TermosNovo",
-            component: () => import("@/views/configuracoes/TermoFormView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "termos" } },
         },
         {
             path: "/configuracoes/termos/:id(\\d+)/editar",
             name: "TermosEditar",
-            component: () => import("@/views/configuracoes/TermoFormView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "termos" } },
         },
 
         // Equipe e permissões — tela unificada (apenas Dono).
@@ -169,20 +167,18 @@ const router = createRouter({
             meta: { requiresAuth: true, ...APP },
         },
 
-        // Automações
+        // Automações — redireciona para seção inline no master-detail de Configurações.
         {
             path: "/automacoes",
             name: "Automacoes",
-            component: () => import("@/views/automacoes/AutomacoesView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "automacoes" } },
         },
 
-        // Assinatura
+        // Assinatura — redireciona para seção inline no master-detail de Configurações.
         {
             path: "/minha-assinatura",
             name: "MinhaAssinatura",
-            component: () => import("@/views/assinatura/MinhaAssinaturaView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "assinatura" } },
         },
         {
             path: "/planos",
@@ -197,12 +193,11 @@ const router = createRouter({
             meta: { requiresAuth: true, requiresTenant: true },
         },
 
-        // Configurações IA (apenas Dono)
+        // Configurações IA — redireciona para seção inline no master-detail de Configurações.
         {
             path: "/configuracoes/ia",
             name: "IaSettings",
-            component: () => import("@/views/configuracoes/MinhaIaSettingsView.vue"),
-            meta: { requiresAuth: true, requiresTenant: true, ...APP },
+            redirect: { path: "/estabelecimento", query: { secao: "ia" } },
         },
 
         // Notificações full-page
