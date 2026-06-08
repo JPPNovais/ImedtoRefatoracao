@@ -204,7 +204,7 @@ onMounted(carregarTudo)
 
         <!-- ── Formulário de criação ── -->
         <AppCard v-if="podeEditar && !semUnidades" padding="md">
-            <h3 class="secao-titulo">Adicionar nova repartição</h3>
+            <h3 class="ds-card-title">Adicionar nova repartição</h3>
 
             <div class="grade-3">
                 <AppField label="Nome *">
@@ -274,7 +274,7 @@ onMounted(carregarTudo)
             <AppCard v-for="s in salasFiltradas" :key="s.id" padding="md">
                 <!-- Modo edição -->
                 <template v-if="editandoId === s.id">
-                    <h3 class="secao-titulo">Editar repartição</h3>
+                    <h3 class="ds-card-title">Editar repartição</h3>
                     <div class="grade-3">
                         <AppField label="Nome *">
                             <AppInput v-model="formEdit.nome" />
@@ -304,7 +304,7 @@ onMounted(carregarTudo)
 
                 <!-- Modo visualização -->
                 <template v-else>
-                    <div class="card-titulo">
+                    <div class="card-cabecalho">
                         <h3 class="sala-nome">
                             {{ s.nome }}
                             <span v-if="s.tipoSalaNome" class="tag-tipo">{{ s.tipoSalaNome }}</span>
@@ -391,7 +391,6 @@ onMounted(carregarTudo)
     font-size: 0.85em; margin: 0;
 }
 
-.secao-titulo { font-size: 0.95em; font-weight: 700; margin: 0 0 0.85rem; }
 
 .grade-3 {
     display: grid; grid-template-columns: 1fr 1fr 1fr;
@@ -419,7 +418,7 @@ onMounted(carregarTudo)
 
 .lista { display: flex; flex-direction: column; gap: 0.85rem; }
 
-.card-titulo {
+.card-cabecalho {
     display: flex; align-items: center; justify-content: space-between;
     gap: 0.75rem; flex-wrap: wrap;
     margin-bottom: 0.4rem;

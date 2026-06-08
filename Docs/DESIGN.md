@@ -206,7 +206,78 @@ As rotas `/automacoes`, `/configuracoes/ia`, `/minha-assinatura`, `/configuracoe
 
 Quando houver um segundo caso de uso de master-detail, extrair para componente genérico do design system (ex: `AppMasterDetail`/`AppSubNav`). Esta entrega resolve exclusivamente a página de configurações — sem extração prematura.
 
+## Escala tipográfica (fonte única de verdade — briefing 2026-06-08_003)
+
+Toda tipografia do produto usa a escala canônica de tokens definida em `frontend/src/assets/main.css` (`:root`). **Não use valores literais de `font-size` ou `font-weight` em CSS scoped** — consulte a tabela abaixo e use o token correspondente.
+
+### Tabela de tokens
+
+| Token | Valor | px equivalente |
+|-------|-------|----------------|
+| `--text-2xs` | `0.625rem` | 10px |
+| `--text-xs` | `0.75rem` | 12px |
+| `--text-sm` | `0.8125rem` | 13px |
+| `--text-base` | `0.875rem` | 14px |
+| `--text-md` | `0.9375rem` | 15px |
+| `--text-lg` | `1.125rem` | 18px |
+| `--text-xl` | `1.3125rem` | 21px |
+| `--text-2xl` | `1.5rem` | 24px |
+| `--text-3xl` | `1.875rem` | 30px |
+
+| Token | Valor |
+|-------|-------|
+| `--font-weight-regular` | 400 |
+| `--font-weight-medium` | 500 |
+| `--font-weight-semibold` | 600 |
+| `--font-weight-bold` | 700 |
+| `--font-weight-extrabold` | 800 |
+
+| Token | Valor |
+|-------|-------|
+| `--line-height-none` | 1 |
+| `--line-height-tight` | 1.15 |
+| `--line-height-snug` | 1.3 |
+| `--line-height-normal` | 1.5 |
+| `--tracking-title` | -0.015em |
+| `--tracking-section` | -0.01em |
+
+### Mapa semântico — quando usar cada elemento tipográfico
+
+| Contexto | Elemento | Tamanho | Peso | Classe/componente |
+|----------|----------|---------|------|-------------------|
+| Título de página | `<AppPageHeader>` | 30px (`--text-3xl`) | 800 | `AppPageHeader` (DS) |
+| Título de seção/painel | `h2` / `h3` | 21px (`--text-xl`) | 800 | `.ds-section-title` |
+| Título de card inline | `h2` / `h3` | 15px (`--text-md`) | 700 | `.ds-card-title` |
+| Label de campo | `<AppField>` / `<AppLabel>` | 12px (`--text-xs`) | 600 | `AppField` / `AppLabel` (DS) |
+| Texto de campo/input | `<input>` / `<select>` | 13px (`--text-sm`) | — | `.form-input` global |
+| Botões | `.btn-*` | 13px (`--text-sm`) | — | `.btn-*` global em `main.css` |
+| Corpo de texto / linhas de tabela | — | 14px (`--text-base`) | — | herda do `body` |
+| Sub-texto / caption | `<p class="ds-sub">` | 14px (`--text-base`) | — | `.ds-sub` |
+
+### Regras não-negociáveis
+
+1. **Tokens, nunca literais**: toda declaração `font-size` em CSS scoped deve usar `var(--text-*)`. Nunca `font-size: 18px`, `font-size: 1rem`, etc.
+2. **Fonte única**: os tokens vivem apenas em `main.css` (`:root`) e em `design-system/src/styles/tokens.css`. Não redefinir em outros arquivos.
+3. **AppPageHeader para títulos de página**: views internas com `class="app-page"` devem usar `<AppPageHeader titulo="..." />` — não `<h1>` cru. Exceção: views públicas/auth onde o layout é customizado.
+4. **`.ds-section-title` para seções**: substituir `<h2>Título</h2>` com CSS scoped por `<h2 class="ds-section-title">`.
+5. **`.ds-card-title` para cards**: subtítulos de card inline.
+6. **Inputs e botões a 13px**: aplicado de forma centralizada no seletor base (`.form-input`, `.btn-*` em `main.css`). Não sobrescrever tela a tela.
+7. **Labels a 12px/600**: `AppLabel`/`AppField` já renderizam no padrão. Não criar `.campo-label` scoped.
+
+### Classes utilitárias globais (definidas em `main.css`)
+
+```css
+.ds-section-title { font-size: var(--text-xl); font-weight: var(--font-weight-extrabold); letter-spacing: var(--tracking-section); }
+.ds-card-title    { font-size: var(--text-md);  font-weight: var(--font-weight-bold); }
+.ds-sub           { font-size: var(--text-base); color: hsl(var(--secondary) / 0.65); }
+```
+
+### Tailwind preset alinhado
+
+O preset em `design-system/src/tailwind/preset.js` mapeia as classes Tailwind `text-xs` ... `text-3xl` para os tokens: `text-sm` → `var(--text-sm, 0.8125rem)` etc. Ao usar Tailwind de tamanho dentro de componentes DS, os valores resultam nos mesmos px da escala canônica.
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.
 - [`03A_FASE_3_UX_ADR.md`](03A_FASE_3_UX_ADR.md) — decisões de UX históricas (ADRs).
+- [`Discoverys/tipografia/01_discovery.md`](Discoverys/tipografia/01_discovery.md) — auditoria de fragmentação e escala canônica adotada.

@@ -85,7 +85,7 @@ function setField(idx: number, field: keyof Exame, valor: string) {
         </AppButton>
 
         <div class="subsecao-obs">
-            <label class="campo-label">Observações gerais dos exames</label>
+            <label class="field-label">Observações gerais dos exames</label>
             <AppTextarea
                 :model-value="modelValue.observacoes ?? ''" :rows="2"
                 placeholder="Conclusões, pendências de exames..."
@@ -111,7 +111,6 @@ function setField(idx: number, field: keyof Exame, valor: string) {
 .grade { display: grid; grid-template-columns: 180px 1fr 1.5fr; gap: 0.5rem; }
 .campo { display: flex; flex-direction: column; gap: 0.15rem; }
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
-.campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); }
 
 .subsecao-obs {
     border-top: 1px solid var(--border); padding-top: 0.75rem;

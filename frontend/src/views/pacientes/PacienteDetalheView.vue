@@ -752,7 +752,7 @@ function orcStatusClass(s: string): string {
 .pd-info { flex: 1; min-width: 320px; }
 .pd-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 .pd-info h1 {
-    font-size: 24px; font-weight: 800;
+    font-size: var(--text-3xl); font-weight: var(--font-weight-extrabold);
     color: hsl(var(--primary-dark)); margin: 0;
     letter-spacing: -0.01em;
 }
@@ -848,7 +848,7 @@ function orcStatusClass(s: string): string {
 }
 .pd-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .pd-card-head h3 {
-    font-size: 14px; font-weight: 700;
+    font-size: var(--text-base); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     margin: 0;
     display: inline-flex; align-items: center; gap: 8px;
@@ -912,7 +912,7 @@ function orcStatusClass(s: string): string {
     display: flex; align-items: center; justify-content: space-between;
     gap: 16px; margin-bottom: 16px;
 }
-.prontuario-head h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
+.prontuario-head h2 { font-size: var(--text-lg); font-weight: var(--font-weight-bold); color: hsl(var(--primary-dark)); margin: 0; }
 .prontuario-head p { font-size: 13px; color: hsl(var(--secondary) / 0.7); margin: 4px 0 0; }
 
 /* Wrapper de timeline (compartilhado com ConsultasAnterioresTab via EvolucaoTimelineItem) */

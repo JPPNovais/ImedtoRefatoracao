@@ -92,7 +92,7 @@ const totalAtendimentos = computed(() =>
                 <!-- Receita x Despesa -->
                 <AppCard v-if="financeiro">
                     <template #header>
-                        <div class="rp-card-titulo">
+                        <div class="ds-card-title rp-cabecalho">
                             <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>
                             Receita vs. Despesa
                         </div>
@@ -120,7 +120,7 @@ const totalAtendimentos = computed(() =>
                 <!-- Top categorias financeiras -->
                 <AppCard v-if="topFinanceiro.length > 0">
                     <template #header>
-                        <div class="rp-card-titulo">
+                        <div class="ds-card-title rp-cabecalho">
                             <i class="fa-solid fa-ranking-star" aria-hidden="true"></i>
                             Top categorias
                         </div>
@@ -132,7 +132,7 @@ const totalAtendimentos = computed(() =>
             <!-- Funil resumo de orçamentos -->
             <AppCard v-if="orcamentos && orcamentos.funil.totalCriados > 0">
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-filter" aria-hidden="true"></i>
                         Resumo de orçamentos
                     </div>
@@ -169,11 +169,10 @@ const totalAtendimentos = computed(() =>
 @media (max-width: 1100px) { .rp-grid-4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px)  { .rp-grid-4, .rp-grid-2 { grid-template-columns: 1fr; } }
 
-.rp-card-titulo {
+.rp-cabecalho {
     display: flex; gap: 8px; align-items: center;
-    font-size: 14px; font-weight: 600; color: hsl(var(--foreground));
 }
-.rp-card-titulo i { color: hsl(var(--primary)); }
+.rp-cabecalho i { color: hsl(var(--primary)); }
 .rp-card-sub {
     font-size: 12.5px;
     color: hsl(var(--muted-foreground));

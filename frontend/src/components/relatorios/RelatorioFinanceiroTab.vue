@@ -95,7 +95,7 @@ const fatiasDonut = computed(() =>
                 <!-- Barras horizontais por categoria -->
                 <AppCard>
                     <template #header>
-                        <div class="rp-card-titulo">
+                        <div class="ds-card-title rp-cabecalho">
                             <i class="fa-solid fa-chart-bar" aria-hidden="true"></i>
                             Detalhamento por {{ dados.agrupadoPor === 'forma_pagamento' ? 'forma de pagamento' : dados.agrupadoPor }}
                         </div>
@@ -125,7 +125,7 @@ const fatiasDonut = computed(() =>
                 <!-- Donut de distribuição -->
                 <AppCard v-if="fatiasDonut.length > 0">
                     <template #header>
-                        <div class="rp-card-titulo">
+                        <div class="ds-card-title rp-cabecalho">
                             <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>
                             Distribuição por categoria
                         </div>
@@ -145,7 +145,7 @@ const fatiasDonut = computed(() =>
             <!-- Tabela detalhada -->
             <AppCard v-if="dados.breakdown.length > 0">
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-table" aria-hidden="true"></i>
                         Tabela detalhada
                     </div>
@@ -208,15 +208,12 @@ const fatiasDonut = computed(() =>
 @media (max-width: 900px) { .rp-grid-3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 640px) { .rp-grid-3, .rp-grid-2 { grid-template-columns: 1fr; } }
 
-.rp-card-titulo {
+.rp-cabecalho {
     display: flex;
     gap: 8px;
     align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: hsl(var(--foreground));
 }
-.rp-card-titulo i { color: hsl(var(--primary)); }
+.rp-cabecalho i { color: hsl(var(--primary)); }
 .rp-card-sub {
     font-size: 12.5px;
     color: hsl(var(--muted-foreground));

@@ -601,9 +601,9 @@ if (!_profStore.carregado) {
     color: hsl(var(--foreground));
 }
 .et-html :deep(p) { margin: 0 0 8px; }
-.et-html :deep(h1) { font-size: 17px; color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
-.et-html :deep(h2) { font-size: 15px; color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
-.et-html :deep(h3) { font-size: 13px; color: hsl(var(--primary-dark)); margin: 10px 0 6px; }
+.et-html :deep(h1) { font-size: var(--text-md); color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
+.et-html :deep(h2) { font-size: var(--text-md); color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
+.et-html :deep(h3) { font-size: var(--text-sm); color: hsl(var(--primary-dark)); margin: 10px 0 6px; }
 .et-html :deep(ul), .et-html :deep(ol) { margin: 0 0 8px 20px; }
 .et-html :deep(strong) { font-weight: 700; }
 .et-html :deep(em) { font-style: italic; }

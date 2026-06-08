@@ -53,7 +53,6 @@ const ITENS_MENU: { name: string; label: string; icon: string; to: { name: strin
     { name: "Orcamentos",      label: "Orçamentos",       icon: "fa-solid fa-file-invoice-dollar",    to: { name: "Orcamentos" } },
     { name: "Inventario",      label: "Estoque",          icon: "fa-solid fa-boxes-stacked",          to: { name: "Inventario" } },
     { name: "Relatorios",      label: "Relatórios",       icon: "fa-solid fa-chart-pie",              to: { name: "Relatorios" } },
-    { name: "Automacoes",      label: "Automação",        icon: "fa-solid fa-bolt",                   to: { name: "Automacoes" } },
 ]
 
 const navMain = computed(() => {

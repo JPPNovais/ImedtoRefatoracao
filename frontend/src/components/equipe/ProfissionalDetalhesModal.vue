@@ -483,7 +483,7 @@ function fechar() {
 .role-change { display: flex; flex-direction: column; gap: 6px; max-width: 380px; }
 .role-change label { font-size: 12px; font-weight: 600; color: hsl(var(--primary-dark)); }
 .rps-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
-.rps-head h3 { font-size: 14px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
+.rps-head h3 { font-size: var(--text-base); font-weight: var(--font-weight-bold); color: hsl(var(--primary-dark)); margin: 0; }
 .rps-head span { font-size: 12px; color: hsl(var(--secondary) / 0.6); }
 
 .msg-erro { color: hsl(var(--error)); font-size: 13px; margin: 12px 24px 0; }

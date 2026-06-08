@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
       v-if="label"
       :for="htmlFor"
       :class="cn(
-        'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+        'ds-label',
         error && 'text-destructive',
       )"
     >
@@ -36,3 +36,15 @@ const props = withDefaults(defineProps<{
     </p>
   </div>
 </template>
+
+<style>
+/* Label canônico: 12px/600 — Q2 (briefing 2026-06-08_003) */
+.ds-label {
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: var(--line-height-none, 1);
+  color: hsl(var(--secondary));
+  display: block;
+  margin-bottom: 0.25rem;
+}
+</style>

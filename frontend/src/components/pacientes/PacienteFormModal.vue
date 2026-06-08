@@ -357,7 +357,7 @@ const subtitulo = computed(() =>
             </button>
 
             <section class="secao">
-                <h3 class="secao-titulo">Dados pessoais</h3>
+                <h3 class="ds-section-title">Dados pessoais</h3>
                 <div class="form-grid">
                     <AppField label="Nome completo" required class="full">
                         <AppInput v-model="form.nomeCompleto" :disabled="salvando" />
@@ -404,7 +404,7 @@ const subtitulo = computed(() =>
             </section>
 
             <section class="secao">
-                <h3 class="secao-titulo">Contato</h3>
+                <h3 class="ds-section-title">Contato</h3>
                 <div class="form-grid">
                     <AppField label="Celular">
                         <AppInput
@@ -430,7 +430,7 @@ const subtitulo = computed(() =>
             </section>
 
             <section class="secao">
-                <h3 class="secao-titulo">Endereço</h3>
+                <h3 class="ds-section-title">Endereço</h3>
                 <div class="form-grid">
                     <AppField label="CEP">
                         <AppInput
@@ -470,7 +470,7 @@ const subtitulo = computed(() =>
             </section>
 
             <section class="secao">
-                <h3 class="secao-titulo">Tags clínicas</h3>
+                <h3 class="ds-section-title">Tags clínicas</h3>
                 <p class="secao-hint">Use tags para classificar o paciente nos filtros da lista.</p>
                 <div class="tag-grid">
                     <button
@@ -489,7 +489,7 @@ const subtitulo = computed(() =>
             </section>
 
             <section class="secao">
-                <h3 class="secao-titulo">Alertas clínicos</h3>
+                <h3 class="ds-section-title">Alertas clínicos</h3>
                 <p class="secao-hint">
                     Avisos críticos que aparecem no detalhe (ex: "Alergia a penicilina"). Máximo 10.
                 </p>
@@ -521,7 +521,7 @@ const subtitulo = computed(() =>
             </section>
 
             <section class="secao">
-                <h3 class="secao-titulo">Observações</h3>
+                <h3 class="ds-section-title">Observações</h3>
                 <AppTextarea
                     v-model="form.observacoes"
                     :rows="3"
@@ -549,7 +549,7 @@ const subtitulo = computed(() =>
 
 <style scoped>
 .modal-titulo h2 {
-    font-size: 18px; font-weight: 700;
+    font-size: var(--text-lg); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark)); margin: 0 0 2px;
 }
 .modal-titulo span {
@@ -608,12 +608,6 @@ const subtitulo = computed(() =>
 
 /* Form completo: seções */
 .form-completo .secao + .secao { margin-top: 22px; }
-.secao-titulo {
-    font-size: 11px; font-weight: 700;
-    color: hsl(var(--secondary) / 0.55);
-    text-transform: uppercase; letter-spacing: 0.05em;
-    margin: 0 0 10px;
-}
 .secao-hint {
     font-size: 12px; color: hsl(var(--secondary) / 0.65);
     margin: -6px 0 8px; line-height: 1.4;

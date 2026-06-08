@@ -1,8 +1,0 @@
-- [Regra de funcionamento do estabelecimento](project_regra_funcionamento_estabelecimento.md) — onde mora a validação dia/horário/intervalo e como o front consulta disponibilidade (reuso para encaixe/agenda).
-- [Receita: status e soft-delete](project_receita_status_e_softdelete.md) — Rascunho descartável (soft-delete já existe) vs Emitida cancelável; regra clínica de Cancelar imutável.
-- [RBAC inativar/reativar vínculo](project_rbac_inativar_reativar_vinculo.md) — autorização atual diverge de "Dono + gerir_profissionais"; rota só tem vinculoId, checagem precisa rodar no handler.
-- [Especialidade por vínculo/estabelecimento](project_especialidade_por_vinculo.md) — regra canônica COALESCE(v.especialidade_convidada, p.especialidade); 3 pontos de leitura; vale nos PDFs; sem migration.
-- [Modelo de permissão global: cópias vs live-link](project_modelo_permissao_global_copias_vs_livelink.md) — padrão de permissão editável no admin usa cópias materializadas + propagação cross-tenant, NÃO live-link (vínculo FK por tenant).
-- [AppPillToggle (toggle segmentado)](project_apppilltoggle_design_system.md) — componente canônico para escolha binária/segmentada; ainda não consta em Docs/DESIGN.md (backlog de doc).
-- [Pool de variáveis ↔ prontuário](project_pool_variaveis_vinculo_prontuario.md) — criação ao salvar evolução (sem ModelosProntuario), dedup acento-insensível reusa padrão-sistema, só `nome` (LGPD), Droga+AtividadeFisica removidos.
-- [Exame físico: passo de lateralidade do membro](project_exame_fisico_passo_lateralidade_membro.md) — lado escolhido 1x por membro; "Ambos" = 1 entrada bilateral (não mais 2 D+E); frontend-only.

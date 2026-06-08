@@ -976,8 +976,8 @@ const profSelecionado = computed(() =>
 }
 .modal-head h2 {
     margin: 0;
-    font-size: 20px;
-    font-weight: 700;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark, 254 56% 21%));
 }
 .modal-head span {

@@ -375,7 +375,7 @@ onMounted(async () => {
 
         <!-- ── Observações finais ────────────────────────────────────────── -->
         <div class="subsecao">
-            <label class="campo-label-solo">Observações gerais</label>
+            <label class="field-label">Observações gerais</label>
             <AppTextarea
                 :model-value="modelValue.observacoes ?? ''"
                 :rows="3"
@@ -439,7 +439,6 @@ onMounted(async () => {
 }
 .campo { display: flex; flex-direction: column; gap: 0.15rem; }
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
-.campo-label-solo { font-size: 0.82em; font-weight: 600; color: var(--text-muted); }
 
 @media (max-width: 768px) {
     .grade-med { grid-template-columns: 1fr 1fr; }

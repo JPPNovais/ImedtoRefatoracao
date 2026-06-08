@@ -95,7 +95,7 @@ function mascararCpf(cpf: string | null) {
         </div>
 
         <div class="campo">
-            <label class="campo-label">Buscar paciente</label>
+            <label class="field-label">Buscar paciente</label>
             <div class="input-busca">
                 <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
                 <input
@@ -192,7 +192,6 @@ function mascararCpf(cpf: string | null) {
 }
 
 .campo { display: flex; flex-direction: column; gap: 0.35rem; }
-.campo-label { font-size: 0.85em; font-weight: 600; color: var(--text); }
 
 .input-busca { position: relative; }
 .input-busca > i {

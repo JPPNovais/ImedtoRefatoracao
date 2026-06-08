@@ -151,8 +151,8 @@ function fechar() {
 
 <style scoped>
 .titulo h2 {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     margin: 0 0 2px;
 }

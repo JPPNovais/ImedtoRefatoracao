@@ -491,9 +491,9 @@ function fecharEncaixe() {
     gap: 16px; flex-wrap: wrap;
 }
 .atend-h1 {
-    font-size: 26px; font-weight: 800;
-    color: hsl(var(--primary-dark));
-    margin: 0; letter-spacing: -0.01em;
+    font-size: var(--text-3xl); font-weight: var(--font-weight-extrabold);
+    color: var(--c-primary-dark);
+    margin: 0; letter-spacing: var(--tracking-title);
 }
 .atend-sub {
     color: hsl(var(--secondary) / 0.7);
@@ -503,7 +503,7 @@ function fecharEncaixe() {
        via ::first-letter. */
 }
 .atend-sub::first-letter { text-transform: uppercase; }
-.atend-h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
+.atend-h2 { font-size: var(--text-lg); font-weight: var(--font-weight-bold); color: hsl(var(--primary-dark)); margin: 0; }
 
 .atend-header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 

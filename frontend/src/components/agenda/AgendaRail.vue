@@ -254,8 +254,8 @@ const tempoMedio = computed(() => {
 }
 .rh h3 {
     margin: 0;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark, 254 56% 21%));
     display: inline-flex;
     align-items: center;

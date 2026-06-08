@@ -196,7 +196,7 @@ onMounted(carregar)
             <!-- Coluna lateral ───────────────────────────────────────────── -->
             <aside class="col-sidebar">
                 <AppCard>
-                    <h3 class="card-titulo">
+                    <h3 class="ds-card-title card-cabecalho">
                         <i class="fa-solid fa-puzzle-piece" /> Variáveis disponíveis
                     </h3>
                     <p class="card-sub">Clique para inserir no cursor do editor.</p>
@@ -223,7 +223,7 @@ onMounted(carregar)
 
                 <AppCard class="card-preview">
                     <header class="preview-cab">
-                        <h3 class="card-titulo">
+                        <h3 class="ds-card-title card-cabecalho">
                             <i class="fa-solid fa-eye" /> Preview
                         </h3>
                         <AppButton variant="ghost" size="sm" @click="previewAberto = !previewAberto">
@@ -256,7 +256,7 @@ onMounted(carregar)
     flex-wrap: wrap;
 }
 .form-header-info { flex: 1; min-width: 0; }
-.form-titulo { font-size: 1.1em; font-weight: 700; margin: 0 0 0.2rem; }
+.form-titulo { font-size: var(--text-md); font-weight: var(--font-weight-bold); margin: 0 0 0.2rem; }
 .form-sub { font-size: 0.82em; color: hsl(var(--muted-foreground)); margin: 0; }
 .form-acoes { display: flex; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
 
@@ -293,12 +293,10 @@ onMounted(carregar)
     font-size: 0.82em;
 }
 
-.card-titulo {
-    margin: 0; font-size: 0.95em; font-weight: 700;
+.card-cabecalho {
     display: flex; align-items: center; gap: 0.5rem;
-    color: hsl(var(--foreground));
 }
-.card-titulo i { color: hsl(var(--primary)); }
+.card-cabecalho i { color: hsl(var(--primary)); }
 .card-sub {
     margin: 0.25rem 0 0.75rem;
     font-size: 0.78em;

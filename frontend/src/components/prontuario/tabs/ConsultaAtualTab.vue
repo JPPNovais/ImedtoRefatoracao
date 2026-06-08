@@ -335,7 +335,7 @@ const modelosAlternativos = computed(
 .module-title { flex: 1; min-width: 0; }
 .module-title h3 {
     margin: 0;
-    font-size: 15px; font-weight: 700;
+    font-size: var(--text-md); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
 }
 .module-status .ms-pill {

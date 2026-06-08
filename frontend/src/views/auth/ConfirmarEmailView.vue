@@ -150,7 +150,7 @@ function irParaLogin() {
     margin-bottom: 1.5rem;
 }
 h1 {
-    font-size: 1.5rem;
+    font-size: var(--text-2xl);
     margin: 0.5rem 0 0.75rem;
 }
 p {

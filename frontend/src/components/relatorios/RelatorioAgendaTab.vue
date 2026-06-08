@@ -73,7 +73,7 @@ const dadosBarras = computed(() =>
             <!-- Gráfico de barras breakdown -->
             <AppCard v-if="dadosBarras.length > 0">
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-chart-column" aria-hidden="true"></i>
                         Detalhamento por item
                     </div>
@@ -87,7 +87,7 @@ const dadosBarras = computed(() =>
             <!-- Tabela de breakdown -->
             <AppCard>
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-table" aria-hidden="true"></i>
                         Detalhamento completo
                     </div>
@@ -137,11 +137,10 @@ const dadosBarras = computed(() =>
 @media (max-width: 900px) { .rp-grid { grid-template-columns: 1fr 1fr !important; } }
 @media (max-width: 640px) { .rp-grid { grid-template-columns: 1fr !important; } }
 
-.rp-card-titulo {
+.rp-cabecalho {
     display: flex; gap: 8px; align-items: center;
-    font-size: 14px; font-weight: 600; color: hsl(var(--foreground));
 }
-.rp-card-titulo i { color: hsl(var(--primary)); }
+.rp-cabecalho i { color: hsl(var(--primary)); }
 
 .rp-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rp-tabela th {

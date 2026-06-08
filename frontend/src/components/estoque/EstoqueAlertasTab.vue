@@ -152,8 +152,8 @@ function porcentagem(item: ItemInventario) {
 
 .alerta-card h3 {
     margin: 0 0 2px;
-    font-size: 15px;
-    font-weight: 800;
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-extrabold);
     color: hsl(var(--primary-dark));
     display: flex;
     align-items: center;

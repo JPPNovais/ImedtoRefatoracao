@@ -560,7 +560,7 @@ onMounted(() => {
 }
 .tt-titulo { display: flex; align-items: baseline; gap: 10px; }
 .tt-titulo h3 {
-    margin: 0; font-size: 16px; font-weight: 700; color: hsl(var(--primary-dark));
+    margin: 0; font-size: var(--text-lg); font-weight: var(--font-weight-bold); color: hsl(var(--primary-dark));
 }
 .tt-count {
     font-size: 12px; color: hsl(var(--secondary) / 0.6); font-weight: 600;

@@ -616,7 +616,7 @@ async function salvar() {
     justify-content: center;
     flex-shrink: 0;
 }
-.eh-patient h2 { margin: 0 0 4px; font-size: 17px; font-weight: 600; color: hsl(var(--primary-dark, 254 56% 21%)); }
+.eh-patient h2 { margin: 0 0 4px; font-size: var(--text-md); font-weight: var(--font-weight-semibold); color: hsl(var(--primary-dark, 254 56% 21%)); }
 .eh-sub { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; }
 .eh-sub .pill {
     display: inline-flex;

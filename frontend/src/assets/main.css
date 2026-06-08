@@ -93,6 +93,36 @@
 
     /* Atalho hex para o roxo escuro (usado pelo design care/prontuario) */
     --c-primary-dark: hsl(var(--primary-dark));
+
+    /* ═══ Escala tipográfica canônica — fonte de verdade do DS (briefing 2026-06-08_003) ═══ */
+
+    /* font-size — escala t-shirt: 10px → 30px */
+    --text-2xs:  0.625rem;   /* 10px — eyebrow/label denso uppercase                */
+    --text-xs:   0.75rem;    /* 12px — label de campo, badge, caption                */
+    --text-sm:   0.8125rem;  /* 13px — texto de input/botão (canônico Q3), meta      */
+    --text-base: 0.875rem;   /* 14px — corpo de texto, item de lista                 */
+    --text-md:   0.9375rem;  /* 15px — título de card                                */
+    --text-lg:   1.125rem;   /* 18px — título de modal/drawer                        */
+    --text-xl:   1.3125rem;  /* 21px — título de seção/painel                        */
+    --text-2xl:  1.5rem;     /* 24px — reservado / heading intermediário             */
+    --text-3xl:  1.875rem;   /* 30px — título de página (canônico)                   */
+
+    /* font-weight */
+    --font-weight-regular:   400;
+    --font-weight-medium:    500;
+    --font-weight-semibold:  600;
+    --font-weight-bold:      700;
+    --font-weight-extrabold: 800;
+
+    /* line-height */
+    --line-height-none:   1;
+    --line-height-tight:  1.15;
+    --line-height-snug:   1.3;
+    --line-height-normal: 1.5;
+
+    /* letter-spacing — apenas para títulos */
+    --tracking-title:   -0.015em;  /* título de página (30px)   */
+    --tracking-section: -0.01em;   /* título de seção (21px)     */
 }
 
 .dark {
@@ -160,6 +190,70 @@ body {
 a    { color: inherit; text-decoration: none; }
 button, input, select, textarea { font-family: inherit; }
 
+/* ========================================================================== */
+/* TIPOGRAFIA — classes utilitárias do DS (briefing 2026-06-08_003)           */
+/* ========================================================================== */
+/*
+ * Hierarquia de uso obrigatório:
+ *   Título de página  → <AppPageHeader> (usa --text-3xl / --font-weight-extrabold)
+ *   Título de seção   → .ds-section-title  (21px/800/-0.01em)
+ *   Título de card    → .ds-card-title     (15px/700)
+ *   Label de campo    → <AppLabel>/<AppField> (12px/600 — canônico Q2)
+ *   Subtítulo/desc    → .ds-sub            (14px/400/muted)
+ * Ver Docs/DESIGN.md §Escala tipográfica
+ */
+.ds-section-title {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-extrabold);
+    line-height: var(--line-height-tight);
+    letter-spacing: var(--tracking-section);
+    color: var(--c-primary-dark);
+    margin: 0;
+}
+
+.ds-card-title {
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
+    color: var(--c-primary-dark);
+    margin: 0;
+}
+
+.ds-sub {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-regular);
+    color: hsl(var(--muted-foreground));
+    margin: 0;
+}
+
+/* Estilos dos componentes do design system (PageHeader, Label) precisam viver
+   AQUI no main.css do frontend — o app não carrega o CSS do design-system
+   (só importa o JS via alias @imedto/ui). Espelham os tokens canônicos
+   (briefing 2026-06-08_003). Sem isso, o <h1> do PageHeader cai no default. */
+.page-header-title {
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-extrabold);
+    letter-spacing: var(--tracking-title);
+    line-height: var(--line-height-tight);
+    color: var(--c-primary-dark);
+    margin: 0;
+}
+
+.page-header-sub {
+    font-size: var(--text-base);
+    color: hsl(var(--secondary) / 0.6);
+    margin-top: 0.125rem;
+}
+
+.ds-label {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-none);
+    color: hsl(var(--secondary));
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
 h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
 
 /* ========================================================================== */
@@ -193,7 +287,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
     background: hsl(var(--primary));
     color: hsl(var(--neutral));
     padding: 0.625rem 1.25rem;
-    font-size: 0.875rem; font-weight: 600;
+    font-size: var(--text-sm); font-weight: 600;
 }
 .btn-primary:hover:not(:disabled),
 .btn-primary:active:not(:disabled) { background: hsl(var(--primary-dark)); }
@@ -228,7 +322,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
     background: hsl(var(--neutral));
     color: hsl(var(--secondary));
     padding: 0.625rem 1.25rem;
-    font-size: 0.875rem; font-weight: 600;
+    font-size: var(--text-sm); font-weight: 600;
 }
 .btn-secondary:hover:not(:disabled) { background: hsl(var(--secondary) / 0.05); }
 .btn-secondary:active:not(:disabled) { background: hsl(var(--secondary) / 0.10); }
@@ -257,7 +351,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
 .btn-danger {
     border: none; border-radius: 0.5rem;
     background: hsl(var(--destructive)); color: hsl(var(--destructive-foreground));
-    padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600;
+    padding: 0.625rem 1.25rem; font-size: var(--text-sm); font-weight: 600;
 }
 .btn-danger:hover:not(:disabled) { background: hsl(0 78% 54%); }
 
@@ -265,7 +359,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
     background: transparent; color: hsl(var(--muted-foreground));
     border: 1px solid hsl(var(--border));
     border-radius: 0.5rem;
-    padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600;
+    padding: 0.625rem 1.25rem; font-size: var(--text-sm); font-weight: 600;
 }
 .btn-ghost:hover:not(:disabled) {
     background: hsl(var(--muted)); color: hsl(var(--foreground));
@@ -274,7 +368,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
 .btn-success {
     border: none; border-radius: 0.5rem;
     background: hsl(var(--success)); color: hsl(var(--success-foreground));
-    padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600;
+    padding: 0.625rem 1.25rem; font-size: var(--text-sm); font-weight: 600;
 }
 .btn-success:hover:not(:disabled) { background: hsl(160 79% 33%); }
 .btn-success-sm {
@@ -288,7 +382,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
 .btn { /* mesmo shape que btn-secondary se usado sem variante */
     display: inline-flex; align-items: center; gap: 0.4rem;
     padding: 0.625rem 1.25rem; border-radius: 0.5rem;
-    font-family: inherit; font-size: 0.875rem; font-weight: 600;
+    font-family: inherit; font-size: var(--text-sm); font-weight: 600;
     cursor: pointer; border: none; white-space: nowrap;
     transition: background 0.15s, border-color 0.15s, opacity 0.15s;
 }
@@ -332,7 +426,7 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
     border: 1px solid hsl(var(--primary-light));
     background: hsl(var(--neutral));
     padding: 0.75rem 1.5rem;
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     color: hsl(var(--secondary));
     transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -507,14 +601,14 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
 .border             { border: 1px solid hsl(var(--border)); }
 .border-primary     { border-color: hsl(var(--primary)); }
 
-/* sm text */
-.text-xs { font-size: 0.75rem; }
-.text-sm { font-size: 0.875rem; }
-.text-base { font-size: 1rem; }
-.text-lg { font-size: 1.125rem; }
-.text-xl { font-size: 1.25rem; }
-.text-2xl { font-size: 1.5rem; }
-.text-3xl { font-size: 1.875rem; }
+/* sm text — utilitários alinhados à escala tipográfica canônica */
+.text-xs   { font-size: var(--text-xs); }
+.text-sm   { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg   { font-size: var(--text-lg); }
+.text-xl   { font-size: var(--text-xl); }
+.text-2xl  { font-size: var(--text-2xl); }
+.text-3xl  { font-size: var(--text-3xl); }
 
 .font-semibold { font-weight: 600; }
 .font-bold     { font-weight: 700; }

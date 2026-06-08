@@ -89,7 +89,7 @@ const titulo = computed(() => {
                     class="edd-secao"
                     :data-test="`secao-${secao.chave}`"
                 >
-                    <h3 class="edd-secao-titulo">{{ secao.titulo }}</h3>
+                    <h3 class="ds-section-title">{{ secao.titulo }}</h3>
                     <p class="edd-secao-conteudo">{{ valorTexto(evolucao, secao.chave) }}</p>
                 </section>
             </template>
@@ -161,14 +161,6 @@ const titulo = computed(() => {
     gap: 6px;
 }
 
-.edd-secao-titulo {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: hsl(var(--secondary) / 0.55);
-}
 
 .edd-secao-conteudo {
     margin: 0;

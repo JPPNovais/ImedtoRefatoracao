@@ -211,7 +211,7 @@ async function salvar() {
 
         <!-- ── Horário de funcionamento ── -->
         <AppCard padding="md">
-            <h3 class="secao-titulo">Horário de funcionamento</h3>
+            <h3 class="ds-card-title">Horário de funcionamento</h3>
             <p class="secao-sub">Define o intervalo disponível para agendamento.</p>
 
             <div class="grade-2">
@@ -237,7 +237,7 @@ async function salvar() {
 
         <!-- ── Duração e intervalo das consultas ── -->
         <AppCard padding="md">
-            <h3 class="secao-titulo">Duração e intervalo das consultas</h3>
+            <h3 class="ds-card-title">Duração e intervalo das consultas</h3>
             <p class="secao-sub">
                 A duração padrão define o tamanho de cada slot da agenda.
                 O intervalo é o tempo livre obrigatório entre o fim de uma consulta e o início da próxima.
@@ -275,7 +275,7 @@ async function salvar() {
 
         <!-- ── Dias de funcionamento ── -->
         <AppCard padding="md">
-            <h3 class="secao-titulo">Dias de funcionamento</h3>
+            <h3 class="ds-card-title">Dias de funcionamento</h3>
             <p class="secao-sub">
                 Selecione os dias em que o estabelecimento atende.
                 Dias não selecionados não terão horários disponíveis.
@@ -299,7 +299,7 @@ async function salvar() {
 
         <!-- ── Horários bloqueados ── -->
         <AppCard padding="md">
-            <h3 class="secao-titulo">Horários bloqueados</h3>
+            <h3 class="ds-card-title">Horários bloqueados</h3>
             <p class="secao-sub">
                 Intervalos do dia que ficam indisponíveis (ex: almoço, reuniões fixas).
             </p>
@@ -358,7 +358,7 @@ async function salvar() {
 
         <!-- ── Datas bloqueadas ── -->
         <AppCard padding="md">
-            <h3 class="secao-titulo">Datas bloqueadas</h3>
+            <h3 class="ds-card-title">Datas bloqueadas</h3>
             <p class="secao-sub">
                 Datas específicas em que o estabelecimento não funciona (feriados, recessos).
             </p>
@@ -434,7 +434,6 @@ async function salvar() {
     font-size: 0.82em; margin: 0;
 }
 
-.secao-titulo { font-size: 0.95em; font-weight: 700; margin: 0 0 0.3rem; }
 .secao-sub    { font-size: 0.82em; color: var(--text-muted); margin: 0 0 1rem; }
 
 .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }

@@ -162,7 +162,7 @@ onMounted(carregar)
         </div>
 
         <AppCard padding="md">
-            <h3 class="secao-titulo">{{ tipoSelecionado.label }}</h3>
+            <h3 class="ds-card-title">{{ tipoSelecionado.label }}</h3>
             <p class="secao-sub">{{ tipoSelecionado.descricao }}</p>
 
             <!-- Form de adicionar -->
@@ -270,7 +270,6 @@ onMounted(carregar)
 
 .pills-row { display: flex; }
 
-.secao-titulo { font-size: 0.95em; font-weight: 700; margin: 0 0 0.3rem; }
 .secao-sub    { font-size: 0.82em; color: var(--text-muted); margin: 0 0 1rem; }
 
 .form-novo { margin-bottom: 1rem; }

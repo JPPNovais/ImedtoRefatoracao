@@ -240,7 +240,7 @@ function fmtTamanho(bytes: number) {
 }
 .ht-titulo {
     margin: 0 0 4px;
-    font-size: 22px; font-weight: 700;
+    font-size: var(--text-2xl); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
 }
 .ht-sub {
@@ -284,7 +284,7 @@ function fmtTamanho(bytes: number) {
 }
 .anexos-head h3 {
     margin: 0; flex: 1;
-    font-size: 15px; font-weight: 700;
+    font-size: var(--text-md); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
 }
 .anexos-count {

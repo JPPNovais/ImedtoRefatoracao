@@ -346,6 +346,10 @@ onMounted(async () => {
             <div class="md-painel">
                 <!-- ── Dados ─────────────────────────────────────────────── -->
                 <section v-if="secaoAtiva === 'dados'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Dados do estabelecimento</h2>
+                        <p class="secao-head-sub">Informações que aparecem nos PDFs de receita, prontuário, orçamentos e relatórios.</p>
+                    </header>
                     <div v-if="carregando" class="estado-msg">Carregando...</div>
 
                     <div v-else-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
@@ -373,18 +377,18 @@ onMounted(async () => {
 
                         <div class="grade-2">
                             <div class="campo">
-                                <label class="campo-label">Nome fantasia <span class="obrig">*</span></label>
+                                <label class="field-label">Nome fantasia <span class="obrig">*</span></label>
                                 <input v-model="nomeFantasia" class="input-field" :disabled="!podeEditar" />
                             </div>
                             <div class="campo">
-                                <label class="campo-label">Razão social</label>
+                                <label class="field-label">Razão social</label>
                                 <input v-model="razaoSocial" class="input-field" :disabled="!podeEditar" />
                             </div>
                         </div>
 
                         <div class="grade-2">
                             <div class="campo">
-                                <label class="campo-label">CNPJ</label>
+                                <label class="field-label">CNPJ</label>
                                 <input
                                     v-model="cnpj"
                                     v-maska="'##.###.###/####-##'"
@@ -394,7 +398,7 @@ onMounted(async () => {
                                 />
                             </div>
                             <div class="campo">
-                                <label class="campo-label">Telefone</label>
+                                <label class="field-label">Telefone</label>
                                 <input
                                     v-model="telefone"
                                     v-maska="'(##) #####-####'"
@@ -407,7 +411,7 @@ onMounted(async () => {
                         </div>
 
                         <div class="campo">
-                            <label class="campo-label">Endereço</label>
+                            <label class="field-label">Endereço</label>
                             <input
                                 v-model="endereco"
                                 class="input-field"
@@ -418,7 +422,7 @@ onMounted(async () => {
 
                         <div class="grade-cidade-uf">
                             <div class="campo">
-                                <label class="campo-label">Cidade</label>
+                                <label class="field-label">Cidade</label>
                                 <input
                                     v-model="cidade"
                                     class="input-field"
@@ -428,7 +432,7 @@ onMounted(async () => {
                                 />
                             </div>
                             <div class="campo">
-                                <label class="campo-label">Estado / UF</label>
+                                <label class="field-label">Estado / UF</label>
                                 <select
                                     v-model="estado"
                                     class="input-field"
@@ -456,6 +460,10 @@ onMounted(async () => {
 
                 <!-- ── Funcionamento ──────────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'funcionamento'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Funcionamento</h2>
+                        <p class="secao-head-sub">Defina os horários e dias em que o estabelecimento está disponível para agendamento.</p>
+                    </header>
                     <div v-if="carregando" class="estado-msg">Carregando...</div>
                     <div v-else-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
                     <FuncionamentoTab
@@ -468,6 +476,10 @@ onMounted(async () => {
 
                 <!-- ── Unidades ───────────────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'unidades'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Unidades</h2>
+                        <p class="secao-head-sub">Cadastre as unidades físicas do estabelecimento.</p>
+                    </header>
                     <div v-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
                     <UnidadesTab
                         v-else
@@ -478,6 +490,10 @@ onMounted(async () => {
 
                 <!-- ── Repartições ────────────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'reparticoes'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Repartições</h2>
+                        <p class="secao-head-sub">Organize salas, consultórios e setores dentro de cada unidade.</p>
+                    </header>
                     <div v-if="!estab" class="estado-msg">Nenhum estabelecimento selecionado.</div>
                     <ReparticoesTab
                         v-else
@@ -506,6 +522,10 @@ onMounted(async () => {
 
                 <!-- ── Listas de variáveis ────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'variaveis'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Listas de variáveis</h2>
+                        <p class="secao-head-sub">Padronize as opções que aparecem nos formulários do prontuário. Configure uma vez e toda a equipe usa os mesmos valores.</p>
+                    </header>
                     <ListasVariaveisTab :pode-editar="podeEditar" />
                 </section>
 
@@ -672,14 +692,25 @@ onMounted(async () => {
 .md-painel :deep(.app-page > .mb-6:first-child) {
     margin-bottom: 0;
 }
-/* Igualar o tamanho do título dos painéis reusados (PageHeader usa text-2xl =
-   1.5rem) ao do painel de Termos (.lista-titulo, 1.05em). */
+/* Igualar o tamanho do título dos painéis reusados ao contexto de painel interno.
+   PageHeader agora usa --text-3xl (30px); dentro dos painéis embedded, reduz para
+   se adequar ao container menor. */
 .md-painel :deep(.app-page > .mb-6:first-child h1) {
-    font-size: 1.05rem;
-    line-height: 1.3;
+    font-size: var(--text-xl);
+    line-height: var(--line-height-tight);
 }
 
 .painel-secao { animation: fadein 0.18s ease-out; }
+
+/* Cabeçalho padronizado das seções nativas (espelha o PageHeader das views
+   internalizadas: título de seção 21px + subtítulo suave). */
+.secao-head { margin-bottom: 1.25rem; }
+.secao-head-sub {
+    font-size: var(--text-base);
+    color: hsl(var(--secondary) / 0.6);
+    margin: 0.25rem 0 0;
+    max-width: 70ch;
+}
 @keyframes fadein {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -718,7 +749,6 @@ onMounted(async () => {
 .grade-cidade-uf { display: grid; grid-template-columns: 1fr 220px; gap: 1rem; }
 
 .campo       { display: flex; flex-direction: column; gap: 0.3rem; }
-.campo-label { font-size: 0.82em; font-weight: 600; color: hsl(var(--muted-foreground)); }
 .obrig       { color: hsl(var(--destructive)); }
 
 .input-field {

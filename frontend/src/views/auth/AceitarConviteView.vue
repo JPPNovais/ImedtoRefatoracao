@@ -163,7 +163,7 @@ function irParaLogin() {
     text-align: center;
 }
 .logo { height: 40px; margin-bottom: 1.5rem; }
-h1 { font-size: 1.5rem; margin: 0.5rem 0 0.75rem; }
+h1 { font-size: var(--text-2xl); margin: 0.5rem 0 0.75rem; }
 p { color: var(--color-text-secondary, #5a6878); line-height: 1.5; margin: 0.5rem 0 1.5rem; }
 
 form { text-align: left; margin-top: 1rem; }

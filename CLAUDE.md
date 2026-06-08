@@ -62,6 +62,23 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+## 5. Tipografia — premissa não-negociável (briefing 2026-06-08_003)
+
+**Nunca declare `font-size` ou `font-weight` como valor literal em CSS scoped de view ou componente.**
+
+Toda declaração tipográfica usa os tokens CSS definidos em `frontend/src/assets/main.css` (`:root`):
+- `font-size: var(--text-sm)` — não `font-size: 13px` ou `font-size: 0.8125rem`
+- `font-weight: var(--font-weight-bold)` — não `font-weight: 700`
+
+**Regras de uso por nível:**
+- Título de página → `<AppPageHeader>` (30px/800 via token `--text-3xl`)
+- Título de seção/painel → `<h2 class="ds-section-title">` (21px/800)
+- Título de card inline → `<h3 class="ds-card-title">` (15px/700)
+- Label de campo → `<AppField>` ou `<AppLabel>` (12px/600 via DS)
+- Input/botão → herda de `.form-input`/`.btn-*` em `main.css` (13px)
+
+**Escala completa e contexto:** `Docs/DESIGN.md §Escala tipográfica` e `Docs/Discoverys/tipografia/01_discovery.md`.
+
 ## Overview
 
 Monorepo do Imedto (refactor do legado Vue+Supabase para arquitetura CQRS):

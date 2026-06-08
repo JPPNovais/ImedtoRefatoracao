@@ -188,8 +188,8 @@
 }
 
 .conteudo h1 {
-    font-size: 1.8rem;
-    font-weight: 800;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-extrabold);
     margin: 0 0 0.4rem;
     letter-spacing: -0.4px;
 }
@@ -205,8 +205,8 @@
 }
 
 .conteudo h2 {
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-bold);
     margin: 0 0 0.6rem;
     color: var(--text);
 }

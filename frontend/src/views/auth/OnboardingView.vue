@@ -455,6 +455,7 @@ async function finalizar() {
             id: e.id,
             nomeFantasia: e.nomeFantasia,
             papelDoUsuario: e.papelDoUsuario,
+            fotoUrl: e.fotoUrl,
             permissoes: e.permissoes ?? [],
             permissoesExtras: e.permissoesExtras ?? [],
         })))
@@ -1180,8 +1181,8 @@ const stepperPassos = computed(() => [
 }
 .onb-card h2 {
     margin: 0 0 8px;
-    font-size: 26px;
-    font-weight: 700;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     letter-spacing: -0.02em;
 }

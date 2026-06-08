@@ -270,7 +270,7 @@ watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate:
     border-radius: 16px;
     box-shadow: 0 1px 2px hsl(var(--primary-dark) / 0.04), 0 16px 40px hsl(var(--primary-dark) / 0.06);
 }
-.sem-vinculo h1 { margin: 0 0 0.6rem; font-size: 1.6rem; color: hsl(var(--primary-dark)); }
+.sem-vinculo h1 { margin: 0 0 0.6rem; font-size: var(--text-2xl); color: hsl(var(--primary-dark)); }
 .sv-icone {
     width: 64px; height: 64px; border-radius: 16px;
     background: hsl(var(--primary) / 0.1); color: hsl(var(--primary));
@@ -318,7 +318,8 @@ watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate:
 
 h1 {
     margin: 0 0 0.2rem;
-    font-size: 1.4rem;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
 }
 
 .subtitulo {
@@ -405,7 +406,7 @@ h1 {
 
 .painel h3 {
     margin: 0 0 0.75rem;
-    font-size: 0.9rem;
+    font-size: var(--text-base);
 }
 
 .item-lista {

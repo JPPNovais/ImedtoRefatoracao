@@ -187,7 +187,7 @@ void emit
 }
 .ph-info { min-width: 0; flex: 1; }
 .ph-info h1 {
-    font-size: 20px; font-weight: 700;
+    font-size: var(--text-2xl); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     margin: 0 0 2px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -240,7 +240,7 @@ void emit
 
 @media (max-width: 760px) {
     .pront-header { padding: 12px 14px; }
-    .ph-info h1 { font-size: 17px; }
+    .ph-info h1 { font-size: var(--text-md); }
     .ph-btn { padding: 0 10px; }
     .ph-btn span { display: none; }
 }

@@ -115,7 +115,7 @@ const horaCheckIn = computed(() => {
 .next-info { min-width: 0; flex: 1; }
 .next-info h3 {
     margin: 0 0 4px;
-    font-size: 16px; font-weight: 700;
+    font-size: var(--text-lg); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
 }
 .next-meta {

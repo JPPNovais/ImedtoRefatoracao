@@ -429,7 +429,7 @@ function labelProfissionais(n: number): string {
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 22px; flex-shrink: 0;
 }
-.rd-title h2 { font-size: 20px; color: hsl(var(--primary-dark)); margin: 0 0 2px; font-weight: 700; }
+.rd-title h2 { font-size: var(--text-2xl); color: hsl(var(--primary-dark)); margin: 0 0 2px; font-weight: var(--font-weight-bold); }
 .rd-title p { font-size: 13px; color: hsl(var(--secondary) / 0.7); margin: 0; }
 
 .rd-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

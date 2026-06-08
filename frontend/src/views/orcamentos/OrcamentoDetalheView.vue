@@ -427,7 +427,7 @@ onMounted(carregar)
 .btn-back:hover { background: hsl(var(--secondary) / 0.04); }
 
 .det-crumb  { font-size: 11.5px; color: hsl(var(--secondary) / 0.55); margin-bottom: 2px; }
-.det-titulo { font-size: 20px; font-weight: 700; color: hsl(var(--secondary)); margin: 0; }
+.det-titulo { font-size: var(--text-2xl); font-weight: var(--font-weight-bold); color: hsl(var(--secondary)); margin: 0; }
 
 /* Grid */
 .det-grid {

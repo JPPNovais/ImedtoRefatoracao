@@ -82,7 +82,7 @@ const maxFunil = computed(() =>
             <!-- Funil de conversão -->
             <AppCard>
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-filter" aria-hidden="true"></i>
                         Funil de conversão
                     </div>
@@ -128,7 +128,7 @@ const maxFunil = computed(() =>
             <!-- Breakdown adicional -->
             <AppCard v-if="dados.breakdown.length > 0">
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-table" aria-hidden="true"></i>
                         Detalhamento
                     </div>
@@ -172,11 +172,10 @@ const maxFunil = computed(() =>
 @media (max-width: 1000px) { .rp-grid-4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px)  { .rp-grid-4 { grid-template-columns: 1fr; } }
 
-.rp-card-titulo {
+.rp-cabecalho {
     display: flex; gap: 8px; align-items: center;
-    font-size: 14px; font-weight: 600; color: hsl(var(--foreground));
 }
-.rp-card-titulo i { color: hsl(var(--primary)); }
+.rp-cabecalho i { color: hsl(var(--primary)); }
 
 .rp-funil { display: flex; flex-direction: column; gap: 0; }
 .rp-funil-etapa { display: flex; flex-direction: column; }

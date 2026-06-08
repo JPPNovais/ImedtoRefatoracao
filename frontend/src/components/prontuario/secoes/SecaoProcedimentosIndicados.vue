@@ -58,7 +58,7 @@ function setField(idx: number, field: keyof Proc, valor: string) {
         </AppButton>
 
         <div class="subsecao-obs">
-            <label class="campo-label">Observações gerais</label>
+            <label class="field-label">Observações gerais</label>
             <AppTextarea
                 :model-value="modelValue.observacoes ?? ''" :rows="2"
                 placeholder="Outras considerações sobre os procedimentos indicados..."
@@ -78,7 +78,6 @@ function setField(idx: number, field: keyof Proc, valor: string) {
 }
 
 .subsecao-obs { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.3rem; }
-.campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); }
 
 @media (max-width: 768px) {
     .linha { grid-template-columns: 1fr 32px; }

@@ -221,8 +221,8 @@ const statusLabels: Record<string, string> = {
 
 .tv-conteudo h3 {
     margin: 0 0 8px;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--secondary));
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -238,9 +238,9 @@ const statusLabels: Record<string, string> = {
     color: hsl(var(--foreground));
 }
 .tv-html :deep(p) { margin: 0 0 10px; }
-.tv-html :deep(h1) { font-size: 18px; margin: 16px 0 8px; color: hsl(var(--primary-dark)); }
-.tv-html :deep(h2) { font-size: 16px; margin: 14px 0 8px; color: hsl(var(--primary-dark)); }
-.tv-html :deep(h3) { font-size: 14px; margin: 12px 0 6px; color: hsl(var(--primary-dark)); }
+.tv-html :deep(h1) { font-size: var(--text-lg); margin: 16px 0 8px; color: hsl(var(--primary-dark)); }
+.tv-html :deep(h2) { font-size: var(--text-md); margin: 14px 0 8px; color: hsl(var(--primary-dark)); }
+.tv-html :deep(h3) { font-size: var(--text-base); margin: 12px 0 6px; color: hsl(var(--primary-dark)); }
 .tv-html :deep(ul),
 .tv-html :deep(ol) { margin: 0 0 10px 24px; }
 .tv-html :deep(li) { margin-bottom: 4px; }

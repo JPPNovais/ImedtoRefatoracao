@@ -238,7 +238,7 @@ onMounted(carregarTudo)
     font-size: 13px;
 }
 .warning i { color: hsl(var(--info)); margin-right: 8px; }
-h3 { margin: 0 0 12px 0; font-size: 15px; font-weight: 600; }
+h3 { margin: 0 0 12px 0; font-size: var(--text-md); font-weight: var(--font-weight-semibold); }
 .simple-table {
     background: white;
     border: 1px solid hsl(var(--secondary) / 0.1);

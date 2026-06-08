@@ -8,7 +8,7 @@ import { profissionalService } from "@/services/profissionalService"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useProfissionalStore } from "@/stores/profissionalStore"
-import { AppButton, AppPhotoUpload, AppConfirmDialog } from "@/components/ui"
+import { AppButton, AppPhotoUpload, AppConfirmDialog, AppPageHeader } from "@/components/ui"
 import { redimensionarImagem } from "@/services/imageUtils"
 import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
 import AssinaturaOnboardingModal from "@/components/prontuario/AssinaturaOnboardingModal.vue"
@@ -352,12 +352,10 @@ onMounted(async () => {
 <template>
     <div class="app-page app-page--narrow">
         <!-- ── Cabeçalho ── -->
-        <div class="page-header">
-            <div>
-                <h1 class="page-titulo">Cadastro do profissional</h1>
-                <p class="page-sub">Preencha os dados profissionais para concluir o seu cadastro.</p>
-            </div>
-        </div>
+        <AppPageHeader
+            titulo="Cadastro do profissional"
+            subtitulo="Preencha os dados profissionais para concluir o seu cadastro."
+        />
 
         <!-- ── Card: perfil ── -->
         <div class="card">
@@ -382,11 +380,11 @@ onMounted(async () => {
             <!-- Linha 1: Nome + Profissão -->
             <div class="grade-2">
                 <div class="campo">
-                    <label class="campo-label">Nome completo</label>
+                    <label class="field-label">Nome completo</label>
                     <input v-model="nomeCompleto" class="input-field" placeholder="Nome completo" />
                 </div>
                 <div class="campo">
-                    <label class="campo-label">Profissão</label>
+                    <label class="field-label">Profissão</label>
                     <select v-model="profissao" class="input-field" @change="onProfissaoChange">
                         <option value="">Selecione...</option>
                         <option v-for="p in PROFISSOES" :key="p.label" :value="p.label">{{ p.label }}</option>
@@ -396,7 +394,7 @@ onMounted(async () => {
 
             <!-- Especialidade -->
             <div class="campo">
-                <label class="campo-label">Especialidade</label>
+                <label class="field-label">Especialidade</label>
                 <select
                     v-model="especialidade"
                     class="input-field"
@@ -422,15 +420,15 @@ onMounted(async () => {
             <!-- Linha: Número + Tipo + UF -->
             <div class="grade-3">
                 <div class="campo">
-                    <label class="campo-label">Número do conselho</label>
+                    <label class="field-label">Número do conselho</label>
                     <input v-model="numeroRegistro" class="input-field" placeholder="Ex: 123456" />
                 </div>
                 <div class="campo">
-                    <label class="campo-label">Tipo de conselho</label>
+                    <label class="field-label">Tipo de conselho</label>
                     <input v-model="conselho" class="input-field" placeholder="CRM, CRO, CRF..." />
                 </div>
                 <div class="campo">
-                    <label class="campo-label">UF</label>
+                    <label class="field-label">UF</label>
                     <select v-model="uf" class="input-field">
                         <option value="">UF</option>
                         <option v-for="u in UFS" :key="u" :value="u">{{ u }}</option>
@@ -441,7 +439,7 @@ onMounted(async () => {
             <!-- Linha: Telefone + Bio -->
             <div class="grade-2">
                 <div class="campo">
-                    <label class="campo-label">Telefone</label>
+                    <label class="field-label">Telefone</label>
                     <input
                         v-model="telefone"
                         v-maska="'(##) #####-####'"
@@ -452,7 +450,7 @@ onMounted(async () => {
                     />
                 </div>
                 <div class="campo">
-                    <label class="campo-label">Biografia (opcional)</label>
+                    <label class="field-label">Biografia (opcional)</label>
                     <input v-model="bio" class="input-field" placeholder="Breve descrição profissional..." />
                 </div>
             </div>
@@ -468,7 +466,7 @@ onMounted(async () => {
 
         <!-- ── Card: Segurança ── -->
         <div class="card">
-            <h2 class="card-titulo">Segurança</h2>
+            <h2 class="ds-card-title">Segurança</h2>
             <p class="card-sub">
                 Atualize sua senha periodicamente para proteger sua conta. Ao trocar a senha,
                 as sessões abertas em outros dispositivos são encerradas automaticamente.
@@ -483,7 +481,7 @@ onMounted(async () => {
 
         <!-- ── Card: Assinatura Digital ── -->
         <div v-if="ASSINATURA_DIGITAL_HABILITADA" class="card">
-            <h2 class="card-titulo">Assinatura Digital (ICP-Brasil)</h2>
+            <h2 class="ds-card-title">Assinatura Digital (ICP-Brasil)</h2>
             <p class="card-sub">
                 Vincule seu certificado em nuvem (BirdID ou CFM gratuito) para assinar
                 receitas médicas com validade jurídica plena diretamente pelo celular.
@@ -535,7 +533,7 @@ onMounted(async () => {
 
         <!-- ── Card: Privacidade e LGPD ── -->
         <div class="card">
-            <h2 class="card-titulo">Privacidade e LGPD</h2>
+            <h2 class="ds-card-title">Privacidade e LGPD</h2>
             <p class="card-sub">
                 Exporte seus dados pessoais (Art. 18 LGPD), revise os consentimentos aceitos e,
                 se desejar, solicite a anonimização permanente da sua conta.
@@ -553,7 +551,7 @@ onMounted(async () => {
 
         <!-- ── Card: Trocar estabelecimento ── -->
         <div class="card" v-if="!carregandoEstabs && estabelecimentos.length">
-            <h2 class="card-titulo">Trocar estabelecimento</h2>
+            <h2 class="ds-card-title">Trocar estabelecimento</h2>
             <p class="card-sub">
                 Você está vinculado a múltiplos estabelecimentos. Selecione qual deseja acessar:
             </p>
@@ -605,10 +603,6 @@ onMounted(async () => {
 <style scoped>
 /* Layout/largura via .app-page--narrow (main.css). */
 
-.page-header { margin-bottom: 0.25rem; }
-.page-titulo { font-size: 1.4rem; font-weight: 800; margin: 0 0 0.2rem; }
-.page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
-
 /* ── Card ────────────────────────────────────────────── */
 .card {
     background: var(--bg-card);
@@ -620,7 +614,6 @@ onMounted(async () => {
     gap: 1.25rem;
 }
 
-.card-titulo { font-size: 1.05rem; font-weight: 700; margin: 0; color: var(--primary); }
 .card-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
 .card-footer { display: flex; justify-content: flex-end; margin-top: 0.25rem; }
 .card-rodape-info { font-size: 0.78em; color: var(--text-muted); margin: 0; }
@@ -638,8 +631,6 @@ onMounted(async () => {
 
 /* ── Campos ──────────────────────────────────────────── */
 .campo       { display: flex; flex-direction: column; gap: 0.3rem; }
-.campo-label { font-size: 0.82em; font-weight: 600; color: var(--text-muted); }
-
 .input-field {
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-strong);

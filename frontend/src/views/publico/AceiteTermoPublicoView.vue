@@ -373,9 +373,9 @@ function fmtEmitidoEm(iso: string | null | undefined): string {
     word-break: break-word;
 }
 .aceite-corpo :deep(p)  { margin: 0 0 10px; }
-.aceite-corpo :deep(h1) { font-size: 18px; color: hsl(var(--primary-dark)); margin: 14px 0 8px; }
-.aceite-corpo :deep(h2) { font-size: 16px; color: hsl(var(--primary-dark)); margin: 14px 0 8px; }
-.aceite-corpo :deep(h3) { font-size: 14px; color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
+.aceite-corpo :deep(h1) { font-size: var(--text-lg); color: hsl(var(--primary-dark)); margin: 14px 0 8px; }
+.aceite-corpo :deep(h2) { font-size: var(--text-md); color: hsl(var(--primary-dark)); margin: 14px 0 8px; }
+.aceite-corpo :deep(h3) { font-size: var(--text-base); color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
 .aceite-corpo :deep(ul),
 .aceite-corpo :deep(ol) { margin: 0 0 10px 22px; }
 .aceite-corpo :deep(strong) { font-weight: 700; }

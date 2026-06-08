@@ -62,15 +62,15 @@ onMounted(async () => {
     <div class="secao">
         <div class="grade-2">
             <div class="card-pai">
-                <h4 class="card-titulo">Pai</h4>
-                <label class="campo-label">Doenças hereditárias</label>
+                <h4 class="ds-card-title">Pai</h4>
+                <label class="field-label">Doenças hereditárias</label>
                 <AppInput
                     :model-value="modelValue.paiDoencas ?? ''"
                     placeholder="Ex: Hipertensão, diabetes..."
                     :disabled="readOnly"
                     @update:model-value="(v) => atualizar({ paiDoencas: String(v) })"
                 />
-                <label class="campo-label">Descrição</label>
+                <label class="field-label">Descrição</label>
                 <AppTextarea
                     :model-value="modelValue.paiDescricao ?? ''" :rows="3"
                     placeholder="Detalhes adicionais"
@@ -80,15 +80,15 @@ onMounted(async () => {
             </div>
 
             <div class="card-mae">
-                <h4 class="card-titulo">Mãe</h4>
-                <label class="campo-label">Doenças hereditárias</label>
+                <h4 class="ds-card-title">Mãe</h4>
+                <label class="field-label">Doenças hereditárias</label>
                 <AppInput
                     :model-value="modelValue.maeDoencas ?? ''"
                     placeholder="Ex: Hipertensão, diabetes..."
                     :disabled="readOnly"
                     @update:model-value="(v) => atualizar({ maeDoencas: String(v) })"
                 />
-                <label class="campo-label">Descrição</label>
+                <label class="field-label">Descrição</label>
                 <AppTextarea
                     :model-value="modelValue.maeDescricao ?? ''" :rows="3"
                     placeholder="Detalhes adicionais"
@@ -150,7 +150,7 @@ onMounted(async () => {
         </div>
 
         <div class="subsecao">
-            <label class="campo-label">Observações</label>
+            <label class="field-label">Observações</label>
             <AppTextarea
                 :model-value="modelValue.observacao ?? ''" :rows="3"
                 placeholder="Outras informações relevantes da história familiar..."
@@ -170,7 +170,7 @@ onMounted(async () => {
     padding: 0.9rem 1.1rem; background: var(--bg-card);
     display: flex; flex-direction: column; gap: 0.4rem;
 }
-.card-titulo { font-size: 0.92em; font-weight: 700; margin: 0 0 0.25rem; color: var(--primary); }
+
 
 .subsecao {
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -191,7 +191,6 @@ onMounted(async () => {
 
 .campo { display: flex; flex-direction: column; gap: 0.15rem; }
 .campo label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); }
-.campo-label { font-size: 0.78em; font-weight: 600; color: var(--text-muted); margin-top: 0.25rem; }
 
 @media (max-width: 768px) {
     .grade-2, .grade-parente { grid-template-columns: 1fr; }

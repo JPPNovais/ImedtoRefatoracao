@@ -36,7 +36,7 @@ function moeda(n: number) {
             <!-- Top Pacientes -->
             <AppCard v-if="dados.tipo === 'pacientes'">
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-user-group" aria-hidden="true"></i>
                         Top 10 pacientes
                     </div>
@@ -71,7 +71,7 @@ function moeda(n: number) {
             <!-- Ranking Profissionais -->
             <AppCard v-else-if="dados.tipo === 'profissionais'">
                 <template #header>
-                    <div class="rp-card-titulo">
+                    <div class="ds-card-title rp-cabecalho">
                         <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>
                         Performance dos profissionais
                     </div>
@@ -145,11 +145,10 @@ function moeda(n: number) {
 @media (max-width: 900px) { .rp-grid-3 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 640px) { .rp-grid-3 { grid-template-columns: 1fr; } }
 
-.rp-card-titulo {
+.rp-cabecalho {
     display: flex; gap: 8px; align-items: center;
-    font-size: 14px; font-weight: 600; color: hsl(var(--foreground));
 }
-.rp-card-titulo i { color: hsl(var(--primary)); }
+.rp-cabecalho i { color: hsl(var(--primary)); }
 
 .rp-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rp-tabela th {

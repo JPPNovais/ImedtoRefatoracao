@@ -46,7 +46,7 @@ function fechar() {
         </p>
 
         <label class="campo">
-            <span class="campo-label">Motivo do cancelamento <span class="obrigatorio">*</span></span>
+            <span class="field-label-compact">Motivo do cancelamento <span class="obrigatorio">*</span></span>
             <textarea
                 v-model="motivo"
                 class="campo-input"
@@ -94,14 +94,6 @@ function fechar() {
     flex-direction: column;
     gap: 6px;
     position: relative;
-}
-
-.campo-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: hsl(var(--foreground) / 0.55);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 .obrigatorio {

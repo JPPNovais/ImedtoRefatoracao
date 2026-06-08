@@ -245,8 +245,8 @@ function fmtData(iso: string | null | undefined): string {
 }
 .aceite-cabecalho h1 {
     margin: 0 0 12px;
-    font-size: 20px;
-    font-weight: 700;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     line-height: 1.3;
     outline: none;
@@ -310,8 +310,8 @@ function fmtData(iso: string | null | undefined): string {
 }
 .aceite-feedback h1 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 700;
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     outline: none;
 }

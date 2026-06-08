@@ -22,6 +22,7 @@ export interface EstabelecimentoListavel {
     id: number
     nomeFantasia: string
     papelDoUsuario: "Dono" | "Profissional"
+    fotoUrl?: string | null
     permissoes?: string[]
     permissoesExtras?: string[]
 }

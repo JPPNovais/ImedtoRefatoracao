@@ -12,6 +12,19 @@ export default {
       fontFamily: {
         sans: ["Nunito", "system-ui", "sans-serif"],
       },
+      // Escala tipográfica alinhada aos tokens CSS (briefing 2026-06-08_003)
+      // Garante que text-2xl etc. via Tailwind batam com var(--text-2xl) etc.
+      fontSize: {
+        "2xs":  ["var(--text-2xs, 0.625rem)",  { lineHeight: "1" }],
+        "xs":   ["var(--text-xs,  0.75rem)",   { lineHeight: "1" }],
+        "sm":   ["var(--text-sm,  0.8125rem)", { lineHeight: "1.3" }],
+        "base": ["var(--text-base, 0.875rem)", { lineHeight: "1.5" }],
+        "md":   ["var(--text-md,  0.9375rem)", { lineHeight: "1.15" }],
+        "lg":   ["var(--text-lg,  1.125rem)",  { lineHeight: "1.15" }],
+        "xl":   ["var(--text-xl,  1.3125rem)", { lineHeight: "1.15" }],
+        "2xl":  ["var(--text-2xl, 1.5rem)",    { lineHeight: "1.15" }],
+        "3xl":  ["var(--text-3xl, 1.875rem)",  { lineHeight: "1.15" }],
+      },
       colors: {
         background:  withHSL("--background"),
         foreground:  withHSL("--foreground"),

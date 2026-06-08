@@ -651,7 +651,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
         <!-- Medicamentos -->
         <div class="secao">
             <div class="secao-header">
-                <h4 class="secao-titulo">Medicamentos</h4>
+                <h4 class="ds-section-title">Medicamentos</h4>
                 <AppButton
                     v-if="receitaAberta.status === 'Rascunho' && !mostrandoFormItem"
                     size="sm" icon="fa-solid fa-plus"
@@ -761,7 +761,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
 
         <!-- Observações -->
         <div class="secao">
-            <h4 class="secao-titulo">Observações</h4>
+            <h4 class="ds-section-title">Observações</h4>
             <AppTextarea
                 :model-value="formObs"
                 :rows="3"
@@ -895,7 +895,7 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
     display: flex; justify-content: space-between; align-items: center;
     gap: 1rem; flex-wrap: wrap;
 }
-.titulo { font-size: 1rem; font-weight: 700; margin: 0; }
+.titulo { font-size: var(--text-base); font-weight: var(--font-weight-bold); margin: 0; }
 .header-acoes { display: flex; gap: 0.5rem; }
 
 .estado-info { padding: 1rem; text-align: center; color: hsl(var(--muted-foreground)); font-size: 0.9em; }
@@ -977,7 +977,6 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
     display: flex; justify-content: space-between; align-items: center;
     flex-wrap: wrap; gap: 0.5rem;
 }
-.secao-titulo { font-size: 0.95em; font-weight: 700; margin: 0; }
 
 .sem-itens {
     text-align: center; padding: 1.5rem; color: hsl(var(--muted-foreground));

@@ -57,5 +57,7 @@ coverage/
 .claude/worktrees/
 # Memória local dos agentes da pipeline (não versionar; .claude/agents/ continua versionado)
 **/.claude/agent-memory/
+# Mockups/referências de design baixados localmente (não fazem parte do código)
+designTeste/
 .security-key
 logs/security/

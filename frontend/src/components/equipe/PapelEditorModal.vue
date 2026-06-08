@@ -360,7 +360,7 @@ function fechar() {
     display: flex; align-items: baseline; justify-content: space-between;
     margin-bottom: 12px;
 }
-.rps-head h3 { font-size: 14px; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0; }
+.rps-head h3 { font-size: var(--text-base); font-weight: var(--font-weight-bold); color: hsl(var(--primary-dark)); margin: 0; }
 .rps-head span { font-size: 12px; color: hsl(var(--secondary) / 0.6); }
 
 .msg-erro { color: hsl(var(--error)); font-size: 13px; margin: 0; }

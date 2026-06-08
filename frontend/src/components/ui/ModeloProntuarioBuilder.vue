@@ -44,6 +44,9 @@ const ordem = ref<string[]>([])
 const customizadas = ref<SecaoModelo[]>([])
 const inicializado = ref(false)
 
+const labelDe = (key: string) =>
+    SECOES_MODELO_PRONTUARIO.find(s => s.key === key)?.label ?? key
+
 // ─── Parse inicial ────────────────────────────────────────────────────────────
 
 function inicializar(json: string) {
@@ -91,15 +94,43 @@ watch(
     { deep: true },
 )
 
-function moverSecao(key: string, direcao: "cima" | "baixo") {
-    const idx = ordem.value.indexOf(key)
-    if (idx === -1) return
-    const novoIdx = direcao === "cima" ? idx - 1 : idx + 1
-    if (novoIdx < 0 || novoIdx >= ordem.value.length) return
+function adicionarSecao(key: string) {
+    if (props.disabled) return
+    secoes.value[key] = true
+}
+
+function removerSecao(key: string) {
+    if (props.disabled) return
+    secoes.value[key] = false
+}
+
+// ─── Drag & drop de reordenação ────────────────────────────────────────────────
+
+const arrastando = ref<string | null>(null)
+
+function aoIniciarArraste(key: string) {
+    if (props.disabled) return
+    arrastando.value = key
+}
+
+function aoArrastarSobre(e: DragEvent, alvo: string) {
+    if (!arrastando.value || arrastando.value === alvo) return
+    e.preventDefault()
     const arr = [...ordem.value]
-    const [item] = arr.splice(idx, 1)
-    arr.splice(novoIdx, 0, item)
+    const origem = arr.indexOf(arrastando.value)
+    if (origem === -1) return
+    arr.splice(origem, 1)
+    const destino = arr.indexOf(alvo)
+    if (destino === -1) return
+    const alvoEl = e.currentTarget as HTMLElement
+    const box = alvoEl.getBoundingClientRect()
+    const depois = e.clientY > box.top + box.height / 2
+    arr.splice(depois ? destino + 1 : destino, 0, arrastando.value)
     ordem.value = arr
+}
+
+function aoFinalizarArraste() {
+    arrastando.value = null
 }
 
 const secoesAtivas = computed((): SecaoModelo[] =>
@@ -110,6 +141,15 @@ const secoesAtivas = computed((): SecaoModelo[] =>
             return { chave: key, titulo: def.label, tipo: def.tipo, ordem: idx }
         })
 )
+
+const secoesDisponiveis = computed(() =>
+    SECOES_MODELO_PRONTUARIO.filter(s => !secoes.value[s.key])
+)
+
+const totalLabel = computed(() => {
+    const n = secoesAtivas.value.length
+    return `${n} ${n === 1 ? "seção" : "seções"}`
+})
 
 const valido = computed(() => secoesAtivas.value.length > 0 && props.nome.trim().length > 0)
 
@@ -160,53 +200,65 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
             </span>
         </div>
 
-        <!-- Grid de checkboxes das seções -->
+        <!-- Seções do modelo (ordenáveis) -->
         <div class="mpb-secoes-bloco">
-            <label class="mpb-secoes-label">Seções incluídas no modelo</label>
-            <div class="mpb-secoes-grid">
-                <label
-                    v-for="s in SECOES_MODELO_PRONTUARIO"
-                    :key="s.key"
-                    class="mpb-secao-item"
-                    :title="s.info"
+            <div class="mpb-sec-head">
+                <label class="mpb-secoes-label">Seções do modelo</label>
+                <span class="mpb-sec-count">{{ totalLabel }}</span>
+            </div>
+            <p class="mpb-sec-hint">
+                Arraste pelo <i class="fa-solid fa-grip-vertical" /> para definir a ordem em que as
+                seções aparecem no prontuário.
+            </p>
+
+            <div class="mpb-ord-list">
+                <div
+                    v-for="(secao, pos) in secoesAtivas"
+                    :key="secao.chave"
+                    class="mpb-ord-row"
+                    :class="{ 'is-dragging': arrastando === secao.chave }"
+                    :draggable="!disabled"
+                    @dragstart="aoIniciarArraste(secao.chave)"
+                    @dragover="aoArrastarSobre($event, secao.chave)"
+                    @dragend="aoFinalizarArraste"
                 >
-                    <input
-                        v-model="secoes[s.key]"
-                        type="checkbox"
-                        class="mpb-secao-check"
+                    <i class="fa-solid fa-grip-vertical mpb-grip" />
+                    <span class="mpb-num">{{ pos + 1 }}</span>
+                    <span class="mpb-nm">{{ labelDe(secao.chave) }}</span>
+                    <button
+                        type="button"
+                        class="mpb-rm"
+                        title="Remover seção"
                         :disabled="disabled"
-                    />
-                    <span>{{ s.label }}</span>
-                </label>
+                        @click="removerSecao(secao.chave)"
+                    >
+                        <i class="fa-solid fa-xmark" />
+                    </button>
+                </div>
+
+                <div v-if="!secoesAtivas.length" class="mpb-ord-empty">
+                    Nenhuma seção adicionada ainda. Selecione abaixo para montar o modelo.
+                </div>
             </div>
         </div>
 
-        <!-- Ordem das seções ativas -->
-        <div v-if="secoesAtivas.length" class="mpb-ordem-bloco">
-            <label class="mpb-secoes-label">Ordem das seções</label>
-            <ul class="mpb-ordem-lista">
-                <li
-                    v-for="secao in secoesAtivas"
-                    :key="secao.chave"
-                    class="mpb-ordem-item"
+        <!-- Adicionar seção -->
+        <div class="mpb-avail-bloco">
+            <div class="mpb-avail-head">Adicionar seção</div>
+            <div v-if="secoesDisponiveis.length" class="mpb-avail-chips">
+                <button
+                    v-for="s in secoesDisponiveis"
+                    :key="s.key"
+                    type="button"
+                    class="mpb-chip-add"
+                    :title="s.info"
+                    :disabled="disabled"
+                    @click="adicionarSecao(s.key)"
                 >
-                    <span>{{ SECOES_MODELO_PRONTUARIO.find(s => s.key === secao.chave)?.label ?? secao.chave }}</span>
-                    <div class="mpb-ordem-btns">
-                        <button
-                            type="button"
-                            class="mpb-ordem-btn"
-                            :disabled="disabled"
-                            @click="moverSecao(secao.chave, 'cima')"
-                        >↑</button>
-                        <button
-                            type="button"
-                            class="mpb-ordem-btn"
-                            :disabled="disabled"
-                            @click="moverSecao(secao.chave, 'baixo')"
-                        >↓</button>
-                    </div>
-                </li>
-            </ul>
+                    <i class="fa-solid fa-plus" /> {{ s.label }}
+                </button>
+            </div>
+            <span v-else class="mpb-all-done">Todas as seções já foram adicionadas.</span>
         </div>
     </div>
 </template>
@@ -224,15 +276,15 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
     align-items: center;
     gap: 0.5rem;
     padding: 0.6rem 0.875rem;
-    background: color-mix(in srgb, var(--info) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
+    background: hsl(var(--info) / 0.1);
+    border: 1px solid hsl(var(--info) / 0.3);
     border-radius: calc(var(--radius) - 2px);
     font-size: 0.82em;
     color: var(--text);
 }
 
 .mpb-aviso-icone {
-    color: var(--info);
+    color: hsl(var(--info));
     flex-shrink: 0;
 }
 
@@ -240,6 +292,13 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
 .mpb-secoes-bloco {
     display: flex;
     flex-direction: column;
+    gap: 0.4rem;
+}
+
+.mpb-sec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     gap: 0.5rem;
 }
 
@@ -249,90 +308,170 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
     color: var(--text-muted);
 }
 
-.mpb-secoes-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.35rem 1rem;
+.mpb-sec-count {
+    font-size: 0.72em;
+    font-weight: 700;
+    color: hsl(var(--primary));
 }
 
-@media (max-width: 500px) {
-    .mpb-secoes-grid { grid-template-columns: 1fr; }
+.mpb-sec-hint {
+    font-size: 0.76em;
+    color: var(--text-muted);
+    margin: 0 0 0.25rem;
 }
 
-.mpb-secao-item {
+.mpb-sec-hint i {
+    font-size: 0.85em;
+}
+
+/* ── Lista ordenável ── */
+.mpb-ord-list {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 0.4rem;
-    font-size: 0.8em;
-    cursor: pointer;
-    color: var(--text);
+    min-height: 8px;
 }
 
-.mpb-secao-item:has(.mpb-secao-check:disabled) {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.mpb-secao-check {
-    accent-color: var(--primary);
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    cursor: pointer;
-}
-
-/* ── Ordem ── */
-.mpb-ordem-bloco {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.mpb-ordem-lista {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.mpb-ordem-item {
+.mpb-ord-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.3rem 0.6rem;
+    gap: 0.65rem;
+    padding: 0.55rem 0.7rem;
     border: 1px solid var(--border);
-    border-radius: calc(var(--radius) - 4px);
-    background: var(--bg);
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--bg-card);
+    transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.mpb-ord-row:hover {
+    border-color: hsl(var(--primary) / 0.4);
+}
+
+.mpb-ord-row.is-dragging {
+    opacity: 0.45;
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.16);
+}
+
+.mpb-grip {
+    color: var(--text-faint);
+    cursor: grab;
     font-size: 0.8em;
-    color: var(--text);
+    flex: none;
+    padding: 2px;
 }
 
-.mpb-ordem-btns {
+.mpb-grip:active {
+    cursor: grabbing;
+}
+
+.mpb-num {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: var(--radius-full);
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    font-size: 0.7em;
+    font-weight: 800;
     display: flex;
-    gap: 0.2rem;
+    align-items: center;
+    justify-content: center;
 }
 
-.mpb-ordem-btn {
+.mpb-nm {
+    flex: 1;
+    font-size: 0.84em;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 0;
+}
+
+.mpb-rm {
+    flex: none;
     border: none;
     background: none;
+    color: var(--text-faint);
     cursor: pointer;
     font-size: 0.85em;
-    color: var(--text-muted);
-    padding: 0.1rem 0.3rem;
-    border-radius: 3px;
-    transition: color 0.1s, background 0.1s;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: color 0.12s, background 0.12s;
 }
 
-.mpb-ordem-btn:hover:not(:disabled) {
-    color: var(--primary);
-    background: color-mix(in srgb, var(--primary) 8%, transparent);
+.mpb-rm:hover:not(:disabled) {
+    color: hsl(var(--error));
+    background: hsl(var(--error) / 0.08);
 }
 
-.mpb-ordem-btn:disabled {
+.mpb-rm:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+.mpb-ord-empty {
+    border: 1px dashed var(--border);
+    border-radius: calc(var(--radius) - 2px);
+    padding: 1.1rem;
+    text-align: center;
+    font-size: 0.8em;
+    color: var(--text-muted);
+}
+
+/* ── Adicionar seção ── */
+.mpb-avail-bloco {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.mpb-avail-head {
+    font-size: 0.7em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.mpb-avail-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.mpb-chip-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.4rem 0.75rem;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    font: inherit;
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.12s;
+}
+
+.mpb-chip-add:hover:not(:disabled) {
+    border-color: hsl(var(--primary));
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.05);
+    border-style: solid;
+}
+
+.mpb-chip-add:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.mpb-chip-add i {
+    font-size: 0.8em;
+}
+
+.mpb-all-done {
+    font-size: 0.78em;
+    color: var(--text-muted);
 }
 </style>

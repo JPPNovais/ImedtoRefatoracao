@@ -195,7 +195,7 @@ onMounted(carregar)
             <!-- Coluna lateral ───────────────────────────────────────────── -->
             <aside class="col-sidebar">
                 <AppCard>
-                    <h3 class="card-titulo">
+                    <h3 class="ds-card-title card-cabecalho">
                         <i class="fa-solid fa-puzzle-piece" /> Variáveis disponíveis
                     </h3>
                     <p class="card-sub">Clique para inserir no cursor do editor.</p>
@@ -222,7 +222,7 @@ onMounted(carregar)
 
                 <AppCard class="card-preview">
                     <header class="preview-cab">
-                        <h3 class="card-titulo">
+                        <h3 class="ds-card-title card-cabecalho">
                             <i class="fa-solid fa-eye" /> Preview
                         </h3>
                         <AppButton variant="ghost" size="sm" @click="previewAberto = !previewAberto">
@@ -279,14 +279,10 @@ onMounted(carregar)
     font-size: 0.82em;
 }
 
-.card-titulo {
-    margin: 0;
-    font-size: 0.95em;
-    font-weight: 700;
+.card-cabecalho {
     display: flex; align-items: center; gap: 0.5rem;
-    color: hsl(var(--foreground));
 }
-.card-titulo i { color: hsl(var(--primary)); }
+.card-cabecalho i { color: hsl(var(--primary)); }
 .card-sub {
     margin: 0.25rem 0 0.75rem;
     font-size: 0.78em;

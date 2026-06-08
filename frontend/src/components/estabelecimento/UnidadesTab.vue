@@ -224,7 +224,7 @@ onMounted(carregar)
 
         <!-- ── Formulário de criação ── -->
         <AppCard v-if="podeEditar" padding="md">
-            <h3 class="secao-titulo">Adicionar nova unidade</h3>
+            <h3 class="ds-card-title">Adicionar nova unidade</h3>
 
             <div class="grade-2">
                 <AppField label="Nome da unidade *">
@@ -307,7 +307,7 @@ onMounted(carregar)
             <AppCard v-for="u in unidades" :key="u.id" padding="md">
                 <!-- Modo edição -->
                 <template v-if="editandoId === u.id">
-                    <h3 class="secao-titulo">Editar unidade</h3>
+                    <h3 class="ds-card-title">Editar unidade</h3>
 
                     <div class="grade-2">
                         <AppField label="Nome *">
@@ -375,7 +375,7 @@ onMounted(carregar)
 
                 <!-- Modo visualização -->
                 <template v-else>
-                    <div class="card-titulo">
+                    <div class="card-cabecalho">
                         <h3 class="unidade-nome">
                             {{ u.nome }}
                             <span v-if="u.isPrincipal" class="badge-principal">Principal</span>
@@ -436,7 +436,6 @@ onMounted(carregar)
     font-size: 0.82em; margin: 0;
 }
 
-.secao-titulo { font-size: 0.95em; font-weight: 700; margin: 0 0 0.85rem; }
 
 .grade-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.75rem; }
 .grade-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
@@ -466,7 +465,7 @@ onMounted(carregar)
 
 .lista { display: flex; flex-direction: column; gap: 0.85rem; }
 
-.card-titulo {
+.card-cabecalho {
     display: flex; align-items: center; justify-content: space-between;
     gap: 0.75rem; flex-wrap: wrap;
     margin-bottom: 0.4rem;

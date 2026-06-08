@@ -99,7 +99,7 @@ function rotuloTipoMov(tipo: MovimentacaoEstoque["tipo"]) {
 
             <!-- Barra de estoque -->
             <section>
-                <div class="secao-titulo">Nível de estoque</div>
+                <div class="ds-section-title">Nível de estoque</div>
                 <div class="nivel-bar-wrap">
                     <div class="nivel-bar">
                         <div
@@ -119,7 +119,7 @@ function rotuloTipoMov(tipo: MovimentacaoEstoque["tipo"]) {
 
             <!-- Movimentações recentes -->
             <section>
-                <div class="secao-titulo">Últimas movimentações</div>
+                <div class="ds-section-title">Últimas movimentações</div>
 
                 <div v-if="carregandoMovs" class="mov-loading">
                     <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
@@ -227,14 +227,6 @@ function rotuloTipoMov(tipo: MovimentacaoEstoque["tipo"]) {
     margin: 0;
 }
 
-.secao-titulo {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: hsl(var(--secondary) / 0.55);
-    font-weight: 800;
-    margin-bottom: 10px;
-}
 
 .stats-grid {
     display: grid;

@@ -228,7 +228,7 @@ const toast = ref<{ texto: string; variante: "success" | "error" | "info" } | nu
         <template v-else>
             <div class="lista-header">
                 <div>
-                    <h3 class="lista-titulo">Termos de consentimento</h3>
+                    <h3 class="ds-section-title">Termos de consentimento</h3>
                     <p class="lista-sub">Gerencie os modelos de termos que serão emitidos para os pacientes.</p>
                 </div>
                 <AppButton
@@ -353,7 +353,7 @@ const toast = ref<{ texto: string; variante: "success" | "error" | "info" } | nu
                 <div v-else class="cards-padroes">
                     <article v-for="m in padroes" :key="m.id" class="card-padrao">
                         <header class="card-cab">
-                            <h3 class="card-titulo">{{ m.titulo }}</h3>
+                            <h3 class="ds-card-title">{{ m.titulo }}</h3>
                             <AppBadge :label="metaCategoria(m.categoria).label" :variant="metaCategoria(m.categoria).cor" />
                         </header>
                         <p class="card-preview-txt">{{ previewTexto(m.conteudoHtml) }}</p>
@@ -464,7 +464,6 @@ const toast = ref<{ texto: string; variante: "success" | "error" | "info" } | nu
     display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
     flex-wrap: wrap;
 }
-.lista-titulo { font-size: 1.05em; font-weight: 700; margin: 0 0 0.2rem; }
 .lista-sub { font-size: 0.82em; color: hsl(var(--muted-foreground)); margin: 0; }
 
 .painel { display: flex; flex-direction: column; gap: 1rem; }
@@ -527,7 +526,6 @@ const toast = ref<{ texto: string; variante: "success" | "error" | "info" } | nu
     display: flex; flex-direction: column; gap: 0.75rem;
 }
 .card-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
-.card-titulo { font-size: 1em; margin: 0; font-weight: 700; }
 .card-preview-txt { font-size: 0.85em; color: hsl(var(--muted-foreground)); margin: 0; }
 .card-acoes { display: flex; gap: 0.5rem; }
 

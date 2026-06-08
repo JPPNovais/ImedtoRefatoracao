@@ -471,7 +471,7 @@ function tipoLabel(tipo: TipoAtestado): string {
     gap: 16px; flex-wrap: wrap;
 }
 .ata-titulo {
-    font-size: 1.05rem; font-weight: 700; margin: 0;
+    font-size: var(--text-md); font-weight: var(--font-weight-bold); margin: 0;
     color: hsl(var(--primary-dark));
     display: inline-flex; align-items: center; gap: 8px;
 }
@@ -512,7 +512,7 @@ function tipoLabel(tipo: TipoAtestado): string {
     padding: 16px; height: 100%;
 }
 @media (max-width: 700px) { .modelos-body { grid-template-columns: 1fr; } }
-.modelos-h3 { font-size: 0.92em; font-weight: 700; color: hsl(var(--primary-dark)); margin: 0 0 8px; }
+.modelos-h3 { font-size: var(--text-sm); font-weight: var(--font-weight-bold); color: hsl(var(--primary-dark)); margin: 0 0 8px; }
 .modelos-vazio { font-size: 0.82em; color: var(--text-muted); margin: 6px 0 12px; }
 .modelos-ul { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .mod-item {

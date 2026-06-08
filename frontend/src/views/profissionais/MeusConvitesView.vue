@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
 import { vinculoService, type ConvitePendente } from "@/services/vinculoService"
-import { AppButton, AppToast, AppConfirmDialog } from "@/components/ui"
+import { AppButton, AppToast, AppConfirmDialog, AppPageHeader } from "@/components/ui"
 
 const convites   = ref<ConvitePendente[]>([])
 const carregando = ref(false)
@@ -72,12 +72,10 @@ onMounted(carregar)
 
 <template>
     <div class="app-page app-page--narrow convites">
-        <div class="page-header">
-            <div>
-                <h1 class="page-titulo">Meus convites</h1>
-                <p class="page-sub">Convites pendentes para vincular-se a estabelecimentos.</p>
-            </div>
-        </div>
+        <AppPageHeader
+            titulo="Meus convites"
+            subtitulo="Convites pendentes para vincular-se a estabelecimentos."
+        />
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
         <p v-if="msg"  class="msg-ok">{{ msg }}</p>
@@ -135,9 +133,6 @@ onMounted(carregar)
 
 <style scoped>
 
-.page-header { margin-bottom: 1.5rem; }
-.page-titulo { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.2rem; }
-.page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
 
 .msg-erro { color: var(--danger); font-size: 0.875em; margin: 0 0 0.75rem; }
 .msg-ok   { color: #15803d;      font-size: 0.875em; margin: 0 0 0.75rem; }
@@ -158,7 +153,7 @@ onMounted(carregar)
 }
 
 .c-info { flex: 1; min-width: 0; }
-.c-titulo { font-size: 1rem; font-weight: 700; margin: 0 0 0.25rem; }
+.c-titulo { font-size: var(--text-base); font-weight: var(--font-weight-bold); margin: 0 0 0.25rem; }
 .c-desc   { font-size: 0.875em; color: var(--text); margin: 0 0 0.1rem; }
 .c-data   { font-size: 0.78em; color: var(--text-muted); margin: 0; }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { automacaoService, type ConfiguracaoAutomacao } from "@/services/automacaoService"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppPageHeader } from "@/components/ui"
 
 const config = ref<ConfiguracaoAutomacao>({
     lembretesHabilitados: false,
@@ -76,8 +76,7 @@ async function enviarLembretes() {
 
 <template>
     <main class="app-page app-page--narrow automacoes">
-        <h1>Automações</h1>
-        <p class="subtitulo">Configure processos automáticos do estabelecimento.</p>
+        <AppPageHeader titulo="Automações" subtitulo="Configure processos automáticos do estabelecimento." />
 
         <p v-if="carregando" class="info">Carregando configurações...</p>
 
@@ -86,7 +85,7 @@ async function enviarLembretes() {
             <section class="bloco">
                 <div class="bloco-header">
                     <div>
-                        <h2>Lembretes de consulta</h2>
+                        <h2 class="ds-card-title">Lembretes de consulta</h2>
                         <p class="desc">Envia e-mail automático para pacientes antes da consulta agendada.</p>
                     </div>
                     <label class="toggle">
@@ -123,7 +122,7 @@ async function enviarLembretes() {
             <section class="bloco">
                 <div class="bloco-header">
                     <div>
-                        <h2>Expiração automática de orçamentos</h2>
+                        <h2 class="ds-card-title">Expiração automática de orçamentos</h2>
                         <p class="desc">Marca automaticamente como "Expirado" os orçamentos cujo prazo de validade passou.</p>
                     </div>
                     <label class="toggle">
@@ -144,7 +143,7 @@ async function enviarLembretes() {
 
         <!-- Execução manual -->
         <section class="bloco bloco-manual">
-            <h2>Execução manual</h2>
+            <h2 class="ds-card-title">Execução manual</h2>
             <p class="desc">Acione os jobs de automação imediatamente (útil para testes).</p>
 
             <div class="acoes-manual">
@@ -170,17 +169,6 @@ async function enviarLembretes() {
 </template>
 
 <style scoped>
-h1 {
-    margin: 0 0 0.2rem;
-    font-size: 1.4rem;
-}
-
-.subtitulo {
-    margin: 0 0 1.75rem;
-    color: var(--text-muted);
-    font-size: 0.9em;
-}
-
 .bloco {
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -195,11 +183,6 @@ h1 {
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
-}
-
-.bloco h2 {
-    font-size: 0.95rem;
-    margin: 0 0 0.2rem;
 }
 
 .desc {

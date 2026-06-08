@@ -203,7 +203,7 @@ function fechar() {
         <!-- Dados do paciente -->
         <div class="secao-paciente">
             <div class="secao-cabecalho">
-                <span class="secao-titulo">
+                <span class="ds-section-title">
                     <i class="fa-solid fa-user" aria-hidden="true"></i>
                     Paciente
                 </span>
@@ -290,8 +290,8 @@ function fechar() {
 
 <style scoped>
 .modal-titulo h2 {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     margin: 0 0 2px;
 }
@@ -357,16 +357,6 @@ function fechar() {
     display: flex;
     align-items: center;
     justify-content: space-between;
-}
-.secao-titulo {
-    font-size: 11px;
-    font-weight: 700;
-    color: hsl(var(--foreground) / 0.55);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
 }
 .btn-editar-pac {
     background: transparent;

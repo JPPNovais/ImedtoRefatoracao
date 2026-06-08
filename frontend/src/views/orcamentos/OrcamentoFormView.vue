@@ -1277,7 +1277,7 @@ onMounted(carregar)
 }
 .btn-back:hover { background: hsl(var(--secondary) / 0.04); }
 .form-crumb { font-size: 11.5px; color: hsl(var(--secondary) / 0.55); }
-.form-titulo { font-size: 20px; font-weight: 700; margin: 0; }
+.form-titulo { font-size: var(--text-2xl); font-weight: var(--font-weight-bold); margin: 0; }
 
 .form-grid {
     display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start;

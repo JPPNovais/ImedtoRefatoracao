@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
 import { financeiroService, type Lancamento, type ResumoFinanceiro } from "@/services/financeiroService"
-import { AppButton, AppDatePicker, AppField, AppInput, AppModal, AppPagination, AppSelect, AppToast, AppConfirmDialog } from "@/components/ui"
+import { AppButton, AppDatePicker, AppField, AppInput, AppModal, AppPagination, AppSelect, AppToast, AppConfirmDialog, AppPageHeader } from "@/components/ui"
 
 const lancamentos = ref<Lancamento[]>([])
 const total = ref(0)
@@ -181,13 +181,11 @@ const vencidoPendente = (l: Lancamento) =>
 
 <template>
     <main class="app-page financeiro">
-        <header class="page-header">
-            <div>
-                <h1 class="page-titulo">Financeiro</h1>
-                <p class="page-sub">Controle receitas, despesas e fluxo de caixa do estabelecimento.</p>
-            </div>
-            <AppButton icon="fa-solid fa-plus" @click="abrirModalCriar">Novo lançamento</AppButton>
-        </header>
+        <AppPageHeader titulo="Financeiro" subtitulo="Controle receitas, despesas e fluxo de caixa do estabelecimento.">
+            <template #acoes>
+                <AppButton icon="fa-solid fa-plus" @click="abrirModalCriar">Novo lançamento</AppButton>
+            </template>
+        </AppPageHeader>
 
         <section class="resumo-cards">
             <div class="card-resumo receita">
@@ -367,12 +365,6 @@ const vencidoPendente = (l: Lancamento) =>
 </template>
 
 <style scoped>
-.page-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 1.25rem;
-}
-.page-titulo { font-size: 1.5rem; font-weight: 800; margin: 0 0 0.2rem; }
-.page-sub    { margin: 0; color: var(--text-muted); font-size: 0.875em; }
 
 .resumo-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .card-resumo { background: hsl(var(--card)); border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.15rem; }

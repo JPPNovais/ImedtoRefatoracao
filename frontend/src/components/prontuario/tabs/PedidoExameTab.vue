@@ -320,7 +320,7 @@ function tipoLabel(tipo: TipoPedidoExame): string {
     gap: 16px; flex-wrap: wrap;
 }
 .pex-titulo {
-    font-size: 1.05rem; font-weight: 700; margin: 0;
+    font-size: var(--text-md); font-weight: var(--font-weight-bold); margin: 0;
     color: hsl(var(--primary-dark));
     display: inline-flex; align-items: center; gap: 8px;
 }

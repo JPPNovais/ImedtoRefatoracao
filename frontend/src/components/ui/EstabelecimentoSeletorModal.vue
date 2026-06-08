@@ -2,6 +2,7 @@
 import { ref } from "vue"
 import AppModal from "@/components/ui/AppModal.vue"
 import AppRolePill from "@/components/ui/AppRolePill.vue"
+import AppAvatar from "@/components/ui/AppAvatar.vue"
 import type { EstabelecimentoListavel } from "@/stores/tenantStore"
 
 const props = defineProps<{
@@ -47,6 +48,12 @@ async function selecionarEstabelecimento(id: number) {
                     :disabled="estab.id === ativoId || salvando"
                     @click="selecionarEstabelecimento(estab.id)"
                 >
+                    <AppAvatar
+                        :nome="estab.nomeFantasia"
+                        :foto-url="estab.fotoUrl"
+                        tamanho="md"
+                        decorativo
+                    />
                     <span class="estab-nome">{{ estab.nomeFantasia }}</span>
                     <AppRolePill
                         :nome="estab.papelDoUsuario"

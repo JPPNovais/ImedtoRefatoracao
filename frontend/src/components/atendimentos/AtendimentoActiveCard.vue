@@ -175,7 +175,7 @@ const horaInicio = computed(() =>
     position: relative; margin-bottom: 18px;
 }
 .active-info { flex: 1; min-width: 0; }
-.active-info h2 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+.active-info h2 { font-size: var(--text-2xl); font-weight: var(--font-weight-bold); margin: 0 0 4px; }
 .active-meta {
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
     font-size: 13px; opacity: 0.88;

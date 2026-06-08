@@ -448,8 +448,8 @@ function irPara(m: Modo) {
 }
 .auth-form h1 {
     margin: 0 0 8px;
-    font-size: 28px;
-    font-weight: 700;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
     letter-spacing: -0.02em;
 }
@@ -779,8 +779,8 @@ function irPara(m: Modo) {
     box-shadow: 0 0 0 4px hsl(var(--success) / 0.3);
 }
 .brand-headline {
-    font-size: 38px;
-    font-weight: 700;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-weight-bold);
     line-height: 1.15;
     letter-spacing: -0.025em;
     margin: 0 0 20px;
