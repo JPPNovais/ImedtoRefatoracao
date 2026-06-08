@@ -1,6 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { mount } from "@vue/test-utils"
+import { mount, flushPromises } from "@vue/test-utils"
 import SecaoExameFisico from "./SecaoExameFisico.vue"
+
+// ── Catálogo mínimo reutilizado nos testes de caminho ─────────────────────────
+const catalogoMembro = [
+    {
+        id: "membro-superior-direito-anterior",
+        nome: "Membro superior direito (anterior)",
+        nivel: 1,
+        lateralidade: false,
+        pai_id: null,
+        vista: "anterior",
+        template_texto: null,
+        ordem: 1,
+        ativo: true,
+    },
+    {
+        id: "ombro-direito",
+        nome: "Ombro direito",
+        nivel: 2,
+        lateralidade: false,
+        pai_id: "membro-superior-direito-anterior",
+        vista: "anterior",
+        template_texto: null,
+        ordem: 1,
+        ativo: true,
+    },
+    {
+        id: "braco-direito",
+        nome: "Braço direito",
+        nivel: 2,
+        lateralidade: false,
+        pai_id: "membro-superior-direito-anterior",
+        vista: "anterior",
+        template_texto: null,
+        ordem: 2,
+        ativo: true,
+    },
+]
 
 // Mock do service — evita rede no teste e isola o comportamento do v-model.
 vi.mock("@/services/exameFisicoService", () => ({
@@ -119,5 +156,116 @@ describe("SecaoExameFisico", () => {
         const titulos = wrapper.findAll("h4").map(h => h.text())
         expect(titulos.some(t => t.includes("Mapa corporal"))).toBe(false)
         expect(titulos.some(t => t.includes("Observações gerais do exame físico"))).toBe(false)
+    })
+})
+
+// ─── Caminho neutral para bilateral ──────────────────────────────────────────
+
+/**
+ * Monta o componente com o catálogo de membros injetado via mock do service,
+ * aguarda o onMounted resolver e dispara o evento "confirmar" do popup stub
+ * para exercitar onConfirmarRegioes.
+ */
+async function montarComCatalogo(overrides = {}) {
+    const { exameFisicoService } = await import("@/services/exameFisicoService")
+    ;(exameFisicoService.listarRegioes as ReturnType<typeof vi.fn>).mockResolvedValue(catalogoMembro)
+
+    // Stub que expõe o emit "confirmar" para o teste disparar
+    const RegionSelectorPopupStub = {
+        name: "RegionSelectorPopup",
+        emits: ["confirmar", "update:aberto"],
+        template: "<div />",
+    }
+
+    const wrapper = mount(SecaoExameFisico, {
+        props: {
+            modelValue: { regioes: [] },
+            readOnly: false,
+            ...overrides,
+        },
+        global: {
+            stubs: {
+                BodyMap: true,
+                RegionSelectorPopup: RegionSelectorPopupStub,
+                RegionExamCard: true,
+            },
+        },
+    })
+
+    // Aguarda o onMounted (listarRegioes) resolver e preencher catalogoRegioes
+    await flushPromises()
+    return wrapper
+}
+
+describe("SecaoExameFisico — caminho de entrada bilateral (Bug Tipo A)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it("bilateral: caminho não contém 'direito' nem 'esquerdo'", async () => {
+        const wrapper = await montarComCatalogo()
+
+        // Dispara o evento confirmar do popup com lateralidade bilateral
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "ombro-direito", lateralidade: "bilateral" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        expect(eventos).toBeTruthy()
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: Array<{ caminho: string; lateralidade: string }> }
+        const regioesBilateral = ultimo.regioes.filter(r => r.lateralidade === "bilateral")
+        expect(regioesBilateral).toHaveLength(1)
+        const caminho = regioesBilateral[0].caminho
+        expect(caminho.toLowerCase()).not.toContain("direito")
+        expect(caminho.toLowerCase()).not.toContain("esquerdo")
+        // Caminho esperado: "Membro superior (anterior) > Ombro"
+        expect(caminho).toBe("Membro superior (anterior) > Ombro")
+    })
+
+    it("bilateral: caminho inclui o nome da região sem qualificador de lado", async () => {
+        const wrapper = await montarComCatalogo()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "braco-direito", lateralidade: "bilateral" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: Array<{ caminho: string }> }
+        expect(ultimo.regioes[0].caminho).toBe("Membro superior (anterior) > Braço")
+    })
+
+    it("Direito: caminho preserva 'direito' na entrada com lateralidade D", async () => {
+        const wrapper = await montarComCatalogo()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "ombro-direito", lateralidade: "D" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: Array<{ caminho: string; lateralidade: string }> }
+        const regiaoD = ultimo.regioes.find(r => r.lateralidade === "D")
+        expect(regiaoD).toBeTruthy()
+        expect(regiaoD!.caminho).toBe("Membro superior direito (anterior) > Ombro direito")
+    })
+
+    it("Esquerdo: caminho sem modificação para lateralidade E (id da base esquerda não está no catálogo mínimo, mas a função não altera o texto)", async () => {
+        const wrapper = await montarComCatalogo()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        // Simula seleção de id inexistente no catálogo mínimo → getCaminho retorna ""
+        // O importante é que não aplica caminhoNeutro quando lateralidade é E
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "ombro-direito", lateralidade: "E" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: Array<{ caminho: string; lateralidade: string }> }
+        const regiaoE = ultimo.regioes.find(r => r.lateralidade === "E")
+        expect(regiaoE).toBeTruthy()
+        // Para E, o caminho NÃO é modificado (preserva o texto original com lateralidade)
+        expect(regiaoE!.caminho).toBe("Membro superior direito (anterior) > Ombro direito")
     })
 })

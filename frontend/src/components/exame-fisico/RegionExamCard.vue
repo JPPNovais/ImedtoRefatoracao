@@ -50,7 +50,8 @@ function getLateralidadeLabel(lat: string | null): string {
     <!-- Cabeçalho colapsável -->
     <button
       type="button"
-      class="w-full flex items-center gap-2 py-2 px-3 hover:bg-muted/30 transition-colors rounded-t-lg text-left"
+      class="rec-header w-full flex items-center gap-2 py-2 px-3 transition-colors rounded-t-lg text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      :class="{ 'rec-header--open': isOpen }"
       @click="isOpen = !isOpen; emit('update:open', isOpen)"
     >
       <i
@@ -62,7 +63,7 @@ function getLateralidadeLabel(lat: string | null): string {
       </span>
       <span
         v-if="regiao.lateralidade"
-        class="text-[9px] border border-border rounded px-1.5 py-0.5 text-muted-foreground shrink-0"
+        class="text-[9px] border border-primary/40 rounded px-1.5 py-0.5 bg-primary/[0.08] text-primary shrink-0"
       >
         {{ getLateralidadeLabel(regiao.lateralidade) }}
       </span>
@@ -112,3 +113,15 @@ function getLateralidadeLabel(lat: string | null): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.rec-header {
+  background: hsl(var(--primary) / 0.06);
+}
+.rec-header:hover {
+  background: hsl(var(--primary) / 0.10);
+}
+.rec-header--open {
+  border-bottom: 1px solid hsl(var(--secondary) / 0.06);
+}
+</style>

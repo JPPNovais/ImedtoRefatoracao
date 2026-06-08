@@ -158,6 +158,21 @@ function getCaminho(regiaoId: string): string {
     return partes.join(" > ")
 }
 
+/**
+ * Remove o qualificador de lado ("direito"/"esquerdo") de um caminho anatômico
+ * já montado — usado apenas para entradas bilaterais, onde a badge "Bilateral"
+ * já comunica a lateralidade e o título deve ser neutro.
+ *
+ * Ex.: "Membro superior direito (anterior) > Ombro direito"
+ *   →  "Membro superior (anterior) > Ombro"
+ */
+function caminhoNeutro(caminho: string): string {
+    return caminho
+        .replace(/\s+(?:direito|esquerdo)\b/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim()
+}
+
 function getTemplate(regiaoId: string): string {
     const r = catalogoRegioes.value.find(x => x.id === regiaoId)
     return r?.template_texto || "Inspeção: ___. Palpação: ___. Achados: ___."
@@ -229,9 +244,12 @@ function onConfirmarRegioes(
     for (const sel of selecoes) {
         const jaExiste = novas.some(r => r.regiao_id === sel.regiaoId && r.lateralidade === sel.lateralidade)
         if (jaExiste) continue
+        const caminho = sel.lateralidade === "bilateral"
+            ? caminhoNeutro(getCaminho(sel.regiaoId))
+            : getCaminho(sel.regiaoId)
         novas.push({
             regiao_id: sel.regiaoId,
-            caminho: getCaminho(sel.regiaoId),
+            caminho,
             lateralidade: sel.lateralidade,
             texto_exame: getTemplate(sel.regiaoId),
             achados: "",
