@@ -47,7 +47,7 @@ function getLateralidadeLabel(lat: string | null): string {
 </script>
 
 <template>
-  <div class="border border-border rounded-lg border-l-2 border-l-primary/40">
+  <div class="border border-border rounded-lg">
     <!-- Cabeçalho colapsável -->
     <button
       type="button"
@@ -80,7 +80,7 @@ function getLateralidadeLabel(lat: string | null): string {
     </button>
 
     <!-- Conteúdo expansível -->
-    <div v-if="isOpen" class="px-3 pb-3 space-y-2">
+    <div v-if="isOpen" class="px-3 pb-3 pt-3 space-y-2">
       <div class="space-y-1">
         <label class="field-label-compact">Exame</label>
         <textarea
@@ -117,6 +117,7 @@ function getLateralidadeLabel(lat: string | null): string {
 
 <style scoped>
 .rec-header {
+  border: none;
   background: hsl(var(--primary) / 0.06);
 }
 .rec-header:hover {

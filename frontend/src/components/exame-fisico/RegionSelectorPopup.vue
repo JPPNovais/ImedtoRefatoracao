@@ -231,7 +231,7 @@ function fechar() {
           <template v-for="(item, idx) in breadcrumb" :key="item.id">
             <button
               type="button"
-              class="hover:text-foreground transition-colors"
+              class="hover:text-foreground transition-colors border-0"
               :class="idx === breadcrumb.length - 1 ? 'font-semibold text-foreground' : ''"
               @click="idx < breadcrumb.length - 1 ? voltarParaNivel(idx) : undefined"
             >
@@ -365,7 +365,7 @@ function fechar() {
             <button
               v-if="temFilhos(filho.id)"
               type="button"
-              class="text-[10px] text-primary hover:text-primary/80 p-1 h-auto rounded"
+              class="text-[10px] text-primary hover:text-primary/80 p-1 h-auto rounded border-0"
               title="Ver sub-regiões"
               @click.stop="navegarPara(filho)"
             >
