@@ -54,5 +54,6 @@ coverage/
 .auto-claude-status
 .claude_settings.json
 .worktrees/
+.claude/worktrees/
 .security-key
 logs/security/
