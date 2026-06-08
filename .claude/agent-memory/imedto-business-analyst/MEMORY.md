@@ -5,3 +5,4 @@
 - [Modelo de permissão global: cópias vs live-link](project_modelo_permissao_global_copias_vs_livelink.md) — padrão de permissão editável no admin usa cópias materializadas + propagação cross-tenant, NÃO live-link (vínculo FK por tenant).
 - [AppPillToggle (toggle segmentado)](project_apppilltoggle_design_system.md) — componente canônico para escolha binária/segmentada; ainda não consta em Docs/DESIGN.md (backlog de doc).
 - [Pool de variáveis ↔ prontuário](project_pool_variaveis_vinculo_prontuario.md) — criação ao salvar evolução (sem ModelosProntuario), dedup acento-insensível reusa padrão-sistema, só `nome` (LGPD), Droga+AtividadeFisica removidos.
+- [Exame físico: passo de lateralidade do membro](project_exame_fisico_passo_lateralidade_membro.md) — lado escolhido 1x por membro; "Ambos" = 1 entrada bilateral (não mais 2 D+E); frontend-only.
