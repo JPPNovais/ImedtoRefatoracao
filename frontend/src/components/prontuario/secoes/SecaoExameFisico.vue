@@ -197,6 +197,46 @@ const regioesJaSelecionadas = computed(() => {
     return Array.from(ids)
 })
 
+/**
+ * Dado o id de um nível-1 que seja um MEMBRO, retorna o id do nível-1 do lado
+ * oposto (direito↔esquerdo). Para regiões que não são membros, retorna null.
+ *
+ * Necessário para o destaque bilateral no BodyMap: a entrada bilateral guarda
+ * o id do lado direito (R5), mas o mapa deve acender os dois membros.
+ */
+function getOpostoNivel1Id(n1Id: string): string | null {
+    const n1 = regioesNivel1.value.find(r => r.id === n1Id)
+    if (!n1) return null
+    const m = MEMBRO_RE.exec(n1.nome)
+    if (!m) return null
+    const tipo = m[1]   // "superior" | "inferior"
+    const vista = m[2]  // "anterior" | "posterior"
+    // Troca direito↔esquerdo no nome para localizar o oposto no catálogo
+    const nomeDireito  = `Membro ${tipo} direito (${vista})`
+    const nomeEsquerdo = `Membro ${tipo} esquerdo (${vista})`
+    const nomeOposto = n1.nome === nomeDireito ? nomeEsquerdo : nomeDireito
+    return regioesNivel1.value.find(r => r.nome === nomeOposto)?.id ?? null
+}
+
+/**
+ * Array de ids de nível-1 destinado EXCLUSIVAMENTE ao BodyMap.
+ * Parte de `regioesJaSelecionadas` e, para cada entrada com
+ * lateralidade === 'bilateral', acrescenta o nível-1 do lado oposto
+ * (quando existir e for membro), garantindo que ambos os membros acendam.
+ * `regioesJaSelecionadas` não é alterado — continua servindo o popup.
+ */
+const regioesExaminadasMapa = computed(() => {
+    const ids = new Set(regioesJaSelecionadas.value)
+    for (const r of regioes.value) {
+        if (r.lateralidade !== "bilateral") continue
+        const n1 = getAncestorNivel1Id(r.regiao_id)
+        if (!n1) continue
+        const oposto = getOpostoNivel1Id(n1)
+        if (oposto) ids.add(oposto)
+    }
+    return Array.from(ids)
+})
+
 // Estado do popup
 const selectorAberto = ref(false)
 const regiaoClicada = ref<ExameFisicoRegiao | null>(null)
@@ -508,7 +548,7 @@ onMounted(async () => {
             <div class="mapa-container">
                 <BodyMap
                     :regioes="regioesNivel1"
-                    :regioes-examinadas="regioesJaSelecionadas"
+                    :regioes-examinadas="regioesExaminadasMapa"
                     :sexo="pacienteSexo"
                     @regiao-clicada="onRegiaoClicada"
                 />

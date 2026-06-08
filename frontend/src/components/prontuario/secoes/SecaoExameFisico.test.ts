@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { mount, flushPromises } from "@vue/test-utils"
-import SecaoExameFisico from "./SecaoExameFisico.vue"
+import SecaoExameFisico, { type RegiaoAnatomicaSelecionada } from "./SecaoExameFisico.vue"
 
 // ── Catálogo mínimo reutilizado nos testes de caminho ─────────────────────────
 const catalogoMembro = [
@@ -13,6 +13,17 @@ const catalogoMembro = [
         vista: "anterior",
         template_texto: null,
         ordem: 1,
+        ativo: true,
+    },
+    {
+        id: "membro-superior-esquerdo-anterior",
+        nome: "Membro superior esquerdo (anterior)",
+        nivel: 1,
+        lateralidade: false,
+        pai_id: null,
+        vista: "anterior",
+        template_texto: null,
+        ordem: 2,
         ativo: true,
     },
     {
@@ -156,6 +167,89 @@ describe("SecaoExameFisico", () => {
         const titulos = wrapper.findAll("h4").map(h => h.text())
         expect(titulos.some(t => t.includes("Mapa corporal"))).toBe(false)
         expect(titulos.some(t => t.includes("Observações gerais do exame físico"))).toBe(false)
+    })
+})
+
+// ─── regioesExaminadasMapa — destaque bilateral no BodyMap ────────────────────
+
+/**
+ * Monta o componente com catálogo completo (incluindo o nível-1 esquerdo) e
+ * com um BodyMapStub que captura o prop `regioesExaminadas` — único jeito de
+ * inspecionar o computed sem expô-lo via defineExpose.
+ */
+async function montarParaMapa(regioes: RegiaoAnatomicaSelecionada[]) {
+    const { exameFisicoService } = await import("@/services/exameFisicoService")
+    ;(exameFisicoService.listarRegioes as ReturnType<typeof vi.fn>).mockResolvedValue(catalogoMembro)
+
+    // Stub capturável: expõe o prop recebido como dado da instância
+    const BodyMapStub = {
+        name: "BodyMap",
+        props: ["regioes", "regioesExaminadas", "sexo"],
+        template: "<div />",
+    }
+
+    const wrapper = mount(SecaoExameFisico, {
+        props: {
+            modelValue: { regioes },
+            readOnly: false,
+        },
+        global: {
+            stubs: {
+                BodyMap: BodyMapStub,
+                RegionSelectorPopup: true,
+                RegionExamCard: true,
+            },
+        },
+    })
+
+    await flushPromises()
+    return wrapper
+}
+
+describe("SecaoExameFisico — regioesExaminadasMapa (bilateral BodyMap)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it("bilateral: inclui ids de AMBOS os membros nível-1 (direito e esquerdo)", async () => {
+        const wrapper = await montarParaMapa([
+            {
+                regiao_id: "ombro-direito",
+                caminho: "Membro superior (anterior) > Ombro",
+                lateralidade: "bilateral",
+                texto_exame: "",
+                achados: "",
+                observacoes: "",
+                timestamp: new Date().toISOString(),
+            },
+        ])
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const regioesExaminadas: string[] = bodyMap.props("regioesExaminadas")
+
+        // Deve conter o nível-1 direito (ancestral da sub-região) E o esquerdo (oposto bilateral)
+        expect(regioesExaminadas).toContain("membro-superior-direito-anterior")
+        expect(regioesExaminadas).toContain("membro-superior-esquerdo-anterior")
+    })
+
+    it("lateralidade D: inclui apenas o nível-1 do lado direito, sem o esquerdo", async () => {
+        const wrapper = await montarParaMapa([
+            {
+                regiao_id: "ombro-direito",
+                caminho: "Membro superior direito (anterior) > Ombro direito",
+                lateralidade: "D",
+                texto_exame: "",
+                achados: "",
+                observacoes: "",
+                timestamp: new Date().toISOString(),
+            },
+        ])
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const regioesExaminadas: string[] = bodyMap.props("regioesExaminadas")
+
+        expect(regioesExaminadas).toContain("membro-superior-direito-anterior")
+        expect(regioesExaminadas).not.toContain("membro-superior-esquerdo-anterior")
     })
 })
 
