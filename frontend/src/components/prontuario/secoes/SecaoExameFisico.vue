@@ -15,7 +15,7 @@
   ProntuarioView usa `regioes` para encadear `exameFisicoService.registrar`.
 -->
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from "vue"
+import { computed, defineAsyncComponent, onMounted, reactive, ref } from "vue"
 import {
     exameFisicoService,
     type ExameFisicoRegiao,
@@ -82,6 +82,28 @@ const props = defineProps<{
     pacienteSexo?: string | null
 }>()
 const emit  = defineEmits<{ "update:modelValue": [v: EfData] }>()
+
+// ─── Estado de colapso das subseções superiores ────────────────────────────
+// Estado padrão: fechado. O médico abre quando for usar.
+const expandido = reactive({ sinaisVitais: false, antropometria: false, ectoscopia: false })
+
+// Indicadores de "tem dado preenchido" — para o dot de status no header colapsado.
+const sinaisVitaisPreenchido = computed(() => {
+    const d = props.modelValue
+    return !!(d.paSistolica || d.paDiastolica || d.fc || d.fr || d.temperatura || d.spo2 || d.glicemia)
+})
+const antropometriaPreenchida = computed(() => {
+    const d = props.modelValue
+    return !!(d.peso || d.altura)
+})
+const ectoscopiaPreenchida = computed(() => {
+    const d = props.modelValue
+    return !!(
+        d.estadoGeral || d.consciencia || d.estadoNutricional || d.coloracao ||
+        d.hidratacao || d.cianose || d.ictericia || d.tempCorporal ||
+        d.batimentos || d.respiracao || d.descricaoEctoscopia
+    )
+})
 
 function atualizar(patch: Partial<EfData>) {
     emit("update:modelValue", { ...props.modelValue, ...patch })
@@ -592,197 +614,257 @@ onMounted(async () => {
 
 <template>
     <div class="secao">
-        <!-- Sinais vitais -->
+        <!-- Sinais vitais (colapsável) -->
         <div class="subsecao">
-            <h4 class="subsec-titulo">Sinais vitais</h4>
-            <div class="grade-sv">
-                <AppField label="Pressão arterial (mmHg)" label-variant="compact">
-                    <div class="pa-row">
-                        <AppInput
-                            :model-value="modelValue.paSistolica ?? ''" type="number"
-                            placeholder="120" :disabled="readOnly" class="text-center"
-                            @update:model-value="v => atualizar({ paSistolica: String(v) })"
-                        />
-                        <span class="pa-sep">/</span>
-                        <AppInput
-                            :model-value="modelValue.paDiastolica ?? ''" type="number"
-                            placeholder="80" :disabled="readOnly" class="text-center"
-                            @update:model-value="v => atualizar({ paDiastolica: String(v) })"
-                        />
-                    </div>
-                </AppField>
-                <AppField label="FC (bpm)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.fc ?? ''" type="number"
-                        placeholder="72" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ fc: String(v) })"
-                    />
-                </AppField>
-                <AppField label="FR (irpm)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.fr ?? ''" type="number"
-                        placeholder="16" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ fr: String(v) })"
-                    />
-                </AppField>
-                <AppField label="Temp. (°C)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.temperatura ?? ''" type="number" step="0.1"
-                        placeholder="36.5" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ temperatura: String(v) })"
-                    />
-                </AppField>
-                <AppField label="SpO₂ (%)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.spo2 ?? ''" type="number" min="0" max="100"
-                        placeholder="98" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ spo2: String(v) })"
-                    />
-                </AppField>
-                <AppField label="Glicemia (mg/dL)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.glicemia ?? ''" type="number"
-                        placeholder="95" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ glicemia: String(v) })"
-                    />
-                </AppField>
-            </div>
-        </div>
-
-        <!-- Antropometria -->
-        <div class="subsecao">
-            <h4 class="subsec-titulo">Antropometria</h4>
-            <div class="grade-antro">
-                <AppField label="Peso (kg)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.peso ?? ''" type="number" step="0.1"
-                        placeholder="70.5" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ peso: String(v) })"
-                    />
-                </AppField>
-                <AppField label="Altura (cm ou m)" label-variant="compact">
-                    <AppInput
-                        :model-value="modelValue.altura ?? ''" type="number" step="0.01"
-                        placeholder="170 ou 1.70" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ altura: String(v) })"
-                    />
-                </AppField>
-                <AppField label="IMC (calculado)" label-variant="compact">
-                    <AppInput :model-value="imc ?? ''" readonly />
-                </AppField>
-                <AppField label="Classificação" label-variant="compact">
-                    <AppInput :model-value="classIMC ?? ''" readonly />
-                </AppField>
-            </div>
-            <p v-if="avisoAntropometria" class="aviso-antro">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                {{ avisoAntropometria }}
-            </p>
-        </div>
-
-        <!-- Ectoscopia -->
-        <div class="subsecao">
-            <h4 class="subsec-titulo">Ectoscopia (inspeção geral)</h4>
-            <div class="grade-ecto">
-                <AppField label="Estado geral" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.estadoGeral ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ estadoGeral: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in ESTADO_GERAL" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Consciência" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.consciencia ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ consciencia: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in CONSCIENCIA" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Estado nutricional" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.estadoNutricional ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ estadoNutricional: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in ESTADO_NUTR" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Coloração" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.coloracao ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ coloracao: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in COLORACAO" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Hidratação" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.hidratacao ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ hidratacao: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in HIDRATACAO" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Cianose" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.cianose ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ cianose: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in CIANOSE" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Icterícia" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.ictericia ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ ictericia: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in ICTERICIA" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Temp. corporal" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.tempCorporal ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ tempCorporal: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in TEMP_CORPORAL" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Batimentos" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.batimentos ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ batimentos: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in BATIMENTOS" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-                <AppField label="Respiração" label-variant="compact">
-                    <AppSelect
-                        :model-value="modelValue.respiracao ?? ''" :disabled="readOnly"
-                        @update:model-value="v => atualizar({ respiracao: String(v) })"
-                    >
-                        <option value="">—</option>
-                        <option v-for="o in RESPIRACAO" :key="o" :value="o">{{ o }}</option>
-                    </AppSelect>
-                </AppField>
-            </div>
-            <AppField label="Descrição da ectoscopia" label-variant="compact" class="ecto-descricao">
-                <AppTextarea
-                    :model-value="modelValue.descricaoEctoscopia ?? ''" :rows="3"
-                    placeholder="Observações adicionais sobre a inspeção geral..."
-                    :disabled="readOnly"
-                    @update:model-value="v => atualizar({ descricaoEctoscopia: String(v) })"
+            <button
+                type="button"
+                class="subsec-header"
+                :aria-expanded="expandido.sinaisVitais"
+                @click="expandido.sinaisVitais = !expandido.sinaisVitais"
+            >
+                <i
+                    class="fa-solid fa-chevron-down subsec-chevron"
+                    :class="{ 'rotate-180': expandido.sinaisVitais }"
+                    aria-hidden="true"
                 />
-            </AppField>
+                <span class="subsec-titulo-texto">Sinais vitais</span>
+                <span
+                    v-if="sinaisVitaisPreenchido"
+                    class="subsec-dot-preenchido"
+                    title="Campos preenchidos"
+                    aria-label="Seção com dados preenchidos"
+                />
+            </button>
+            <div v-show="expandido.sinaisVitais" class="subsec-corpo">
+                <div class="grade-sv">
+                    <AppField label="Pressão arterial (mmHg)" label-variant="compact">
+                        <div class="pa-row">
+                            <AppInput
+                                :model-value="modelValue.paSistolica ?? ''" type="number"
+                                placeholder="120" :disabled="readOnly" class="text-center"
+                                @update:model-value="v => atualizar({ paSistolica: String(v) })"
+                            />
+                            <span class="pa-sep">/</span>
+                            <AppInput
+                                :model-value="modelValue.paDiastolica ?? ''" type="number"
+                                placeholder="80" :disabled="readOnly" class="text-center"
+                                @update:model-value="v => atualizar({ paDiastolica: String(v) })"
+                            />
+                        </div>
+                    </AppField>
+                    <AppField label="FC (bpm)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.fc ?? ''" type="number"
+                            placeholder="72" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ fc: String(v) })"
+                        />
+                    </AppField>
+                    <AppField label="FR (irpm)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.fr ?? ''" type="number"
+                            placeholder="16" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ fr: String(v) })"
+                        />
+                    </AppField>
+                    <AppField label="Temp. (°C)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.temperatura ?? ''" type="number" step="0.1"
+                            placeholder="36.5" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ temperatura: String(v) })"
+                        />
+                    </AppField>
+                    <AppField label="SpO₂ (%)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.spo2 ?? ''" type="number" min="0" max="100"
+                            placeholder="98" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ spo2: String(v) })"
+                        />
+                    </AppField>
+                    <AppField label="Glicemia (mg/dL)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.glicemia ?? ''" type="number"
+                            placeholder="95" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ glicemia: String(v) })"
+                        />
+                    </AppField>
+                </div>
+            </div>
+        </div>
+
+        <!-- Antropometria (colapsável) -->
+        <div class="subsecao">
+            <button
+                type="button"
+                class="subsec-header"
+                :aria-expanded="expandido.antropometria"
+                @click="expandido.antropometria = !expandido.antropometria"
+            >
+                <i
+                    class="fa-solid fa-chevron-down subsec-chevron"
+                    :class="{ 'rotate-180': expandido.antropometria }"
+                    aria-hidden="true"
+                />
+                <span class="subsec-titulo-texto">Antropometria</span>
+                <span
+                    v-if="antropometriaPreenchida"
+                    class="subsec-dot-preenchido"
+                    title="Campos preenchidos"
+                    aria-label="Seção com dados preenchidos"
+                />
+            </button>
+            <div v-show="expandido.antropometria" class="subsec-corpo">
+                <div class="grade-antro">
+                    <AppField label="Peso (kg)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.peso ?? ''" type="number" step="0.1"
+                            placeholder="70.5" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ peso: String(v) })"
+                        />
+                    </AppField>
+                    <AppField label="Altura (cm ou m)" label-variant="compact">
+                        <AppInput
+                            :model-value="modelValue.altura ?? ''" type="number" step="0.01"
+                            placeholder="170 ou 1.70" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ altura: String(v) })"
+                        />
+                    </AppField>
+                    <AppField label="IMC (calculado)" label-variant="compact">
+                        <AppInput :model-value="imc ?? ''" readonly />
+                    </AppField>
+                    <AppField label="Classificação" label-variant="compact">
+                        <AppInput :model-value="classIMC ?? ''" readonly />
+                    </AppField>
+                </div>
+                <p v-if="avisoAntropometria" class="aviso-antro">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    {{ avisoAntropometria }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Ectoscopia (colapsável) -->
+        <div class="subsecao">
+            <button
+                type="button"
+                class="subsec-header"
+                :aria-expanded="expandido.ectoscopia"
+                @click="expandido.ectoscopia = !expandido.ectoscopia"
+            >
+                <i
+                    class="fa-solid fa-chevron-down subsec-chevron"
+                    :class="{ 'rotate-180': expandido.ectoscopia }"
+                    aria-hidden="true"
+                />
+                <span class="subsec-titulo-texto">Ectoscopia (inspeção geral)</span>
+                <span
+                    v-if="ectoscopiaPreenchida"
+                    class="subsec-dot-preenchido"
+                    title="Campos preenchidos"
+                    aria-label="Seção com dados preenchidos"
+                />
+            </button>
+            <div v-show="expandido.ectoscopia" class="subsec-corpo">
+                <div class="grade-ecto">
+                    <AppField label="Estado geral" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.estadoGeral ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ estadoGeral: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in ESTADO_GERAL" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Consciência" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.consciencia ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ consciencia: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in CONSCIENCIA" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Estado nutricional" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.estadoNutricional ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ estadoNutricional: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in ESTADO_NUTR" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Coloração" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.coloracao ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ coloracao: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in COLORACAO" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Hidratação" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.hidratacao ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ hidratacao: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in HIDRATACAO" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Cianose" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.cianose ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ cianose: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in CIANOSE" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Icterícia" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.ictericia ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ ictericia: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in ICTERICIA" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Temp. corporal" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.tempCorporal ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ tempCorporal: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in TEMP_CORPORAL" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Batimentos" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.batimentos ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ batimentos: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in BATIMENTOS" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                    <AppField label="Respiração" label-variant="compact">
+                        <AppSelect
+                            :model-value="modelValue.respiracao ?? ''" :disabled="readOnly"
+                            @update:model-value="v => atualizar({ respiracao: String(v) })"
+                        >
+                            <option value="">—</option>
+                            <option v-for="o in RESPIRACAO" :key="o" :value="o">{{ o }}</option>
+                        </AppSelect>
+                    </AppField>
+                </div>
+                <AppField label="Descrição da ectoscopia" label-variant="compact" class="ecto-descricao">
+                    <AppTextarea
+                        :model-value="modelValue.descricaoEctoscopia ?? ''" :rows="3"
+                        placeholder="Observações adicionais sobre a inspeção geral..."
+                        :disabled="readOnly"
+                        @update:model-value="v => atualizar({ descricaoEctoscopia: String(v) })"
+                    />
+                </AppField>
+            </div>
         </div>
 
         <!-- Grade lateral: Mapa corporal (esq) + Regiões examinadas (dir) -->
@@ -882,12 +964,68 @@ onMounted(async () => {
     border-top: none;
 }
 
+/* Header colapsável das subseções superiores */
+.subsec-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    color: hsl(var(--primary));
+    margin: 0 0 0.2rem;
+}
+.subsec-header:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: var(--radius-sm, 4px);
+}
+
+.subsec-titulo-texto {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--text-sm);
+    flex: 1;
+}
+
+.subsec-chevron {
+    font-size: var(--text-2xs);
+    color: hsl(var(--muted-foreground));
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.subsec-dot-preenchido {
+    width: 7px;
+    height: 7px;
+    border-radius: 9999px;
+    background: hsl(var(--success));
+    flex-shrink: 0;
+}
+
+/* Conteúdo colapsável — leve fade de entrada */
+.subsec-corpo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+/* Títulos estáticos (mapa corporal, observações gerais) */
 .subsec-titulo {
-    font-weight: 700; font-size: 0.9em; color: var(--primary); margin: 0 0 0.2rem;
-    display: flex; align-items: center; gap: 8px;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--text-sm);
+    color: hsl(var(--primary));
+    margin: 0 0 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 .subsec-titulo .hint {
-    font-weight: 500; font-size: 0.82em; color: var(--text-muted);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
 }
 .subsec-titulo .hint-erro {
     color: hsl(var(--destructive, 0 84% 50%));

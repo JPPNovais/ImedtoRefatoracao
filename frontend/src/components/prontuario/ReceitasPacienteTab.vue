@@ -28,11 +28,16 @@ import AssinaturaPollingIndicator from "@/components/prontuario/AssinaturaPollin
 import { assinaturaDigitalService, ASSINATURA_DIGITAL_HABILITADA, type StatusAssinaturaDigital } from "@/services/assinaturaDigitalService"
 import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
 import { useAuthStore } from "@/stores/authStore"
+import { pacienteService, type Paciente } from "@/services/pacienteService"
+import { useReceitaPdf } from "@/composables/useReceitaPdf"
 
 const props = defineProps<{
     pacienteId: number
     pacienteNome: string
 }>()
+
+const { gerarPdf } = useReceitaPdf()
+const paciente = ref<Paciente | null>(null)
 
 // ─── Assinatura digital ───────────────────────────────────────────────────────
 const assinaturaStore = useAssinaturaDigitalStore()
@@ -192,7 +197,14 @@ async function carregar() {
 }
 
 watch([pagina, tamanho], carregar)
-onMounted(carregar)
+onMounted(() => { carregar(); carregarPaciente() })
+
+async function carregarPaciente() {
+    if (paciente.value) return
+    try {
+        paciente.value = await pacienteService.obter(props.pacienteId)
+    } catch { /* PDF cai no fallback com só o nome */ }
+}
 
 // ─── Criar nova receita (rascunho) ──────────────────────────────────────────
 async function novaReceita(tipo: TipoReceita) {
@@ -429,64 +441,17 @@ async function duplicar() {
     }
 }
 
-// ─── Impressão (HTML simples — assinatura digital ainda não implementada) ───
-function imprimir() {
+// ─── Impressão — PDF institucional (mesmo layout dos demais documentos) ──────
+async function imprimir() {
     const r = receitaAberta.value
     if (!r) return
-    const w = window.open("", "_blank", "width=800,height=900")
-    if (!w) {
-        notificar("Permita pop-ups para imprimir.", "info")
-        return
+    const pac = paciente.value ?? { nomeCompleto: props.pacienteNome } as Paciente
+    try {
+        const { blobUrl } = await gerarPdf(r, pac, "visualizar")
+        if (blobUrl) window.open(blobUrl, "_blank", "noopener,noreferrer")
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao gerar PDF.", "error")
     }
-    w.document.write(gerarHtmlImpressao(r))
-    w.document.close()
-    w.onload = () => { w.focus(); w.print() }
-}
-
-function gerarHtmlImpressao(r: Receita): string {
-    const itensHtml = r.itens.map((it, i) => `
-        <div class="item">
-            <strong>${i + 1}. ${escape(it.medicamento)}${it.concentracao ? " — " + escape(it.concentracao) : ""}</strong>
-            ${it.formaFarmaceutica ? `<div>${escape(it.formaFarmaceutica)}${it.quantidade ? " · " + escape(it.quantidade) : ""}</div>` : ""}
-            <div class="pos"><em>${escape(it.posologia)}</em></div>
-            ${it.via ? `<div>Via: ${escape(viaLabel(it.via))}</div>` : ""}
-            ${it.duracao ? `<div>Duração: ${escape(it.duracao)}</div>` : ""}
-            ${it.observacao ? `<div class="obs">${escape(it.observacao)}</div>` : ""}
-        </div>
-    `).join("")
-    const dataRef = formatarData(r.emitidaEm ?? new Date().toISOString())
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Receita — ${escape(props.pacienteNome)}</title>
-      <style>
-        body{font-family:Nunito,sans-serif;max-width:720px;margin:40px auto;padding:0 1rem;color:#111;}
-        h1{font-size:1.4rem;border-bottom:2px solid #452b97;padding-bottom:.3rem;color:#452b97}
-        .meta{color:#666;font-size:.85rem;margin-bottom:1.5rem}
-        .item{padding:.75rem 0;border-bottom:1px solid #eee}
-        .pos{margin:.3rem 0;}
-        .obs{font-size:.85rem;color:#555;margin-top:.2rem}
-        .aviso-print{margin-top:2rem;padding:.75rem 1rem;background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;font-size:.85rem;color:#7c2d12;line-height:1.45}
-        .rodape{margin-top:3rem;padding-top:1rem;border-top:1px dashed #ccc;font-size:.85rem;color:#555;text-align:right}
-        .tipo{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:700;background:#dbeafe;color:#1e40af}
-        .tipo.ctrl{background:#fee2e2;color:#991b1b}
-      </style></head><body>
-      <h1>Receita médica <span class="tipo ${r.tipo === "Controlada" ? "ctrl" : ""}">${r.tipo}${r.tipoNotificacao ? " — " + r.tipoNotificacao : ""}</span></h1>
-      <div class="meta">
-        <strong>Paciente:</strong> ${escape(props.pacienteNome)}<br>
-        ${r.profissionalNome ? `<strong>Profissional:</strong> ${escape(r.profissionalNome)}<br>` : ""}
-        <strong>Data:</strong> ${dataRef}<br>
-      </div>
-      ${itensHtml}
-      ${r.observacoes ? `<p><strong>Observações:</strong> ${escape(r.observacoes)}</p>` : ""}
-      <div class="aviso-print">
-        <strong>Atenção:</strong> esta receita não foi assinada digitalmente (ICP-Brasil / Memed).
-        Para validade jurídica plena em farmácias que exigem assinatura digital,
-        o profissional deve assinar manualmente o documento impresso (CFM 2.299/2021).
-      </div>
-      <div class="rodape">___________________________<br>Assinatura</div>
-    </body></html>`
-}
-
-function escape(s: string) {
-    return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c] as string))
 }
 
 function formatarData(iso: string) {

@@ -148,6 +148,62 @@ describe("SecaoExameFisico", () => {
         expect(wrapper.find(".aviso-antro").exists()).toBe(false)
     })
 
+    // ── Subseções colapsáveis ─────────────────────────────────────────────────
+
+    it("subseções colapsáveis iniciam fechadas (v-show false)", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: {}, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        // Os 3 corpos (.subsec-corpo) existem no DOM mas estão ocultos (v-show → display:none)
+        const corpos = wrapper.findAll(".subsec-corpo")
+        expect(corpos).toHaveLength(3)
+        corpos.forEach(corpo => {
+            expect((corpo.element as HTMLElement).style.display).toBe("none")
+        })
+    })
+
+    it("clique no header de sinais vitais expande o conteúdo", async () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: {}, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        const headers = wrapper.findAll("button.subsec-header")
+        expect(headers).toHaveLength(3)
+        // Primeiro header = Sinais vitais
+        await headers[0].trigger("click")
+        const corpo = wrapper.findAll(".subsec-corpo")[0]
+        expect((corpo.element as HTMLElement).style.display).not.toBe("none")
+        // aria-expanded atualiza
+        expect(headers[0].attributes("aria-expanded")).toBe("true")
+    })
+
+    it("dot de preenchido aparece quando campo de sinais vitais tem valor", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: { fc: "72" }, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        const dots = wrapper.findAll(".subsec-dot-preenchido")
+        // Apenas sinais vitais tem dot (fc preenchido); antropometria e ectoscopia não
+        expect(dots).toHaveLength(1)
+    })
+
+    it("dot de preenchido não aparece quando nenhum campo tem valor", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: {}, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        expect(wrapper.findAll(".subsec-dot-preenchido")).toHaveLength(0)
+    })
+
     it("não exibe mapa corporal quando readOnly", () => {
         const wrapper = mount(SecaoExameFisico, {
             props: {
