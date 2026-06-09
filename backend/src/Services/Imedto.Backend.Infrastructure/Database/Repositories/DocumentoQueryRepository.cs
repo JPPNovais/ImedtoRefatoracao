@@ -153,7 +153,7 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
             SELECT Tipo, Id, Titulo, Data, ProfissionalNome FROM (
             {unionSql}
             ) AS docs
-            ORDER BY docs."Data" DESC
+            ORDER BY docs.data DESC
             LIMIT @Tamanho OFFSET @Offset
             """;
 
