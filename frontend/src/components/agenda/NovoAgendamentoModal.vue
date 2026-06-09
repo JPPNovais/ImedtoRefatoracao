@@ -1101,7 +1101,6 @@ const profSelecionado = computed(() =>
     color: hsl(var(--primary-dark, 254 56% 21%));
     font-family: inherit;
 }
-.search-patient input::placeholder { color: hsl(var(--foreground) / 0.5); }
 .search-patient .clr {
     width: 24px;
     height: 24px;

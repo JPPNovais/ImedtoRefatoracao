@@ -28,6 +28,7 @@
     --secondary-foreground: 0 0% 100%;
     --muted: 240 5% 96%;
     --muted-foreground: 0 0% 45%;
+    --placeholder: 0 0% 80%;
     --accent: 254 40% 95%;
     --accent-foreground: 254 56% 38%;
     --destructive: 0 84% 60%;
@@ -148,6 +149,7 @@
     --secondary-foreground: 0 0% 10%;
     --muted: 240 4% 16%;
     --muted-foreground: 0 0% 64%;
+    --placeholder: 0 0% 50%;
     --accent: 254 30% 18%;
     --accent-foreground: 254 50% 75%;
     --destructive: 0 63% 50%;
@@ -444,7 +446,12 @@ h4 { font-size: 1.875rem; font-weight: 700; color: hsl(var(--primary-dark)); }
     color: hsl(var(--secondary));
     transition: border-color 0.15s, box-shadow 0.15s;
 }
-.form-input::placeholder { color: hsl(var(--secondary) / 0.70); }
+.form-input::placeholder { color: hsl(var(--placeholder)); }
+
+/* Placeholder padronizado — fonte única para TODO input/textarea do sistema,
+   inclusive os que usam classes Tailwind cruas. Ajuste só o token --placeholder. */
+input::placeholder,
+textarea::placeholder { color: hsl(var(--placeholder)); opacity: 1; }
 .form-input:hover { border-color: hsl(var(--primary)); }
 .form-input:focus-visible {
     outline: none;

@@ -9,6 +9,7 @@ import PacienteTermosTab from "@/components/termos/PacienteTermosTab.vue"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { prontuarioService, type ProntuarioCompleto, type Anexo, type Evolucao } from "@/services/prontuarioService"
 import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
+import { formatarSecaoLegivel } from "@/composables/useEvolucaoResumo"
 import EvolucaoTimelineItem from "@/components/prontuario/EvolucaoTimelineItem.vue"
 import EvolucaoDetalheDrawer from "@/components/prontuario/EvolucaoDetalheDrawer.vue"
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
@@ -458,13 +459,20 @@ const evolucaoMaisAntiga = computed(() => {
     )[0]
 })
 
-function valorSecao(secaoChave: string, conteudo: Record<string, unknown>): string {
-    const v = conteudo[secaoChave]
-    if (v == null || v === "") return ""
-    if (typeof v === "string") return v
-    if (typeof v === "number" || typeof v === "boolean") return String(v)
-    return JSON.stringify(v)
-}
+// Seções da anamnese que produzem texto legível, na ordem do snapshot.
+// Reusa `formatarSecaoLegivel` (fonte única, mesma do drawer Ver e do PDF —
+// briefing 2026-06-09_008): string vazia = seção sem conteúdo, omitida.
+const secoesAnamnese = computed(() => {
+    const evo = evolucaoMaisAntiga.value
+    if (!evo) return []
+    return evo.modeloSnapshot
+        .map(secao => ({
+            chave: secao.chave,
+            titulo: secao.titulo,
+            texto: formatarSecaoLegivel(secao.chave, evo.conteudo[secao.chave]),
+        }))
+        .filter(s => s.texto.length > 0)
+})
 
 // ─── Status helpers de orçamento ───────────────────────────────────────────
 function orcStatusLabel(s: string): string {
@@ -717,15 +725,22 @@ function orcStatusClass(s: string): string {
                         </template>
                     </AppEmptyState>
 
-                    <div v-else class="anamn-grid">
+                    <div v-else-if="secoesAnamnese.length" class="anamn-grid">
                         <div
-                            v-for="secao in evolucaoMaisAntiga.modeloSnapshot" :key="secao.chave"
+                            v-for="secao in secoesAnamnese" :key="secao.chave"
                             class="pd-card an-card"
                         >
                             <h4><i class="fa-solid fa-circle-dot"></i> {{ secao.titulo }}</h4>
-                            <p>{{ valorSecao(secao.chave, evolucaoMaisAntiga.conteudo) || "—" }}</p>
+                            <p>{{ secao.texto }}</p>
                         </div>
                     </div>
+
+                    <AppEmptyState
+                        v-else
+                        icone="🩺"
+                        titulo="Anamnese sem seções preenchidas"
+                        descricao="A primeira evolução não tem seções com conteúdo para exibir."
+                    />
                 </section>
 
                 <!-- Orçamentos -->

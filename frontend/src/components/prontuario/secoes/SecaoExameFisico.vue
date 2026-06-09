@@ -641,13 +641,13 @@ onMounted(async () => {
                         <div class="pa-row">
                             <AppInput
                                 :model-value="modelValue.paSistolica ?? ''" type="number"
-                                placeholder="120" :disabled="readOnly" class="text-center"
+                                placeholder="—" :disabled="readOnly" class="text-center"
                                 @update:model-value="v => atualizar({ paSistolica: String(v) })"
                             />
                             <span class="pa-sep">/</span>
                             <AppInput
                                 :model-value="modelValue.paDiastolica ?? ''" type="number"
-                                placeholder="80" :disabled="readOnly" class="text-center"
+                                placeholder="—" :disabled="readOnly" class="text-center"
                                 @update:model-value="v => atualizar({ paDiastolica: String(v) })"
                             />
                         </div>
@@ -655,35 +655,35 @@ onMounted(async () => {
                     <AppField label="FC (bpm)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.fc ?? ''" type="number"
-                            placeholder="72" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ fc: String(v) })"
                         />
                     </AppField>
                     <AppField label="FR (irpm)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.fr ?? ''" type="number"
-                            placeholder="16" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ fr: String(v) })"
                         />
                     </AppField>
                     <AppField label="Temp. (°C)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.temperatura ?? ''" type="number" step="0.1"
-                            placeholder="36.5" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ temperatura: String(v) })"
                         />
                     </AppField>
                     <AppField label="SpO₂ (%)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.spo2 ?? ''" type="number" min="0" max="100"
-                            placeholder="98" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ spo2: String(v) })"
                         />
                     </AppField>
                     <AppField label="Glicemia (mg/dL)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.glicemia ?? ''" type="number"
-                            placeholder="95" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ glicemia: String(v) })"
                         />
                     </AppField>
@@ -717,14 +717,14 @@ onMounted(async () => {
                     <AppField label="Peso (kg)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.peso ?? ''" type="number" step="0.1"
-                            placeholder="70.5" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ peso: String(v) })"
                         />
                     </AppField>
                     <AppField label="Altura (cm ou m)" label-variant="compact">
                         <AppInput
                             :model-value="modelValue.altura ?? ''" type="number" step="0.01"
-                            placeholder="170 ou 1.70" :disabled="readOnly"
+                            placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ altura: String(v) })"
                         />
                     </AppField>
