@@ -67,4 +67,76 @@ describe("RegionExamCard", () => {
         })
         expect(wrapper.html()).toContain("Direito")
     })
+
+    // CA20 — badge de vista
+    it("CA20 — exibe badge de vista 'Circunferencial' quando vista = circunferencial", () => {
+        const wrapper = mount(RegionExamCard, {
+            props: {
+                regiao: { ...regiaoBase, regiao_id: "torax-circunferencial", caminho: "Tórax (circunferencial)", vista: 'circunferencial' as const },
+                index: 0,
+                open: true,
+            },
+        })
+        expect(wrapper.html()).toContain("Circunferencial")
+    })
+
+    it("CA20 — exibe badge de vista 'Anterior' quando vista = anterior", () => {
+        const wrapper = mount(RegionExamCard, {
+            props: {
+                regiao: { ...regiaoBase, vista: 'anterior' as const },
+                index: 0,
+                open: true,
+            },
+        })
+        expect(wrapper.html()).toContain("Anterior")
+    })
+
+    it("CA20 — exibe badge de vista 'Posterior' quando vista = posterior", () => {
+        const wrapper = mount(RegionExamCard, {
+            props: {
+                regiao: { ...regiaoBase, vista: 'posterior' as const },
+                index: 0,
+                open: true,
+            },
+        })
+        expect(wrapper.html()).toContain("Posterior")
+    })
+
+    // CA21 — membro circunferencial: badge de lado + badge de vista
+    it("CA21 — membro circunferencial: exibe badge de lado (Direito) E badge de vista (Circunferencial)", () => {
+        const wrapper = mount(RegionExamCard, {
+            props: {
+                regiao: {
+                    ...regiaoBase,
+                    regiao_id: "msd-circunferencial",
+                    caminho: "Membro superior direito (circunferencial)",
+                    lateralidade: 'D' as const,
+                    vista: 'circunferencial' as const,
+                },
+                index: 0,
+                open: true,
+            },
+        })
+        const html = wrapper.html()
+        expect(html).toContain("Direito")
+        expect(html).toContain("Circunferencial")
+    })
+
+    it("CA20 — sem vista: nenhuma badge de vista exibida", () => {
+        const wrapper = mount(RegionExamCard, {
+            props: {
+                regiao: { ...regiaoBase, vista: null },
+                index: 0,
+                open: true,
+            },
+        })
+        // Texto "Anterior", "Posterior", "Circunferencial" não devem aparecer como badge
+        // (podem aparecer no texto do textarea, mas aqui o regiaoBase.texto_exame = "Normal.")
+        const html = wrapper.html()
+        // Verificar que o label de vista não aparece no cabeçalho
+        const header = wrapper.find('.rec-header')
+        expect(header.html()).not.toContain("Anterior")
+        expect(header.html()).not.toContain("Posterior")
+        expect(header.html()).not.toContain("Circunferencial")
+    })
 })

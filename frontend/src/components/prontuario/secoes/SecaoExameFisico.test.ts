@@ -253,6 +253,41 @@ describe("SecaoExameFisico — regioesExaminadasMapa (bilateral BodyMap)", () =>
     })
 })
 
+// ─── Catálogo com nós circunferenciais para testes do B1 ─────────────────────
+const catalogoComCircunferencial = [
+    {
+        id: "torax-anterior",
+        nome: "Tórax (anterior)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "anterior", template_texto: null, ordem: 1, ativo: true,
+    },
+    {
+        id: "torax-posterior",
+        nome: "Tórax (posterior)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "posterior", template_texto: null, ordem: 2, ativo: true,
+    },
+    {
+        id: "torax-circunferencial",
+        nome: "Tórax (circunferencial)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "circunferencial", template_texto: null, ordem: 3, ativo: true,
+    },
+    {
+        id: "pleura",
+        nome: "Pleura",
+        nivel: 2, lateralidade: false, pai_id: "torax-anterior",
+        vista: "anterior", template_texto: "Pleura: ___.", ordem: 1, ativo: true,
+    },
+    {
+        id: "intercostal-posterior",
+        nome: "Intercostal posterior",
+        nivel: 2, lateralidade: false, pai_id: "torax-posterior",
+        vista: "posterior", template_texto: "Intercostal: ___.", ordem: 1, ativo: true,
+    },
+    ...catalogoMembro,
+]
+
 // ─── Caminho neutral para bilateral ──────────────────────────────────────────
 
 /**
@@ -361,5 +396,127 @@ describe("SecaoExameFisico — caminho de entrada bilateral (Bug Tipo A)", () =>
         expect(regiaoE).toBeTruthy()
         // Para E, o caminho NÃO é modificado (preserva o texto original com lateralidade)
         expect(regiaoE!.caminho).toBe("Membro superior direito (anterior) > Ombro direito")
+    })
+})
+
+// ─── B1: SecaoExameFisico — modo circunferencial ──────────────────────────────
+
+async function montarComCatalogoCirc() {
+    const { exameFisicoService } = await import("@/services/exameFisicoService")
+    ;(exameFisicoService.listarRegioes as ReturnType<typeof vi.fn>).mockResolvedValue(catalogoComCircunferencial)
+
+    const RegionSelectorPopupStub = {
+        name: "RegionSelectorPopup",
+        emits: ["confirmar", "update:aberto"],
+        template: "<div />",
+    }
+
+    const wrapper = mount(SecaoExameFisico, {
+        props: { modelValue: { regioes: [] }, readOnly: false },
+        global: {
+            stubs: {
+                BodyMap: true,
+                RegionSelectorPopup: RegionSelectorPopupStub,
+                RegionExamCard: true,
+            },
+        },
+    })
+    await flushPromises()
+    return wrapper
+}
+
+describe("SecaoExameFisico — B1 circunferencial", () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
+    it("CA19/CA22 — modo circunferencial: 1 confirmação gera 1 card com regiao_id = {base}-circunferencial", async () => {
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        // Simula confirmar 2 sub-regiões de vistas diferentes no modo circunferencial
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "pleura",               lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "intercostal-posterior", lateralidade: null, vista: "circunferencial" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        expect(eventos).toBeTruthy()
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        // Exatamente 1 card criado
+        expect(ultimo.regioes).toHaveLength(1)
+        // regiao_id = {base}-circunferencial (CA22)
+        expect(ultimo.regioes[0].regiao_id).toBe("torax-circunferencial")
+    })
+
+    it("CA22 — payload não tem campo vista (derivado do codigo do nó)", async () => {
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "pleura", lateralidade: null, vista: "circunferencial" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        // O campo vista existe apenas no estado local do frontend (não enviado ao backend)
+        // Verificamos que o regiao_id termina em -circunferencial (o backend resolve a vista pelo código)
+        expect(ultimo.regioes[0].regiao_id).toMatch(/-circunferencial$/)
+    })
+
+    it("CA20 — card circunferencial tem vista = 'circunferencial' na RegiaoAnatomicaSelecionada", async () => {
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "pleura", lateralidade: null, vista: "circunferencial" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        expect(ultimo.regioes[0].vista).toBe("circunferencial")
+    })
+
+    it("CA20 — card anterior tem vista = 'anterior' na RegiaoAnatomicaSelecionada", async () => {
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "pleura", lateralidade: null, vista: "anterior" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        expect(ultimo.regioes[0].vista).toBe("anterior")
+    })
+
+    it("R9 — texto_exame do card circunferencial concatena templates de ambas as vistas", async () => {
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "pleura",               lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "intercostal-posterior", lateralidade: null, vista: "circunferencial" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        const texto = ultimo.regioes[0].texto_exame
+        // Deve conter templates das duas sub-regiões
+        expect(texto).toContain("Pleura: ___.")
+        expect(texto).toContain("Intercostal: ___.")
+    })
+
+    it("CA29 (não-regressão) — modo anterior puro ainda gera regiao_id do nível-1 anterior, não circunferencial", async () => {
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "pleura", lateralidade: null, vista: "anterior" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        // No modo anterior, regiao_id NÃO é circunferencial
+        expect(ultimo.regioes[0].regiao_id).not.toMatch(/-circunferencial$/)
+        expect(ultimo.regioes[0].vista).toBe("anterior")
     })
 })

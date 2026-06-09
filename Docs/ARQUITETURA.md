@@ -143,9 +143,10 @@ Wave 2 entregou tabelas paralelas (`imedto_modelo_prontuario_global`, `imedto_va
 - Soft delete via `Ativo=false` (não exclui físico — preserva audit + histórico do tenant).
 
 **Hierarquia de regiões anatômicas** (`regioes_anatomicas_catalogo`):
-- Estrutura: `codigo` (PK lógico) + `pai_codigo` (FK self) + `nivel` (1-3) + `vista` (anterior/posterior).
-- Validações ao criar/editar subgrupo: `nivel = pai.nivel + 1` e `vista = pai.vista` (BusinessException 422).
+- Estrutura: `codigo` (PK lógico) + `pai_codigo` (FK self) + `nivel` (1-3) + `vista` (`anterior` | `posterior` | `circunferencial`).
+- Validações ao criar/editar subgrupo: `nivel = pai.nivel + 1` e `vista = pai.vista` (BusinessException 422). **Não se aplica aos nós circunferenciais** — são nível-1 raiz (`pai_codigo = NULL`) e não têm filhos próprios no catálogo.
 - Exclusão: só folhas (sem filhos). Região com filhos → 422 `"Esta região tem subgrupos. Inative em vez de excluir, ou remova os subgrupos primeiro."`.
+- **Vista circunferencial (briefing 2026-06-08_005 B1)**: 9 nós agregadores nível-1 (`{base}-circunferencial`) foram adicionados ao catálogo. Esses nós não têm filhos próprios nem `svg_coords` (sem hotspot no `BodyMap` em B1 — highlight é B2). A modal resolve os filhos em tempo de execução: `getFilhos("{base}-anterior") + getFilhos("{base}-posterior")`. **Exceção clínica do abdome**: `abdome-circunferencial` → ramo anterior = `abdome-anterior`, ramo posterior = `lombossacra-posterior` (não existe `abdome-posterior` no catálogo — a lombossacra é o correlato clínico posterior do abdome). O `RegiaoTreeView` do admin exibe um terceiro grupo de vista `circunferencial`.
 
 **Frontend admin:**
 - Views em `modules/admin/views/`: `ModelosGlobaisListView`, `ModelosGlobaisFormView`, `VariaveisGlobaisListView`, `VariaveisGlobaisFormView`, `RegioesGlobaisListView`, `RegioesGlobaisFormView`.

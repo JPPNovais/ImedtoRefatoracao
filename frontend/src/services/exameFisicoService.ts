@@ -30,7 +30,7 @@ export interface ExameFisicoRegiao {
     nivel: 1 | 2 | 3
     lateralidade: boolean
     pai_id: string | null   // = paiCodigo do pai
-    vista: 'anterior' | 'posterior' | 'ambos' | null
+    vista: 'anterior' | 'posterior' | 'ambos' | 'circunferencial' | null
     template_texto: string | null
     ordem: number
     ativo: boolean

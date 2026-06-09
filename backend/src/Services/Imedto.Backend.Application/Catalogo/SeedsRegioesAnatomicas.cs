@@ -355,5 +355,22 @@ public static class SeedsRegioesAnatomicas
             "Sem dor. Patrick/FABER negativo.", 1, false),
         new("processos-espinhosos-lombares", "Processos espinhosos lombares", "coluna-lombar", 3, "posterior",
             "Sem dor à palpação. Sem degraus palpáveis.", 2, false),
+
+        // === NÍVEL 1 — Vista CIRCUNFERENCIAL — nós agregadores (briefing 2026-06-08_005 B1) ===
+        // Cada nó é agregador sem filhos próprios: a modal resolve filhos em tempo de execução
+        // via getFilhos("{base}-anterior") + getFilhos("{base}-posterior").
+        // Exceção clínica: abdome-circunferencial → ramo posterior = lombossacra-posterior
+        // (não existe abdome-posterior no catálogo).
+        // svg_coords=NULL (sem hotspot no BodyMap em B1 — highlight é B2).
+        // template_texto=NULL (texto do card vem dos template_texto das sub-regiões marcadas).
+        new("cabeca-circunferencial",  "Cabeça (circunferencial)",                  null, 1, "circunferencial", null, 19, false),
+        new("pescoco-circunferencial", "Pescoço (circunferencial)",                 null, 1, "circunferencial", null, 20, false),
+        new("torax-circunferencial",   "Tórax (circunferencial)",                   null, 1, "circunferencial", null, 21, false),
+        new("abdome-circunferencial",  "Abdome (circunferencial)",                  null, 1, "circunferencial", null, 22, false),
+        new("pelve-circunferencial",   "Pelve (circunferencial)",                   null, 1, "circunferencial", null, 23, false),
+        new("msd-circunferencial",     "Membro superior direito (circunferencial)", null, 1, "circunferencial", null, 24, false),
+        new("mse-circunferencial",     "Membro superior esquerdo (circunferencial)",null, 1, "circunferencial", null, 25, false),
+        new("mid-circunferencial",     "Membro inferior direito (circunferencial)", null, 1, "circunferencial", null, 26, false),
+        new("mie-circunferencial",     "Membro inferior esquerdo (circunferencial)",null, 1, "circunferencial", null, 27, false),
     };
 }

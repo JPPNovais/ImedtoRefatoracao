@@ -6,6 +6,8 @@ export interface RegiaoExaminada {
   regiao_id: string
   caminho: string
   lateralidade: 'D' | 'E' | 'bilateral' | 'misto' | null
+  /** Vista anatômica resolvida (anterior/posterior/circunferencial). Não vai no payload de persistência. */
+  vista?: 'anterior' | 'posterior' | 'circunferencial' | null
   texto_exame: string
   achados: string
   observacoes: string
@@ -44,6 +46,14 @@ function getLateralidadeLabel(lat: string | null): string {
   if (lat === 'misto') return 'Vários lados'
   return ''
 }
+
+function getVistaLabel(vista: string | null | undefined): string {
+  if (!vista) return ''
+  if (vista === 'anterior') return 'Anterior'
+  if (vista === 'posterior') return 'Posterior'
+  if (vista === 'circunferencial') return 'Circunferencial'
+  return ''
+}
 </script>
 
 <template>
@@ -67,6 +77,12 @@ function getLateralidadeLabel(lat: string | null): string {
         class="text-[9px] border border-primary/40 rounded px-1.5 py-0.5 bg-primary/[0.08] text-primary shrink-0"
       >
         {{ getLateralidadeLabel(regiao.lateralidade) }}
+      </span>
+      <span
+        v-if="getVistaLabel(regiao.vista)"
+        class="text-[9px] border border-secondary/60 rounded px-1.5 py-0.5 bg-secondary/[0.08] text-secondary-foreground shrink-0"
+      >
+        {{ getVistaLabel(regiao.vista) }}
       </span>
       <AppButton
         v-if="!readonly"

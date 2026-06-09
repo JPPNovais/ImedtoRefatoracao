@@ -35,6 +35,8 @@ export interface RegiaoAnatomicaSelecionada {
     regiao_id: string
     caminho: string
     lateralidade: "D" | "E" | "bilateral" | "misto" | null
+    /** Vista anatômica resolvida (anterior/posterior/circunferencial). Derivada do nó do catálogo — não vai no payload de persistência. */
+    vista?: "anterior" | "posterior" | "circunferencial" | null
     texto_exame: string
     achados: string
     observacoes: string
@@ -316,8 +318,23 @@ function getAncestralComum(ids: string[]): string | null {
     return ancestral ?? getAncestorNivel1Id(ids[0])
 }
 
+/**
+ * Mapa determinístico: {base}-circunferencial → {base} (strip do sufixo).
+ * Usado para resolver o nó circunferencial a partir das sub-regiões confirmadas.
+ */
+const SUFIXO_CIRC = '-circunferencial'
+
+/**
+ * Dado o id de um nó circunferencial (ex.: 'msd-circunferencial'),
+ * retorna o nome canônico do nó buscando no catálogo.
+ */
+function getNomeCircunferencial(idCirc: string): string {
+    const no = catalogoRegioes.value.find(r => r.id === idCirc)
+    return no?.nome ?? idCirc
+}
+
 function onConfirmarRegioes(
-    selecoes: Array<{ regiaoId: string; lateralidade: "D" | "E" | "bilateral" | null }>,
+    selecoes: Array<{ regiaoId: string; lateralidade: "D" | "E" | "bilateral" | null; vista?: "anterior" | "posterior" | "circunferencial" | null }>,
 ) {
     // Defensive: confirmação sem seleções não cria card (R1/UX).
     if (selecoes.length === 0) return
@@ -332,11 +349,33 @@ function onConfirmarRegioes(
         return true
     })
 
+    // Vista resolvida: todas as seleções da confirmação têm a mesma vista (vem do popup).
+    const vistaResolvida: "anterior" | "posterior" | "circunferencial" | null = unicas[0]?.vista ?? null
+
     // R2 — texto_exame: concatenação dos templates, uma por linha, texto puro.
     const textoExame = unicas.map(sel => getTemplate(sel.regiaoId)).join("\n")
 
-    // R3 — regiao_id do card = ancestral comum mais profundo das sub-partes.
-    const regiaoId = getAncestralComum(unicas.map(s => s.regiaoId)) ?? unicas[0].regiaoId
+    let regiaoId: string
+    let caminho: string
+
+    if (vistaResolvida === "circunferencial") {
+        // R5 — modo circunferencial: regiao_id = {base}-circunferencial.
+        // Deriva o nó circunferencial a partir do ancestral nível-1 das sub-regiões.
+        // O ancestral nível-1 de uma sub-região anterior (ex.: 'torax-anterior') nos dá
+        // o base; trocamos o sufixo '-anterior'/'-posterior' por '-circunferencial'.
+        const n1Id = getAncestorNivel1Id(unicas[0].regiaoId)
+        const base = n1Id
+            ? n1Id.replace(/-anterior$/, '').replace(/-posterior$/, '')
+            : unicas[0].regiaoId.replace(/-anterior$/, '').replace(/-posterior$/, '')
+        regiaoId = `${base}${SUFIXO_CIRC}`
+        // Caminho: nome do nó circunferencial do catálogo (ex.: "Tórax (circunferencial)")
+        caminho = getNomeCircunferencial(regiaoId)
+    } else {
+        // R3 — regiao_id do card = ancestral comum mais profundo das sub-partes.
+        regiaoId = getAncestralComum(unicas.map(s => s.regiaoId)) ?? unicas[0].regiaoId
+        // Caminho do card: neutralizado quando bilateral ou misto (definido abaixo).
+        caminho = getCaminho(regiaoId)
+    }
 
     // R6 — lateralidade do card resolvida das sub-partes.
     const lats = unicas.map(s => s.lateralidade)
@@ -353,11 +392,14 @@ function onConfirmarRegioes(
         lateralidade = "misto"
     }
 
-    // R3 — caminho do card: neutralizado quando bilateral ou misto.
-    const caminhoBase = getCaminho(regiaoId)
-    const caminho = (lateralidade === "bilateral" || lateralidade === "misto")
-        ? caminhoNeutro(caminhoBase)
-        : caminhoBase
+    // Neutraliza caminho quando bilateral ou misto (não-circunferencial).
+    if (vistaResolvida !== "circunferencial" && (lateralidade === "bilateral" || lateralidade === "misto")) {
+        caminho = caminhoNeutro(caminho)
+    }
+    // Circunferencial bilateral: caminho já está neutro pelo nome do nó (sem "direito/esquerdo")
+    if (vistaResolvida === "circunferencial" && (lateralidade === "bilateral" || lateralidade === "misto")) {
+        caminho = caminhoNeutro(caminho)
+    }
 
     substituirRegioes([
         ...regioes.value,
@@ -365,6 +407,7 @@ function onConfirmarRegioes(
             regiao_id: regiaoId,
             caminho,
             lateralidade,
+            vista: vistaResolvida,
             texto_exame: textoExame,
             achados: "",
             observacoes: "",
