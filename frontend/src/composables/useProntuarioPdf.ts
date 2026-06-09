@@ -1,6 +1,7 @@
 import type { Evolucao, ProntuarioCompleto } from "@/services/prontuarioService"
 import type { Paciente } from "@/services/pacienteService"
 import { useTenantStore } from "@/stores/tenantStore"
+import { formatarSecaoLegivel } from "@/composables/useEvolucaoResumo"
 
 function dataFmt(s: string) {
     return new Date(s).toLocaleString("pt-BR")
@@ -65,29 +66,6 @@ function dataParaArquivo(iso: string): string {
     if (!Number.isFinite(d.getTime())) return "sem-data"
     const pad = (n: number) => String(n).padStart(2, "0")
     return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`
-}
-
-/**
- * Renderiza o valor textual de uma seção da evolução. O conteúdo de cada
- * seção é `unknown` no DTO — pode ser string, array, ou objeto JSON. Quando
- * é objeto, formatamos como `chave: valor` em múltiplas linhas. Vazio retorna "".
- */
-function valorParaTexto(v: unknown): string {
-    if (v == null) return ""
-    if (typeof v === "string") return v.trim()
-    if (typeof v === "number" || typeof v === "boolean") return String(v)
-    if (Array.isArray(v)) {
-        return v.map(item => valorParaTexto(item)).filter(Boolean).join("\n")
-    }
-    if (typeof v === "object") {
-        const entradas: string[] = []
-        for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-            const texto = valorParaTexto(val)
-            if (texto) entradas.push(`${k}: ${texto}`)
-        }
-        return entradas.join("\n")
-    }
-    return ""
 }
 
 export function useProntuarioPdf() {
@@ -206,7 +184,7 @@ export function useProntuarioPdf() {
             doc.text(`Por: ${evol.autorNome ?? "—"}`, left, y + 5)
 
             const seccoesPreenchidas = evol.modeloSnapshot
-                .map(s => ({ titulo: s.titulo, valor: valorParaTexto(evol.conteudo[s.chave]) }))
+                .map(s => ({ titulo: s.titulo, valor: formatarSecaoLegivel(s.chave, evol.conteudo[s.chave]) }))
                 .filter(s => s.valor.length > 0)
 
             autoTable(doc, {
@@ -332,7 +310,7 @@ export function useProntuarioPdf() {
         doc.text(`Por: ${evolucao.autorNome ?? "—"}`, left, y + 5)
 
         const seccoesPreenchidas = evolucao.modeloSnapshot
-            .map(s => ({ titulo: s.titulo, valor: valorParaTexto(evolucao.conteudo[s.chave]) }))
+            .map(s => ({ titulo: s.titulo, valor: formatarSecaoLegivel(s.chave, evolucao.conteudo[s.chave]) }))
             .filter(s => s.valor.length > 0)
 
         autoTable(doc, {

@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import { AppButton, AppDrawer, AppEmptyState } from "@/components/ui"
+import { formatarSecaoLegivel } from "@/composables/useEvolucaoResumo"
 import type { Evolucao } from "@/services/prontuarioService"
 
 const props = defineProps<{
@@ -22,36 +23,21 @@ function fmtData(iso: string) {
 }
 
 /**
- * Retorna true quando o valor de uma seção é considerado preenchido.
- * Espelha a lógica de `contarSecoesPreenchidas` em useEvolucaoResumo.ts.
+ * Seções do snapshot que produzem texto legível, na ordem original.
+ * A decisão de exibir e o texto exibido derivam de `formatarSecaoLegivel`
+ * (fonte única, mesma do PDF — briefing 2026-06-09_008, R7/R9): string vazia
+ * = seção sem conteúdo legível, omitida.
  */
-function preenchido(valor: unknown): boolean {
-    if (valor === null || valor === undefined) return false
-    if (typeof valor === "string") return valor.trim().length > 0
-    if (Array.isArray(valor)) return valor.length > 0
-    if (typeof valor === "object") {
-        return Object.values(valor as Record<string, unknown>)
-            .some(x => x !== null && x !== undefined && String(x).trim() !== "")
-    }
-    return true
-}
-
-/** Seções do snapshot com valor preenchido, na ordem original. */
 const secoesPreenchidas = computed(() => {
     if (!props.evolucao) return []
-    return props.evolucao.modeloSnapshot.filter(s =>
-        preenchido(props.evolucao!.conteudo[s.chave]),
-    )
+    return props.evolucao.modeloSnapshot
+        .map(secao => ({
+            chave: secao.chave,
+            titulo: secao.titulo,
+            texto: formatarSecaoLegivel(secao.chave, props.evolucao!.conteudo[secao.chave]),
+        }))
+        .filter(s => s.texto.length > 0)
 })
-
-/** Valor textual de uma seção para exibição. */
-function valorTexto(evolucao: Evolucao, chave: string): string {
-    const v = evolucao.conteudo[chave]
-    if (typeof v === "string") return v.trim()
-    if (Array.isArray(v)) return v.join(", ")
-    if (typeof v === "object" && v !== null) return JSON.stringify(v, null, 2)
-    return String(v ?? "")
-}
 
 const titulo = computed(() => {
     if (!props.evolucao) return "Evolução"
@@ -90,7 +76,7 @@ const titulo = computed(() => {
                     :data-test="`secao-${secao.chave}`"
                 >
                     <h3 class="ds-section-title">{{ secao.titulo }}</h3>
-                    <p class="edd-secao-conteudo">{{ valorTexto(evolucao, secao.chave) }}</p>
+                    <p class="edd-secao-conteudo">{{ secao.texto }}</p>
                 </section>
             </template>
 
