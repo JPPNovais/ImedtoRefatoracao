@@ -23,8 +23,8 @@ import {
 import RegionSelectorPopup, { type TroncoGrupos } from "@/components/exame-fisico/RegionSelectorPopup.vue"
 import RegionExamCard from "@/components/exame-fisico/RegionExamCard.vue"
 import { AppField, AppInput, AppSelect, AppTextarea } from "@/components/ui"
-import { RAMOS_CIRCUNFERENCIAL } from "@/components/exame-fisico/regioesCircunferenciais"
-import type { TroncoClique } from "@/components/exame-fisico/BodyMap.vue"
+import { RAMOS_CIRCUNFERENCIAL, PARTE_PARA_TRONCO } from "@/components/exame-fisico/regioesCircunferenciais"
+import type { TroncoClique, VistaHotspot } from "@/components/exame-fisico/BodyMap.vue"
 
 // Carregamento lazy: o mapa corporal só baixa quando a seção é montada.
 const BodyMap = defineAsyncComponent(() => import("@/components/exame-fisico/BodyMap.vue"))
@@ -261,6 +261,73 @@ const regioesExaminadasMapa = computed(() => {
         }
     }
     return Array.from(ids)
+})
+
+/**
+ * Mapa id-de-nível-1 → vista resolvida para coloração dos hotspots no BodyMap.
+ *
+ * Construído em paralelo ao regioesExaminadasMapa (mesma lógica de expansão),
+ * aplicando a precedência R4: circunferencial > posterior > anterior.
+ *
+ * Prop nova e opcional — não quebra usos legados de BodyMap nem os testes existentes.
+ */
+const PRIORIDADE_VISTA: Record<VistaHotspot, number> = {
+    circunferencial: 3,
+    posterior:       2,
+    anterior:        1,
+}
+
+function resolverVistaId(mapa: Map<string, VistaHotspot>, id: string, novaVista: VistaHotspot) {
+    const atual = mapa.get(id)
+    if (!atual || PRIORIDADE_VISTA[novaVista] > PRIORIDADE_VISTA[atual]) {
+        mapa.set(id, novaVista)
+    }
+}
+
+const vistasPorIdMapa = computed<Record<string, VistaHotspot>>(() => {
+    const mapa = new Map<string, VistaHotspot>()
+
+    for (const r of regioes.value) {
+        const vistaResolvida = (r.vista ?? null) as VistaHotspot | null
+        if (!vistaResolvida) continue
+
+        // Vista canônica para a regiao_id e seu ancestral nível-1
+        const n1 = getAncestorNivel1Id(r.regiao_id)
+        if (n1) resolverVistaId(mapa, n1, vistaResolvida)
+
+        // Espelhamento bilateral de membro: id oposto herda a mesma vista
+        if (r.lateralidade === "bilateral" && n1) {
+            const oposto = getOpostoNivel1Id(n1)
+            if (oposto) {
+                resolverVistaId(mapa, oposto, vistaResolvida)
+                // Se o oposto for circunferencial, expande seus ramos com a mesma vista
+                const ramosOposto = RAMOS_CIRCUNFERENCIAL[oposto]
+                if (ramosOposto) {
+                    resolverVistaId(mapa, ramosOposto.anterior, vistaResolvida)
+                    resolverVistaId(mapa, ramosOposto.posterior, vistaResolvida)
+                }
+            }
+        }
+
+        // Circunferencial → expande ramos anterior+posterior com vista circunferencial
+        const ramos = RAMOS_CIRCUNFERENCIAL[r.regiao_id]
+        if (ramos) {
+            resolverVistaId(mapa, ramos.anterior, 'circunferencial')
+            resolverVistaId(mapa, ramos.posterior, 'circunferencial')
+        }
+    }
+
+    // Propaga vistas das partes do tronco para as chaves virtuais usadas pelo BodyMap.
+    // 'tronco-anterior'/'tronco-posterior' são as vistaId dos pseudo-hotspots sintéticos.
+    // Aplica a mesma precedência R4 (resolverVistaId) já acumulada no mapa.
+    for (const [parteId, nomeTronco] of Object.entries(PARTE_PARA_TRONCO)) {
+        const vistaResolvida = mapa.get(parteId)
+        if (!vistaResolvida) continue
+        const vistaId = nomeTronco === 'Tronco (anterior)' ? 'tronco-anterior' : 'tronco-posterior'
+        resolverVistaId(mapa, vistaId, vistaResolvida)
+    }
+
+    return Object.fromEntries(mapa)
 })
 
 // Estado do popup
@@ -718,7 +785,7 @@ onMounted(async () => {
             </AppField>
         </div>
 
-        <!-- Mapa corporal -->
+        <!-- Grade lateral: Mapa corporal (esq) + Regiões examinadas (dir) -->
         <div v-if="!readOnly" class="subsecao">
             <h4 class="subsec-titulo">
                 Mapa corporal
@@ -726,29 +793,47 @@ onMounted(async () => {
                 <span v-else-if="erroRegioes" class="hint hint-erro">{{ erroRegioes }} Recarregue a página.</span>
                 <span v-else class="hint">clique em uma região para examinar</span>
             </h4>
-            <div class="mapa-container">
-                <BodyMap
-                    :regioes="regioesNivel1"
-                    :regioes-examinadas="regioesExaminadasMapa"
-                    :sexo="pacienteSexo"
-                    @regiao-clicada="onRegiaoClicada"
-                    @tronco-clicado="onTroncoClicado"
-                />
-            </div>
-        </div>
+            <div class="mapa-grade">
+                <!-- Coluna esquerda: SVG -->
+                <div class="mapa-col-mapa">
+                    <BodyMap
+                        :regioes="regioesNivel1"
+                        :regioes-examinadas="regioesExaminadasMapa"
+                        :vistas-por-id="vistasPorIdMapa"
+                        :sexo="pacienteSexo"
+                        @regiao-clicada="onRegiaoClicada"
+                        @tronco-clicado="onTroncoClicado"
+                    />
+                </div>
 
-        <!-- Regiões anatômicas selecionadas -->
-        <div v-if="!readOnly && regioes.length > 0" class="subsecao">
-            <h4 class="subsec-titulo">Regiões examinadas ({{ regioes.length }})</h4>
-            <RegionExamCard
-                v-for="(regiao, idx) in regioes"
-                :key="`${regiao.regiao_id}-${regiao.lateralidade ?? ''}-${idx}`"
-                :regiao="regiao"
-                :index="idx"
-                :open="true"
-                @remover="removerRegiao"
-                @atualizar="atualizarRegiao"
-            />
+                <!-- Coluna direita: cabeçalho + cards ou estado vazio -->
+                <div class="mapa-col-regioes">
+                    <div class="regioes-cabecalho">
+                        <span class="regioes-titulo">Regiões examinadas</span>
+                        <span v-if="regioes.length > 0" class="regioes-contador">{{ regioes.length }}</span>
+                    </div>
+
+                    <!-- Estado vazio estilizado (CA11) -->
+                    <div v-if="regioes.length === 0" class="regioes-vazio">
+                        <i class="fa-regular fa-map regioes-vazio-ico" />
+                        <b class="regioes-vazio-titulo">Nenhuma região examinada</b>
+                        <span class="regioes-vazio-aux">Clique em uma região do mapa corporal para registrar o exame.</span>
+                    </div>
+
+                    <!-- Cards de regiões -->
+                    <div v-else class="regioes-lista">
+                        <RegionExamCard
+                            v-for="(regiao, idx) in regioes"
+                            :key="`${regiao.regiao_id}-${regiao.lateralidade ?? ''}-${idx}`"
+                            :regiao="regiao"
+                            :index="idx"
+                            :open="true"
+                            @remover="removerRegiao"
+                            @atualizar="atualizarRegiao"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Observações gerais do exame físico -->
@@ -829,9 +914,91 @@ onMounted(async () => {
 
 .ecto-descricao { margin-top: 0.25rem; }
 
-.mapa-container { display: flex; justify-content: center; padding: 0.25rem 0; }
+/* ── Grade lateral mapa + regiões ──────────────────────────────────────── */
+.mapa-grade {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(330px, 1fr);
+    gap: 26px;
+    margin-top: 0.25rem;
+    align-items: start;
+}
+
+.mapa-col-mapa {
+    display: flex;
+    justify-content: center;
+}
+
+.mapa-col-regioes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+}
+
+/* Cabeçalho da coluna de regiões */
+.regioes-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.regioes-titulo {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--secondary) / 0.75);
+}
+
+.regioes-contador {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-bold);
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.1);
+    padding: 2px 8px;
+    border-radius: 9999px;
+    line-height: 1.4;
+}
+
+/* Estado vazio */
+.regioes-vazio {
+    border: 1px dashed hsl(var(--border));
+    border-radius: 0.75rem;
+    padding: 2rem 1.25rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: hsl(var(--secondary) / 0.5);
+}
+
+.regioes-vazio-ico {
+    font-size: var(--text-2xl);
+    opacity: 0.4;
+}
+
+.regioes-vazio-titulo {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    color: hsl(var(--secondary) / 0.6);
+}
+
+.regioes-vazio-aux {
+    font-size: var(--text-xs);
+    color: hsl(var(--secondary) / 0.45);
+    line-height: 1.45;
+}
+
+/* Lista de cards */
+.regioes-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+    max-height: 60vh;
+}
 
 @media (max-width: 900px) {
     .grade-sv, .grade-antro { grid-template-columns: 1fr 1fr; }
+    .mapa-grade { grid-template-columns: 1fr; }
 }
 </style>

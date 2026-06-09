@@ -68,8 +68,8 @@ describe("RegionExamCard", () => {
         expect(wrapper.html()).toContain("Direito")
     })
 
-    // CA20 — badge de vista
-    it("CA20 — exibe badge de vista 'Circunferencial' quando vista = circunferencial", () => {
+    // CA9/CA20 — badge de vista colorida pelo token --vista-*
+    it("CA9 — badge de vista 'Circunferencial' usa classe CSS rec-badge-vista--circunferencial", () => {
         const wrapper = mount(RegionExamCard, {
             props: {
                 regiao: { ...regiaoBase, regiao_id: "torax-circunferencial", caminho: "Tórax (circunferencial)", vista: 'circunferencial' as const },
@@ -78,9 +78,10 @@ describe("RegionExamCard", () => {
             },
         })
         expect(wrapper.html()).toContain("Circunferencial")
+        expect(wrapper.find('.rec-badge-vista--circunferencial').exists()).toBe(true)
     })
 
-    it("CA20 — exibe badge de vista 'Anterior' quando vista = anterior", () => {
+    it("CA9 — badge de vista 'Anterior' usa classe CSS rec-badge-vista--anterior", () => {
         const wrapper = mount(RegionExamCard, {
             props: {
                 regiao: { ...regiaoBase, vista: 'anterior' as const },
@@ -89,9 +90,10 @@ describe("RegionExamCard", () => {
             },
         })
         expect(wrapper.html()).toContain("Anterior")
+        expect(wrapper.find('.rec-badge-vista--anterior').exists()).toBe(true)
     })
 
-    it("CA20 — exibe badge de vista 'Posterior' quando vista = posterior", () => {
+    it("CA9 — badge de vista 'Posterior' usa classe CSS rec-badge-vista--posterior", () => {
         const wrapper = mount(RegionExamCard, {
             props: {
                 regiao: { ...regiaoBase, vista: 'posterior' as const },
@@ -100,10 +102,25 @@ describe("RegionExamCard", () => {
             },
         })
         expect(wrapper.html()).toContain("Posterior")
+        expect(wrapper.find('.rec-badge-vista--posterior').exists()).toBe(true)
+    })
+
+    // CA9 — badge de lado deve ser neutra (não usa classe de vista)
+    it("CA9 — badge de lado usa classe rec-badge-lado (neutra, sem cor de vista)", () => {
+        const wrapper = mount(RegionExamCard, {
+            props: {
+                regiao: { ...regiaoBase, lateralidade: 'bilateral' as const, vista: 'posterior' as const },
+                index: 0,
+                open: true,
+            },
+        })
+        const badgeLado = wrapper.find('.rec-badge-lado')
+        expect(badgeLado.exists()).toBe(true)
+        expect(badgeLado.text()).toBe('Bilateral')
     })
 
     // CA21 — membro circunferencial: badge de lado + badge de vista
-    it("CA21 — membro circunferencial: exibe badge de lado (Direito) E badge de vista (Circunferencial)", () => {
+    it("CA21 — membro circunferencial: exibe badge de lado (Direito) E badge de vista (Circunferencial) com cor", () => {
         const wrapper = mount(RegionExamCard, {
             props: {
                 regiao: {
@@ -117,9 +134,8 @@ describe("RegionExamCard", () => {
                 open: true,
             },
         })
-        const html = wrapper.html()
-        expect(html).toContain("Direito")
-        expect(html).toContain("Circunferencial")
+        expect(wrapper.find('.rec-badge-lado').text()).toBe('Direito')
+        expect(wrapper.find('.rec-badge-vista--circunferencial').exists()).toBe(true)
     })
 
     it("CA20 — sem vista: nenhuma badge de vista exibida", () => {
@@ -130,13 +146,10 @@ describe("RegionExamCard", () => {
                 open: true,
             },
         })
-        // Texto "Anterior", "Posterior", "Circunferencial" não devem aparecer como badge
-        // (podem aparecer no texto do textarea, mas aqui o regiaoBase.texto_exame = "Normal.")
-        const html = wrapper.html()
-        // Verificar que o label de vista não aparece no cabeçalho
+        // Verificar que o header não exibe badges de vista
         const header = wrapper.find('.rec-header')
-        expect(header.html()).not.toContain("Anterior")
-        expect(header.html()).not.toContain("Posterior")
-        expect(header.html()).not.toContain("Circunferencial")
+        expect(header.find('.rec-badge-vista--anterior').exists()).toBe(false)
+        expect(header.find('.rec-badge-vista--posterior').exists()).toBe(false)
+        expect(header.find('.rec-badge-vista--circunferencial').exists()).toBe(false)
     })
 })

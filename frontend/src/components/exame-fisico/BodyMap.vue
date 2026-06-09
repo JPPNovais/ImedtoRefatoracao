@@ -25,10 +25,20 @@ export interface ExameFisicoRegiao {
  */
 export type TroncoClique = 'tronco-anterior' | 'tronco-posterior'
 
+/** Vista resolvida de um hotspot para fins de coloração. */
+export type VistaHotspot = 'anterior' | 'posterior' | 'circunferencial'
+
 const props = defineProps<{
   regioes: ExameFisicoRegiao[]
   regioesExaminadas: string[]
   sexo?: string | null
+  /**
+   * Mapa de id de nível-1 → vista resolvida, para coloração por vista (R1–R4).
+   * Precedência circ > posterior > anterior quando um id recebe múltiplas vistas.
+   * Prop opcional — quando ausente o hotspot aceso usa a cor de anterior (comportamento
+   * de fallback não-breaking para usos legados).
+   */
+  vistasPorId?: Record<string, VistaHotspot>
 }>()
 
 const emit = defineEmits<{
@@ -77,9 +87,9 @@ const regioesComPath = computed(() =>
  * Pseudo-hotspots de tronco fundido — nós sintéticos de UI (não existem no catálogo).
  * Acendem por "OU das partes" via PARTE_PARA_TRONCO.
  */
-const TRONCO_HOTSPOTS: Array<{ nome: 'Tronco (anterior)' | 'Tronco (posterior)'; vistaId: TroncoClique }> = [
-  { nome: 'Tronco (anterior)',  vistaId: 'tronco-anterior'  },
-  { nome: 'Tronco (posterior)', vistaId: 'tronco-posterior' },
+const TRONCO_HOTSPOTS: Array<{ nome: 'Tronco (anterior)' | 'Tronco (posterior)'; vistaId: TroncoClique; vistaHotspot: VistaHotspot }> = [
+  { nome: 'Tronco (anterior)',  vistaId: 'tronco-anterior',  vistaHotspot: 'anterior'  },
+  { nome: 'Tronco (posterior)', vistaId: 'tronco-posterior', vistaHotspot: 'posterior' },
 ]
 
 const troncoHotspots = computed(() =>
@@ -93,6 +103,26 @@ const troncoHotspots = computed(() =>
     return [{ ...t, pathData, isExaminada }]
   }),
 )
+
+/** Resolve a classe de cor do hotspot aceso a partir de vistasPorId (R1–R4). */
+function classeVista(id: string): string {
+  const vista = props.vistasPorId?.[id]
+  if (vista === 'circunferencial') return 'region-selected-circ'
+  if (vista === 'posterior')       return 'region-selected-post'
+  return 'region-selected-ant'  // anterior ou ausente (fallback)
+}
+
+/**
+ * Para pseudo-hotspots de tronco: consulta vistasPorId pela chave virtual
+ * ('tronco-anterior'/'tronco-posterior') populada por SecaoExameFisico.
+ * Fallback para o campo estático vistaHotspot quando a prop está ausente.
+ */
+function classeVistaTronco(t: typeof TRONCO_HOTSPOTS[number]): string {
+  const vistaResolvida = props.vistasPorId?.[t.vistaId] ?? t.vistaHotspot
+  if (vistaResolvida === 'circunferencial') return 'region-selected-circ'
+  if (vistaResolvida === 'posterior')       return 'region-selected-post'
+  return 'region-selected-ant'
+}
 
 const hoveredNome = ref<string | null>(null)
 const hoveredGroupIds = ref<string[]>([])
@@ -154,9 +184,9 @@ function handleTroncoClick(vistaId: TroncoClique) {
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-2 max-w-2xl mx-auto w-full">
+  <div class="mapa-wrap">
     <!-- Labels -->
-    <div class="flex w-full justify-around text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4">
+    <div class="mapa-labels">
       <span>Frente (anterior)</span>
       <span>Costas (posterior)</span>
     </div>
@@ -207,7 +237,7 @@ function handleTroncoClick(vistaId: TroncoClique) {
           :class="[
             'region-hotspot',
             t.isExaminada
-              ? 'region-selected'
+              ? classeVistaTronco(t)
               : hoveredTronco === t.vistaId
                 ? 'region-hover'
                 : 'region-idle',
@@ -227,7 +257,7 @@ function handleTroncoClick(vistaId: TroncoClique) {
           :class="[
             'region-hotspot',
             regiao.isExaminada
-              ? 'region-selected'
+              ? classeVista(regiao.id)
               : hoveredGroupIds.includes(regiao.id)
                 ? 'region-hover'
                 : 'region-idle',
@@ -245,20 +275,87 @@ function handleTroncoClick(vistaId: TroncoClique) {
         v-if="hoveredNome"
         class="absolute bottom-2 left-1/2 -translate-x-1/2
                bg-popover border border-border text-popover-foreground
-               text-[11px] px-2.5 py-1 rounded-md shadow
-               pointer-events-none whitespace-nowrap z-10"
+               px-2.5 py-1 rounded-md shadow
+               pointer-events-none whitespace-nowrap z-10 tooltip-texto"
       >
         {{ hoveredNome }}
       </div>
     </div>
 
-    <p class="text-[10px] text-muted-foreground text-center">
-      Clique em uma região para registrar o exame
-    </p>
+    <!-- Legenda de vistas (CA8) -->
+    <div class="mapa-legenda" aria-label="Legenda de cores por vista">
+      <span class="legenda-item">
+        <span class="legenda-dot legenda-dot--ant" />
+        Anterior
+      </span>
+      <span class="legenda-item">
+        <span class="legenda-dot legenda-dot--post" />
+        Posterior
+      </span>
+      <span class="legenda-item">
+        <span class="legenda-dot legenda-dot--circ" />
+        Circunferencial
+      </span>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.mapa-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  /* Largura máxima reduzida para caber na coluna esquerda da grade lateral */
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.mapa-labels {
+  display: flex;
+  width: 100%;
+  justify-content: space-around;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 var(--space-4);
+}
+
+.tooltip-texto {
+  font-size: var(--text-2xs);
+}
+
+/* ── Legenda ─────────────────────────────────────────────────────────────── */
+.mapa-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  justify-content: center;
+  font-size: var(--text-xs);
+  color: hsl(var(--secondary) / 0.65);
+  margin-top: var(--space-1);
+}
+
+.legenda-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legenda-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.legenda-dot--ant  { background: hsl(var(--vista-anterior)  / 0.65); }
+.legenda-dot--post { background: hsl(var(--vista-posterior) / 0.65); }
+.legenda-dot--circ { background: hsl(var(--vista-circ)      / 0.65); }
+
+/* ── Hotspots ─────────────────────────────────────────────────────────────── */
 .region-hotspot {
   cursor: pointer;
   pointer-events: all;
@@ -277,13 +374,31 @@ function handleTroncoClick(vistaId: TroncoClique) {
   stroke-width: 1.5;
 }
 
-.region-selected {
-  fill: hsl(var(--primary) / 0.28);
-  stroke: hsl(var(--primary));
+/* Cor por vista (R1–R4) */
+.region-selected-ant {
+  fill: hsl(var(--vista-anterior)  / 0.34);
+  stroke: hsl(var(--vista-anterior));
   stroke-width: 2;
 }
+.region-selected-ant:hover {
+  fill: hsl(var(--vista-anterior) / 0.5);
+}
 
-.region-selected:hover {
-  fill: hsl(var(--primary) / 0.4);
+.region-selected-post {
+  fill: hsl(var(--vista-posterior) / 0.34);
+  stroke: hsl(var(--vista-posterior));
+  stroke-width: 2;
+}
+.region-selected-post:hover {
+  fill: hsl(var(--vista-posterior) / 0.5);
+}
+
+.region-selected-circ {
+  fill: hsl(var(--vista-circ) / 0.42);
+  stroke: hsl(var(--vista-circ));
+  stroke-width: 2;
+}
+.region-selected-circ:hover {
+  fill: hsl(var(--vista-circ) / 0.58);
 }
 </style>

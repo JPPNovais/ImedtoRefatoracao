@@ -174,17 +174,17 @@ describe("SecaoExameFisico", () => {
 
 /**
  * Monta o componente com catálogo completo (incluindo o nível-1 esquerdo) e
- * com um BodyMapStub que captura o prop `regioesExaminadas` — único jeito de
- * inspecionar o computed sem expô-lo via defineExpose.
+ * com um BodyMapStub que captura os props `regioesExaminadas` e `vistasPorId` —
+ * único jeito de inspecionar os computeds sem expô-los via defineExpose.
  */
-async function montarParaMapa(regioes: RegiaoAnatomicaSelecionada[]) {
+async function montarParaMapa(regioes: RegiaoAnatomicaSelecionada[], catalogo = catalogoMembro) {
     const { exameFisicoService } = await import("@/services/exameFisicoService")
-    ;(exameFisicoService.listarRegioes as ReturnType<typeof vi.fn>).mockResolvedValue(catalogoMembro)
+    ;(exameFisicoService.listarRegioes as ReturnType<typeof vi.fn>).mockResolvedValue(catalogo)
 
     // Stub capturável: expõe o prop recebido como dado da instância
     const BodyMapStub = {
         name: "BodyMap",
-        props: ["regioes", "regioesExaminadas", "sexo"],
+        props: ["regioes", "regioesExaminadas", "vistasPorId", "sexo"],
         template: "<div />",
     }
 
@@ -250,6 +250,240 @@ describe("SecaoExameFisico — regioesExaminadasMapa (bilateral BodyMap)", () =>
 
         expect(regioesExaminadas).toContain("membro-superior-direito-anterior")
         expect(regioesExaminadas).not.toContain("membro-superior-esquerdo-anterior")
+    })
+})
+
+// ─── vistasPorIdMapa (coloração por vista no BodyMap) — CA3–CA7 ───────────────
+
+const catalogoCircPropagacao = [
+    {
+        id: "membro-superior-direito-anterior",
+        nome: "Membro superior direito (anterior)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "anterior", template_texto: null, ordem: 1, ativo: true,
+    },
+    {
+        id: "membro-superior-esquerdo-anterior",
+        nome: "Membro superior esquerdo (anterior)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "anterior", template_texto: null, ordem: 2, ativo: true,
+    },
+    {
+        id: "membro-superior-direito-posterior",
+        nome: "Membro superior direito (posterior)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "posterior", template_texto: null, ordem: 3, ativo: true,
+    },
+    {
+        id: "membro-superior-esquerdo-posterior",
+        nome: "Membro superior esquerdo (posterior)",
+        nivel: 1, lateralidade: false, pai_id: null,
+        vista: "posterior", template_texto: null, ordem: 4, ativo: true,
+    },
+    {
+        id: "ombro-direito",
+        nome: "Ombro direito",
+        nivel: 2, lateralidade: false,
+        pai_id: "membro-superior-direito-anterior",
+        vista: "anterior", template_texto: null, ordem: 1, ativo: true,
+    },
+]
+
+describe("SecaoExameFisico — vistasPorIdMapa (CA3–CA7)", () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
+    it("CA3 — entrada anterior: id nível-1 mapeado para 'anterior' no vistasPorId", async () => {
+        const wrapper = await montarParaMapa([
+            {
+                regiao_id: "ombro-direito",
+                caminho: "Membro superior direito (anterior) > Ombro direito",
+                lateralidade: "D",
+                vista: "anterior",
+                texto_exame: "", achados: "", observacoes: "",
+                timestamp: new Date().toISOString(),
+            },
+        ], catalogoCircPropagacao)
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const vistasPorId = bodyMap.props("vistasPorId") as Record<string, string>
+        expect(vistasPorId["membro-superior-direito-anterior"]).toBe("anterior")
+    })
+
+    it("CA4 — entrada posterior: id nível-1 mapeado para 'posterior'", async () => {
+        const wrapper = await montarParaMapa([
+            {
+                regiao_id: "membro-superior-direito-posterior",
+                caminho: "Membro superior direito (posterior)",
+                lateralidade: "D",
+                vista: "posterior",
+                texto_exame: "", achados: "", observacoes: "",
+                timestamp: new Date().toISOString(),
+            },
+        ], catalogoCircPropagacao)
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const vistasPorId = bodyMap.props("vistasPorId") as Record<string, string>
+        expect(vistasPorId["membro-superior-direito-posterior"]).toBe("posterior")
+    })
+
+    it("CA6 — bilateral anterior: ambos os membros mapeados para 'anterior'", async () => {
+        const wrapper = await montarParaMapa([
+            {
+                regiao_id: "ombro-direito",
+                caminho: "Membro superior (anterior) > Ombro",
+                lateralidade: "bilateral",
+                vista: "anterior",
+                texto_exame: "", achados: "", observacoes: "",
+                timestamp: new Date().toISOString(),
+            },
+        ], catalogoCircPropagacao)
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const vistasPorId = bodyMap.props("vistasPorId") as Record<string, string>
+        expect(vistasPorId["membro-superior-direito-anterior"]).toBe("anterior")
+        expect(vistasPorId["membro-superior-esquerdo-anterior"]).toBe("anterior")
+    })
+
+    it("CA5 — torax-circunferencial popula 'tronco-anterior' e 'tronco-posterior' com 'circunferencial' no vistasPorId", async () => {
+        const wrapper = await montarParaMapa([
+            {
+                regiao_id: "torax-circunferencial",
+                caminho: "Tórax (circunferencial)",
+                lateralidade: null,
+                vista: "circunferencial",
+                texto_exame: "", achados: "", observacoes: "",
+                timestamp: new Date().toISOString(),
+            },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ], catalogoComCircunferencial as any)
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const vistasPorId = bodyMap.props("vistasPorId") as Record<string, string>
+        expect(vistasPorId["tronco-anterior"]).toBe("circunferencial")
+        expect(vistasPorId["tronco-posterior"]).toBe("circunferencial")
+    })
+
+    it("CA7 — precedência R4: circunferencial vence anterior no mesmo id", async () => {
+        const { exameFisicoService } = await import("@/services/exameFisicoService")
+        ;(exameFisicoService.listarRegioes as ReturnType<typeof vi.fn>).mockResolvedValue(catalogoCircPropagacao)
+
+        const BodyMapStub = {
+            name: "BodyMap",
+            props: ["regioes", "regioesExaminadas", "vistasPorId", "sexo"],
+            template: "<div />",
+        }
+
+        const wrapper = mount(SecaoExameFisico, {
+            props: {
+                modelValue: {
+                    regioes: [
+                        // Mesmo id nível-1 recebe duas entradas: uma anterior, outra circunferencial
+                        {
+                            regiao_id: "ombro-direito",
+                            caminho: "Membro superior direito (anterior) > Ombro direito",
+                            lateralidade: "D",
+                            vista: "anterior",
+                            texto_exame: "", achados: "", observacoes: "",
+                            timestamp: new Date().toISOString(),
+                        },
+                        {
+                            regiao_id: "ombro-direito",
+                            caminho: "Membro superior (circunferencial) > Ombro",
+                            lateralidade: "D",
+                            vista: "circunferencial",
+                            texto_exame: "", achados: "", observacoes: "",
+                            timestamp: new Date().toISOString(),
+                        },
+                    ],
+                },
+                readOnly: false,
+            },
+            global: {
+                stubs: { BodyMap: BodyMapStub, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        await flushPromises()
+
+        const bodyMap = wrapper.findComponent({ name: "BodyMap" })
+        const vistasPorId = bodyMap.props("vistasPorId") as Record<string, string>
+        // circunferencial tem prioridade 3 > anterior 1
+        expect(vistasPorId["membro-superior-direito-anterior"]).toBe("circunferencial")
+    })
+})
+
+// ─── Layout lateral — CA1, CA10, CA11 ────────────────────────────────────────
+
+describe("SecaoExameFisico — layout lateral (CA1, CA10, CA11)", () => {
+    beforeEach(() => { vi.clearAllMocks() })
+
+    it("CA10 — contador aparece quando há regiões examinadas (N ≥ 1)", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: {
+                modelValue: {
+                    regioes: [{
+                        regiao_id: "cabeca-anterior", caminho: "Cabeça (anterior)",
+                        lateralidade: null, texto_exame: "", achados: "", observacoes: "",
+                        timestamp: new Date().toISOString(),
+                    }],
+                },
+                readOnly: false,
+            },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        expect(wrapper.find(".regioes-contador").exists()).toBe(true)
+        expect(wrapper.find(".regioes-contador").text()).toBe("1")
+    })
+
+    it("CA10 — contador não aparece quando N = 0", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: { regioes: [] }, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        expect(wrapper.find(".regioes-contador").exists()).toBe(false)
+    })
+
+    it("CA11 — estado vazio exibido quando nenhuma região examinada", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: { regioes: [] }, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        expect(wrapper.find(".regioes-vazio").exists()).toBe(true)
+        expect(wrapper.find(".regioes-vazio-titulo").text()).toContain("Nenhuma região examinada")
+    })
+
+    it("CA11 — estado vazio não aparece quando há regiões", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: {
+                modelValue: {
+                    regioes: [{
+                        regiao_id: "cabeca-anterior", caminho: "Cabeça (anterior)",
+                        lateralidade: null, texto_exame: "", achados: "", observacoes: "",
+                        timestamp: new Date().toISOString(),
+                    }],
+                },
+                readOnly: false,
+            },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        expect(wrapper.find(".regioes-vazio").exists()).toBe(false)
+    })
+
+    it("CA1 — grade lateral existe no DOM quando !readOnly", () => {
+        const wrapper = mount(SecaoExameFisico, {
+            props: { modelValue: {}, readOnly: false },
+            global: {
+                stubs: { BodyMap: true, RegionSelectorPopup: true, RegionExamCard: true },
+            },
+        })
+        expect(wrapper.find(".mapa-grade").exists()).toBe(true)
     })
 })
 

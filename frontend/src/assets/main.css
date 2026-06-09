@@ -123,6 +123,14 @@
     /* letter-spacing — apenas para títulos */
     --tracking-title:   -0.015em;  /* título de página (30px)   */
     --tracking-section: -0.01em;   /* título de seção (21px)     */
+
+    /* ═══ Cores de vista anatômica — Exame físico (briefing 2026-06-09_007) ═══ */
+    /* Canais HSL pra uso em hsl(var(--vista-*)) ou hsl(var(--vista-*) / alpha).  */
+    /* Semântica: identifica a vista do hotspot SVG aceso no BodyMap.             */
+    --vista-anterior:  217 91% 60%;  /* azul   — vista frontal                  */
+    --vista-posterior: 262 70% 56%;  /* violeta — vista dorsal                  */
+    --vista-circ:       35 92% 50%;  /* âmbar  — vista circunferencial          */
+    --vista-circ-text:  28 80% 38%;  /* âmbar escurecido — texto sobre fundo claro */
 }
 
 .dark {
@@ -172,6 +180,12 @@
     --shadow-lg: 0 12px 32px -10px rgba(0,0,0,.55);
 
     --c-primary-dark: hsl(var(--primary-dark));
+
+    /* Vistas anatômicas no dark mode — ligeiramente mais claras para contraste */
+    --vista-anterior:  217 91% 68%;
+    --vista-posterior: 262 70% 66%;
+    --vista-circ:       35 92% 58%;
+    --vista-circ-text:  35 85% 48%;  /* âmbar médio — texto sobre fundo dark com alpha */
 }
 
 /* ========================================================================== */

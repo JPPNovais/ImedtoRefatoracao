@@ -65,22 +65,29 @@ function getVistaLabel(vista: string | null | undefined): string {
       :class="{ 'rec-header--open': isOpen }"
       @click="isOpen = !isOpen; emit('update:open', isOpen)"
     >
+      <!-- Ícone de região anatômica -->
+      <span class="rec-ico shrink-0" aria-hidden="true">
+        <i class="fa-solid fa-stethoscope" />
+      </span>
       <i
-        class="fa-solid fa-chevron-down text-[8px] text-muted-foreground transition-transform"
+        class="fa-solid fa-chevron-down rec-chevron transition-transform shrink-0"
         :class="{ 'rotate-180': isOpen }"
       />
-      <span class="text-[11px] font-medium text-foreground flex-1 truncate">
+      <span class="rec-titulo flex-1 truncate">
         {{ regiao.caminho }}
       </span>
+      <!-- Badge de lado — neutra (R5) -->
       <span
         v-if="regiao.lateralidade"
-        class="text-[9px] border border-primary/40 rounded px-1.5 py-0.5 bg-primary/[0.08] text-primary shrink-0"
+        class="rec-badge rec-badge-lado shrink-0"
       >
         {{ getLateralidadeLabel(regiao.lateralidade) }}
       </span>
+      <!-- Badge de vista — colorida por --vista-* (R5) -->
       <span
         v-if="getVistaLabel(regiao.vista)"
-        class="text-[9px] border border-secondary/60 rounded px-1.5 py-0.5 bg-secondary/[0.08] text-secondary-foreground shrink-0"
+        class="rec-badge shrink-0"
+        :class="`rec-badge-vista--${regiao.vista}`"
       >
         {{ getVistaLabel(regiao.vista) }}
       </span>
@@ -91,7 +98,7 @@ function getVistaLabel(vista: string | null | undefined): string {
         class="h-5 w-5 p-0 text-muted-foreground hover:text-destructive shrink-0"
         @click.stop="emit('remover', index)"
       >
-        <i class="fa-solid fa-xmark text-[10px]" />
+        <i class="fa-solid fa-xmark rec-xmark" />
       </AppButton>
     </button>
 
@@ -141,5 +148,65 @@ function getVistaLabel(vista: string | null | undefined): string {
 }
 .rec-header--open {
   border-bottom: 1px solid hsl(var(--secondary) / 0.06);
+}
+
+/* Ícone circular da região */
+.rec-ico {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md, 6px);
+  background: hsl(var(--primary) / 0.10);
+  color: hsl(var(--primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+}
+
+.rec-chevron {
+  font-size: var(--text-2xs);
+  color: hsl(var(--muted-foreground));
+}
+
+.rec-titulo {
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: hsl(var(--foreground));
+}
+
+.rec-xmark {
+  font-size: var(--text-2xs);
+}
+
+/* Badges */
+.rec-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-bold);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.01em;
+}
+
+/* Badge de lado — neutra */
+.rec-badge-lado {
+  background: hsl(var(--secondary) / 0.07);
+  color: hsl(var(--secondary) / 0.7);
+}
+
+/* Badges de vista — coloridas pelos tokens de vista (R5) */
+.rec-badge-vista--anterior {
+  background: hsl(var(--vista-anterior)  / 0.13);
+  color: hsl(var(--vista-anterior));
+}
+.rec-badge-vista--posterior {
+  background: hsl(var(--vista-posterior) / 0.13);
+  color: hsl(var(--vista-posterior));
+}
+.rec-badge-vista--circunferencial {
+  background: hsl(var(--vista-circ) / 0.16);
+  color: hsl(var(--vista-circ-text));
 }
 </style>
