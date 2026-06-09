@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
-    AppButton, AppEmptyState, AppToast,
+    AppButton, AppEmptyState, AppToast, AppPagination,
 } from "@/components/ui"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import PacienteTermosTab from "@/components/termos/PacienteTermosTab.vue"
@@ -16,6 +16,14 @@ import { agendaService, type Agendamento } from "@/services/agendaService"
 import { resolverTag } from "@/constants/pacienteTags"
 import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
+import { documentoService, type DocumentoResumo, type TipoDocumento } from "@/services/documentoService"
+import { useReceitaPdf } from "@/composables/useReceitaPdf"
+import { useAtestadoPdf } from "@/composables/useAtestadoPdf"
+import { usePedidoExamePdf } from "@/composables/usePedidoExamePdf"
+import { receitaService } from "@/services/receitaService"
+import { atestadoService } from "@/services/atestadoService"
+import { pedidoExameService } from "@/services/pedidoExameService"
+import { useDebouncedRef } from "@/composables/useDebouncedRef"
 
 /**
  * Tela de detalhe de paciente. Header sticky com avatar grande, alertas
@@ -38,7 +46,7 @@ const paciente = ref<Paciente | null>(null)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
 
-type Aba = "resumo" | "prontuario" | "anamnese" | "orcamentos" | "financeiro" | "convenios" | "termos" | "anexos"
+type Aba = "resumo" | "prontuario" | "anamnese" | "orcamentos" | "financeiro" | "convenios" | "termos" | "documentos" | "anexos"
 const aba = ref<Aba>("resumo")
 
 // Toast.
@@ -58,6 +66,136 @@ const carregandoOrc = ref(false)
 
 const anexos = ref<Anexo[]>([])
 const carregandoAnexos = ref(false)
+
+// ─── Aba Documentos ────────────────────────────────────────────────────────
+const documentos = ref<DocumentoResumo[]>([])
+// total SEM filtro — usado pelo badge da aba; nunca sobrescrito enquanto houver filtro ativo
+const totalDocumentosPaciente = ref(0)
+// total da request atual — usado pela paginação; reflete o filtro corrente
+const totalDocumentosFiltrado = ref(0)
+const paginaDocumentos = ref(1)
+const tamDocumentos = ref(20)
+const carregandoDocs = ref(false)
+const erroDocumentos = ref<string | null>(null)
+
+// Filtros
+const filtroTipoDoc = ref<TipoDocumento | "">("")
+const filtroDataInicio = ref("")
+const filtroDataFim = ref("")
+const buscaDocInput = ref("")
+const buscaDocDebounced = useDebouncedRef(buscaDocInput, 300)
+
+// Qual documento está sendo gerado (PDF): identificador único tipo+id para evitar colisão entre tipos
+const documentoSendoGerado = ref<string | null>(null)
+
+const { gerarPdf: gerarPdfReceita }     = useReceitaPdf()
+const { gerarPdf: gerarPdfAtestado }    = useAtestadoPdf()
+const { gerarPdf: gerarPdfPedidoExame } = usePedidoExamePdf()
+
+async function carregarDocumentos(pagina = paginaDocumentos.value) {
+    carregandoDocs.value = true
+    erroDocumentos.value = null
+    try {
+        const resultado = await documentoService.listarDoPaciente(pacienteId.value, {
+            tipo: filtroTipoDoc.value || null,
+            dataInicio: filtroDataInicio.value || null,
+            dataFim: filtroDataFim.value || null,
+            busca: buscaDocDebounced.value || null,
+            pagina,
+            tamanho: tamDocumentos.value,
+        })
+        documentos.value = resultado.itens
+        totalDocumentosFiltrado.value = resultado.total
+        // só atualiza o total real do paciente quando não há filtro ativo
+        if (!temFiltroDoc.value) {
+            totalDocumentosPaciente.value = resultado.total
+        }
+        paginaDocumentos.value = resultado.pagina
+        abasCarregadas.add("documentos")
+    } catch (e: any) {
+        erroDocumentos.value = e?.response?.data?.mensagem ?? "Erro ao carregar documentos."
+    } finally {
+        carregandoDocs.value = false
+    }
+}
+
+// Ao mudar filtro → reset para página 1 e recarrega
+watch([filtroTipoDoc, filtroDataInicio, filtroDataFim], () => {
+    if (aba.value !== "documentos") return
+    paginaDocumentos.value = 1
+    void carregarDocumentos(1)
+})
+
+// Ao mudar busca (debounced) → reset para página 1
+watch(buscaDocDebounced, () => {
+    if (aba.value !== "documentos") return
+    paginaDocumentos.value = 1
+    void carregarDocumentos(1)
+})
+
+// Ao mudar página/tamanho via AppPagination
+watch([paginaDocumentos, tamDocumentos], () => {
+    if (aba.value !== "documentos") return
+    void carregarDocumentos(paginaDocumentos.value)
+})
+
+function limparBuscaDoc() {
+    buscaDocInput.value = ""
+}
+
+const temFiltroDoc = computed(() =>
+    !!filtroTipoDoc.value || !!filtroDataInicio.value || !!filtroDataFim.value || !!buscaDocDebounced.value,
+)
+
+function docChaveUnica(doc: DocumentoResumo): string {
+    return `${doc.tipo}-${doc.id}`
+}
+
+/**
+ * Visualiza ou baixa o PDF de um documento clínico.
+ * Para "visualizar": abre window.open sincronicamente ao clique (evita popup blocker),
+ * busca o documento completo, gera o PDF e aponta a janela para o blob URL.
+ * Padrão idêntico a exportarPdfEvolucao.
+ */
+async function acionarDocumento(doc: DocumentoResumo, modo: "visualizar" | "download") {
+    if (!paciente.value) return
+    const chave = docChaveUnica(doc)
+    if (documentoSendoGerado.value === chave) return
+
+    documentoSendoGerado.value = chave
+    let janela: Window | null = null
+    let modoEfetivo = modo
+
+    if (modo === "visualizar") {
+        // Abre sincronicamente para evitar popup blocker (mesmo padrão de exportarPdfEvolucao)
+        janela = window.open("about:blank", "_blank")
+        if (!janela) {
+            notificar("Permita pop-ups para visualizar o PDF. Baixando como alternativa.", "info")
+            modoEfetivo = "download"
+        }
+    }
+
+    try {
+        if (doc.tipo === "Receita") {
+            const receita = await receitaService.obter(doc.id)
+            const { blobUrl } = await gerarPdfReceita(receita, paciente.value, modoEfetivo)
+            if (modoEfetivo === "visualizar" && janela && blobUrl) janela.location.href = blobUrl
+        } else if (doc.tipo === "Atestado") {
+            const atestado = await atestadoService.obter(doc.id)
+            const { blobUrl } = await gerarPdfAtestado(atestado, paciente.value, modoEfetivo)
+            if (modoEfetivo === "visualizar" && janela && blobUrl) janela.location.href = blobUrl
+        } else if (doc.tipo === "PedidoExame") {
+            const pedido = await pedidoExameService.obter(doc.id)
+            const { blobUrl } = await gerarPdfPedidoExame(pedido, paciente.value, modoEfetivo)
+            if (modoEfetivo === "visualizar" && janela && blobUrl) janela.location.href = blobUrl
+        }
+    } catch (e: any) {
+        if (janela) janela.close()
+        notificar(e?.response?.data?.mensagem ?? "Erro ao gerar documento.", "error")
+    } finally {
+        documentoSendoGerado.value = null
+    }
+}
 
 const { gerarPdfEvolucao } = useProntuarioPdf()
 const evolucaoSendoBaixada = ref<number | null>(null)
@@ -211,6 +349,7 @@ watch(aba, (a) => {
     if (a === "resumo")               void carregarResumo()
     else if (a === "prontuario" || a === "anamnese") void carregarProntuario()
     else if (a === "orcamentos")      void carregarOrcamentos()
+    else if (a === "documentos")      { if (!abasCarregadas.has("documentos")) void carregarDocumentos(1) }
     else if (a === "anexos")          void carregarAnexos()
 }, { immediate: true })
 
@@ -449,6 +588,10 @@ function orcStatusClass(s: string): string {
                     <button class="pd-tab" :class="{ active: aba === 'termos' }" @click="aba = 'termos'">
                         <i class="fa-solid fa-file-signature"></i> Termos
                     </button>
+                    <button class="pd-tab" :class="{ active: aba === 'documentos' }" @click="aba = 'documentos'">
+                        <i class="fa-solid fa-file-lines"></i> Documentos
+                        <span v-if="totalDocumentosPaciente > 0" class="badge">{{ totalDocumentosPaciente }}</span>
+                    </button>
                     <button class="pd-tab" :class="{ active: aba === 'anexos' }" @click="aba = 'anexos'">
                         <i class="fa-solid fa-paperclip"></i> Anexos
                         <span v-if="anexos.length > 0" class="badge">{{ anexos.length }}</span>
@@ -634,6 +777,150 @@ function orcStatusClass(s: string): string {
                             </div>
                         </div>
                     </div>
+                </section>
+
+                <!-- Documentos (receitas emitidas, atestados, pedidos de exame) — somente leitura -->
+                <section v-else-if="aba === 'documentos'">
+                    <div class="prontuario-head">
+                        <div>
+                            <h2>Documentos do paciente</h2>
+                            <p>Receitas, atestados e pedidos de exame emitidos. Apenas visualização.</p>
+                        </div>
+                    </div>
+
+                    <!-- Barra de filtros -->
+                    <div class="docs-filtros">
+                        <select v-model="filtroTipoDoc" class="form-input docs-select">
+                            <option value="">Todos os tipos</option>
+                            <option value="Receita">Receitas</option>
+                            <option value="Atestado">Atestados</option>
+                            <option value="PedidoExame">Pedidos de exame</option>
+                        </select>
+
+                        <input
+                            v-model="filtroDataInicio"
+                            type="date"
+                            class="form-input docs-date"
+                            placeholder="De"
+                            aria-label="Data inicial"
+                        />
+                        <input
+                            v-model="filtroDataFim"
+                            type="date"
+                            class="form-input docs-date"
+                            placeholder="Até"
+                            aria-label="Data final"
+                        />
+
+                        <div class="docs-busca-wrap">
+                            <i class="fa-solid fa-magnifying-glass docs-busca-icone"></i>
+                            <input
+                                v-model="buscaDocInput"
+                                type="text"
+                                class="form-input docs-busca"
+                                placeholder="Buscar por medicamento, exame ou atestado…"
+                                aria-label="Busca textual nos documentos"
+                            />
+                            <button
+                                v-if="buscaDocInput"
+                                class="docs-busca-limpar"
+                                aria-label="Limpar busca"
+                                @click="limparBuscaDoc"
+                            >
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p v-if="carregandoDocs" class="msg-info">Carregando…</p>
+                    <p v-else-if="erroDocumentos" class="msg-erro">{{ erroDocumentos }}</p>
+
+                    <template v-else>
+                        <!-- Vazio: sem documentos emitidos -->
+                        <AppEmptyState
+                            v-if="documentos.length === 0 && !temFiltroDoc"
+                            icone="📄"
+                            titulo="Nenhum documento emitido"
+                            descricao="Receitas, atestados e pedidos de exame emitidos aparecem aqui. Emita pelo prontuário do paciente."
+                        />
+
+                        <!-- Vazio: filtro sem resultado -->
+                        <AppEmptyState
+                            v-else-if="documentos.length === 0 && temFiltroDoc"
+                            icone="🔍"
+                            titulo="Nenhum documento para o filtro selecionado"
+                            descricao="Tente remover ou alterar os filtros."
+                        />
+
+                        <!-- Lista de documentos -->
+                        <div v-else class="docs-lista">
+                            <div
+                                v-for="doc in documentos"
+                                :key="docChaveUnica(doc)"
+                                class="doc-linha"
+                            >
+                                <div class="doc-tipo-col">
+                                    <span
+                                        class="doc-badge"
+                                        :class="{
+                                            'doc-badge--receita':    doc.tipo === 'Receita',
+                                            'doc-badge--atestado':   doc.tipo === 'Atestado',
+                                            'doc-badge--pedido':     doc.tipo === 'PedidoExame',
+                                        }"
+                                    >
+                                        <i
+                                            class="fa-solid"
+                                            :class="{
+                                                'fa-prescription-bottle-medical': doc.tipo === 'Receita',
+                                                'fa-file-medical':                doc.tipo === 'Atestado',
+                                                'fa-vial':                        doc.tipo === 'PedidoExame',
+                                            }"
+                                        ></i>
+                                        {{ doc.tipo === 'Receita' ? 'Receita' : doc.tipo === 'Atestado' ? 'Atestado' : 'Pedido de exame' }}
+                                    </span>
+                                </div>
+
+                                <div class="doc-info-col">
+                                    <span class="doc-titulo">{{ doc.titulo }}</span>
+                                    <span v-if="doc.profissionalNome" class="doc-prof">{{ doc.profissionalNome }}</span>
+                                </div>
+
+                                <div class="doc-data-col">
+                                    {{ fmtData(doc.data) }}
+                                </div>
+
+                                <div class="doc-acoes-col">
+                                    <button
+                                        class="btn-icon btn-icon-ver"
+                                        title="Visualizar PDF"
+                                        :disabled="documentoSendoGerado === docChaveUnica(doc)"
+                                        @click="acionarDocumento(doc, 'visualizar')"
+                                    >
+                                        <i
+                                            class="fa-solid"
+                                            :class="documentoSendoGerado === docChaveUnica(doc) ? 'fa-spinner fa-spin' : 'fa-eye'"
+                                        ></i>
+                                    </button>
+                                    <button
+                                        class="btn-icon btn-icon-editar"
+                                        title="Baixar PDF"
+                                        :disabled="documentoSendoGerado === docChaveUnica(doc)"
+                                        @click="acionarDocumento(doc, 'download')"
+                                    >
+                                        <i class="fa-solid fa-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <AppPagination
+                            v-if="totalDocumentosFiltrado > 0"
+                            v-model:pagina="paginaDocumentos"
+                            v-model:tamanho="tamDocumentos"
+                            :total="totalDocumentosFiltrado"
+                            rotulo-itens="documento(s)"
+                        />
+                    </template>
                 </section>
 
                 <!-- Anexos -->
@@ -1016,5 +1303,91 @@ function orcStatusClass(s: string): string {
     }
     .resumo-grid { grid-template-columns: 1fr; }
     .anamn-grid { grid-template-columns: 1fr; }
+    .docs-filtros { flex-wrap: wrap; }
+    .doc-linha { flex-wrap: wrap; gap: 8px; }
+    .doc-acoes-col { margin-left: 0; }
+}
+
+/* ─── Aba Documentos ──────────────────────────────────────────────────────── */
+.docs-filtros {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.docs-select {
+    min-width: 160px; max-width: 220px;
+}
+.docs-date {
+    width: 148px;
+}
+.docs-busca-wrap {
+    flex: 1; min-width: 220px;
+    position: relative; display: flex; align-items: center;
+}
+.docs-busca-icone {
+    position: absolute; left: 10px;
+    font-size: var(--text-sm); color: hsl(var(--secondary) / 0.45);
+    pointer-events: none;
+}
+.docs-busca {
+    padding-left: 30px; padding-right: 30px; width: 100%;
+}
+.docs-busca-limpar {
+    position: absolute; right: 8px;
+    background: none; border: none; cursor: pointer;
+    color: hsl(var(--secondary) / 0.5);
+    font-size: var(--text-sm);
+    display: flex; align-items: center; padding: 2px;
+}
+.docs-busca-limpar:hover { color: hsl(var(--error)); }
+
+.docs-lista {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 16px;
+}
+.doc-linha {
+    display: flex; align-items: center; gap: 12px;
+    background: hsl(var(--secondary) / 0.025);
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 8px; padding: 10px 14px;
+    transition: background 120ms;
+}
+.doc-linha:hover {
+    background: hsl(var(--secondary) / 0.04);
+}
+.doc-tipo-col { flex-shrink: 0; }
+.doc-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
+    padding: 3px 10px; border-radius: 999px;
+    white-space: nowrap;
+}
+.doc-badge--receita {
+    background: hsl(254 56% 38% / 0.1); color: hsl(254 56% 38%);
+}
+.doc-badge--atestado {
+    background: hsl(190 60% 45% / 0.1); color: hsl(190 60% 45%);
+}
+.doc-badge--pedido {
+    background: hsl(140 45% 35% / 0.1); color: hsl(140 45% 35%);
+}
+.doc-info-col {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 2px;
+}
+.doc-titulo {
+    font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
+    color: hsl(var(--primary-dark));
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-prof {
+    font-size: var(--text-xs); color: hsl(var(--secondary) / 0.6);
+}
+.doc-data-col {
+    flex-shrink: 0;
+    font-size: var(--text-sm); color: hsl(var(--secondary) / 0.7);
+    white-space: nowrap;
+}
+.doc-acoes-col {
+    flex-shrink: 0; display: flex; gap: 4px; margin-left: auto;
 }
 </style>

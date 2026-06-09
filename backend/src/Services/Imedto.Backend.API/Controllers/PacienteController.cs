@@ -197,6 +197,39 @@ public class PacienteController : ControllerBase
 
         return Ok(dados);
     }
+
+    /// <summary>
+    /// Listagem paginada e unificada dos documentos clínicos finalizados do paciente
+    /// (receitas emitidas, atestados e pedidos de exame). Somente leitura.
+    /// Audit LGPD: registra 1 acesso de leitura ao prontuário por carga.
+    /// </summary>
+    [HttpGet("{id:long}/documentos")]
+    [ProducesResponseType(typeof(PaginaDocumentosDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ListarDocumentos(
+        long id,
+        [FromQuery] string? tipo = null,
+        [FromQuery] DateTime? dataInicio = null,
+        [FromQuery] DateTime? dataFim = null,
+        [FromQuery] string? busca = null,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
+    {
+        var dto = await _requestBus.Query<ListarDocumentosDoPacienteQuery, PaginaDocumentosDto>(
+            new ListarDocumentosDoPacienteQuery
+            {
+                PacienteId = id,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                Tipo = tipo,
+                DataInicio = dataInicio,
+                DataFim = dataFim,
+                Busca = busca,
+                Pagina = pagina,
+                TamanhoPagina = tamanho,
+            });
+        return Ok(dto);
+    }
 }
 
 public record PacienteRequest(

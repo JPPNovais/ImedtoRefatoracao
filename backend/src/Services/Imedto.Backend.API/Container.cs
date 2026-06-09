@@ -476,6 +476,9 @@ public static class Container
         // Scoped: Obter/Export auditam acesso via IPacienteAcessoLogService (LGPD).
         services.AddScoped<ObterPacienteQueryHandlers>();
         services.AddScoped<ExportarDadosPacienteQueryHandlers>();
+        // Scoped: ListarDocumentos audita leitura ao prontuário via IProntuarioAcessoLogService.
+        services.AddScoped<IDocumentoQueryRepository, DocumentoQueryRepository>();
+        services.AddScoped<ListarDocumentosDoPacienteQueryHandlers>();
         services.AddScoped<PacienteCadastradoEventHandler>();
         services.AddSingleton<PacienteQueryRepository>();
 
@@ -1115,6 +1118,7 @@ public static class Container
             bus.Register<ObterPacienteStatsQuery, PacienteStatsDto, ObterPacienteStatsQueryHandler>();
             bus.Register<ObterPacienteQuery, PacienteDto, ObterPacienteQueryHandlers>();
             bus.Register<ExportarDadosPacienteQuery, PacienteExportLgpdDto, ExportarDadosPacienteQueryHandlers>();
+            bus.Register<ListarDocumentosDoPacienteQuery, PaginaDocumentosDto, ListarDocumentosDoPacienteQueryHandlers>();
             bus.Register<ListarModelosDisponiveisQuery, IEnumerable<ModeloProntuarioDto>, ListarModelosDisponiveisQueryHandlers>();
             bus.Register<ObterModeloDeProntuarioQuery, ModeloProntuarioDto, ObterModeloDeProntuarioQueryHandlers>();
             bus.Register<ListarVariaveisPoolQuery, IEnumerable<VariavelPoolDto>, ListarVariaveisPoolQueryHandlers>();

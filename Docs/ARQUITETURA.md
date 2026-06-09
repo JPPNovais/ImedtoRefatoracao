@@ -45,6 +45,10 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 - Após salvar o aggregate, handler itera `produto.DomainEvents` → `IEventBus.Publish` → `ClearDomainEvents`.
 - Nomes de tabela/coluna no Postgres em `snake_case`; `EntityTypeConfiguration` faz o mapeamento.
 
+### Leitura agregada multi-aggregate (read-side de consolidação)
+
+A regra geral é **uma query Dapper por aggregate**. A exceção é a **consolidação read-only**: uma view que precisa listar, paginada, registros de N aggregates distintos num mesmo conjunto ordenado. Nesse caso é aceitável uma query agregada que faz `UNION ALL` das tabelas de origem, com `ORDER BY` + `LIMIT/OFFSET` aplicados **sobre o conjunto unificado** (nunca paginar cada tabela isoladamente). Exemplo canônico: `GET /api/pacientes/{id}/documentos` (briefing 2026-06-09_009) — consolida receitas (`status = 'Emitida'`), atestados e pedidos de exame num DTO de resumo único. Premissas obrigatórias deste padrão: filtro `estabelecimento_id` em **todas** as sub-consultas; DTO de resumo sem PII clínica (minimização); audit de leitura registrado **uma vez por carga** via `IProntuarioAcessoLogService` quando o paciente tem prontuário (mesmo precedente de `ListarReceitasDoPacienteQueryHandlers`). O endpoint suporta ainda **busca textual por subconsulta antes do UNION** (predicado `unaccent(coluna) ILIKE unaccent('%' || @Busca || '%')` aplicado em cada aggregate individualmente — receita: itens de medicamento; atestado: tipo + conteúdo; pedido: exames + indicação clínica); a paginação continua aplicada sobre o conjunto unificado pós-filtro, e o termo de busca não é ecoado no DTO nem registrado em log (LGPD).
+
 ---
 
 ## Frontend — Vue 3 + TS + Pinia + Design System

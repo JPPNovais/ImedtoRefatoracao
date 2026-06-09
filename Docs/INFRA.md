@@ -246,6 +246,17 @@ Pepper vem de `Auth:Bcrypt:Pepper` (dev: `appsettings.Development.json`; prod: S
 
 `pg_trgm` já instalado e ativo. Usado nos índices GIN trigram em `estabelecimentos.nome_fantasia` (busca ILIKE na lista admin). Arquivo de índices CONCURRENTLY: `20260530034900_indices_admin_concurrently.sql`.
 
+### Extensões e padrão de busca textual — prontuário/documentos
+
+`unaccent` e `pg_trgm` habilitadas desde `20260509032304_InitialCreate`. A função wrapper `public.imutable_unaccent(text)` (declarada IMMUTABLE sobre `unaccent('public.unaccent', $1)`) também foi criada naquela migration e é requisito para índices expressionais GIN.
+
+**Padrão `unaccent(coluna) ILIKE unaccent('%' || @Busca || '%')`** — busca insensível a acento e caixa — usado no endpoint `GET /api/pacientes/{id}/documentos` (briefing 2026-06-09_009+addendum) sobre os campos:
+- `receita_itens.medicamento` (via `EXISTS` da sub-consulta de receitas)
+- `atestados.tipo` e `atestados.conteudo` (`OR`)
+- `pedidos_exame.indicacao_clinica` e `pedidos_exame.exames::text` (cast jsonb→text; `OR`)
+
+**Decisão de índice GIN/trigram nestas colunas: não criar.** Justificativa: a busca textual roda sempre escopo `WHERE paciente_id = $1 AND estabelecimento_id = $2`, que já é um subconjunto de dezenas de registros por paciente (não a tabela inteira). Os índices existentes `ix_atestados_paciente_criado`, `ix_pedidos_exame_paciente_criado` e `ix_receitas_paciente_emitida` reduzem o conjunto antes do ILIKE — o seqscan residual é insignificante. Índice GIN trigram sobre essas colunas não melhoraria o plano de execução neste acesso por paciente. Reavaliar se o volume de documentos por paciente superar ~500 registros ou se o endpoint aparecer em relatório de queries lentas.
+
 ### FKs e regras de deleção
 
 | FK | Regra | Justificativa |
