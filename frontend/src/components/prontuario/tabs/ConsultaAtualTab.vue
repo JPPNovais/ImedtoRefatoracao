@@ -11,7 +11,7 @@
 -->
 <script setup lang="ts">
 import { computed } from "vue"
-import { AppButton } from "@/components/ui"
+import { AppButton, AppPopover } from "@/components/ui"
 import SecaoProntuario from "@/components/prontuario/SecaoProntuario.vue"
 import type { ModeloProntuario, SecaoModelo } from "@/services/prontuarioService"
 
@@ -80,9 +80,10 @@ function scrollToSecao(chave: string) {
 
 const modeloAtual = computed(() => props.modelos.find(m => m.id === props.modeloId) ?? null)
 
-const modelosAlternativos = computed(
-    () => props.modelos.filter(m => m.id !== props.modeloId).slice(0, 6),
-)
+function selecionarModelo(id: number, fechar: () => void) {
+    if (id !== props.modeloId) emit("update:modeloId", id)
+    fechar()
+}
 </script>
 
 <template>
@@ -113,13 +114,45 @@ const modelosAlternativos = computed(
         <!-- ──── Main: módulos editáveis ──── -->
         <div class="pront-main">
             <div v-if="modeloAtual" class="pront-toolbar">
-                <div class="tpl-current" :title="modeloAtual.descricao || ''">
-                    <i class="fa-solid fa-stethoscope"></i>
-                    <div>
-                        <span class="tpl-lbl">Tipo de prontuário</span>
-                        <strong>{{ modeloAtual.nome }}</strong>
-                    </div>
-                </div>
+                <AppPopover posicao="bottom-start">
+                    <template #gatilho="{ toggle, aberto }">
+                        <button
+                            type="button"
+                            class="tpl-current"
+                            :class="{ aberto }"
+                            :title="modeloAtual.descricao || ''"
+                            @click="toggle"
+                        >
+                            <i class="fa-solid fa-stethoscope"></i>
+                            <div>
+                                <span class="tpl-lbl">Tipo de prontuário</span>
+                                <strong>{{ modeloAtual.nome }}</strong>
+                            </div>
+                            <i class="fa-solid fa-chevron-down tpl-caret"></i>
+                        </button>
+                    </template>
+                    <template #conteudo="{ fechar }">
+                        <div class="tpl-menu">
+                            <p class="tpl-menu-head">Trocar modelo · {{ modelos.length }} disponíveis</p>
+                            <button
+                                v-for="m in modelos"
+                                :key="m.id"
+                                type="button"
+                                class="tpl-menu-item"
+                                :class="{ current: m.id === modeloId }"
+                                @click="selecionarModelo(m.id, fechar)"
+                            >
+                                <i class="fa-solid fa-stethoscope"></i>
+                                <div>
+                                    <b>{{ m.nome }}</b>
+                                    <span v-if="m.descricao">{{ m.descricao }}</span>
+                                    <span v-else-if="m.ehPadraoSistema">Modelo do sistema</span>
+                                </div>
+                                <i v-if="m.id === modeloId" class="fa-solid fa-check tpl-menu-check"></i>
+                            </button>
+                        </div>
+                    </template>
+                </AppPopover>
                 <div class="pt-info">
                     <span>{{ secoes.length }} módulos</span>
                 </div>
@@ -177,35 +210,6 @@ const modelosAlternativos = computed(
                 </div>
             </div>
         </div>
-
-        <!-- ──── Sidebar direita: Modelos alternativos ──── -->
-        <aside class="mod-lib" aria-label="Modelos disponíveis">
-            <div class="mod-lib-head">
-                <h4>Trocar modelo</h4>
-                <span>{{ modelosAlternativos.length }} disponíveis</span>
-            </div>
-
-            <p v-if="modelosAlternativos.length === 0" class="mod-lib-empty">
-                Nenhum outro modelo cadastrado.
-            </p>
-            <div class="mod-lib-list">
-                <button
-                    v-for="m in modelosAlternativos"
-                    :key="m.id"
-                    type="button"
-                    class="mod-lib-item"
-                    @click="emit('update:modeloId', m.id)"
-                >
-                    <i class="fa-solid fa-stethoscope"></i>
-                    <div>
-                        <b>{{ m.nome }}</b>
-                        <span v-if="m.descricao">{{ m.descricao }}</span>
-                        <span v-else-if="m.ehPadraoSistema">Modelo do sistema</span>
-                    </div>
-                    <i class="fa-solid fa-arrow-right-arrow-left"></i>
-                </button>
-            </div>
-        </aside>
     </div>
 </template>
 
@@ -213,13 +217,12 @@ const modelosAlternativos = computed(
 /* ──── Layout 3 colunas ──── */
 .pront-grid {
     display: grid;
-    grid-template-columns: 240px 1fr 280px;
+    grid-template-columns: 240px 1fr;
     gap: 16px;
     align-items: start;
 }
 @media (max-width: 1200px) {
     .pront-grid { grid-template-columns: 220px 1fr; }
-    .mod-lib { display: none; }
 }
 @media (max-width: 900px) {
     .pront-grid { grid-template-columns: 1fr; }
@@ -285,7 +288,21 @@ const modelosAlternativos = computed(
     border: 1px solid hsl(var(--secondary) / 0.14);
     border-radius: var(--radius-md);
     font: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 150ms, box-shadow 150ms;
 }
+.tpl-current:hover { border-color: hsl(var(--primary) / 0.6); }
+.tpl-current.aberto {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+}
+.tpl-caret {
+    margin-left: 6px; font-size: 11px;
+    color: hsl(var(--secondary) / 0.5);
+    transition: transform 150ms;
+}
+.tpl-current.aberto .tpl-caret { transform: rotate(180deg); }
 .tpl-current > i:first-child {
     width: 32px; height: 32px; border-radius: 8px;
     background: hsl(var(--primary) / 0.12);
@@ -352,62 +369,48 @@ const modelosAlternativos = computed(
     padding-top: 4px;
 }
 
-/* ──── Sidebar direita: modelos alternativos ──── */
-.mod-lib {
-    background: hsl(220 20% 98%);
-    padding: 16px;
-    border: 1px solid hsl(var(--secondary) / 0.06);
-    border-radius: var(--radius-lg);
-    display: flex; flex-direction: column; gap: 12px;
-    position: sticky;
-    top: calc(var(--topbar-h, var(--top-h)) + 160px);
-    max-height: calc(100vh - var(--topbar-h, 64px) - 180px);
-    overflow-y: auto;
-}
-.mod-lib-head { display: flex; align-items: baseline; justify-content: space-between; }
-.mod-lib-head h4 {
-    font-size: 12px; font-weight: 700;
+/* ──── Dropdown "Trocar modelo" (conteúdo do AppPopover) ──── */
+.tpl-menu { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
+.tpl-menu-head {
+    font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.06em;
-    color: hsl(var(--secondary) / 0.6);
-    margin: 0;
+    color: hsl(var(--secondary) / 0.5);
+    margin: 4px 8px 6px;
 }
-.mod-lib-head span { font-size: 11px; color: hsl(var(--secondary) / 0.5); }
-.mod-lib-empty { font-size: 12px; color: hsl(var(--secondary) / 0.5); margin: 6px 4px; }
-.mod-lib-list { display: flex; flex-direction: column; gap: 8px; }
-.mod-lib-item {
+.tpl-menu-item {
     display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: white;
-    border: 1px solid hsl(var(--secondary) / 0.08);
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
     cursor: pointer;
     text-align: left; font: inherit;
     transition: all 150ms;
 }
-.mod-lib-item:hover {
-    border-color: hsl(var(--primary));
-    transform: translateX(-2px);
-    box-shadow: -4px 0 12px hsl(var(--primary) / 0.1);
+.tpl-menu-item:hover { background: hsl(var(--primary) / 0.05); }
+.tpl-menu-item.current {
+    background: hsl(var(--primary) / 0.08);
+    border-color: hsl(var(--primary) / 0.25);
 }
-.mod-lib-item > i:first-child {
+.tpl-menu-item > i:first-child {
     width: 28px; height: 28px; border-radius: 6px;
     background: hsl(var(--primary) / 0.1);
     color: hsl(var(--primary));
     display: inline-flex; align-items: center; justify-content: center;
     flex-shrink: 0; font-size: 12px;
 }
-.mod-lib-item > div { flex: 1; min-width: 0; }
-.mod-lib-item b {
+.tpl-menu-item > div { flex: 1; min-width: 0; }
+.tpl-menu-item b {
     display: block; font-size: 12px;
     color: hsl(var(--primary-dark));
     font-weight: 600;
 }
-.mod-lib-item span {
-    display: block; font-size: 11px;
+.tpl-menu-item span {
+    font-size: 11px;
     color: hsl(var(--secondary) / 0.6);
     line-height: 1.3;
     overflow: hidden; text-overflow: ellipsis;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.mod-lib-item > i:last-child { color: hsl(var(--primary) / 0.5); font-size: 11px; }
+.tpl-menu-check { color: hsl(var(--primary)); font-size: 12px; flex-shrink: 0; }
 </style>

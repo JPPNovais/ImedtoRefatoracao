@@ -45,7 +45,11 @@ const estilo = ref<{ top: string; left: string }>({ top: "0px", left: "0px" })
 function calcularPosicao() {
     if (!gatilhoRef.value || !painelRef.value) return
 
-    const rect  = gatilhoRef.value.getBoundingClientRect()
+    // O host tem display:contents (sem caixa própria) → seu próprio
+    // getBoundingClientRect retorna zeros. Medir o 1º elemento filho real,
+    // que é o gatilho de fato renderizado pelo slot.
+    const alvo = gatilhoRef.value.firstElementChild ?? gatilhoRef.value
+    const rect  = alvo.getBoundingClientRect()
     const painel = painelRef.value.getBoundingClientRect()
     const vw = window.innerWidth
     const vh = window.innerHeight
