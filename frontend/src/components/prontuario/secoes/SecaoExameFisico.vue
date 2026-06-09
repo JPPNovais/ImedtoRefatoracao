@@ -917,7 +917,7 @@ onMounted(async () => {
 /* ── Grade lateral mapa + regiões ──────────────────────────────────────── */
 .mapa-grade {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(330px, 1fr);
+    grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
     gap: 26px;
     margin-top: 0.25rem;
     align-items: start;

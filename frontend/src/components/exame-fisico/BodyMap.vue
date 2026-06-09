@@ -307,7 +307,7 @@ function handleTroncoClick(vistaId: TroncoClique) {
   align-items: center;
   gap: var(--space-2);
   /* Largura máxima reduzida para caber na coluna esquerda da grade lateral */
-  max-width: 480px;
+  max-width: 500px;
   width: 100%;
   margin: 0 auto;
 }
