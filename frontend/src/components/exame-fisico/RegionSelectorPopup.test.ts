@@ -161,21 +161,31 @@ function montarPopupNaoMembro(opts: {
 }
 
 // Helpers para avançar passos
+// O segmented control agora são botões .rsp-seg-btn nativos.
+// Avançar = clicar no botão com o texto correspondente ao valor.
+
+const LABEL_LADO: Record<string, string> = { D: "Direito", E: "Esquerdo", bilateral: "Ambos" }
+const LABEL_VISTA: Record<string, string> = { anterior: "Anterior", posterior: "Posterior", circunferencial: "Circunferencial" }
+
 async function avancarLado(wrapper: ReturnType<typeof mount>, lado: string) {
-    await wrapper.findComponent({ name: "AppPillToggle" }).vm.$emit("update:modelValue", lado)
+    const btn = wrapper.findAll("button.rsp-seg-btn").find(b => b.text().trim() === LABEL_LADO[lado])
+    if (!btn) throw new Error(`Botão de lado "${LABEL_LADO[lado]}" não encontrado`)
+    await btn.trigger("click")
     await wrapper.vm.$nextTick()
 }
 
 async function avancarVistaMembro(wrapper: ReturnType<typeof mount>, vista: string) {
-    // Após escolher lado, está no passo 'vista'
-    const pillToggles = wrapper.findAllComponents({ name: "AppPillToggle" })
-    // O único AppPillToggle visível agora é o de vista
-    await pillToggles[pillToggles.length - 1].vm.$emit("update:modelValue", vista)
+    // No passo 'vista', os botões de plano têm a classe rsp-seg-btn
+    const btn = wrapper.findAll("button.rsp-seg-btn").find(b => b.text().trim() === LABEL_VISTA[vista])
+    if (!btn) throw new Error(`Botão de vista "${LABEL_VISTA[vista]}" não encontrado`)
+    await btn.trigger("click")
     await wrapper.vm.$nextTick()
 }
 
 async function avancarVistaNaoMembro(wrapper: ReturnType<typeof mount>, vista: string) {
-    await wrapper.findComponent({ name: "AppPillToggle" }).vm.$emit("update:modelValue", vista)
+    const btn = wrapper.findAll("button.rsp-seg-btn").find(b => b.text().trim() === LABEL_VISTA[vista])
+    if (!btn) throw new Error(`Botão de vista "${LABEL_VISTA[vista]}" não encontrado`)
+    await btn.trigger("click")
     await wrapper.vm.$nextTick()
 }
 
@@ -185,26 +195,30 @@ describe("CA15 — ordem dos passos — membro", () => {
     it("passo 1 = lado, passo 2 = vista, passo 3 = sub-regiões", async () => {
         const wrapper = montarPopupMembro({})
 
-        // Passo 1: AppPillToggle visível com opções de lado
-        const pillLado = wrapper.findComponent({ name: "AppPillToggle" })
-        expect(pillLado.exists()).toBe(true)
-        const opcoesLado = pillLado.props("opcoes") as Array<{ valor: string }>
-        expect(opcoesLado.map(o => o.valor)).toEqual(["D", "E", "bilateral"])
+        // Passo 1: segmented de lado visível (botões Direito/Esquerdo/Ambos)
+        const btnLado = wrapper.findAll("button.rsp-seg-btn")
+        expect(btnLado.length).toBeGreaterThan(0)
+        const textosBtnLado = btnLado.map(b => b.text().trim())
+        expect(textosBtnLado).toContain("Direito")
+        expect(textosBtnLado).toContain("Esquerdo")
+        expect(textosBtnLado).toContain("Ambos")
 
         // Avança para passo 2 (vista)
         await avancarLado(wrapper, "D")
 
-        // Passo 2: AppPillToggle de vista visível
-        const pillVista = wrapper.findComponent({ name: "AppPillToggle" })
-        expect(pillVista.exists()).toBe(true)
-        const opcoesVista = pillVista.props("opcoes") as Array<{ valor: string }>
-        expect(opcoesVista.map(o => o.valor)).toEqual(["anterior", "posterior", "circunferencial"])
+        // Passo 2: segmented de vista visível (Anterior/Posterior/Circunferencial)
+        const btnVista = wrapper.findAll("button.rsp-seg-btn")
+        expect(btnVista.length).toBeGreaterThan(0)
+        const textosBtnVista = btnVista.map(b => b.text().trim())
+        expect(textosBtnVista).toContain("Anterior")
+        expect(textosBtnVista).toContain("Posterior")
+        expect(textosBtnVista).toContain("Circunferencial")
 
         // Avança para passo 3 (sub-regiões)
         await avancarVistaMembro(wrapper, "anterior")
 
-        // Passo 3: sem AppPillToggle, há checkboxes
-        expect(wrapper.findComponent({ name: "AppPillToggle" }).exists()).toBe(false)
+        // Passo 3: sem segmented, há checkboxes
+        expect(wrapper.findAll("button.rsp-seg-btn").length).toBe(0)
         expect(wrapper.findAll('input[type="checkbox"]').length).toBeGreaterThan(0)
     })
 })
@@ -215,29 +229,31 @@ describe("CA16 — ordem dos passos — não-membro", () => {
     it("passo 1 = vista (sem passo de lado), passo 2 = sub-regiões", async () => {
         const wrapper = montarPopupNaoMembro()
 
-        // Passo 1: AppPillToggle de vista visível (sem opções de lado)
-        const pillVista = wrapper.findComponent({ name: "AppPillToggle" })
-        expect(pillVista.exists()).toBe(true)
-        const opcoes = pillVista.props("opcoes") as Array<{ valor: string }>
-        expect(opcoes.map(o => o.valor)).toEqual(["anterior", "posterior", "circunferencial"])
+        // Passo 1: segmented de vista visível (Anterior/Posterior/Circunferencial)
+        const btns = wrapper.findAll("button.rsp-seg-btn")
+        expect(btns.length).toBeGreaterThan(0)
+        const textos = btns.map(b => b.text().trim())
+        expect(textos).toContain("Anterior")
+        expect(textos).toContain("Posterior")
+        expect(textos).toContain("Circunferencial")
 
         // Avança para passo 2 (sub-regiões)
         await avancarVistaNaoMembro(wrapper, "anterior")
 
-        // Passo 2: sem AppPillToggle, há checkboxes
-        expect(wrapper.findComponent({ name: "AppPillToggle" }).exists()).toBe(false)
+        // Passo 2: sem segmented, há checkboxes
+        expect(wrapper.findAll("button.rsp-seg-btn").length).toBe(0)
         expect(wrapper.findAll('input[type="checkbox"]').length).toBeGreaterThan(0)
     })
 
     it("CA5 — não-lateral antes do B1: ainda abre direto na seleção (agora = passo de vista)", () => {
         const wrapper = montarPopupNaoMembro()
         // Não deve mostrar opções de lado (D/E/Bilateral)
-        const pillToggle = wrapper.findComponent({ name: "AppPillToggle" })
-        expect(pillToggle.exists()).toBe(true)
-        const opcoes = pillToggle.props("opcoes") as Array<{ valor: string }>
-        expect(opcoes.map(o => o.valor)).not.toContain("D")
-        expect(opcoes.map(o => o.valor)).not.toContain("E")
-        expect(opcoes.map(o => o.valor)).not.toContain("bilateral")
+        const btns = wrapper.findAll("button.rsp-seg-btn")
+        expect(btns.length).toBeGreaterThan(0)
+        const textos = btns.map(b => b.text().trim())
+        expect(textos).not.toContain("Direito")
+        expect(textos).not.toContain("Esquerdo")
+        expect(textos).not.toContain("Ambos")
     })
 })
 
@@ -344,8 +360,9 @@ describe("CA26 — vista não escolhida não avança para sub-regiões", () => {
 
         await avancarLado(wrapper, "D")
 
-        // No passo de vista: AppPillToggle visível, sem checkboxes
-        expect(wrapper.findComponent({ name: "AppPillToggle" }).exists()).toBe(true)
+        // No passo de vista: segmented de vista visível, sem checkboxes
+        const btns = wrapper.findAll("button.rsp-seg-btn")
+        expect(btns.some(b => b.text().trim() === "Anterior")).toBe(true)
         expect(wrapper.findAll('input[type="checkbox"]').length).toBe(0)
         // Confirmar não aparece no passo de vista
         const botoes = wrapper.findAll("button")
@@ -355,7 +372,9 @@ describe("CA26 — vista não escolhida não avança para sub-regiões", () => {
     it("não-membro: modal começa no passo de vista — sem sub-regiões visíveis nem Confirmar habilitado", () => {
         const wrapper = montarPopupNaoMembro()
 
-        expect(wrapper.findComponent({ name: "AppPillToggle" }).exists()).toBe(true)
+        // Segmented de vista visível, sem checkboxes
+        const btns = wrapper.findAll("button.rsp-seg-btn")
+        expect(btns.some(b => b.text().trim() === "Anterior")).toBe(true)
         expect(wrapper.findAll('input[type="checkbox"]').length).toBe(0)
         const botoes = wrapper.findAll("button")
         expect(botoes.some(b => b.text().includes("Confirmar"))).toBe(false)
@@ -453,19 +472,17 @@ describe("CA29 — não-regressão do briefing 004 (fluxo de membro anterior/pos
         await avancarLado(wrapper, "D")
         await avancarVistaMembro(wrapper, "anterior")
 
-        // AppPillToggle não deve aparecer no passo de sub-regiões
-        expect(wrapper.findComponent({ name: "AppPillToggle" }).exists()).toBe(false)
+        // Segmented não deve aparecer no passo de sub-regiões
+        expect(wrapper.findAll("button.rsp-seg-btn").length).toBe(0)
 
         // Clicar em "Voltar"
         const botaoVoltar = wrapper.findAll("button").find(b => b.text().includes("Voltar"))
         await botaoVoltar!.trigger("click")
         await wrapper.vm.$nextTick()
 
-        // Deve voltar ao passo de vista — AppPillToggle com opções de vista reaparece
-        const pill = wrapper.findComponent({ name: "AppPillToggle" })
-        expect(pill.exists()).toBe(true)
-        const opcoes = pill.props("opcoes") as Array<{ valor: string }>
-        expect(opcoes.map(o => o.valor)).toContain("circunferencial")
+        // Deve voltar ao passo de vista — segmented de plano com Circunferencial reaparece
+        const btns = wrapper.findAll("button.rsp-seg-btn")
+        expect(btns.some(b => b.text().trim() === "Circunferencial")).toBe(true)
     })
 
     it("CA7 — Cancelar no passo de lado fecha sem emitir confirmar", async () => {
@@ -497,11 +514,13 @@ describe("CA29 — não-regressão do briefing 004 (fluxo de membro anterior/pos
         await wrapper.setProps({ aberto: true })
         await wrapper.vm.$nextTick()
 
-        // Deve estar no passo de lado novamente (AppPillToggle com opções de lado)
-        const pill = wrapper.findComponent({ name: "AppPillToggle" })
-        expect(pill.exists()).toBe(true)
-        const opcoes = pill.props("opcoes") as Array<{ valor: string }>
-        expect(opcoes.map(o => o.valor)).toEqual(["D", "E", "bilateral"])
+        // Deve estar no passo de lado novamente (segmented com Direito/Esquerdo/Ambos)
+        const btns = wrapper.findAll("button.rsp-seg-btn")
+        expect(btns.some(b => b.text().trim() === "Direito")).toBe(true)
+        expect(btns.some(b => b.text().trim() === "Esquerdo")).toBe(true)
+        expect(btns.some(b => b.text().trim() === "Ambos")).toBe(true)
+        // Não deve ter opção de plano (Circunferencial não aparece no passo de lado)
+        expect(btns.some(b => b.text().trim() === "Circunferencial")).toBe(false)
     })
 
     it("CA9 — sub-região já selecionada aparece como 'Selecionado' (não recriável)", async () => {

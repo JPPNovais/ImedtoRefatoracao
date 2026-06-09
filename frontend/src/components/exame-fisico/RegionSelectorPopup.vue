@@ -2,7 +2,6 @@
 import { ref, computed, reactive, watch } from 'vue'
 import { AppModal } from '@/components/ui'
 import { AppButton } from '@/components/ui'
-import { AppPillToggle } from '@/components/ui'
 import { RAMOS_CIRCUNFERENCIAL } from './regioesCircunferenciais'
 
 export interface ExameFisicoRegiao {
@@ -343,61 +342,96 @@ function fechar() {
 <template>
   <AppModal
     :aberto="aberto"
-    :titulo="dialogTitle"
     largura="sm"
     @fechar="fechar"
   >
+    <!-- Título customizado: bold, cor primary-dark -->
+    <template #titulo>
+      <span class="rsp-modal-title">{{ dialogTitle }}</span>
+    </template>
+
     <template #default>
       <!-- ── PASSO 1 (membro): Escolha do lado ──────────────────────────────── -->
       <template v-if="membroRegioes && passo === 'lado'">
-        <p class="text-xs text-muted-foreground mb-3">
-          Selecione o lado a examinar:
-        </p>
-        <div class="flex justify-center">
-          <AppPillToggle
-            model-value=""
-            :opcoes="OPCOES_LADO"
-            @update:model-value="escolherLado($event as LadoMembro)"
-          />
+        <p class="rsp-step-label">Defina como esta região foi examinada.</p>
+
+        <!-- Segmented "LADO" -->
+        <div class="rsp-field-block">
+          <div class="rsp-fl">Lado</div>
+          <div class="rsp-seg">
+            <button
+              v-for="op in OPCOES_LADO"
+              :key="op.valor"
+              type="button"
+              class="rsp-seg-btn"
+              :class="{ 'rsp-seg-btn--on': ladoEscolhido === op.valor }"
+              @click="escolherLado(op.valor)"
+            >
+              {{ op.label }}
+            </button>
+          </div>
         </div>
       </template>
 
       <!-- ── PASSO: Escolha da vista (membro após lado, ou não-membro no início) ── -->
       <template v-else-if="passo === 'vista'">
-        <!-- Badge do lado escolhido (somente membros) -->
-        <div
-          v-if="membroRegioes && ladoEscolhido"
-          class="flex items-center gap-1.5 -mt-1 mb-3"
-        >
-          <span class="text-[10px] text-muted-foreground">Lado:</span>
-          <span class="text-[10px] border border-border rounded px-1.5 py-0.5 text-foreground font-medium">
-            {{ labelLado }}
-          </span>
+        <p class="rsp-step-label">Defina como esta região foi examinada.</p>
+
+        <!-- Badge do lado (somente membro) -->
+        <div v-if="membroRegioes && ladoEscolhido" class="rsp-field-block">
+          <div class="rsp-fl">Lado</div>
+          <div class="rsp-seg">
+            <button
+              v-for="op in OPCOES_LADO"
+              :key="op.valor"
+              type="button"
+              class="rsp-seg-btn"
+              :class="{ 'rsp-seg-btn--on': ladoEscolhido === op.valor }"
+              @click="escolherLado(op.valor)"
+            >
+              {{ op.label }}
+            </button>
+          </div>
         </div>
-        <p class="text-xs text-muted-foreground mb-3">
-          Selecione a vista a examinar:
-        </p>
-        <div class="flex justify-center">
-          <AppPillToggle
-            model-value=""
-            :opcoes="OPCOES_VISTA"
-            @update:model-value="escolherVista($event as VistaPasso)"
-          />
+
+        <!-- Segmented "PLANO DE EXAME" com cor por vista -->
+        <div class="rsp-field-block">
+          <div class="rsp-fl">Plano de exame</div>
+          <div class="rsp-seg rsp-seg--plano">
+            <button
+              v-for="op in OPCOES_VISTA"
+              :key="op.valor"
+              type="button"
+              class="rsp-seg-btn"
+              :class="[
+                { 'rsp-seg-btn--on': vistaEscolhida === op.valor },
+                vistaEscolhida === op.valor ? `rsp-seg-btn--vista-${op.valor}` : '',
+              ]"
+              :data-v="op.valor"
+              @click="escolherVista(op.valor)"
+            >
+              {{ op.label }}
+            </button>
+          </div>
+          <!-- Texto auxiliar do plano -->
+          <p v-if="vistaEscolhida" class="rsp-plano-help">
+            <template v-if="vistaEscolhida === 'anterior'">Colore a face anterior (frente).</template>
+            <template v-else-if="vistaEscolhida === 'posterior'">Colore a face posterior (costas).</template>
+            <template v-else>Colore as faces anterior e posterior (circunferencial).</template>
+          </p>
         </div>
       </template>
 
       <!-- ── PASSO: Seleção de sub-regiões ─────────────────────────────────── -->
       <template v-else>
-        <!-- Badges de lado + vista no passo de sub-regiões -->
-        <div class="flex items-center gap-1.5 -mt-1 mb-1 flex-wrap">
-          <template v-if="membroRegioes && ladoEscolhido">
-            <span class="text-[10px] text-muted-foreground">Lado:</span>
-            <span class="text-[10px] border border-border rounded px-1.5 py-0.5 text-foreground font-medium">
-              {{ labelLado }}
-            </span>
-          </template>
-          <span class="text-[10px] text-muted-foreground" :class="{ 'ml-1': membroRegioes && ladoEscolhido }">Vista:</span>
-          <span class="text-[10px] border border-border rounded px-1.5 py-0.5 text-foreground font-medium">
+        <!-- Chips de resumo: lado + vista -->
+        <div class="rsp-chips">
+          <span v-if="membroRegioes && ladoEscolhido" class="rsp-chip">
+            <i class="fa-solid fa-arrows-left-right" />
+            {{ labelLado }}
+          </span>
+          <span class="rsp-chip">
+            <i :class="vistaEscolhida === 'circunferencial' ? 'fa-solid fa-arrows-rotate' : 'fa-solid fa-location-crosshairs'" />
             {{ labelVista }}
           </span>
         </div>
@@ -405,112 +439,95 @@ function fechar() {
         <!-- Breadcrumb de navegação hierárquica (regiões não-laterais, modo não-circ) -->
         <div
           v-if="breadcrumb.length > 0 && !membroRegioes && vistaEscolhida !== 'circunferencial'"
-          class="flex items-center gap-1 text-xs text-muted-foreground flex-wrap -mt-1"
+          class="rsp-breadcrumb"
         >
           <template v-for="(item, idx) in breadcrumb" :key="item.id">
             <button
               type="button"
-              class="hover:text-foreground transition-colors border-0"
-              :class="idx === breadcrumb.length - 1 ? 'font-semibold text-foreground' : ''"
+              class="rsp-breadcrumb-item"
+              :class="{ 'rsp-breadcrumb-item--active': idx === breadcrumb.length - 1 }"
               @click="idx < breadcrumb.length - 1 ? voltarParaNivel(idx) : undefined"
             >
               {{ item.nome }}
             </button>
             <i
               v-if="idx < breadcrumb.length - 1"
-              class="fa-solid fa-chevron-right text-[8px] text-muted-foreground/50"
+              class="fa-solid fa-chevron-right rsp-breadcrumb-sep"
             />
           </template>
         </div>
 
-        <div class="border-t border-border" />
+        <div class="rsp-divider" />
 
         <!-- ── Modo circunferencial: lista agrupada Anterior + Posterior ──── -->
         <template v-if="vistaEscolhida === 'circunferencial'">
-          <div class="space-y-1 max-h-[400px] overflow-y-auto">
+          <div class="rsp-sub-list">
             <!-- Grupo Anterior -->
             <template v-if="filhosCircunferencial.anterior.length > 0">
-              <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 pt-2">
+              <div class="rsp-sub-head rsp-sub-head--ant">
+                <i class="fa-solid fa-circle rsp-sub-head-dot" />
                 Anterior
-              </p>
-              <div
+              </div>
+              <label
                 v-for="filho in filhosCircunferencial.anterior"
                 :key="filho.id"
-                class="flex items-center gap-2 p-2 rounded-md transition-colors"
-                :class="!jaFoiSelecionada(filho.id) ? 'hover:bg-muted/50 cursor-pointer' : ''"
-                @click="!jaFoiSelecionada(filho.id) && toggleRegiao(filho)"
+                class="rsp-opt"
+                :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
               >
                 <input
                   v-if="!jaFoiSelecionada(filho.id)"
                   type="checkbox"
+                  class="rsp-opt-input"
                   :checked="estaSelecionado(filho.id)"
-                  class="h-4 w-4 rounded border-input text-primary focus:ring-primary shrink-0 cursor-pointer"
-                  @click.stop
                   @change="toggleRegiao(filho)"
                 />
-                <i
-                  v-else
-                  class="fa-solid fa-check text-[10px] text-success w-4 text-center shrink-0"
-                />
-                <span
-                  class="text-xs flex-1 select-none"
-                  :class="{ 'text-muted-foreground': jaFoiSelecionada(filho.id) }"
-                >
+                <span class="rsp-opt-box">
+                  <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
                   {{ nomeExibido(filho) }}
                 </span>
-                <span
-                  v-if="jaFoiSelecionada(filho.id)"
-                  class="text-[9px] border border-border rounded px-1.5 py-0.5 text-muted-foreground"
-                >
-                  Selecionado
-                </span>
-              </div>
+                <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
+              </label>
             </template>
 
-            <div v-if="filhosCircunferencial.anterior.length > 0 && filhosCircunferencial.posterior.length > 0" class="border-t border-border" />
+            <div
+              v-if="filhosCircunferencial.anterior.length > 0 && filhosCircunferencial.posterior.length > 0"
+              class="rsp-divider"
+            />
 
             <!-- Grupo Posterior -->
             <template v-if="filhosCircunferencial.posterior.length > 0">
-              <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 pt-2">
+              <div class="rsp-sub-head rsp-sub-head--post">
+                <i class="fa-solid fa-circle rsp-sub-head-dot" />
                 Posterior
-              </p>
-              <div
+              </div>
+              <label
                 v-for="filho in filhosCircunferencial.posterior"
                 :key="filho.id"
-                class="flex items-center gap-2 p-2 rounded-md transition-colors"
-                :class="!jaFoiSelecionada(filho.id) ? 'hover:bg-muted/50 cursor-pointer' : ''"
-                @click="!jaFoiSelecionada(filho.id) && toggleRegiao(filho)"
+                class="rsp-opt"
+                :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
               >
                 <input
                   v-if="!jaFoiSelecionada(filho.id)"
                   type="checkbox"
+                  class="rsp-opt-input"
                   :checked="estaSelecionado(filho.id)"
-                  class="h-4 w-4 rounded border-input text-primary focus:ring-primary shrink-0 cursor-pointer"
-                  @click.stop
                   @change="toggleRegiao(filho)"
                 />
-                <i
-                  v-else
-                  class="fa-solid fa-check text-[10px] text-success w-4 text-center shrink-0"
-                />
-                <span
-                  class="text-xs flex-1 select-none"
-                  :class="{ 'text-muted-foreground': jaFoiSelecionada(filho.id) }"
-                >
+                <span class="rsp-opt-box">
+                  <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
                   {{ nomeExibido(filho) }}
                 </span>
-                <span
-                  v-if="jaFoiSelecionada(filho.id)"
-                  class="text-[9px] border border-border rounded px-1.5 py-0.5 text-muted-foreground"
-                >
-                  Selecionado
-                </span>
-              </div>
+                <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
+              </label>
             </template>
 
             <p
               v-if="filhosCircunferencial.anterior.length === 0 && filhosCircunferencial.posterior.length === 0"
-              class="text-xs text-muted-foreground text-center py-4"
+              class="rsp-vazio"
             >
               Nenhuma sub-região disponível.
             </p>
@@ -518,50 +535,36 @@ function fechar() {
         </template>
 
         <!-- ── Modo tronco: lista agrupada por parte (DP-3) ───────────────── -->
-        <!-- vistaEscolhida !== 'circunferencial' já garantida pelo v-if anterior -->
         <template v-else-if="troncoGrupos">
-          <div class="space-y-1 max-h-[400px] overflow-y-auto">
+          <div class="rsp-sub-list">
             <template v-for="(grupo, gi) in filhosTroncoGrupos" :key="grupo.label">
-              <div v-if="gi > 0" class="border-t border-border" />
-              <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 pt-2">
-                {{ grupo.label }}
-              </p>
-              <div
+              <div v-if="gi > 0" class="rsp-divider" />
+              <p class="rsp-grupo-label">{{ grupo.label }}</p>
+              <label
                 v-for="filho in grupo.filhos"
                 :key="filho.id"
-                class="flex items-center gap-2 p-2 rounded-md transition-colors"
-                :class="!jaFoiSelecionada(filho.id) ? 'hover:bg-muted/50 cursor-pointer' : ''"
-                @click="!jaFoiSelecionada(filho.id) && toggleRegiao(filho)"
+                class="rsp-opt"
+                :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
               >
                 <input
                   v-if="!jaFoiSelecionada(filho.id)"
                   type="checkbox"
+                  class="rsp-opt-input"
                   :checked="estaSelecionado(filho.id)"
-                  class="h-4 w-4 rounded border-input text-primary focus:ring-primary shrink-0 cursor-pointer"
-                  @click.stop
                   @change="toggleRegiao(filho)"
                 />
-                <i
-                  v-else
-                  class="fa-solid fa-check text-[10px] text-success w-4 text-center shrink-0"
-                />
-                <span
-                  class="text-xs flex-1 select-none"
-                  :class="{ 'text-muted-foreground': jaFoiSelecionada(filho.id) }"
-                >
+                <span class="rsp-opt-box">
+                  <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
                   {{ filho.nome }}
                 </span>
-                <span
-                  v-if="jaFoiSelecionada(filho.id)"
-                  class="text-[9px] border border-border rounded px-1.5 py-0.5 text-muted-foreground"
-                >
-                  Selecionado
-                </span>
-              </div>
+                <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
+              </label>
             </template>
             <p
               v-if="filhosTroncoGrupos.every(g => g.filhos.length === 0)"
-              class="text-xs text-muted-foreground text-center py-4"
+              class="rsp-vazio"
             >
               Nenhuma sub-região disponível.
             </p>
@@ -570,143 +573,100 @@ function fechar() {
 
         <!-- ── Modo anterior/posterior: lista normal ────────────────────── -->
         <template v-else>
-          <div class="space-y-1 max-h-[400px] overflow-y-auto">
-            <!-- Opção de selecionar a região atual (geral) -->
-            <div
+          <div class="rsp-sub-list">
+            <!-- Opção "geral" -->
+            <label
               v-if="regiaoAtual && !jaFoiSelecionada(regiaoAtual.id)"
-              class="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
-              @click="toggleRegiao(regiaoAtual)"
+              class="rsp-opt rsp-opt--geral"
             >
               <input
                 type="checkbox"
+                class="rsp-opt-input"
                 :checked="estaSelecionado(regiaoAtual.id)"
-                class="h-4 w-4 rounded border-input text-primary focus:ring-primary shrink-0 cursor-pointer"
-                @click.stop
                 @change="toggleRegiao(regiaoAtual)"
               />
-              <span class="text-xs font-medium flex-1 select-none">
+              <span class="rsp-opt-box">
+                <i v-if="estaSelecionado(regiaoAtual.id)" class="fa-solid fa-check" />
+              </span>
+              <span class="rsp-opt-lbl">
                 {{ membroRegioes ? dialogTitle : regiaoAtual.nome }} (geral)
               </span>
 
               <!-- D/E/Bilateral por sub-região: apenas em regiões não-laterais (R3) -->
               <div
                 v-if="!membroRegioes && regiaoAtual.lateralidade && estaSelecionado(regiaoAtual.id)"
-                class="flex items-center gap-1"
+                class="rsp-lat-btns"
                 @click.stop
               >
-                <button
-                  type="button"
-                  class="px-1.5 py-0.5 text-[9px] h-auto rounded border transition-colors"
-                  :class="lateralidades[regiaoAtual.id] === 'D'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-input text-foreground hover:bg-muted'"
-                  @click="setLateralidade(regiaoAtual.id, 'D')"
-                >D</button>
-                <button
-                  type="button"
-                  class="px-1.5 py-0.5 text-[9px] h-auto rounded border transition-colors"
-                  :class="lateralidades[regiaoAtual.id] === 'E'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-input text-foreground hover:bg-muted'"
-                  @click="setLateralidade(regiaoAtual.id, 'E')"
-                >E</button>
-                <button
-                  type="button"
-                  class="px-1.5 py-0.5 text-[9px] h-auto rounded border transition-colors"
-                  :class="lateralidades[regiaoAtual.id] === 'bilateral'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-input text-foreground hover:bg-muted'"
-                  @click="setLateralidade(regiaoAtual.id, 'bilateral')"
-                >Bilateral</button>
+                <button type="button" class="rsp-lat-btn"
+                  :class="{ 'rsp-lat-btn--on': lateralidades[regiaoAtual.id] === 'D' }"
+                  @click="setLateralidade(regiaoAtual.id, 'D')">D</button>
+                <button type="button" class="rsp-lat-btn"
+                  :class="{ 'rsp-lat-btn--on': lateralidades[regiaoAtual.id] === 'E' }"
+                  @click="setLateralidade(regiaoAtual.id, 'E')">E</button>
+                <button type="button" class="rsp-lat-btn"
+                  :class="{ 'rsp-lat-btn--on': lateralidades[regiaoAtual.id] === 'bilateral' }"
+                  @click="setLateralidade(regiaoAtual.id, 'bilateral')">Bilateral</button>
               </div>
-            </div>
+            </label>
 
-            <div v-if="filhosAtuais.length > 0" class="border-t border-border" />
+            <div v-if="filhosAtuais.length > 0" class="rsp-divider" />
 
-            <!-- Sub-regiões -->
-            <div
-              v-for="filho in filhosAtuais"
-              :key="filho.id"
-              class="flex items-center gap-2 p-2 rounded-md transition-colors"
-              :class="!jaFoiSelecionada(filho.id) ? 'hover:bg-muted/50 cursor-pointer' : ''"
-              @click="!jaFoiSelecionada(filho.id) && toggleRegiao(filho)"
-            >
-              <!-- Checkbox se não foi selecionado antes -->
-              <input
-                v-if="!jaFoiSelecionada(filho.id)"
-                type="checkbox"
-                :checked="estaSelecionado(filho.id)"
-                class="h-4 w-4 rounded border-input text-primary focus:ring-primary shrink-0 cursor-pointer"
-                @click.stop
-                @change="toggleRegiao(filho)"
-              />
-              <i
-                v-else
-                class="fa-solid fa-check text-[10px] text-success w-4 text-center shrink-0"
-              />
+            <!-- Sub-regiões com hierarquia -->
+            <template v-for="filho in filhosAtuais" :key="filho.id">
+              <div class="rsp-opt-row">
+                <label
+                  class="rsp-opt rsp-opt--flex1"
+                  :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
+                >
+                  <input
+                    v-if="!jaFoiSelecionada(filho.id)"
+                    type="checkbox"
+                    class="rsp-opt-input"
+                    :checked="estaSelecionado(filho.id)"
+                    @change="toggleRegiao(filho)"
+                  />
+                  <span class="rsp-opt-box">
+                    <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
+                  </span>
+                  <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
+                    {{ nomeExibido(filho) }}
+                  </span>
 
-              <span
-                class="text-xs flex-1 select-none"
-                :class="{ 'text-muted-foreground': jaFoiSelecionada(filho.id) }"
-              >
-                {{ nomeExibido(filho) }}
-              </span>
+                  <!-- D/E/Bilateral: apenas em regiões não-laterais (R3) -->
+                  <div
+                    v-if="!membroRegioes && filho.lateralidade && estaSelecionado(filho.id)"
+                    class="rsp-lat-btns"
+                    @click.stop
+                  >
+                    <button type="button" class="rsp-lat-btn"
+                      :class="{ 'rsp-lat-btn--on': lateralidades[filho.id] === 'D' }"
+                      @click="setLateralidade(filho.id, 'D')">D</button>
+                    <button type="button" class="rsp-lat-btn"
+                      :class="{ 'rsp-lat-btn--on': lateralidades[filho.id] === 'E' }"
+                      @click="setLateralidade(filho.id, 'E')">E</button>
+                    <button type="button" class="rsp-lat-btn"
+                      :class="{ 'rsp-lat-btn--on': lateralidades[filho.id] === 'bilateral' }"
+                      @click="setLateralidade(filho.id, 'bilateral')">Bilateral</button>
+                  </div>
 
-              <!-- D/E/Bilateral: apenas em regiões não-laterais (R3) -->
-              <div
-                v-if="!membroRegioes && filho.lateralidade && estaSelecionado(filho.id)"
-                class="flex items-center gap-1"
-                @click.stop
-              >
+                  <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
+                </label>
+
+                <!-- Botão drill-down / expandir -->
                 <button
+                  v-if="temFilhos(filho.id)"
                   type="button"
-                  class="px-1.5 py-0.5 text-[9px] h-auto rounded border transition-colors"
-                  :class="lateralidades[filho.id] === 'D'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-input text-foreground hover:bg-muted'"
-                  @click="setLateralidade(filho.id, 'D')"
-                >D</button>
-                <button
-                  type="button"
-                  class="px-1.5 py-0.5 text-[9px] h-auto rounded border transition-colors"
-                  :class="lateralidades[filho.id] === 'E'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-input text-foreground hover:bg-muted'"
-                  @click="setLateralidade(filho.id, 'E')"
-                >E</button>
-                <button
-                  type="button"
-                  class="px-1.5 py-0.5 text-[9px] h-auto rounded border transition-colors"
-                  :class="lateralidades[filho.id] === 'bilateral'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'border-input text-foreground hover:bg-muted'"
-                  @click="setLateralidade(filho.id, 'bilateral')"
-                >Bilateral</button>
+                  class="rsp-opt-exp"
+                  title="Ver sub-regiões"
+                  @click.stop="navegarPara(filho)"
+                >
+                  <i class="fa-solid fa-chevron-right" />
+                </button>
               </div>
+            </template>
 
-              <!-- Botão drill-down -->
-              <button
-                v-if="temFilhos(filho.id)"
-                type="button"
-                class="text-[10px] text-primary hover:text-primary/80 p-1 h-auto rounded border-0"
-                title="Ver sub-regiões"
-                @click.stop="navegarPara(filho)"
-              >
-                <i class="fa-solid fa-chevron-right" />
-              </button>
-
-              <span
-                v-if="jaFoiSelecionada(filho.id)"
-                class="text-[9px] border border-border rounded px-1.5 py-0.5 text-muted-foreground"
-              >
-                Selecionado
-              </span>
-            </div>
-
-            <p
-              v-if="filhosAtuais.length === 0 && regiaoAtual"
-              class="text-xs text-muted-foreground text-center py-4"
-            >
+            <p v-if="filhosAtuais.length === 0 && regiaoAtual" class="rsp-vazio">
               Nenhuma sub-região disponível.
             </p>
           </div>
@@ -715,16 +675,14 @@ function fechar() {
     </template>
 
     <template #rodape>
-      <div class="flex items-center gap-2 w-full">
-        <!-- Passo de lado (membro): só Cancelar -->
+      <div class="rsp-footer">
+        <!-- Passo de lado (membro): só Cancelar (avançar = clicar no segmented) -->
         <template v-if="membroRegioes && passo === 'lado'">
-          <div class="flex-1" />
-          <AppButton variant="ghost" size="sm" @click="fechar">
-            Cancelar
-          </AppButton>
+          <div class="rsp-footer-grow" />
+          <AppButton variant="ghost" size="sm" @click="fechar">Cancelar</AppButton>
         </template>
 
-        <!-- Passo de vista: Voltar (se membro) + Cancelar -->
+        <!-- Passo de vista: Voltar (se membro) + Cancelar (avançar = clicar no segmented) -->
         <template v-else-if="passo === 'vista'">
           <AppButton
             v-if="membroRegioes"
@@ -732,30 +690,20 @@ function fechar() {
             size="sm"
             @click="passo = 'lado'; vistaEscolhida = null"
           >
-            <i class="fa-solid fa-arrow-left mr-1 text-[10px]" />
-            Voltar
+            <i class="fa-solid fa-arrow-left" /> Voltar
           </AppButton>
-          <div class="flex-1" />
-          <AppButton variant="ghost" size="sm" @click="fechar">
-            Cancelar
-          </AppButton>
+          <div class="rsp-footer-grow" />
+          <AppButton variant="ghost" size="sm" @click="fechar">Cancelar</AppButton>
         </template>
 
         <!-- Passo de sub-regiões de membro: Voltar + Cancelar + Confirmar -->
         <template v-else-if="membroRegioes && passo === 'subregioes'">
           <AppButton variant="ghost" size="sm" @click="voltarNivel">
-            <i class="fa-solid fa-arrow-left mr-1 text-[10px]" />
-            Voltar
+            <i class="fa-solid fa-arrow-left" /> Voltar
           </AppButton>
-          <div class="flex-1" />
-          <AppButton variant="ghost" size="sm" @click="fechar">
-            Cancelar
-          </AppButton>
-          <AppButton
-            size="sm"
-            :disabled="totalSelecionados === 0"
-            @click="confirmar"
-          >
+          <div class="rsp-footer-grow" />
+          <AppButton variant="ghost" size="sm" @click="fechar">Cancelar</AppButton>
+          <AppButton size="sm" :disabled="totalSelecionados === 0" @click="confirmar">
             Confirmar ({{ totalSelecionados }})
           </AppButton>
         </template>
@@ -768,8 +716,7 @@ function fechar() {
             size="sm"
             @click="voltarNivel"
           >
-            <i class="fa-solid fa-arrow-left mr-1 text-[10px]" />
-            Voltar
+            <i class="fa-solid fa-arrow-left" /> Voltar
           </AppButton>
           <AppButton
             v-else
@@ -777,18 +724,11 @@ function fechar() {
             size="sm"
             @click="passo = 'vista'; vistaEscolhida = null; limparSelecao()"
           >
-            <i class="fa-solid fa-arrow-left mr-1 text-[10px]" />
-            Voltar
+            <i class="fa-solid fa-arrow-left" /> Voltar
           </AppButton>
-          <div class="flex-1" />
-          <AppButton variant="ghost" size="sm" @click="fechar">
-            Cancelar
-          </AppButton>
-          <AppButton
-            size="sm"
-            :disabled="totalSelecionados === 0"
-            @click="confirmar"
-          >
+          <div class="rsp-footer-grow" />
+          <AppButton variant="ghost" size="sm" @click="fechar">Cancelar</AppButton>
+          <AppButton size="sm" :disabled="totalSelecionados === 0" @click="confirmar">
             Confirmar ({{ totalSelecionados }})
           </AppButton>
         </template>
@@ -796,3 +736,360 @@ function fechar() {
     </template>
   </AppModal>
 </template>
+
+<style scoped>
+/* ── Título da modal ─────────────────────────────────────────────────────── */
+.rsp-modal-title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-extrabold);
+  color: hsl(var(--primary-dark));
+}
+
+/* ── Passo 1/2: label de instrução ──────────────────────────────────────── */
+.rsp-step-label {
+  font-size: var(--text-sm);
+  color: hsl(var(--secondary) / 0.6);
+  margin: 0 0 18px;
+}
+
+/* ── Bloco de campo (label + segmented) ─────────────────────────────────── */
+.rsp-field-block {
+  margin-bottom: 20px;
+}
+
+/* Label uppercase acima do segmented */
+.rsp-fl {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--secondary) / 0.45);
+  margin-bottom: 9px;
+}
+
+/* ── Segmented control ───────────────────────────────────────────────────── */
+.rsp-seg {
+  display: inline-flex;
+  background: hsl(var(--secondary) / 0.05);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rsp-seg-btn {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: hsl(var(--secondary) / 0.62);
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.rsp-seg-btn:hover {
+  color: hsl(var(--secondary));
+}
+
+/* Estado ativo — segmented de lado: cor primária */
+.rsp-seg-btn--on {
+  background: hsl(var(--card));
+  color: hsl(var(--primary));
+  box-shadow: var(--shadow-sm);
+}
+
+/* Estado ativo — segmented de plano: cor por vista */
+.rsp-seg--plano .rsp-seg-btn--on.rsp-seg-btn--vista-anterior {
+  color: hsl(var(--vista-anterior));
+}
+.rsp-seg--plano .rsp-seg-btn--on.rsp-seg-btn--vista-posterior {
+  color: hsl(var(--vista-posterior));
+}
+.rsp-seg--plano .rsp-seg-btn--on.rsp-seg-btn--vista-circunferencial {
+  color: hsl(var(--vista-circ-text));
+}
+
+/* Texto auxiliar abaixo do segmented de plano */
+.rsp-plano-help {
+  font-size: var(--text-sm);
+  color: hsl(var(--secondary) / 0.6);
+  margin: 10px 0 0;
+}
+
+/* ── Chips (passo de sub-regiões) ───────────────────────────────────────── */
+.rsp-chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.rsp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-bold);
+  padding: 5px 11px;
+  border-radius: var(--radius-full);
+  background: hsl(var(--secondary) / 0.06);
+  color: hsl(var(--secondary) / 0.72);
+}
+
+/* ── Breadcrumb ─────────────────────────────────────────────────────────── */
+.rsp-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.rsp-breadcrumb-item {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: hsl(var(--secondary) / 0.6);
+  transition: color 100ms;
+}
+
+.rsp-breadcrumb-item:hover {
+  color: hsl(var(--secondary));
+}
+
+.rsp-breadcrumb-item--active {
+  font-weight: var(--font-weight-semibold);
+  color: hsl(var(--secondary));
+}
+
+.rsp-breadcrumb-sep {
+  font-size: var(--text-2xs);
+  color: hsl(var(--secondary) / 0.35);
+}
+
+/* ── Divisória ──────────────────────────────────────────────────────────── */
+.rsp-divider {
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+  margin: 4px 0;
+}
+
+/* ── Lista de sub-regiões ───────────────────────────────────────────────── */
+.rsp-sub-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Cabeçalho de grupo (Anterior / Posterior) */
+.rsp-sub-head {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin: 14px 0 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid hsl(var(--border));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rsp-sub-head--ant {
+  color: hsl(var(--vista-anterior));
+}
+
+.rsp-sub-head--post {
+  color: hsl(var(--vista-posterior));
+}
+
+.rsp-sub-head-dot {
+  font-size: var(--text-2xs);
+}
+
+/* Label de grupo tronco */
+.rsp-grupo-label {
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: hsl(var(--secondary) / 0.45);
+  margin: 12px 0 4px;
+  padding: 0 8px;
+}
+
+/* ── Item de opção (checkbox custom) ────────────────────────────────────── */
+.rsp-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms;
+}
+
+.rsp-opt:hover:not(.rsp-opt--disabled) {
+  background: hsl(var(--secondary) / 0.04);
+}
+
+.rsp-opt--disabled {
+  cursor: default;
+}
+
+/* Item "geral" */
+.rsp-opt--geral .rsp-opt-lbl {
+  font-style: italic;
+  color: hsl(var(--secondary) / 0.7);
+}
+
+/* Linha com drill-down */
+.rsp-opt-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rsp-opt--flex1 {
+  flex: 1;
+}
+
+/* Hidden input nativo */
+.rsp-opt-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Caixa visual do checkbox */
+.rsp-opt-box {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 6px;
+  border: 1.5px solid hsl(var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--primary-foreground));
+  font-size: var(--text-2xs);
+  transition: all 120ms ease;
+  background: transparent;
+}
+
+/* Quando o checkbox nativo está marcado, o .rsp-opt-box fica preenchido */
+.rsp-opt-input:checked ~ .rsp-opt-box {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+
+/* item disabled (já selecionado antes): box preenchida com check */
+.rsp-opt--disabled .rsp-opt-box {
+  background: hsl(var(--primary) / 0.35);
+  border-color: hsl(var(--primary) / 0.35);
+}
+
+.rsp-opt-lbl {
+  font-size: var(--text-base);
+  color: hsl(var(--secondary));
+  flex: 1;
+}
+
+.rsp-opt-input:checked ~ .rsp-opt-lbl,
+.rsp-opt-input:checked ~ * .rsp-opt-lbl {
+  font-weight: var(--font-weight-bold);
+}
+
+.rsp-opt-lbl--muted {
+  color: hsl(var(--secondary) / 0.6);
+}
+
+/* Badge "Selecionado" */
+.rsp-badge-sel {
+  font-size: var(--text-2xs);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-full);
+  padding: 2px 7px;
+  color: hsl(var(--secondary) / 0.6);
+  white-space: nowrap;
+}
+
+/* Botão drill-down (chevron direito) */
+.rsp-opt-exp {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--secondary) / 0.42);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms, color 120ms;
+}
+
+.rsp-opt-exp:hover {
+  background: hsl(var(--secondary) / 0.07);
+  color: hsl(var(--secondary));
+}
+
+/* ── Botões D/E/Bilateral (regiões não-laterais) ────────────────────────── */
+.rsp-lat-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rsp-lat-btn {
+  padding: 2px 6px;
+  font-size: var(--text-2xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm);
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--secondary));
+  cursor: pointer;
+  transition: all 100ms;
+}
+
+.rsp-lat-btn:hover {
+  background: hsl(var(--secondary) / 0.06);
+}
+
+.rsp-lat-btn--on {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: hsl(var(--primary));
+}
+
+/* ── Mensagem vazia ─────────────────────────────────────────────────────── */
+.rsp-vazio {
+  font-size: var(--text-xs);
+  color: hsl(var(--secondary) / 0.5);
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.rsp-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.rsp-footer-grow {
+  flex: 1;
+}
+</style>
