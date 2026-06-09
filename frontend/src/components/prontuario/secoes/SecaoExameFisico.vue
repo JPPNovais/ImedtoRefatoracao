@@ -22,7 +22,7 @@ import {
 } from "@/services/exameFisicoService"
 import RegionSelectorPopup, { type TroncoGrupos } from "@/components/exame-fisico/RegionSelectorPopup.vue"
 import RegionExamCard from "@/components/exame-fisico/RegionExamCard.vue"
-import { AppField, AppInput, AppSelect, AppTextarea } from "@/components/ui"
+import { AppField, AppInput, AppInputDecimal, AppSelect, AppTextarea } from "@/components/ui"
 import { RAMOS_CIRCUNFERENCIAL, PARTE_PARA_TRONCO } from "@/components/exame-fisico/regioesCircunferenciais"
 import type { TroncoClique, VistaHotspot } from "@/components/exame-fisico/BodyMap.vue"
 
@@ -667,8 +667,8 @@ onMounted(async () => {
                         />
                     </AppField>
                     <AppField label="Temp. (°C)" label-variant="compact">
-                        <AppInput
-                            :model-value="modelValue.temperatura ?? ''" type="number" step="0.1"
+                        <AppInputDecimal
+                            :model-value="modelValue.temperatura ?? ''" :decimals="1"
                             placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ temperatura: String(v) })"
                         />
@@ -715,15 +715,15 @@ onMounted(async () => {
             <div v-show="expandido.antropometria" class="subsec-corpo">
                 <div class="grade-antro">
                     <AppField label="Peso (kg)" label-variant="compact">
-                        <AppInput
-                            :model-value="modelValue.peso ?? ''" type="number" step="0.1"
+                        <AppInputDecimal
+                            :model-value="modelValue.peso ?? ''" :decimals="1"
                             placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ peso: String(v) })"
                         />
                     </AppField>
-                    <AppField label="Altura (cm ou m)" label-variant="compact">
-                        <AppInput
-                            :model-value="modelValue.altura ?? ''" type="number" step="0.01"
+                    <AppField label="Altura (m)" label-variant="compact">
+                        <AppInputDecimal
+                            :model-value="modelValue.altura ?? ''" :decimals="2"
                             placeholder="—" :disabled="readOnly"
                             @update:model-value="v => atualizar({ altura: String(v) })"
                         />

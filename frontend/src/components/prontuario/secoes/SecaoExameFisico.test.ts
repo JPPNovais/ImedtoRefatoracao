@@ -78,13 +78,15 @@ describe("SecaoExameFisico", () => {
             },
         })
 
-        const pesoInput = wrapper.findAll("input").find(i => i.attributes("placeholder") === "70.5")
+        // Peso usa máscara decimal (1 casa): digitar "705" preenche da direita ⇒ 70,5 e emite "70.5".
+        const decimais = wrapper.findAll("input").filter(i => i.attributes("inputmode") === "decimal")
+        const pesoInput = decimais[1] // ordem no DOM: temperatura, peso, altura
         expect(pesoInput).toBeTruthy()
-        await pesoInput!.setValue("80")
+        await pesoInput.setValue("705")
 
         const eventos = wrapper.emitted("update:modelValue")
         expect(eventos).toBeTruthy()
-        expect(eventos![0]![0]).toMatchObject({ peso: "80" })
+        expect(eventos![0]![0]).toMatchObject({ peso: "70.5" })
     })
 
     it("calcula IMC quando peso e altura estão presentes (altura em cm)", async () => {
