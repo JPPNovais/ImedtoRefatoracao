@@ -1,5 +1,5 @@
-// Auto-generated from CORPO-Padrão SVGs - DO NOT EDIT MANUALLY
-// Path data extracted from the SVG body region outlines
+// Path data extraído manualmente dos SVGs CORPO-Padrão; editável à mão.
+// Não existe pipeline de geração — o cabeçalho anterior era enganoso.
 
 export interface BodyRegionPath {
   d: string
@@ -27,19 +27,10 @@ export const maleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M343.801 179.5C346.601 175.1 345.967 159.333 345.301 152C348.801 156.167 357.601 164.8 372.801 166C388.001 167.2 398.801 157 403.301 151C401.701 172.6 404.634 180.333 406.301 181.5C415.501 192.7 439.801 202.167 450.801 205.5L444.301 212.5H392.801C383.801 212.5 381.801 219 378.301 222C375.501 224.4 373.134 223 372.301 222C359.801 209 342.801 211.5 321.301 212.5C304.101 213.3 302.301 208.5 298.301 205.5C324.801 197.5 340.301 185 343.801 179.5Z`,
     zOrder: 3,
   },
-  'Tórax (anterior)': {
+  // Tronco anterior fundido — 1 hotspot por vista (sem clip, path inteiro).
+  // As faixas Tórax/Abdome/Pelve (anterior) deixaram de ser hotspots clicáveis (B2).
+  'Tronco (anterior)': {
     d: M_TORSO_ANT,
-    clipId: 'clip-torax-ant',
-    zOrder: 0,
-  },
-  'Abdome (anterior)': {
-    d: M_TORSO_ANT,
-    clipId: 'clip-abdome-ant',
-    zOrder: 0,
-  },
-  'Pelve (anterior)': {
-    d: M_TORSO_ANT,
-    clipId: 'clip-pelve-ant',
     zOrder: 0,
   },
   'Membro superior direito (anterior)': {
@@ -68,19 +59,10 @@ export const maleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M1103.3 201C1079.3 193 1062.5 183 1059 177.5C1053.8 173.5 1050.5 167 1050 165C1049.5 163 1047.5 154.5 1043.5 151.5C1039.5 148.5 1032.5 146.5 1028.5 146.5C1024.5 146.5 1019.5 147.5 1015.5 150.5C1011.5 153.5 1009.5 157.5 1006 167C1003.2 174.6 998.701 178.833 996.801 180C984.801 189 966.301 197.667 955.301 201L983.801 218.5L1028.8 227L1073.8 218.5L1103.3 201Z`,
     zOrder: 3,
   },
-  'Tórax (posterior)': {
+  // Tronco posterior fundido — 1 hotspot por vista (sem clip, path inteiro).
+  // As faixas Tórax/Região lombossacra/Pelve (posterior) deixaram de ser hotspots clicáveis (B2).
+  'Tronco (posterior)': {
     d: M_TORSO_POST,
-    clipId: 'clip-torax-post',
-    zOrder: 0,
-  },
-  'Região lombossacra (posterior)': {
-    d: M_TORSO_POST,
-    clipId: 'clip-lombo-post',
-    zOrder: 0,
-  },
-  'Pelve (posterior)': {
-    d: M_TORSO_POST,
-    clipId: 'clip-pelve-post',
     zOrder: 0,
   },
   'Membro superior direito (posterior)': {
@@ -111,19 +93,10 @@ export const femaleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M346 186C348.8 181.6 347.667 166.333 347 159C350.5 163.167 364.007 175.689 374 175C388.5 174 400.5 161 402 158.5C400.4 180.1 402.333 186.333 404 187.5C412.5 197 427.5 202.5 436 205.5L420.5 210.5L405 213C401.5 213.565 389 213 387 214C385 215 386 215.5 381.5 220.5C377 225.5 369 221.5 368.5 220.5C368.1 219.7 363.667 215.833 361.5 214C337.5 213.2 318.833 208.333 312.5 206C332.5 199.5 342.5 191.5 346 186Z`,
     zOrder: 3,
   },
-  'Tórax (anterior)': {
+  // Tronco anterior fundido — 1 hotspot por vista (sem clip, path inteiro).
+  // As faixas Tórax/Abdome/Pelve (anterior) deixaram de ser hotspots clicáveis (B2).
+  'Tronco (anterior)': {
     d: F_TORSO_ANT,
-    clipId: 'clip-torax-ant',
-    zOrder: 0,
-  },
-  'Abdome (anterior)': {
-    d: F_TORSO_ANT,
-    clipId: 'clip-abdome-ant',
-    zOrder: 0,
-  },
-  'Pelve (anterior)': {
-    d: F_TORSO_ANT,
-    clipId: 'clip-pelve-ant',
     zOrder: 0,
   },
   'Membro superior direito (anterior)': {
@@ -152,19 +125,10 @@ export const femaleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M997.5 187C1000.3 182.6 1001.67 170.834 1001 163.5C1002 158.5 1002 147.773 1009.5 143C1020.5 136 1028 145.5 1028 145.5C1028 145.5 1028.5 144.999 1029 144.5C1030.5 142.5 1035 138.501 1042.5 141.501C1055 146.5 1052.5 157.5 1055 166.5C1055.5 180.5 1055.83 185.833 1057.5 187C1068 197 1091 205 1099.5 208C1095.33 208.5 1083.4 213.3 1063 222.5C1037.5 234 1001 227 991 221.5C985.458 218.452 965.833 211.167 956.5 208C977.5 200 994 192.5 997.5 187Z`,
     zOrder: 3,
   },
-  'Tórax (posterior)': {
+  // Tronco posterior fundido — 1 hotspot por vista (sem clip, path inteiro).
+  // As faixas Tórax/Região lombossacra/Pelve (posterior) deixaram de ser hotspots clicáveis (B2).
+  'Tronco (posterior)': {
     d: F_TORSO_POST,
-    clipId: 'clip-torax-post',
-    zOrder: 0,
-  },
-  'Região lombossacra (posterior)': {
-    d: F_TORSO_POST,
-    clipId: 'clip-lombo-post',
-    zOrder: 0,
-  },
-  'Pelve (posterior)': {
-    d: F_TORSO_POST,
-    clipId: 'clip-pelve-post',
     zOrder: 0,
   },
   'Membro superior direito (posterior)': {

@@ -5,6 +5,7 @@ import {
   femaleRegionPaths,
   type BodyRegionPath,
 } from './bodyMapPaths'
+import { PARTE_PARA_TRONCO } from './regioesCircunferenciais'
 
 export interface ExameFisicoRegiao {
   id: string
@@ -17,6 +18,13 @@ export interface ExameFisicoRegiao {
   filhos?: ExameFisicoRegiao[]
 }
 
+/**
+ * Evento de clique no tronco: pseudo-hotspot sintético (não existe no catálogo).
+ * 'tronco-anterior' = usuário clicou no lado anterior do mapa.
+ * 'tronco-posterior' = usuário clicou no lado posterior.
+ */
+export type TroncoClique = 'tronco-anterior' | 'tronco-posterior'
+
 const props = defineProps<{
   regioes: ExameFisicoRegiao[]
   regioesExaminadas: string[]
@@ -25,6 +33,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   regiaoClicada: [regiao: ExameFisicoRegiao]
+  troncoClicado: [vista: TroncoClique]
 }>()
 
 const isFeminino = computed(() => {
@@ -44,9 +53,18 @@ const currentPaths = computed<Record<string, BodyRegionPath>>(() =>
   isFeminino.value ? femaleRegionPaths : maleRegionPaths,
 )
 
+/**
+ * Hotspots do catálogo — exclui as partes do tronco (deixaram de ser clicáveis).
+ * Tronco é renderizado como pseudo-hotspots sintéticos (ver abaixo).
+ */
+const NOMES_TRONCO = new Set([
+  'Tórax (anterior)', 'Abdome (anterior)', 'Pelve (anterior)',
+  'Tórax (posterior)', 'Região lombossacra (posterior)', 'Pelve (posterior)',
+])
+
 const regioesComPath = computed(() =>
   props.regioes
-    .filter((r) => r.nivel === 1 && currentPaths.value[r.nome])
+    .filter((r) => r.nivel === 1 && currentPaths.value[r.nome] && !NOMES_TRONCO.has(r.nome))
     .map((r) => ({
       ...r,
       pathData: currentPaths.value[r.nome],
@@ -55,8 +73,30 @@ const regioesComPath = computed(() =>
     .sort((a, b) => a.pathData.zOrder - b.pathData.zOrder),
 )
 
+/**
+ * Pseudo-hotspots de tronco fundido — nós sintéticos de UI (não existem no catálogo).
+ * Acendem por "OU das partes" via PARTE_PARA_TRONCO.
+ */
+const TRONCO_HOTSPOTS: Array<{ nome: 'Tronco (anterior)' | 'Tronco (posterior)'; vistaId: TroncoClique }> = [
+  { nome: 'Tronco (anterior)',  vistaId: 'tronco-anterior'  },
+  { nome: 'Tronco (posterior)', vistaId: 'tronco-posterior' },
+]
+
+const troncoHotspots = computed(() =>
+  TRONCO_HOTSPOTS.flatMap((t) => {
+    const pathData = currentPaths.value[t.nome]
+    if (!pathData) return []
+    // Acende quando qualquer nível-1 daquela vista estiver em regioesExaminadas.
+    const isExaminada = props.regioesExaminadas.some(
+      (id) => PARTE_PARA_TRONCO[id] === t.nome,
+    )
+    return [{ ...t, pathData, isExaminada }]
+  }),
+)
+
 const hoveredNome = ref<string | null>(null)
 const hoveredGroupIds = ref<string[]>([])
+const hoveredTronco = ref<TroncoClique | null>(null)
 let leaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const MEMBRO_RE = /^Membro (superior|inferior) (?:direito|esquerdo) \((anterior|posterior)\)$/i
@@ -79,14 +119,26 @@ function handleMouseEnter(regiao: ExameFisicoRegiao) {
     clearTimeout(leaveTimer)
     leaveTimer = null
   }
+  hoveredTronco.value = null
   hoveredGroupIds.value = getMembroGroup(regiao)
   const m = /^(Membro (?:superior|inferior)) (?:direito|esquerdo) (\((?:anterior|posterior)\))$/.exec(regiao.nome)
   hoveredNome.value = m ? `${m[1]} ${m[2]}` : regiao.nome
 }
 
+function handleMouseEnterTronco(vistaId: TroncoClique, label: string) {
+  if (leaveTimer !== null) {
+    clearTimeout(leaveTimer)
+    leaveTimer = null
+  }
+  hoveredGroupIds.value = []
+  hoveredTronco.value = vistaId
+  hoveredNome.value = label
+}
+
 function handleMouseLeave() {
   leaveTimer = setTimeout(() => {
     hoveredGroupIds.value = []
+    hoveredTronco.value = null
     hoveredNome.value = null
     leaveTimer = null
   }, 30)
@@ -94,6 +146,10 @@ function handleMouseLeave() {
 
 function handleClick(regiao: ExameFisicoRegiao) {
   emit('regiaoClicada', regiao)
+}
+
+function handleTroncoClick(vistaId: TroncoClique) {
+  emit('troncoClicado', vistaId)
 }
 </script>
 
@@ -113,27 +169,8 @@ function handleClick(regiao: ExameFisicoRegiao) {
         xmlns="http://www.w3.org/2000/svg"
         style="display: block;"
       >
-        <defs>
-          <!-- Clip-paths para sub-regiões do tronco -->
-          <clipPath id="clip-torax-ant">
-            <rect x="0" y="0" width="700" height="370" />
-          </clipPath>
-          <clipPath id="clip-abdome-ant">
-            <rect x="0" y="370" width="700" height="82" />
-          </clipPath>
-          <clipPath id="clip-pelve-ant">
-            <rect x="0" y="452" width="700" height="200" />
-          </clipPath>
-          <clipPath id="clip-torax-post">
-            <rect x="700" y="0" width="700" height="387" />
-          </clipPath>
-          <clipPath id="clip-lombo-post">
-            <rect x="700" y="387" width="700" height="83" />
-          </clipPath>
-          <clipPath id="clip-pelve-post">
-            <rect x="700" y="470" width="700" height="200" />
-          </clipPath>
-        </defs>
+        <!-- Os 6 clipPaths de tronco foram removidos (B2).
+             O tronco é agora 1 hotspot fundido por vista, sem recorte. -->
 
         <!-- Imagem de fundo do corpo -->
         <!--
@@ -161,12 +198,32 @@ function handleClick(regiao: ExameFisicoRegiao) {
           opacity="0.4"
         />
 
-        <!-- Hotspots clicáveis — paths nativos do SVG -->
+        <!-- Pseudo-hotspots de tronco fundido (sintéticos — não existem no catálogo).
+             Renderizados antes dos hotspots do catálogo (zOrder 0) para respeitar empilhamento. -->
+        <path
+          v-for="t in troncoHotspots"
+          :key="t.vistaId"
+          :d="t.pathData.d"
+          :class="[
+            'region-hotspot',
+            t.isExaminada
+              ? 'region-selected'
+              : hoveredTronco === t.vistaId
+                ? 'region-hover'
+                : 'region-idle',
+          ]"
+          role="button"
+          :aria-label="t.nome"
+          @click="handleTroncoClick(t.vistaId)"
+          @mouseenter="handleMouseEnterTronco(t.vistaId, t.nome)"
+          @mouseleave="handleMouseLeave()"
+        />
+
+        <!-- Hotspots clicáveis — paths nativos do SVG (cabeça, pescoço, membros) -->
         <path
           v-for="regiao in regioesComPath"
           :key="regiao.id"
           :d="regiao.pathData.d"
-          :clip-path="regiao.pathData.clipId ? `url(#${regiao.pathData.clipId})` : undefined"
           :class="[
             'region-hotspot',
             regiao.isExaminada

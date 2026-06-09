@@ -20,9 +20,11 @@ import {
     exameFisicoService,
     type ExameFisicoRegiao,
 } from "@/services/exameFisicoService"
-import RegionSelectorPopup from "@/components/exame-fisico/RegionSelectorPopup.vue"
+import RegionSelectorPopup, { type TroncoGrupos } from "@/components/exame-fisico/RegionSelectorPopup.vue"
 import RegionExamCard from "@/components/exame-fisico/RegionExamCard.vue"
 import { AppField, AppInput, AppSelect, AppTextarea } from "@/components/ui"
+import { RAMOS_CIRCUNFERENCIAL } from "@/components/exame-fisico/regioesCircunferenciais"
+import type { TroncoClique } from "@/components/exame-fisico/BodyMap.vue"
 
 // Carregamento lazy: o mapa corporal só baixa quando a seção é montada.
 const BodyMap = defineAsyncComponent(() => import("@/components/exame-fisico/BodyMap.vue"))
@@ -212,7 +214,7 @@ function getOpostoNivel1Id(n1Id: string): string | null {
     const m = MEMBRO_RE.exec(n1.nome)
     if (!m) return null
     const tipo = m[1]   // "superior" | "inferior"
-    const vista = m[2]  // "anterior" | "posterior"
+    const vista = m[2]  // "anterior" | "posterior" | "circunferencial"
     // Troca direito↔esquerdo no nome para localizar o oposto no catálogo
     const nomeDireito  = `Membro ${tipo} direito (${vista})`
     const nomeEsquerdo = `Membro ${tipo} esquerdo (${vista})`
@@ -222,19 +224,41 @@ function getOpostoNivel1Id(n1Id: string): string | null {
 
 /**
  * Array de ids de nível-1 destinado EXCLUSIVAMENTE ao BodyMap.
- * Parte de `regioesJaSelecionadas` e, para cada entrada com
- * lateralidade === 'bilateral', acrescenta o nível-1 do lado oposto
- * (quando existir e for membro), garantindo que ambos os membros acendam.
- * `regioesJaSelecionadas` não é alterado — continua servindo o popup.
+ *
+ * Expansão aditiva (via Set) — preserva o espelhamento bilateral de membro existente e
+ * acrescenta, para cards circunferenciais, ambos os ramos (anterior + posterior) via
+ * RAMOS_CIRCUNFERENCIAL (incluindo a exceção abdome↔lombossacra).
+ *
+ * O BodyMap usa esse array para:
+ * - Acender hotspots de catálogo (cabeça, pescoço, membros) por id.
+ * - Decidir se o polígono "Tronco (anterior/posterior)" acende via PARTE_PARA_TRONCO
+ *   (lógica "OU das partes" implementada no BodyMap).
  */
 const regioesExaminadasMapa = computed(() => {
     const ids = new Set(regioesJaSelecionadas.value)
     for (const r of regioes.value) {
-        if (r.lateralidade !== "bilateral") continue
-        const n1 = getAncestorNivel1Id(r.regiao_id)
-        if (!n1) continue
-        const oposto = getOpostoNivel1Id(n1)
-        if (oposto) ids.add(oposto)
+        // (existente) espelhamento bilateral de membro
+        if (r.lateralidade === "bilateral") {
+            const n1 = getAncestorNivel1Id(r.regiao_id)
+            if (n1) {
+                const oposto = getOpostoNivel1Id(n1)
+                if (oposto) {
+                    ids.add(oposto)
+                    // Se o oposto for circunferencial, expande também seus ramos
+                    const ramosOposto = RAMOS_CIRCUNFERENCIAL[oposto]
+                    if (ramosOposto) {
+                        ids.add(ramosOposto.anterior)
+                        ids.add(ramosOposto.posterior)
+                    }
+                }
+            }
+        }
+        // (novo B2) circunferencial → acende anterior E posterior (incl. abdome↔lombossacra)
+        const ramos = RAMOS_CIRCUNFERENCIAL[r.regiao_id]
+        if (ramos) {
+            ids.add(ramos.anterior)
+            ids.add(ramos.posterior)
+        }
     }
     return Array.from(ids)
 })
@@ -247,8 +271,12 @@ const membroRegioes = ref<{
     dirBase: ExameFisicoRegiao | null
     esquBase: ExameFisicoRegiao | null
 } | null>(null)
+/** Vista pré-selecionada ao abrir (M3 híbrido — mantém 3 opções editáveis). Null para fluxo padrão. */
+const vistaInicial = ref<"anterior" | "posterior" | "circunferencial" | null>(null)
+/** Grupos do tronco para o modo "lista agrupada por parte" (DP-3). Null para fluxo padrão. */
+const troncoGruposAtivos = ref<TroncoGrupos | null>(null)
 
-const MEMBRO_RE = /^Membro (superior|inferior) (?:direito|esquerdo) \((anterior|posterior)\)$/i
+const MEMBRO_RE = /^Membro (superior|inferior) (?:direito|esquerdo) \((anterior|posterior|circunferencial)\)$/i
 
 /**
  * O <c>BodyMap</c> declara seu próprio <c>ExameFisicoRegiao</c> (subset dos
@@ -257,6 +285,25 @@ const MEMBRO_RE = /^Membro (superior|inferior) (?:direito|esquerdo) \((anterior|
  * sem precisar duplicar tipos.
  */
 type RegiaoMapaSubset = Pick<ExameFisicoRegiao, "id" | "nome" | "nivel" | "lateralidade" | "pai_id" | "vista" | "template_texto">
+
+/**
+ * Grupos por parte do tronco anterior (Tórax / Abdome / Pelve) e posterior
+ * (Tórax / Região lombossacra / Pelve). Usados no modo "lista agrupada por parte" (DP-3).
+ */
+const GRUPOS_TRONCO_ANTERIOR: TroncoGrupos = {
+    grupos: [
+        { label: "Tórax",   regiaoBaseId: "torax-anterior"  },
+        { label: "Abdome",  regiaoBaseId: "abdome-anterior" },
+        { label: "Pelve",   regiaoBaseId: "pelve-anterior"  },
+    ],
+}
+const GRUPOS_TRONCO_POSTERIOR: TroncoGrupos = {
+    grupos: [
+        { label: "Tórax",              regiaoBaseId: "torax-posterior"        },
+        { label: "Região lombossacra", regiaoBaseId: "lombossacra-posterior"  },
+        { label: "Pelve",              regiaoBaseId: "pelve-posterior"        },
+    ],
+}
 
 function onRegiaoClicada(regiao: RegiaoMapaSubset) {
     // Resolve para a entidade completa do catálogo (com ordem/ativo). O BodyMap
@@ -272,10 +319,28 @@ function onRegiaoClicada(regiao: RegiaoMapaSubset) {
         const esquBase = regioesNivel1.value.find(r => r.nome === `${base} esquerdo (${vista})`) ?? null
         membroRegioes.value = { tipo, dirBase, esquBase }
         regiaoClicada.value = dirBase
+        vistaInicial.value = null
+        troncoGruposAtivos.value = null
     } else {
         membroRegioes.value = null
         regiaoClicada.value = completa
+        vistaInicial.value = null
+        troncoGruposAtivos.value = null
     }
+    selectorAberto.value = true
+}
+
+/**
+ * Clique no pseudo-hotspot de tronco fundido (sintético, não existe no catálogo).
+ * Abre o popup no modo "lista agrupada por parte" com a vista pré-selecionada pelo lado clicado (M3 híbrido).
+ */
+function onTroncoClicado(vistaId: TroncoClique) {
+    membroRegioes.value = null
+    regiaoClicada.value = null
+    vistaInicial.value = vistaId === "tronco-anterior" ? "anterior" : "posterior"
+    troncoGruposAtivos.value = vistaId === "tronco-anterior"
+        ? GRUPOS_TRONCO_ANTERIOR
+        : GRUPOS_TRONCO_POSTERIOR
     selectorAberto.value = true
 }
 
@@ -667,6 +732,7 @@ onMounted(async () => {
                     :regioes-examinadas="regioesExaminadasMapa"
                     :sexo="pacienteSexo"
                     @regiao-clicada="onRegiaoClicada"
+                    @tronco-clicado="onTroncoClicado"
                 />
             </div>
         </div>
@@ -705,6 +771,8 @@ onMounted(async () => {
             :regioes-ja-selecionadas="regioesJaSelecionadas"
             :get-filhos="getFilhos"
             :membro-regioes="membroRegioes"
+            :vista-inicial="vistaInicial"
+            :tronco-grupos="troncoGruposAtivos"
             @confirmar="onConfirmarRegioes"
         />
     </div>

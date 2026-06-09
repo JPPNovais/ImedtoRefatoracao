@@ -276,6 +276,38 @@ Toda tipografia do produto usa a escala canônica de tokens definida em `fronten
 
 O preset em `design-system/src/tailwind/preset.js` mapeia as classes Tailwind `text-xs` ... `text-3xl` para os tokens: `text-sm` → `var(--text-sm, 0.8125rem)` etc. Ao usar Tailwind de tamanho dentro de componentes DS, os valores resultam nos mesmos px da escala canônica.
 
+## Mapa corporal interativo (BodyMap — briefing 2026-06-08_006 B2)
+
+O componente `BodyMap.vue` (em `frontend/src/components/exame-fisico/`) renderiza o atlas corporal SVG com hotspots clicáveis e coloração por estado examinado.
+
+### Hotspot de tronco fundido
+
+O tronco é renderizado como **1 polígono clicável por vista** (`Tronco (anterior)` no lado esquerdo / `Tronco (posterior)` no lado direito), sem clip-paths. As antigas faixas separadas por faixa-Y (Tórax / Abdome / Pelve) deixaram de ser hotspots clicáveis.
+
+Esses 2 pseudo-hotspots são **nós sintéticos de UI** — não existem no catálogo `regioes_anatomicas_catalogo`. Seus paths SVG (`M_TORSO_ANT`, `M_TORSO_POST`, `F_TORSO_ANT`, `F_TORSO_POST`) estão em `bodyMapPaths.ts` sob as chaves `'Tronco (anterior)'` e `'Tronco (posterior)'`, em `maleRegionPaths` e `femaleRegionPaths`.
+
+O clique no pseudo-hotspot emite o evento `troncoClicado: TroncoClique` (`'tronco-anterior'` ou `'tronco-posterior'`), tratado por `SecaoExameFisico.onTroncoClicado`. O modal que se abre exibe as sub-regiões das partes do tronco daquela vista, agrupadas por parte (DP-3 — ver regra R4 do briefing).
+
+### Highlight ("acender") por vista
+
+- **Vista anterior** → acende o polígono `Tronco (anterior)`.
+- **Vista posterior** → acende o polígono `Tronco (posterior)`.
+- **Vista circunferencial** → acende **ambos** (`Tronco (anterior)` e `Tronco (posterior)`).
+
+Para o tronco fundido, a decisão de acender é feita por **"OU das partes"** via `PARTE_PARA_TRONCO` (em `regioesCircunferenciais.ts`): o polígono `Tronco (anterior)` acende quando qualquer id de parte anterior (`torax-anterior`, `abdome-anterior`, `pelve-anterior`) estiver em `regioesExaminadas`; analogamente para o posterior.
+
+A expansão circunferencial usa `RAMOS_CIRCUNFERENCIAL` (módulo compartilhado `regioesCircunferenciais.ts`), que é a **fonte única de verdade** do mapeamento `{base}-circunferencial → { anterior, posterior }`, incluindo a exceção clínica `abdome-circunferencial → { anterior: 'abdome-anterior', posterior: 'lombossacra-posterior' }`.
+
+A expansão é **aditiva** sobre o `Set` que já contém o espelhamento bilateral de membro existente — bilateral × circunferencial coexistem (um membro circunferencial bilateral acende 4 polígonos: anterior + posterior de cada lado).
+
+### Módulo compartilhado
+
+`frontend/src/components/exame-fisico/regioesCircunferenciais.ts` exporta:
+- `RAMOS_CIRCUNFERENCIAL` — consumido por `RegionSelectorPopup` (resolver filhos no modo circunferencial) e por `SecaoExameFisico` (expansão de highlight no mapa).
+- `PARTE_PARA_TRONCO` — consumido por `BodyMap` (lógica "OU das partes" do tronco fundido).
+
+**Referência técnica:** `Docs/Discoverys/exame-fisico-fusao-poligonos/01_discovery.md`.
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

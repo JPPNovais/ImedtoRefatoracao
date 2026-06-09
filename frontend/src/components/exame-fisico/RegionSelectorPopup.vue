@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { AppModal } from '@/components/ui'
 import { AppButton } from '@/components/ui'
 import { AppPillToggle } from '@/components/ui'
+import { RAMOS_CIRCUNFERENCIAL } from './regioesCircunferenciais'
 
 export interface ExameFisicoRegiao {
   id: string
@@ -21,6 +22,15 @@ export interface MembroRegioes {
   esquBase: ExameFisicoRegiao | null
 }
 
+/**
+ * Modo de lista agrupada por parte do tronco.
+ * Quando não-null, o passo de sub-regiões exibe grupos Tórax/Abdome/Pelve (ou Tórax/Lombossacra/Pelve)
+ * em vez da lista padrão de filhos da região clicada.
+ */
+export interface TroncoGrupos {
+  grupos: Array<{ label: string; regiaoBaseId: string }>
+}
+
 type LadoMembro = 'D' | 'E' | 'bilateral'
 type VistaPasso = 'anterior' | 'posterior' | 'circunferencial'
 
@@ -36,22 +46,6 @@ const OPCOES_VISTA = [
   { valor: 'circunferencial' as VistaPasso, label: 'Circunferencial' },
 ]
 
-/**
- * Mapa determinístico: {base}-circunferencial → (ramoAnterior, ramoPosterior).
- * Exceção clínica: abdome-circunferencial → ramo posterior = lombossacra-posterior.
- */
-const RAMOS_CIRCUNFERENCIAL: Record<string, { anterior: string; posterior: string }> = {
-  'cabeca-circunferencial': { anterior: 'cabeca-anterior',  posterior: 'cabeca-posterior'  },
-  'pescoco-circunferencial': { anterior: 'pescoco-anterior', posterior: 'pescoco-posterior' },
-  'torax-circunferencial':  { anterior: 'torax-anterior',   posterior: 'torax-posterior'   },
-  'abdome-circunferencial': { anterior: 'abdome-anterior',  posterior: 'lombossacra-posterior' },
-  'pelve-circunferencial':  { anterior: 'pelve-anterior',   posterior: 'pelve-posterior'   },
-  'msd-circunferencial':    { anterior: 'msd-anterior',     posterior: 'msd-posterior'     },
-  'mse-circunferencial':    { anterior: 'mse-anterior',     posterior: 'mse-posterior'     },
-  'mid-circunferencial':    { anterior: 'mid-anterior',     posterior: 'mid-posterior'     },
-  'mie-circunferencial':    { anterior: 'mie-anterior',     posterior: 'mie-posterior'     },
-}
-
 const props = defineProps<{
   aberto: boolean
   regiaoClicada: ExameFisicoRegiao | null
@@ -59,6 +53,10 @@ const props = defineProps<{
   regioesJaSelecionadas: string[]
   getFilhos: (regiaoId: string) => ExameFisicoRegiao[]
   membroRegioes?: MembroRegioes | null
+  /** Quando fornecida, o passo de vista inicia com esse valor pré-selecionado (M3 híbrido — mantém as 3 opções editáveis). */
+  vistaInicial?: VistaPasso | null
+  /** Quando fornecida, o passo de sub-regiões opera em modo "lista agrupada por parte do tronco" (DP-3). */
+  troncoGrupos?: TroncoGrupos | null
 }>()
 
 const emit = defineEmits<{
@@ -69,11 +67,22 @@ const emit = defineEmits<{
 // ── Estado de passo ───────────────────────────────────────────────────────────
 // Membro:     'lado' → 'vista' → 'subregioes'
 // Não-membro: 'vista' → 'subregioes'
+// Tronco (sintético): 'vista' → 'subregioes' (agrupado por parte)
 const passo = ref<'lado' | 'vista' | 'subregioes'>(
   props.membroRegioes ? 'lado' : 'vista'
 )
 const ladoEscolhido = ref<LadoMembro | null>(null)
-const vistaEscolhida = ref<VistaPasso | null>(null)
+// vistaInicial pré-preenche a vista quando fornecida (M3 híbrido — 3 opções permanecem editáveis).
+const vistaEscolhida = ref<VistaPasso | null>(props.vistaInicial ?? null)
+
+// Quando o popup abre, re-inicializa o estado respeitando vistaInicial e troncoGrupos.
+watch(() => props.aberto, (abre) => {
+  if (!abre) return
+  limparSelecao()
+  ladoEscolhido.value = null
+  passo.value = props.membroRegioes ? 'lado' : 'vista'
+  vistaEscolhida.value = props.vistaInicial ?? null
+})
 
 // ── Base ativa depende do lado (R4) ──────────────────────────────────────────
 const baseAtiva = computed<ExameFisicoRegiao | null>(() => {
@@ -150,14 +159,47 @@ const filhosAtuais = computed(() => {
 })
 
 /**
+ * Modo "lista agrupada por parte do tronco" (DP-3).
+ * Ativo quando troncoGrupos está presente e passo === 'subregioes'.
+ * Retorna array de { label, filhos } — um por parte do tronco.
+ */
+const filhosTroncoGrupos = computed<Array<{ label: string; filhos: ExameFisicoRegiao[] }>>(() => {
+  if (!props.troncoGrupos || vistaEscolhida.value === 'circunferencial') return []
+  return props.troncoGrupos.grupos.map(g => ({
+    label: g.label,
+    filhos: props.getFilhos(g.regiaoBaseId),
+  }))
+})
+
+/**
  * Agrupamento para o modo circunferencial.
  * Retorna { anterior: ExameFisicoRegiao[], posterior: ExameFisicoRegiao[] }.
+ *
+ * Caso especial do tronco (troncoGrupos presente): agrega filhos de todas as partes
+ * anteriores num grupo e todas as posteriores noutro (usando os RAMOS_CIRCUNFERENCIAL de cada parte).
  */
 const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterior: ExameFisicoRegiao[] }>(() => {
-  const idCirc = props.membroRegioes ? idCircunferencial.value : idCircunferencialNaoMembro.value
-  if (!idCirc || vistaEscolhida.value !== 'circunferencial') {
-    return { anterior: [], posterior: [] }
+  if (vistaEscolhida.value !== 'circunferencial') return { anterior: [], posterior: [] }
+
+  // Modo tronco circunferencial: agrega filhos de todas as partes por lado.
+  if (props.troncoGrupos) {
+    const anterior: ExameFisicoRegiao[] = []
+    const posterior: ExameFisicoRegiao[] = []
+    for (const grupo of props.troncoGrupos.grupos) {
+      // Deriva o nó circunferencial da parte (ex.: 'torax-anterior' → 'torax-circunferencial')
+      const base = grupo.regiaoBaseId.replace(/-anterior$/, '').replace(/-posterior$/, '')
+      const idCircParte = `${base}-circunferencial`
+      const ramos = RAMOS_CIRCUNFERENCIAL[idCircParte]
+      if (ramos) {
+        anterior.push(...props.getFilhos(ramos.anterior))
+        posterior.push(...props.getFilhos(ramos.posterior))
+      }
+    }
+    return { anterior, posterior }
   }
+
+  const idCirc = props.membroRegioes ? idCircunferencial.value : idCircunferencialNaoMembro.value
+  if (!idCirc) return { anterior: [], posterior: [] }
   const ramos = RAMOS_CIRCUNFERENCIAL[idCirc]
   return {
     anterior: props.getFilhos(ramos.anterior),
@@ -291,7 +333,9 @@ function fechar() {
   limparSelecao()
   passo.value = props.membroRegioes ? 'lado' : 'vista'
   ladoEscolhido.value = null
-  vistaEscolhida.value = null
+  // Reseta para vistaInicial (não para null) — garante que reabrir o popup
+  // ainda pré-seleciona a vista conforme o lado clicado no mapa (M3 híbrido).
+  vistaEscolhida.value = props.vistaInicial ?? null
   emit('update:aberto', false)
 }
 </script>
@@ -466,6 +510,57 @@ function fechar() {
 
             <p
               v-if="filhosCircunferencial.anterior.length === 0 && filhosCircunferencial.posterior.length === 0"
+              class="text-xs text-muted-foreground text-center py-4"
+            >
+              Nenhuma sub-região disponível.
+            </p>
+          </div>
+        </template>
+
+        <!-- ── Modo tronco: lista agrupada por parte (DP-3) ───────────────── -->
+        <!-- vistaEscolhida !== 'circunferencial' já garantida pelo v-if anterior -->
+        <template v-else-if="troncoGrupos">
+          <div class="space-y-1 max-h-[400px] overflow-y-auto">
+            <template v-for="(grupo, gi) in filhosTroncoGrupos" :key="grupo.label">
+              <div v-if="gi > 0" class="border-t border-border" />
+              <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 pt-2">
+                {{ grupo.label }}
+              </p>
+              <div
+                v-for="filho in grupo.filhos"
+                :key="filho.id"
+                class="flex items-center gap-2 p-2 rounded-md transition-colors"
+                :class="!jaFoiSelecionada(filho.id) ? 'hover:bg-muted/50 cursor-pointer' : ''"
+                @click="!jaFoiSelecionada(filho.id) && toggleRegiao(filho)"
+              >
+                <input
+                  v-if="!jaFoiSelecionada(filho.id)"
+                  type="checkbox"
+                  :checked="estaSelecionado(filho.id)"
+                  class="h-4 w-4 rounded border-input text-primary focus:ring-primary shrink-0 cursor-pointer"
+                  @click.stop
+                  @change="toggleRegiao(filho)"
+                />
+                <i
+                  v-else
+                  class="fa-solid fa-check text-[10px] text-success w-4 text-center shrink-0"
+                />
+                <span
+                  class="text-xs flex-1 select-none"
+                  :class="{ 'text-muted-foreground': jaFoiSelecionada(filho.id) }"
+                >
+                  {{ filho.nome }}
+                </span>
+                <span
+                  v-if="jaFoiSelecionada(filho.id)"
+                  class="text-[9px] border border-border rounded px-1.5 py-0.5 text-muted-foreground"
+                >
+                  Selecionado
+                </span>
+              </div>
+            </template>
+            <p
+              v-if="filhosTroncoGrupos.every(g => g.filhos.length === 0)"
               class="text-xs text-muted-foreground text-center py-4"
             >
               Nenhuma sub-região disponível.
