@@ -117,6 +117,7 @@ public static class AcoesAuditAdmin
     public const string CriarRegiaoAnatomica = "CRIAR_REGIAO_ANATOMICA";
     public const string AtualizarRegiaoAnatomica = "ATUALIZAR_REGIAO_ANATOMICA";
     public const string InativarRegiaoAnatomica = "INATIVAR_REGIAO_ANATOMICA";
+    public const string ReativarRegiaoAnatomica = "REATIVAR_REGIAO_ANATOMICA";
     public const string ExcluirRegiaoAnatomica = "EXCLUIR_REGIAO_ANATOMICA";
 
     // Briefing 2026-06-04_001 — Modelos de permissão padrão do sistema (cópias materializadas + propagação)

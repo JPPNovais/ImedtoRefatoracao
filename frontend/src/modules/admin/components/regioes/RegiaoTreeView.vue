@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
  * RegiaoTreeView — renderiza recursivamente a árvore de regiões anatômicas.
- * Cada nó pode ser expandido/colapsado. Expõe ações de editar, inativar e excluir.
+ * Cada nó pode ser expandido/colapsado.
+ * Ações: editar, inativar (primária, ativo), reativar (inativo), excluir (secundária).
+ * B3 (2026-06-08_007): inativar é ação primária; reativar exposto para inativos; excluir secundário.
  */
 import { ref } from "vue"
 import { AppBadge } from "@/components/ui"
@@ -15,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     editar: [id: number]
     inativar: [no: RegiaoAnatomicaNoDto]
+    reativar: [no: RegiaoAnatomicaNoDto]
     excluir: [no: RegiaoAnatomicaNoDto]
 }>()
 
@@ -61,13 +64,43 @@ const nivelAtual = props.nivel ?? 0
 
                 <!-- Ações -->
                 <div class="no-acoes">
-                    <button class="btn-icon btn-icon-editar" type="button" title="Editar" @click="emit('editar', no.id)">
+                    <!-- Editar (sempre disponível) -->
+                    <button
+                        class="btn-icon btn-icon-editar"
+                        type="button"
+                        title="Editar"
+                        @click="emit('editar', no.id)"
+                    >
                         <i class="fa-solid fa-pen"></i>
                     </button>
+
+                    <!-- Inativar (ação primária de remoção) — só para nós ativos -->
                     <button
-                        class="btn-icon btn-icon-excluir"
+                        v-if="no.ativo"
+                        class="btn-icon btn-icon-inativar"
                         type="button"
-                        :title="no.filhos.length > 0 ? 'Possui sub-regiões — remova-as primeiro' : 'Excluir'"
+                        title="Inativar"
+                        @click="emit('inativar', no)"
+                    >
+                        <i class="fa-solid fa-ban"></i>
+                    </button>
+
+                    <!-- Reativar — só para nós inativos -->
+                    <button
+                        v-else
+                        class="btn-icon btn-icon-reativar"
+                        type="button"
+                        title="Reativar"
+                        @click="emit('reativar', no)"
+                    >
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+
+                    <!-- Excluir permanentemente (secundário) — desabilitado quando tem filhos -->
+                    <button
+                        class="btn-icon btn-icon-excluir btn-icon-secundario"
+                        type="button"
+                        :title="no.filhos.length > 0 ? 'Possui sub-regiões — inative ou remova-as primeiro' : 'Excluir permanentemente'"
                         :disabled="no.filhos.length > 0"
                         @click="emit('excluir', no)"
                     >
@@ -83,6 +116,7 @@ const nivelAtual = props.nivel ?? 0
                 :nivel="nivelAtual + 1"
                 @editar="emit('editar', $event)"
                 @inativar="emit('inativar', $event)"
+                @reativar="emit('reativar', $event)"
                 @excluir="emit('excluir', $event)"
             />
         </li>
@@ -108,7 +142,7 @@ const nivelAtual = props.nivel ?? 0
     gap: 0.5rem;
     padding: 0.4375rem 0.625rem;
     border-radius: calc(var(--radius) - 2px);
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
     transition: background 0.1s;
 }
 .arvore-no:hover { background: hsl(var(--muted) / 0.5); }
@@ -124,7 +158,7 @@ const nivelAtual = props.nivel ?? 0
     border: none;
     cursor: pointer;
     color: hsl(var(--muted-foreground));
-    font-size: 0.6875rem;
+    font-size: var(--text-xs);
     flex-shrink: 0;
     border-radius: 3px;
 }
@@ -134,7 +168,7 @@ const nivelAtual = props.nivel ?? 0
 
 .no-codigo {
     font-family: monospace;
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     color: hsl(var(--muted-foreground));
     background: hsl(var(--muted) / 0.6);
     padding: 0.0625rem 0.3rem;
@@ -143,14 +177,14 @@ const nivelAtual = props.nivel ?? 0
 }
 
 .no-nome {
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     color: hsl(var(--foreground));
     flex: 1;
     min-width: 0;
 }
 
 .badge-vista {
-    font-size: 0.6875rem;
+    font-size: var(--text-xs);
     padding: 0.0625rem 0.375rem;
     border-radius: 9999px;
     background: hsl(var(--primary) / 0.1);
@@ -160,7 +194,7 @@ const nivelAtual = props.nivel ?? 0
 }
 
 .badge-lat {
-    font-size: 0.6875rem;
+    font-size: var(--text-xs);
     padding: 0.0625rem 0.375rem;
     border-radius: 9999px;
     background: hsl(var(--warning, 40 95% 55%) / 0.15);
@@ -169,7 +203,7 @@ const nivelAtual = props.nivel ?? 0
 }
 
 .badge-filhos {
-    font-size: 0.6875rem;
+    font-size: var(--text-xs);
     color: hsl(var(--muted-foreground));
     flex-shrink: 0;
 }
@@ -181,8 +215,33 @@ const nivelAtual = props.nivel ?? 0
     flex-shrink: 0;
 }
 
+/* Inativar — ação primária de remoção (warning/laranja) */
+.btn-icon-inativar {
+    color: hsl(var(--warning, 30 90% 40%));
+}
+.btn-icon-inativar:hover {
+    background: hsl(var(--warning, 40 95% 55%) / 0.15);
+    color: hsl(var(--warning, 25 85% 35%));
+}
+
+/* Reativar — cor de sucesso */
+.btn-icon-reativar {
+    color: hsl(var(--success, 140 60% 35%));
+}
+.btn-icon-reativar:hover {
+    background: hsl(var(--success, 140 60% 35%) / 0.1);
+}
+
+/* Excluir permanente — secundário (mais discreto via opacidade) */
+.btn-icon-secundario {
+    opacity: 0.55;
+}
+.btn-icon-secundario:not(:disabled):hover {
+    opacity: 1;
+}
+
 .btn-icon:disabled {
-    opacity: 0.35;
+    opacity: 0.3;
     cursor: not-allowed;
 }
 </style>

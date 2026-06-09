@@ -200,6 +200,9 @@ export const regioesGlobaisService = {
     async inativar(id: number, motivo: string): Promise<void> {
         await adminApi.post(`/catalogos/regioes-anatomicas/${id}/inativar`, { motivo })
     },
+    async reativar(id: number, motivo: string): Promise<void> {
+        await adminApi.post(`/catalogos/regioes-anatomicas/${id}/reativar`, { motivo })
+    },
     async excluir(id: number, motivo: string): Promise<void> {
         await adminApi.delete(`/catalogos/regioes-anatomicas/${id}`, { data: { motivo } })
     },

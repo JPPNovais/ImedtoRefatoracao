@@ -15,6 +15,7 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
     private readonly CriarRegiaoAdminCommandHandler _criar;
     private readonly AtualizarRegiaoAdminCommandHandler _atualizar;
     private readonly InativarRegiaoAdminCommandHandler _inativar;
+    private readonly ReativarRegiaoAdminCommandHandler _reativar;
     private readonly ExcluirRegiaoAdminCommandHandler _excluir;
 
     public AdminRegioesAnatomicasGlobaisController(
@@ -23,6 +24,7 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
         CriarRegiaoAdminCommandHandler criar,
         AtualizarRegiaoAdminCommandHandler atualizar,
         InativarRegiaoAdminCommandHandler inativar,
+        ReativarRegiaoAdminCommandHandler reativar,
         ExcluirRegiaoAdminCommandHandler excluir)
     {
         _listar = listar;
@@ -30,6 +32,7 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
         _criar = criar;
         _atualizar = atualizar;
         _inativar = inativar;
+        _reativar = reativar;
         _excluir = excluir;
     }
 
@@ -85,6 +88,14 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
     {
         var adminId = ObterAdminId();
         await _inativar.Handle(new InativarRegiaoAdminCommand(id, request.Motivo, adminId), ct);
+        return NoContent();
+    }
+
+    [HttpPost("api/admin/catalogos/regioes-anatomicas/{id:long}/reativar")]
+    public async Task<IActionResult> Reativar(long id, [FromBody] AdminMotivoRequest request, CancellationToken ct = default)
+    {
+        var adminId = ObterAdminId();
+        await _reativar.Handle(new ReativarRegiaoAdminCommand(id, request.Motivo, adminId), ct);
         return NoContent();
     }
 

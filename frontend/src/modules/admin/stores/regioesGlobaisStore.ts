@@ -59,9 +59,13 @@ export const useRegioesGlobaisStore = defineStore("adminRegioesGlobais", () => {
         await regioesGlobaisService.inativar(id, motivo)
     }
 
+    async function reativar(id: number, motivo: string): Promise<void> {
+        await regioesGlobaisService.reativar(id, motivo)
+    }
+
     async function excluir(id: number, motivo: string): Promise<void> {
         await regioesGlobaisService.excluir(id, motivo)
     }
 
-    return { arvore, carregando, erro, itemAtual, carregarArvore, carregarItem, criar, atualizar, inativar, excluir }
+    return { arvore, carregando, erro, itemAtual, carregarArvore, carregarItem, criar, atualizar, inativar, reativar, excluir }
 })

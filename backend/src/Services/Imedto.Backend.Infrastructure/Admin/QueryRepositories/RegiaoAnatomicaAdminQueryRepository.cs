@@ -17,6 +17,9 @@ public class RegiaoAnatomicaAdminQueryRepository
         _connectionString = connection.Value;
     }
 
+    /// <summary>Construtor para testes (Moq requer construtor acessível para proxy).</summary>
+    protected RegiaoAnatomicaAdminQueryRepository() { _connectionString = string.Empty; }
+
     /// <summary>
     /// Retorna árvore de regiões agrupada por vista, montada server-side.
     /// Inclui inativas quando solicitado.
@@ -84,7 +87,7 @@ public class RegiaoAnatomicaAdminQueryRepository
         };
     }
 
-    public async Task<bool> ExisteCodigoAsync(string codigo, long ignorarId = 0, CancellationToken ct = default)
+    public virtual async Task<bool> ExisteCodigoAsync(string codigo, long ignorarId = 0, CancellationToken ct = default)
     {
         const string sql = """
             SELECT EXISTS (

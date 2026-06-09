@@ -55,6 +55,7 @@ public static class AuditLogRetencao
         [AcoesAuditAdmin.CriarRegiaoAnatomica]          = 365,
         [AcoesAuditAdmin.AtualizarRegiaoAnatomica]      = 365,
         [AcoesAuditAdmin.InativarRegiaoAnatomica]       = 365,
+        [AcoesAuditAdmin.ReativarRegiaoAnatomica]       = 365,
         [AcoesAuditAdmin.ExcluirRegiaoAnatomica]        = 365,
 
         // Briefing 2026-06-04_001 — Modelos de permissão padrão sistema

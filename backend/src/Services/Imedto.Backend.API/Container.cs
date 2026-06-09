@@ -322,6 +322,7 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.CriarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.AtualizarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.InativarRegiaoAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ReativarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ExcluirRegiaoAdminCommandHandler>();
 
         // Briefing 2026-06-04_001 — Modelos de permissão padrão sistema (cópias materializadas + propagação cross-tenant)

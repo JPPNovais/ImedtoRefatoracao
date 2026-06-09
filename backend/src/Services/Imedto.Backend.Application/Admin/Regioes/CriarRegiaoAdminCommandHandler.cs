@@ -36,6 +36,9 @@ public class CriarRegiaoAdminCommandHandler
             var pai = await _repo.ObterPorCodigoOuNulo(command.PaiCodigo);
             if (pai is null)
                 throw new BusinessException("Código do pai não encontrado.");
+            // R7 (B3): nós circunferenciais são agregadores sintéticos — sem filhos próprios.
+            if (string.Equals(pai.Vista, "circunferencial", StringComparison.OrdinalIgnoreCase))
+                throw new BusinessException("Nós circunferenciais são agregadores e não aceitam sub-regiões.");
             if (command.Nivel != pai.Nivel + 1)
                 throw new BusinessException("Nível inconsistente com pai.");
             if (!string.Equals(command.Vista, pai.Vista, StringComparison.Ordinal))
