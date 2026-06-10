@@ -86,6 +86,18 @@ A tabela `prontuario_variaveis_pool` guarda nomes genéricos de itens clínicos 
 - **Dedup canônica é LGPD-segura.** A normalização (trim + lower + sem acento) ocorre em memória antes de criar item; não persiste a forma bruta digitada pelo profissional quando colide com existente.
 - **Sem PII em log.** Nenhum campo livre (que pode conter nome/contexto do paciente) transita por `_logger.*`. `PoolExtratorEvolucao` opera em silêncio — falha-suave sem log de dados da evolução.
 
+## Relatório de acessos ao titular (Art. 9º/18) — briefing 2026-06-10_007
+
+Implementa o direito do titular de saber quem acessou seus dados (Art. 9º e Art. 18 LGPD).
+
+- **Endpoint**: `GET /api/paciente/{id}/acessos?pagina=&tamanho=` — consolida `paciente_acesso_log` + `prontuario_acesso_log` em lista paginada (server-side) em linguagem leiga. Gate: `[RequiresPapel(TenantPapel.Dono)]`.
+- **O próprio acesso ao relatório é auditado**: cada carga de página registra 1 linha em `paciente_acesso_log` com `TipoAcessoPaciente.Leitura` (`{ paciente_id, usuario_id, estabelecimento_id, ocorrido_em, ip_origem }`). O export PDF também aciona o endpoint (gera 1 linha). Acesso a dado sobre acessos é acesso — correto por design.
+- **DTO minimizado**: cada item contém apenas `{ quem, quando, recurso, acao }` — sem `usuario_id` cru, `ip_origem`, `prontuario_id`, CPF, telefone ou conteúdo clínico. Rótulo leigo montado via CASE WHEN no SQL (fonte única — lista e PDF reusam o mesmo valor). Usuário removido/anonimizado exibe "Usuário removido" — nunca vaza o ID cru.
+- **Multi-tenant rígido**: ambas as subconsultas filtram `estabelecimento_id`; validação de posse do paciente no tenant antes de qualquer leitura; mensagem genérica ("Paciente não encontrado.").
+- **PDF**: composable `useAcessosPdf.ts` — cabeçalho institucional (Nunito), título "RELATÓRIO DE ACESSOS — LGPD", nome do paciente no subtítulo (entregue ao próprio titular — não é vazamento), tabela **Quem | O quê | Quando**, rodapé "Relatório de acessos — Art. 9º/18 LGPD.". Sem CPF/telefone do paciente. Teto de 500 registros por PDF com nota de rodapé se houver mais.
+- **Nenhum dado pessoal novo é coletado** — apenas expõe o que já é gravado em audit trail existente.
+- **Fontes excluídas do MVP**: `termo_emitido_acesso_log` e `agendamento_confirmacao_acesso_log` (acesso público do próprio titular via token, sem `usuario_id`). Backlog se solicitado.
+
 ## Checklist multi-tenant — premissa não-negociável
 
 Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento, **assinatura digital**), valide:

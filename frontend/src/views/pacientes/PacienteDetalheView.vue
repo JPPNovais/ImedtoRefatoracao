@@ -18,6 +18,8 @@ import { resolverTag } from "@/constants/pacienteTags"
 import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { documentoService, type DocumentoResumo, type TipoDocumento } from "@/services/documentoService"
+import { acessoService, type AcessoResumo } from "@/services/acessoService"
+import { useAcessosPdf } from "@/composables/useAcessosPdf"
 import { useReceitaPdf } from "@/composables/useReceitaPdf"
 import { useAtestadoPdf } from "@/composables/useAtestadoPdf"
 import { usePedidoExamePdf } from "@/composables/usePedidoExamePdf"
@@ -47,7 +49,7 @@ const paciente = ref<Paciente | null>(null)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
 
-type Aba = "resumo" | "prontuario" | "anamnese" | "orcamentos" | "financeiro" | "convenios" | "termos" | "documentos" | "anexos"
+type Aba = "resumo" | "prontuario" | "anamnese" | "orcamentos" | "financeiro" | "convenios" | "termos" | "documentos" | "anexos" | "acessos"
 const aba = ref<Aba>("resumo")
 
 // Toast.
@@ -195,6 +197,58 @@ async function acionarDocumento(doc: DocumentoResumo, modo: "visualizar" | "down
         notificar(e?.response?.data?.mensagem ?? "Erro ao gerar documento.", "error")
     } finally {
         documentoSendoGerado.value = null
+    }
+}
+
+// ─── Aba Acessos (LGPD) ───────────────────────────────────────────────────────
+const acessos = ref<AcessoResumo[]>([])
+const totalAcessos = ref(0)
+const paginaAcessos = ref(1)
+const tamAcessos = ref(20)
+const carregandoAcessos = ref(false)
+const erroAcessos = ref<string | null>(null)
+const gerandoPdfAcessos = ref(false)
+
+const { gerarPdf: gerarPdfAcessos } = useAcessosPdf()
+
+async function carregarAcessos(pagina = paginaAcessos.value) {
+    carregandoAcessos.value = true
+    erroAcessos.value = null
+    try {
+        const resultado = await acessoService.listarDoPaciente(pacienteId.value, {
+            pagina,
+            tamanho: tamAcessos.value,
+        })
+        acessos.value = resultado.itens
+        totalAcessos.value = resultado.total
+        paginaAcessos.value = resultado.pagina
+        abasCarregadas.add("acessos")
+    } catch (e: any) {
+        erroAcessos.value = "Erro ao carregar os acessos."
+    } finally {
+        carregandoAcessos.value = false
+    }
+}
+
+watch([paginaAcessos, tamAcessos], () => {
+    if (aba.value !== "acessos") return
+    void carregarAcessos(paginaAcessos.value)
+})
+
+async function exportarAcessosPdf() {
+    if (!paciente.value || gerandoPdfAcessos.value) return
+    gerandoPdfAcessos.value = true
+    try {
+        // Busca até 500 registros mais recentes para o PDF (briefing §11.4).
+        const resultado = await acessoService.listarDoPaciente(pacienteId.value, {
+            pagina: 1,
+            tamanho: 500,
+        })
+        await gerarPdfAcessos(resultado.itens, paciente.value, resultado.total)
+    } catch {
+        notificar("Erro ao exportar o relatório de acessos.", "error")
+    } finally {
+        gerandoPdfAcessos.value = false
     }
 }
 
@@ -351,6 +405,7 @@ watch(aba, (a) => {
     else if (a === "prontuario" || a === "anamnese") void carregarProntuario()
     else if (a === "orcamentos")      void carregarOrcamentos()
     else if (a === "documentos")      { if (!abasCarregadas.has("documentos")) void carregarDocumentos(1) }
+    else if (a === "acessos")         { if (!abasCarregadas.has("acessos")) void carregarAcessos(1) }
     else if (a === "anexos")          void carregarAnexos()
 }, { immediate: true })
 
@@ -599,6 +654,9 @@ function orcStatusClass(s: string): string {
                     <button class="pd-tab" :class="{ active: aba === 'documentos' }" @click="aba = 'documentos'">
                         <i class="fa-solid fa-file-lines"></i> Documentos
                         <span v-if="totalDocumentosPaciente > 0" class="badge">{{ totalDocumentosPaciente }}</span>
+                    </button>
+                    <button v-if="ehDono" class="pd-tab" :class="{ active: aba === 'acessos' }" @click="aba = 'acessos'">
+                        <i class="fa-solid fa-user-shield"></i> Acessos
                     </button>
                     <button class="pd-tab" :class="{ active: aba === 'anexos' }" @click="aba = 'anexos'">
                         <i class="fa-solid fa-paperclip"></i> Anexos
@@ -934,6 +992,65 @@ function orcStatusClass(s: string): string {
                             v-model:tamanho="tamDocumentos"
                             :total="totalDocumentosFiltrado"
                             rotulo-itens="documento(s)"
+                        />
+                    </template>
+                </section>
+
+                <!-- Acessos LGPD (somente Dono) -->
+                <section v-else-if="aba === 'acessos' && ehDono">
+                    <div class="prontuario-head">
+                        <div>
+                            <h2 class="ds-section-title">Acessos aos dados do paciente</h2>
+                            <p>Registro de quem acessou os dados deste paciente e quando, conforme a LGPD. Apenas visualização.</p>
+                        </div>
+                        <AppButton
+                            variant="secondary"
+                            icon="fa-solid fa-file-pdf"
+                            :loading="gerandoPdfAcessos"
+                            :disabled="totalAcessos === 0 || gerandoPdfAcessos"
+                            @click="exportarAcessosPdf"
+                        >
+                            Exportar PDF
+                        </AppButton>
+                    </div>
+
+                    <p v-if="carregandoAcessos" class="msg-info">Carregando…</p>
+                    <p v-else-if="erroAcessos" class="msg-erro">{{ erroAcessos }}</p>
+
+                    <template v-else>
+                        <AppEmptyState
+                            v-if="acessos.length === 0"
+                            icone="🛡️"
+                            titulo="Nenhum acesso registrado"
+                            descricao="Os acessos aos dados deste paciente aparecerão aqui."
+                        />
+
+                        <div v-else class="acessos-lista">
+                            <div
+                                v-for="(acesso, i) in acessos"
+                                :key="i"
+                                class="acesso-linha"
+                            >
+                                <div class="acesso-quem-col">
+                                    <i class="fa-solid fa-user-circle acesso-icone"></i>
+                                    <span class="acesso-quem">{{ acesso.quem }}</span>
+                                </div>
+                                <div class="acesso-acao-col">
+                                    <span class="acesso-recurso">{{ acesso.recurso }}</span>
+                                    <span class="acesso-acao">{{ acesso.acao }}</span>
+                                </div>
+                                <div class="acesso-data-col">
+                                    {{ fmtDataHora(acesso.quando) }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <AppPagination
+                            v-if="totalAcessos > 0"
+                            v-model:pagina="paginaAcessos"
+                            v-model:tamanho="tamAcessos"
+                            :total="totalAcessos"
+                            rotulo-itens="acesso(s)"
                         />
                     </template>
                 </section>
@@ -1404,5 +1521,55 @@ function orcStatusClass(s: string): string {
 }
 .doc-acoes-col {
     flex-shrink: 0; display: flex; gap: 4px; margin-left: auto;
+}
+
+/* ─── Aba Acessos LGPD ────────────────────────────────────────────────────── */
+.acessos-lista {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 16px;
+}
+.acesso-linha {
+    display: flex; align-items: center; gap: 14px;
+    background: hsl(var(--secondary) / 0.025);
+    border: 1px solid hsl(var(--secondary) / 0.08);
+    border-radius: 8px; padding: 10px 14px;
+    transition: background 120ms;
+}
+.acesso-linha:hover {
+    background: hsl(var(--secondary) / 0.04);
+}
+.acesso-quem-col {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 180px; flex-shrink: 0;
+}
+.acesso-icone {
+    font-size: var(--text-base); color: hsl(var(--secondary) / 0.4);
+    flex-shrink: 0;
+}
+.acesso-quem {
+    font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
+    color: hsl(var(--primary-dark));
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.acesso-acao-col {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 1px;
+}
+.acesso-recurso {
+    font-size: var(--text-xs); color: hsl(var(--secondary) / 0.5);
+}
+.acesso-acao {
+    font-size: var(--text-sm); color: hsl(var(--secondary) / 0.8);
+}
+.acesso-data-col {
+    flex-shrink: 0;
+    font-size: var(--text-sm); color: hsl(var(--secondary) / 0.65);
+    white-space: nowrap; text-align: right;
+}
+
+@media (max-width: 1200px) {
+    .acesso-linha { flex-wrap: wrap; gap: 8px; }
+    .acesso-quem-col { min-width: unset; }
+    .acesso-data-col { margin-left: 0; }
 }
 </style>

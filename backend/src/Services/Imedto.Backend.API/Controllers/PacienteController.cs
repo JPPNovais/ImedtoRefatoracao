@@ -199,6 +199,34 @@ public class PacienteController : ControllerBase
     }
 
     /// <summary>
+    /// Relatório de acessos LGPD (Art. 9º/18) — lista paginada de quem acessou os dados
+    /// do paciente, quando e o quê, em linguagem leiga. Apenas papel Dono.
+    /// Audit: a própria consulta é auditada (Leitura) — R4/CA10.
+    /// </summary>
+    [HttpGet("{id:long}/acessos")]
+    [RequiresPapel(TenantPapel.Dono)]
+    [ProducesResponseType(typeof(Contracts.Pacientes.Queries.Results.PaginaAcessosDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ListarAcessos(
+        long id,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
+    {
+        var dto = await _requestBus.Query<Contracts.Pacientes.Queries.ListarAcessosDoPacienteQuery,
+                                          Contracts.Pacientes.Queries.Results.PaginaAcessosDto>(
+            new Contracts.Pacientes.Queries.ListarAcessosDoPacienteQuery
+            {
+                PacienteId = id,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                Pagina = pagina,
+                TamanhoPagina = tamanho,
+            });
+        return Ok(dto);
+    }
+
+    /// <summary>
     /// Listagem paginada e unificada dos documentos clínicos finalizados do paciente
     /// (receitas emitidas, atestados e pedidos de exame). Somente leitura.
     /// Audit LGPD: registra 1 acesso de leitura ao prontuário por carga.
