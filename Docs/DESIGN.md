@@ -370,6 +370,17 @@ A renderização legível de seções estruturadas de evolução (drawer "Ver" e
 
 **Seções curadas:** `hpp`, `h-familiar`, `h-social`, `exame-fisico`, `exames-realizados`, `procedimentos-indicados`. Chaves fora dessas 6 caem no fallback genérico (humaniza camelCase, sem chave técnica crua).
 
+## Export CSV de relatórios (briefing 2026-06-10_004)
+
+Padrão de exportação CSV gerado **100% no frontend** a partir dos dados já carregados na tela (sem endpoint novo no backend).
+
+- **Formato**: UTF-8 com BOM (`﻿`) + separador `;` + datas `dd/MM/yyyy` + decimais com vírgula. Sem símbolo `R$` nas células monetárias — o cabeçalho da coluna indica a moeda.
+- **Escaping**: campos com `;`, aspas ou quebras de linha são envolvidos em aspas duplas; aspas internas são duplicadas (`"" → """`). Implementado em `frontend/src/utils/csv.ts` (funções `escaparCelula`, `construirCsv`, `baixarCsv`, `formatarDecimal`, `formatarData`, `nomeArquivoCsv`).
+- **Composable**: `frontend/src/composables/useRelatorioCsv.ts` — exportadores por aba (`exportarFinanceiro`, `exportarAgenda`, `exportarPessoas`, `exportarOrcamentos`, `exportarVisaoGeral`). Cada um recebe os dados já carregados e o período.
+- **LGPD — minimização**: o CSV espelha apenas as colunas visíveis na tela. Aba Pessoas: apenas nome + métricas agregadas, **sem CPF, telefone, e-mail ou qualquer PII além do nome já exibido**.
+- **Botão único no header**: `AppButton variant="secondary" icon="fa-solid fa-file-csv"` no `AppPageHeader #acoes`. Desabilitado em loading e quando a aba não tem dados tabulares. Toast genérico em erro.
+- **Nome de arquivo**: `relatorio-{aba}-{yyyy-MM-dd}-a-{yyyy-MM-dd}.csv`.
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

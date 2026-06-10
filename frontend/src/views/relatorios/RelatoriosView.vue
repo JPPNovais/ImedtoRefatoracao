@@ -6,13 +6,14 @@
  */
 import { ref, watch, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { AppPageHeader, AppTabs, AppButton } from '@/components/ui'
+import { AppPageHeader, AppTabs, AppButton, AppToast } from '@/components/ui'
 import RelatorioPeriodoFiltro from '@/components/relatorios/RelatorioPeriodoFiltro.vue'
 import RelatorioVisaoGeral from '@/components/relatorios/RelatorioVisaoGeral.vue'
 import RelatorioFinanceiroTab from '@/components/relatorios/RelatorioFinanceiroTab.vue'
 import RelatorioAgendaTab from '@/components/relatorios/RelatorioAgendaTab.vue'
 import RelatorioPessoasTab from '@/components/relatorios/RelatorioPessoasTab.vue'
 import RelatorioOrcamentosTab from '@/components/relatorios/RelatorioOrcamentosTab.vue'
+import { useRelatorioCsv } from '@/composables/useRelatorioCsv'
 import {
     relatorioService,
     type RelatorioFinanceiro,
@@ -160,6 +161,69 @@ function carregarTudo() {
     carregarOrcamentos()
 }
 
+// ─── Toast ───────────────────────────────────────────────────────────────────
+
+const toast = ref<{ msg: string; variante: 'info' | 'success' | 'error' } | null>(null)
+
+// ─── Export CSV ───────────────────────────────────────────────────────────────
+
+const { exportarFinanceiro, exportarAgenda, exportarPessoas, exportarOrcamentos, exportarVisaoGeral } = useRelatorioCsv()
+
+/**
+ * Retorna true quando a aba ativa não tem dados tabulares para exportar.
+ * Critério conservador: desabilita quando carregando ou quando o objeto
+ * de dados está nulo (nunca chegou) ou vazio (sem linhas relevantes).
+ */
+const csvDesabilitado = computed(() => {
+    if (carregandoGeral.value) return true
+    switch (abaAtual.value) {
+        case 'financeiro':
+            return !financeiro.value || financeiro.value.breakdown.length === 0
+        case 'agenda':
+            return !operacional.value || (operacional.value.kpis.length === 0 && operacional.value.breakdown.length === 0)
+        case 'pessoas':
+            return !pessoas.value ||
+                (pessoas.value.tipo === 'profissionais'
+                    ? !pessoas.value.rankingProfissionais?.length
+                    : !pessoas.value.topPacientes?.length)
+        case 'orcamentos':
+            return !orcamentos.value || orcamentos.value.funil.totalCriados === 0
+        case 'visao-geral':
+            return !financeiro.value && !operacional.value && !orcamentos.value
+        default:
+            return true
+    }
+})
+
+function exportarCsvAbaAtual() {
+    try {
+        const periodo = filtroAtual.value
+        switch (abaAtual.value) {
+            case 'financeiro':
+                if (financeiro.value) exportarFinanceiro(financeiro.value, periodo)
+                break
+            case 'agenda':
+                if (operacional.value) exportarAgenda(operacional.value, periodo)
+                break
+            case 'pessoas':
+                if (pessoas.value) exportarPessoas(pessoas.value, periodo)
+                break
+            case 'orcamentos':
+                if (orcamentos.value) exportarOrcamentos(orcamentos.value, periodo)
+                break
+            case 'visao-geral':
+                exportarVisaoGeral(
+                    { financeiro: financeiro.value, operacional: operacional.value, orcamentos: orcamentos.value },
+                    periodo,
+                )
+                break
+        }
+    } catch {
+        // Toast genérico sem PII — erro técnico interno não expõe dado
+        toast.value = { msg: 'Não foi possível gerar o CSV.', variante: 'error' }
+    }
+}
+
 // ─── Mount: calcula período padrão (30d) e carrega ───────────────────────────
 onMounted(() => {
     filtroAtual.value = calcularDatasPadrao()
@@ -171,6 +235,15 @@ onMounted(() => {
     <div class="app-page app-page--wide">
         <AppPageHeader titulo="Relatórios" subtitulo="Indicadores e análises da operação">
             <template #acoes>
+                <AppButton
+                    variant="secondary"
+                    size="sm"
+                    icon="fa-solid fa-file-csv"
+                    :disabled="csvDesabilitado"
+                    @click="exportarCsvAbaAtual"
+                >
+                    Exportar CSV
+                </AppButton>
                 <AppButton
                     variant="ghost"
                     size="sm"
@@ -237,6 +310,13 @@ onMounted(() => {
                 :erro="erroOrc"
             />
         </div>
+
+        <AppToast
+            v-if="toast"
+            :mensagem="toast.msg"
+            :variante="toast.variante"
+            @fechar="toast = null"
+        />
     </div>
 </template>
 
