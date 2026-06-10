@@ -20,5 +20,8 @@ public enum CategoriaNotificacao
     Sistema,
 
     /// <summary>Notificações geradas pela engine de automações (regras configuradas pelo dono).</summary>
-    Automacao
+    Automacao,
+
+    /// <summary>Alertas do módulo de estoque (ex.: item abaixo do estoque mínimo).</summary>
+    Estoque
 }

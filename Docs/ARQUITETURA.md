@@ -45,6 +45,20 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 - Após salvar o aggregate, handler itera `produto.DomainEvents` → `IEventBus.Publish` → `ClearDomainEvents`.
 - Nomes de tabela/coluna no Postgres em `snake_case`; `EntityTypeConfiguration` faz o mapeamento.
 
+#### Padrão: event handler com fan-out por permissão (notificar grupo)
+
+Quando um evento de domínio deve notificar **todos os usuários com uma ação RBAC** no estabelecimento:
+
+1. O event handler (scoped) injeta `INotificacaoService` + um query repository Dapper (singleton) que resolve os destinatários.
+2. O repositório executa uma query SQL `UNION` falha-fechada: dono do estabelecimento (sempre) + profissionais com vínculo `Ativo` cujo modelo de permissão concede a área/ação. **Sempre filtrado por `estabelecimento_id`** — multi-tenant estrito.
+3. O handler itera os destinatários e chama `INotificacaoService.EnviarAsync` por usuário (1 notificação cada).
+4. Falhas por destinatário são absorvidas individualmente (log de erro estruturado sem PII) — não revertem a operação principal que gerou o evento.
+5. A mensagem não inclui PII além do necessário (R5 de LGPD): nome do item/recurso, quantidades/estado, sem campos livres que possam conter dados clínicos.
+
+Exemplo canônico: `EstoqueAbaixoMinimoEventHandler` (briefing 2026-06-10_003) — notifica usuários com ação `estoque` no cruzamento de estoque mínimo via `InventarioNotificacaoQueryRepository.ListarUsuariosComAcaoEstoque`.
+
+Precedente anterior: `NotificarEquipeAoConfirmarHandler` (Cirurgias) — fan-out sobre lista de membros já carregada no evento (sem query de permissão em runtime).
+
 ### Leitura agregada multi-aggregate (read-side de consolidação)
 
 A regra geral é **uma query Dapper por aggregate**. A exceção é a **consolidação read-only**: uma view que precisa listar, paginada, registros de N aggregates distintos num mesmo conjunto ordenado. Nesse caso é aceitável uma query agregada que faz `UNION ALL` das tabelas de origem, com `ORDER BY` + `LIMIT/OFFSET` aplicados **sobre o conjunto unificado** (nunca paginar cada tabela isoladamente). Exemplo canônico: `GET /api/pacientes/{id}/documentos` (briefing 2026-06-09_009) — consolida receitas (`status = 'Emitida'`), atestados e pedidos de exame num DTO de resumo único. Premissas obrigatórias deste padrão: filtro `estabelecimento_id` em **todas** as sub-consultas; DTO de resumo sem PII clínica (minimização); audit de leitura registrado **uma vez por carga** via `IProntuarioAcessoLogService` quando o paciente tem prontuário (mesmo precedente de `ListarReceitasDoPacienteQueryHandlers`). O endpoint suporta ainda **busca textual por subconsulta antes do UNION** (predicado `unaccent(coluna) ILIKE unaccent('%' || @Busca || '%')` aplicado em cada aggregate individualmente — receita: itens de medicamento; atestado: tipo + conteúdo; pedido: exames + indicação clínica); a paginação continua aplicada sobre o conjunto unificado pós-filtro, e o termo de busca não é ecoado no DTO nem registrado em log (LGPD).

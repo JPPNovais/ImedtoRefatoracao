@@ -11,6 +11,7 @@ export type CategoriaNotificacao =
     | "Financeiro"
     | "Sistema"
     | "Automacao"
+    | "Estoque"
 
 export interface Notificacao {
     id: number

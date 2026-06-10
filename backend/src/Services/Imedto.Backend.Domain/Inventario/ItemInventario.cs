@@ -167,7 +167,10 @@ public class ItemInventario : Entity
         QuantidadeAtual -= quantidade;
         AtualizadoEm = DateTime.UtcNow;
 
-        if (QuantidadeAtual < QuantidadeMinima)
+        // Alerta apenas no cruzamento descendente (>=mínimo → <mínimo).
+        // Se o item já estava abaixo do mínimo antes da saída, não dispara de novo (anti-spam).
+        // QuantidadeMinima == 0 nunca cruza (saldo >= 0 sempre), evitando alerta desnecessário.
+        if (QuantidadeMinima > 0 && anterior >= QuantidadeMinima && QuantidadeAtual < QuantidadeMinima)
             AddDomainEvent(new EstoqueAbaixoMinimoEvent(Id, EstabelecimentoId, Nome, QuantidadeAtual, QuantidadeMinima));
 
         return MovimentacaoEstoque.Criar(Id, EstabelecimentoId,

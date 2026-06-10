@@ -64,6 +64,7 @@ function iconeCategoria(categoria: string) {
         case "Agenda":     return "fa-solid fa-calendar-days"
         case "Financeiro": return "fa-solid fa-coins"
         case "Automacao":  return "fa-solid fa-bolt"
+        case "Estoque":    return "fa-solid fa-boxes-stacked"
         default:           return "fa-solid fa-bell"
     }
 }

@@ -105,6 +105,9 @@ public static class InfrastructureExtensions
         // Inventário
         services.AddScoped<Domain.Inventario.IItemInventarioRepository, Database.Repositories.ItemInventarioRepository>();
         services.AddScoped<Domain.Inventario.IMovimentacaoEstoqueRepository, Database.Repositories.MovimentacaoEstoqueRepository>();
+        // Singleton: query de leitura para destinatários de alertas de estoque (sem estado por request).
+        services.AddSingleton<Database.Repositories.IInventarioNotificacaoQueryRepository,
+                              Database.Repositories.InventarioNotificacaoQueryRepository>();
 
         // Inventário — cadastros mestre (categoria/fabricante/fornecedor/local).
         services.AddScoped<Domain.Inventario.Cadastros.ICategoriaEstoqueRepository, Database.Repositories.Cadastros.CategoriaEstoqueRepository>();
