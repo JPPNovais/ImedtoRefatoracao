@@ -34,7 +34,7 @@ FASE 4  Paridade e expansão (tele, portal, mobile)─┘
 
 | Épico | Plano mestre | Materializa | Estado |
 |---|---|---|---|
-| **Financeiro / Cobranças** | [`MODULO_FINANCEIRO_COBRANCAS.md`](MODULO_FINANCEIRO_COBRANCAS.md) | item "financeiro" da [F3](FASE_3_DIFERENCIACAO.md) | plano mestre — em refinamento por fase (F1→F2→F3→F3B→F4→F5→F6→F7); inclui conduta-checklist (F3B) e caixa/comissão (F7) |
+| **Financeiro / Cobranças** | [`MODULO_FINANCEIRO_COBRANCAS.md`](MODULO_FINANCEIRO_COBRANCAS.md) | item "financeiro" da [F3](FASE_3_DIFERENCIACAO.md) | plano mestre — em refinamento por fase (F1→F2→F3→F3B→F4→F5→F8→F6→F7→F9); inclui conduta-checklist (F3B), caixa/comissão (F7), recibo PDF (F8) e NFS-e via gateway (F9, bounded context `Faturamento`) |
 
 ## Documentos de estratégia (insumo, não execução)
 

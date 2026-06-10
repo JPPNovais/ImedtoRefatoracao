@@ -35,7 +35,8 @@ dois conceitos distintos no domínio — não os fundir.
      `OrcamentoCalculadora` já existente. O front nunca decide o valor final — só pré-visualiza
      (preview com debounce, como o orçamento já faz). A fonte da verdade é o 422 do `BusinessException`.
    - **Invariantes do agregado validadas no domínio**, não no controller nem no SQL.
-   - Arredondamento definido em um único lugar (decisão na §5; default proposto: 2 casas, half-away-from-zero).
+   - **Arredondamento (decisão fechada — §5 q5):** **2 casas decimais, half-away-from-zero**
+     (`MidpointRounding.AwayFromZero`), definido em **um único helper de domínio** e sempre no backend.
 
 2. **Regra de negócio no backend** (Domain/Handler). Trava de front é UX; espelho obrigatório no back.
 
@@ -60,6 +61,16 @@ dois conceitos distintos no domínio — não os fundir.
 
 6. **Duas portas, uma cobrança.** O ícone no agendamento e a aba Financeiro do paciente
    operam **a mesma** entidade `Cobranca`. Registrar em uma repercute na outra — sem duplicidade.
+
+7. **Recibo ≠ Nota Fiscal.** São documentos distintos e não se confundem:
+   - **Recibo de pagamento** (F8) — documento **interno** em PDF, gerado pelo próprio Imedto a partir
+     de um `Pagamento` quitado. Sem valor fiscal, sem transmissão a terceiros. É um comprovante para o
+     paciente. Reusa o pipeline de PDF do servidor (mesma fundação de `usePdfHeader.ts` / PDF de receita).
+   - **NFS-e** (F9) — documento **fiscal** (Nota Fiscal de Serviço Eletrônica), emitido **via provedor
+     externo** (gateway), transmitido à prefeitura, com chave de acesso, XML e DANFSE. Exige CNPJ,
+     certificado digital e configuração de emissor por estabelecimento. Vive em **bounded context próprio
+     `Faturamento`** — não se mistura com Cobrança/Pagamento. Detalhe e viabilidade em
+     [`Docs/Discoverys/nota-fiscal/`](../Discoverys/nota-fiscal/).
 
 ---
 
@@ -109,6 +120,20 @@ dois conceitos distintos no domínio — não os fundir.
 - `concluida_em?`, `referencia_id?` (id da receita/orçamento/etc. que concluiu a pendência), `criado_por`, audit
 - A evolução permanece **append-only**; a pendência é mutável só no `status`. Não é financeiro, mas é a
   **ponte** que dispara F4 (procedimento realizado) e F5 (criar orçamento).
+
+**`ConfigComissaoProfissional`** (NOVO — F7; comissão de consulta/procedimento por profissional)
+- `estabelecimento_id` (tenant), `profissional_id` (vínculo na **Equipe**), `tipo`: `Consulta | Procedimento`
+- `percentual` (decimal) — alternativamente `valor_fixo?` (decimal); editável por quem tem permissão (Dono).
+- Decisão fechada (§5 q9): a comissão de **consulta e procedimento** (fora do orçamento) é configurada na
+  área de **Equipe** (profissionais vinculados ao estabelecimento), **por profissional**, com **valor default
+  do sistema** refletindo o mais comum do mercado (proposta a validar no briefing da F7 — ver §F7). Para
+  **cirurgia**, a comissão continua saindo do `OrcamentoEquipe` (já existe) — esta entidade não a substitui.
+
+> **Recibo de pagamento (F8) não é entidade nova.** O recibo é gerado **on-the-fly** em PDF a partir de um
+> `Pagamento` já quitado (e seus dados de `Cobranca`/paciente/estabelecimento) — não há agregado próprio.
+> Se for preciso registrar que um recibo foi emitido (audit), basta um campo/flag em `Pagamento`
+> (`recibo_emitido_em?`) — decisão de schema fica no briefing da F8. **NFS-e**, ao contrário, é agregado
+> próprio em bounded context separado (ver §F9 e o discovery).
 
 ### 2.2 Relacionamento com o que já existe (diagrama)
 
@@ -364,17 +389,23 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
 - **Riscos**: histórico de alterações de valor da cobrança (não versionar à toa, registrar o que mudou);
   recalcular saldo quando já há pagamento parcial e o valor muda.
 
-### F6 — Convênio (abordagem simples primeiro) **[refinar antes]** — **L**
-- **Objetivo**: dar suporte operacional a convênio sem entrar na complexidade de TISS XML/lote agora.
-  **Escopo decidido com o usuário — versão simples**:
-- **IN** (decisão fechada — abordagem simples): cadastro de **convênios/planos**; **carteirinha no paciente**
-  (número + validade + plano); **marcar convênio no check-in** (Cobrança nasce tipo=Convenio, convenio_id);
-  **registrar nº de guia / autorização** no atendimento; **conciliação manual do repasse** (lançar o que a
-  operadora pagou contra o que foi faturado) com **registro de glosa** (valor glosado + motivo). Permissão
-  `convenios.*` já existe no catálogo.
-- **OUT** (anti-escopo explícito da 1ª versão da F6): **geração de XML TISS / faturamento em lote automatizado**
-  fica como **evolução futura** (sub-fase própria); elegibilidade online; integração com integradora; recurso de
-  glosa estruturado. A explicação didática do fluxo TISS (abaixo) permanece como insumo para essa evolução.
+### F6 — Convênio (estrutura base agora, avançado "em breve") **[refinar antes]** — **L**
+- **Objetivo**: entregar a **estrutura base** de convênio (cadastro, marcação, campos de guia) com telas e
+  schema **preparados** para o fluxo completo, deixando as partes avançadas (coparticipação, conciliação
+  detalhada, glosa) sinalizadas como **"em breve"** — funcionalidade completa concluída em refinamento futuro.
+  **Escopo decidido com o usuário — entregar a fundação, não a operação completa**:
+- **IN** (decisão fechada — estrutura base entregue e funcional): cadastro de **convênios/planos**;
+  **carteirinha no paciente** (número + validade + plano); **marcar convênio no check-in** (Cobrança nasce
+  tipo=Convenio, convenio_id); **campos de guia / autorização** no atendimento (registrar nº de guia/senha).
+  Permissão `convenios.*` já existe no catálogo. Schema e telas das partes avançadas ficam **preparados**
+  (campos/abas presentes), mas a operação completa não opera ainda.
+- **OUT — "em breve" (estrutura preparada, funcionalidade em refinamento futuro)**: **coparticipação do paciente**
+  (cálculo do valor cobrado zero vs. coparticipação), **conciliação detalhada do repasse** (lançar o que a
+  operadora pagou contra o faturado) e **registro/tratamento de glosa** (valor glosado + motivo) — telas e
+  estrutura de dados nascem preparadas, exibidas como **"em breve"**, com a lógica concluída depois.
+- **OUT — anti-escopo duro (não nesta fase nem na evolução imediata)**: **geração de XML TISS / faturamento em
+  lote automatizado**; elegibilidade online; integração com integradora; recurso de glosa estruturado. A
+  explicação didática do fluxo TISS (abaixo) permanece como insumo para a evolução futura.
 - **Dependências**: F1 (Cobranca já guarda tipo+convenio_id desde a F1).
 
 > #### Explicação didática — como funciona convênio no Brasil (insumo para o refinamento)
@@ -413,21 +444,77 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
     procedimento↔produto↔estoque alimentando o **custo real** (baixa automática vinda da F4/F5).
   - **Comissão de profissional** descrita no financeiro (decisão fechada): quem deve receber, lucro de cada um.
     Para **cirurgia** a comissão sai do `OrcamentoEquipe` (já existe). Para **consulta e procedimento** (fora do
-    orçamento), a **origem do percentual/valor é questão aberta** (ver §5) — provável config por profissional.
+    orçamento), a comissão é **configurada na área de Equipe, por profissional** (`ConfigComissaoProfissional`,
+    §2.1), com **valor default do sistema** refletindo o mais comum do mercado, **editável** por quem tem
+    permissão (normalmente o Dono). **Default de mercado proposto a validar no briefing** (§5 q9):
+    **30% sobre o valor da consulta/procedimento** para o profissional executante — patamar mais citado no
+    mercado de saúde para clínicas que repassam por produção (faixa usual de mercado: 20%–50%, com 30% como
+    ponto médio de partida); cirurgia segue o que estiver no `OrcamentoEquipe`. O default é só ponto de partida
+    editável — nenhuma regra complexa (faixas/metas/split) entra nesta versão (anti-escopo §6).
   - **Caixa diário / fechamento** (decisão fechada: precisa existir) — rotina de abrir/fechar caixa com extrato
-    do dia sobre `Lancamento`. **Granularidade e permissão de fechar/reabrir são questão aberta** (ver §5).
+    do dia sobre `Lancamento`. **Fechamento é por estabelecimento/unidade** (decisão fechada §5 q11): o caixa
+    pertence ao estabelecimento ativo; dados de fechamento de um estabelecimento **jamais** são visíveis a outro,
+    mesmo para o mesmo usuário com múltiplos vínculos — o contexto é sempre o **estabelecimento ativo**.
+    **Quem pode fechar/reabrir** (qual papel/permissão) permanece a definir no briefing (§5 q11).
 - **OUT**: NF, gateway, conciliação bancária (anti-escopo §6).
 - **Dependências**: F1-F6 (cobrança/pagamento/estorno/custo/comissão/convênio já fluindo).
 - **CAs**: `/financeiro` redesenhado lê de `Lancamento`; relatório por paciente mostra custo/pagamento/lucro;
-  comissão por profissional consolidada (cirurgia via `OrcamentoEquipe`); caixa diário abre/fecha com extrato;
-  multi-tenant; LGPD (relatório agregado sem PII desnecessária; detalhe por paciente é auditado).
+  comissão por profissional consolidada (cirurgia via `OrcamentoEquipe`; consulta/procedimento via
+  `ConfigComissaoProfissional` da Equipe, com default editável); caixa diário **por estabelecimento** abre/fecha
+  com extrato; **fechamento de um estabelecimento nunca aparece para outro, nem para o mesmo usuário em outro
+  vínculo** (contexto = estabelecimento ativo); multi-tenant; LGPD (relatório agregado sem PII desnecessária;
+  detalhe por paciente é auditado).
 - **Riscos**: não quebrar o que já lê `Lancamento` (Relatórios atuais); custo real depende da baixa automática de
-  estoque (F4/F5); definir origem da comissão de consulta/procedimento e regras de fechamento antes de cravar schema.
+  estoque (F4/F5); definir papel/permissão de fechar-reabrir caixa antes de cravar schema; validar o default de
+  comissão de mercado com o usuário no briefing.
+
+### F8 — Recibo de pagamento (PDF interno) — **S**
+- **Objetivo**: emitir, após o pagamento, um **recibo em PDF** (documento **interno**, sem valor fiscal) para
+  entregar ao paciente. Decisão fechada (§5 q4): SIM, emitir após o pagamento.
+- **IN**: ação "Emitir recibo" sobre um `Pagamento` quitado (no ícone do agendamento e na aba Financeiro do
+  paciente); geração de PDF no servidor reusando o pipeline de PDF já existente (mesma fundação de
+  `usePdfHeader.ts` / PDF oficial de receita); recibo traz estabelecimento, paciente, valor pago, forma,
+  data; opcional flag de audit `recibo_emitido_em` no `Pagamento`.
+- **OUT**: NFS-e / qualquer documento fiscal (F9); recibo de cobrança ainda não paga (recibo é de **pagamento**).
+- **Dependências**: F1 (Pagamento existe) e F2 (aba Financeiro). Pode entrar em paralelo após F1/F2.
+- **CAs**: recibo só de pagamento quitado do tenant+paciente; PDF gerado no backend (não no front); sem PII
+  clínica (CID/diagnóstico) no recibo — só dado financeiro/identificação; acesso/emissão auditado; RBAC
+  `financeiro_paciente.*`; multi-tenant.
+- **Riscos**: deixar claro na UX que recibo **não** é nota fiscal (rótulo explícito); reuso fiel do pipeline de PDF.
+
+### F9 — NFS-e (Nota Fiscal de Serviço Eletrônica via gateway) **[refinar antes]** — **XL**
+- **Objetivo**: emitir **documento fiscal** (NFS-e) a partir de um atendimento pago, via **provedor externo**
+  (gateway), com transmissão à prefeitura, retorno de chave + XML + DANFSE, cancelamento e consulta de status.
+  Decisão fechada (§5 q4): a NF entra **neste épico** como fase própria, amarrada ao discovery já pronto.
+- **Natureza**: **bounded context novo `Faturamento`** — NÃO mistura com Cobrança/Pagamento/Agendamento
+  (recomendação do discovery). Agregados: `LancamentoFaturavel`, `NotaFiscal` (estado-máquina
+  Rascunho→EmTransmissao→Autorizada→Cancelada/Rejeitada), `EmissorFiscal` (config por estabelecimento).
+- **IN** (recorte MVP do discovery): **só NFS-e** (cobre ~95% do faturamento de saúde); emissão a partir de um
+  lançamento pago; configuração de emissor **por estabelecimento** (CNPJ, regime, certificado, série, alíquota
+  ISS, código de serviço LC 116/2003 item 4); **opt-in por estabelecimento e por tipo de serviço** (nem toda
+  clínica emite — MEI/contador externo); disparo **manual** (tela "lançamentos a faturar") com opção de
+  automatizar por configuração; cancelamento dentro do prazo legal; consulta de status; download de XML/DANFSE;
+  abstração `INfsEmissaoGateway` (uma interface, provedor plugável); Outbox + retry + idempotência por lançamento.
+- **OUT** (anti-escopo do discovery): NF-e modelo 55 (produtos), NFC-e modelo 65, carta de correção/substituição,
+  apuração tributária/SPED, certificado A3 (só A1 — custódia delegada ao provedor), integração direta com
+  municípios (só via gateway). Reforma tributária IBS/CBS fica no road map do provedor.
+- **Dependências**: F1 (lançamento pago é a origem do faturável). **Exige refinamento próprio + POC de provedor
+  antes do briefing** (escolher gateway, validar custódia de certificado e cobertura municipal da base).
+- **CAs**: emissão idempotente (clicar 2x não duplica NF / 1 NF ativa por lançamento); descrição **nunca** contém
+  CID/diagnóstico (texto controlado "Consulta em <especialidade>", validado no backend); XML/PDF em storage com
+  isolamento por estabelecimento + audit de download; opt-in respeitado (não emite sem config de emissor);
+  cancelamento fora do prazo → 422 de negócio; multi-tenant (emissor e NFs só do tenant); LGPD (NFs do paciente
+  incluídas no export LGPD onde ele é tomador).
+- **Riscos**: gateway externo fora do ar (Outbox + alerta); certificado expira (alerta D-30/15/7); numeração de
+  RPS sem gap/duplicação (centralizada no `EmissorFiscal`, lock — nunca no front); custo por NF na margem
+  (unit economics); SP híbrido (gateway absorve). Detalhe completo em `Docs/Discoverys/nota-fiscal/01_discovery.md §7`.
 
 ### Ordem recomendada
 `F1 → F2`; **F3 em paralelo** desde já; **`F3B` após F3** (cria os gatilhos que F4/F5 consomem);
-`F4` (após F1 + F3B); `F5` (após F1 + F3B); `F6` após refinamento próprio (versão simples);
-`F7` por último (consolida tudo — comissão, caixa, custo real, redesign).
+`F4` (após F1 + F3B); `F5` (após F1 + F3B); **`F8` (recibo) em paralelo após F1/F2** (é pequena e independente);
+`F6` após refinamento próprio (estrutura base + "em breve"); `F7` consolida tudo (comissão, caixa, custo real,
+redesign); **`F9` (NFS-e) por último** — bounded context próprio, exige refinamento + POC de provedor, não
+bloqueia nenhuma fase anterior.
 
 > **Por que a F3B vem entre F3 e F4**: o checklist de conduta é a fonte dos gatilhos "marcar procedimento
 > realizado" (F4 + baixa de estoque) e "criar orçamento" (F5). Sem ela, F4/F5 não teriam o ponto de partida
@@ -450,13 +537,16 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
 3. **[RESOLVIDA]** Estorno de pagamento (INV-7): **sempre com histórico** — gera `EstornoPagamento` +
    `Lancamento` de estorno na mesma transação; **nunca apaga nem edita** o pagamento original. Cancelar
    cobrança paga = estornar os pagamentos. Status recalculado sobre a soma líquida (pagamentos − estornos).
-4. **[ABERTA]** Recibo para o paciente: emitir recibo (PDF) do pagamento? Em qual fase?
-5. **[ABERTA]** Arredondamento: 2 casas, half-away-from-zero (proposto) — confirmar.
+4. **[RESOLVIDA]** Recibo para o paciente: **SIM, emitir após o pagamento** — vira **F8** (recibo em PDF,
+   documento **interno**, sem valor fiscal, reusa pipeline de PDF do servidor). Distinto da **NFS-e** (documento
+   fiscal via provedor — **F9**). Recibo e NF são coisas separadas e posicionadas em fases próprias (ver §F8/§F9).
+5. **[RESOLVIDA]** Arredondamento: **2 casas decimais, half-away-from-zero** (`MidpointRounding.AwayFromZero`),
+   em um único helper de domínio, **sempre no backend** (§1 princípio 1).
 
 **F3B (Conduta / pendências)**
-6. **[ABERTA]** **Lista exata de itens do checklist de conduta**: confirmar a lista canônica proposta
-   (criar receita · criar atestado · pedir exame · criar orçamento · marcar procedimento realizado ·
-   agendar retorno). É **fixa do sistema** (não configurável) nesta versão — confirmar se algum item entra/sai.
+6. **[RESOLVIDA]** **Lista do checklist de conduta**: lista canônica **confirmada exatamente como proposta** —
+   criar receita · criar atestado · pedir exame · criar orçamento · marcar procedimento realizado · agendar
+   retorno. É **fixa do sistema** (não configurável) nesta versão.
 
 **F4 (Procedimento)**
 7. **[RESOLVIDA]** Baixa automática de estoque: **SIM** — ocorre ao **marcar o procedimento como
@@ -466,29 +556,53 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
 **F7 (Comissão / caixa)**
 8. **[RESOLVIDA — escopo]** Comissão de profissional: **entra no escopo deste épico, na F7** (visão
    consolidada — quem recebe, lucro de cada um). Para **cirurgia**, sai do `OrcamentoEquipe` (já existe).
-9. **[ABERTA — NOVA]** **Origem da comissão de consulta e de procedimento** (fora do orçamento): de onde vem o
-   percentual/valor? **Config por profissional** (por tipo de atendimento/procedimento)? Por estabelecimento?
+9. **[RESOLVIDA]** **Origem da comissão de consulta e de procedimento** (fora do orçamento): **config na área de
+   Equipe, por profissional** (`ConfigComissaoProfissional`), com **valor default do sistema** (mais comum do
+   mercado), **editável** por quem tem permissão (Dono). **Default de mercado proposto: 30% sobre o valor da
+   consulta/procedimento** (faixa usual 20%–50%; 30% como ponto médio) — a **validar no briefing da F7**.
+   Cirurgia continua via `OrcamentoEquipe`.
 10. **[RESOLVIDA — existe]** Caixa diário / fechamento: **precisa existir** (entra na F7).
-11. **[ABERTA — NOVA]** **Detalhes do fechamento de caixa**: fechamento **por estabelecimento** ou
-    **por usuário/operador**? **Quem pode fechar/reabrir** o caixa (qual papel/permissão)?
+11. **[RESOLVIDA — parcial]** Fechamento de caixa: **por estabelecimento/unidade** (decisão fechada). Reforço
+    multi-tenant: fechamento de um estabelecimento **jamais** visível a outro, mesmo para o mesmo usuário com
+    múltiplos vínculos (contexto = estabelecimento ativo). **Ainda ABERTA:** **qual papel/permissão pode
+    fechar/reabrir** o caixa — definir no briefing da F7.
 
 **F5 (Cirurgia)**
 12. **[RESOLVIDA]** Mudança de orçamento após a cobrança gerada: a **cobrança acompanha o orçamento mantendo
     histórico** das alterações de valor. Até ser paga, é apenas valor **pendente** — nada trava, nada se perde.
 
 **F6 (Convênio)**
-13. **[RESOLVIDA — abordagem]** Versão **simples primeiro**: cadastro de convênios/planos + carteirinha no
-    paciente + marcar convênio no check-in + registrar nº de guia/autorização + conciliação manual do repasse
-    (com registro de glosa). **Gerar XML TISS / lote automatizado = evolução futura** (anti-escopo da 1ª F6).
-14. **[ABERTA]** Detalhes do refinamento dedicado da F6: coparticipação do paciente em convênio (valor cobrado
-    zero vs. coparticipação), estrutura mínima da conciliação manual e do registro de glosa.
+13. **[RESOLVIDA — abordagem]** **Estrutura base agora, avançado "em breve"**: entregar cadastro de
+    convênios/planos + carteirinha no paciente + marcar convênio no check-in + **campos de guia/autorização**,
+    com schema/telas **preparados** para as partes avançadas. **Gerar XML TISS / lote automatizado = anti-escopo
+    duro** (evolução futura).
+14. **[RESOLVIDA — escopo]** **Coparticipação, conciliação detalhada do repasse e registro de glosa** ficam como
+    **"em breve"**: estrutura de dados e telas nascem preparadas/sinalizadas, funcionalidade completa concluída em
+    refinamento futuro. O refinamento dedicado da F6 detalha cada uma (valor cobrado zero vs. coparticipação,
+    estrutura mínima da conciliação, registro de glosa).
+
+**F8 (Recibo) / F9 (NFS-e)**
+15. **[RESOLVIDA — escopo]** Recibo (F8) e NFS-e (F9) **entram no épico** como fases próprias e distintas:
+    recibo = PDF interno sem valor fiscal; NFS-e = documento fiscal via gateway, bounded context `Faturamento`.
+16. **[ABERTA — NOVA, F9]** **Escolha do provedor de NFS-e**: o discovery recomenda **POC com Focus NFe**
+    (preço transparente R$ 89,90/mês + R$ 0,10/NF, sandbox imediato, SLA 99,99%) e **fallback NFE.io** (cobertura
+    nacional, webhook obrigatório, cliente healthtech). **Wildcard Nota Gateway** (iClinic/Doctoralia já usam) —
+    pede call comercial. Decisão final exige **POC antes do briefing da F9** (ver `nota-fiscal/02_pesquisa_mercado.md`).
+17. **[ABERTA — NOVA, F9]** **Custódia do certificado digital**: discovery recomenda **delegar ao provedor**
+    (só A1, descartar A3) para reduzir superfície LGPD/fiscal — confirmar com o gateway escolhido na POC.
+18. **[ABERTA — NOVA, F9]** **Modelo de cobrança da NF** (custo do gateway): feature paga, inclusa no plano ou
+    repassada? Define se vamos atrás do menor preço/NF ou do melhor SLA. Também **a definir**: quais municípios da
+    base são prioritários (define a cobertura mínima do gateway) — consultar distinct de cidades dos estabelecimentos.
 
 ---
 
 ## 6. O que NÃO fazer (anti-escopo)
 
 A menos que o usuário peça explicitamente depois:
-- **Sem emissão de Nota Fiscal (NFS-e)** — fica para item próprio da F3 do roadmap geral, não aqui.
+- ~~Sem emissão de Nota Fiscal (NFS-e)~~ **(revisado 2026-06-10)** — a NFS-e **entrou no épico como F9**
+  (bounded context `Faturamento`, via gateway). Continua **fora**: **NF-e modelo 55 (produtos)**, **NFC-e
+  modelo 65**, carta de correção/substituição, apuração tributária/SPED, integração direta com municípios,
+  certificado A3 — tudo anti-escopo da F9 (recorte MVP do discovery = só NFS-e).
 - **Sem gateway de pagamento / cobrança online** (PIX dinâmico, link de pagamento, cartão online, boleto registrado).
 - **Sem conciliação bancária automática** (OFX, extrato bancário, integração com banco).
 - **Sem antecipação de recebíveis / split de pagamento de adquirente.**
@@ -518,3 +632,7 @@ A menos que o usuário peça explicitamente depois:
 | Página do paciente | `frontend/src/views/.../PacienteDetalheView.vue` (abas Financeiro/Convênios = empty state) |
 | Audit LGPD | `paciente_acesso_log` (relatório de acessos — F1 item 1.8) |
 | Estoque | `ItemInventario` (`custo_medio`), `MovimentacaoEstoque` |
+| Equipe (config de comissão F7) | área de profissionais vinculados ao estabelecimento — onde mora `ConfigComissaoProfissional` |
+| PDF do servidor (recibo F8) | `frontend/.../usePdfHeader.ts` + pipeline de PDF oficial de receita — a estender para o recibo |
+| NFS-e (F9) — discovery | `Docs/Discoverys/nota-fiscal/01_discovery.md` (arquitetura, `INfsEmissaoGateway`, Outbox, LGPD) + `02_pesquisa_mercado.md` (gateways: Focus NFe POC, NFE.io fallback) |
+| **Protótipo visual (Claude Design)** | [`prototipacao-financeiro/design-handoff/`](prototipacao-financeiro/design-handoff/) — telas navegáveis + screenshots das F1/F2/F3/F3B/F6/F7/F8, mapeadas por fase no README. Referência visual obrigatória nos briefings dessas fases. |
