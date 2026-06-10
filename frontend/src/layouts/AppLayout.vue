@@ -285,6 +285,26 @@ async function sincronizarNotificacoes() {
                 <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
                 <span class="lbl">Ajuda</span>
             </a>
+
+            <router-link
+                :to="{ name: 'Novidades' }"
+                class="foot-item"
+                :class="{ 'is-expanded': expanded }"
+                :title="!expanded ? 'Novidades' : ''"
+            >
+                <i class="fa-solid fa-sparkles" aria-hidden="true"></i>
+                <span class="lbl">Novidades</span>
+            </router-link>
+
+            <router-link
+                :to="{ name: 'Status' }"
+                class="foot-item"
+                :class="{ 'is-expanded': expanded }"
+                :title="!expanded ? 'Status do sistema' : ''"
+            >
+                <i class="fa-solid fa-signal" aria-hidden="true"></i>
+                <span class="lbl">Status do sistema</span>
+            </router-link>
         </template>
     </AppSidebar>
 

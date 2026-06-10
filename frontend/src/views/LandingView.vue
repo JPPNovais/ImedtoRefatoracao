@@ -249,6 +249,7 @@ onMounted(() => {
                         <li><a href="#features">Funcionalidades</a></li>
                         <li><a href="#benefits">Benefícios</a></li>
                         <li><a href="#pricing">Planos e preços</a></li>
+                        <li><router-link :to="{ name: 'Novidades' }">Novidades</router-link></li>
                     </ul>
                 </div>
                 <div>
@@ -256,6 +257,7 @@ onMounted(() => {
                     <ul>
                         <li><a href="#faq">FAQ</a></li>
                         <li><a href="#">Contato</a></li>
+                        <li><router-link :to="{ name: 'Status' }">Status do sistema</router-link></li>
                     </ul>
                 </div>
                 <div>

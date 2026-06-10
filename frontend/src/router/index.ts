@@ -77,6 +77,18 @@ const router = createRouter({
             name: "ConfirmarPresencaPublico",
             component: () => import("@/views/publico/ConfirmarPresencaPublicaView.vue"),
         },
+        // Páginas públicas de confiança — changelog e status do sistema (briefing 2026-06-10_008).
+        // Conteúdo estático versionado no repo (src/content/). Sem requiresAuth, sem AppLayout.
+        {
+            path: "/novidades",
+            name: "Novidades",
+            component: () => import("@/views/publico/NovidadesView.vue"),
+        },
+        {
+            path: "/status",
+            name: "Status",
+            component: () => import("@/views/publico/StatusView.vue"),
+        },
 
         // Pós-login sem tenant (sem layout)
         {

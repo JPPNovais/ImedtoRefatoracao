@@ -381,6 +381,17 @@ Padrão de exportação CSV gerado **100% no frontend** a partir dos dados já c
 - **Botão único no header**: `AppButton variant="secondary" icon="fa-solid fa-file-csv"` no `AppPageHeader #acoes`. Desabilitado em loading e quando a aba não tem dados tabulares. Toast genérico em erro.
 - **Nome de arquivo**: `relatorio-{aba}-{yyyy-MM-dd}-a-{yyyy-MM-dd}.csv`.
 
+## Páginas públicas de confiança — changelog e status (briefing 2026-06-10_008)
+
+Views standalone **sem `AppLayout`**, no mesmo padrão de `views/legal/` (`PrivacidadeView`, `TermosView`): cabeçalho com "← Voltar" para a Landing + logo, artigo centralizado (max-width 780px, padding lateral), footer com links de navegação.
+
+- **Rotas**: `/novidades` → `NovidadesView.vue` · `/status` → `StatusView.vue` — ambas em `src/views/publico/`. Sem `meta.requiresAuth`, sem `...APP`.
+- **Conteúdo estático versionado**: `src/content/changelog.ts` e `src/content/status.ts` — importados diretamente pelas views, sem fetch. Atualizar = commit + deploy.
+- **Type-safety**: `TagChangelog = "novidade" | "melhoria" | "correção"` e `EstadoSistema = "operacional" | "instabilidade" | "manutenção"` — union types fechados; tag/estado fora do conjunto viram erro de compilação.
+- **DS reutilizado**: `AppBadge` (tags de changelog), `AppStatusPill` (estado do sistema), `AppEmptyState` (changelog vazio).
+- **Links de entrada**: rodapé da `LandingView` (colunas "Produto" e "Suporte") e footer do `AppSidebar` (junto a Configurações/Ajuda).
+- **Sem uptime medido**: status é declarado manualmente até F0-E1 (infra de monitoramento externo).
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.
