@@ -42,6 +42,7 @@ async function bootstrap() {
     })
     if (data) {
         auth.setUsuario(data.usuario)
+        auth.deveConfigurar2fa = data.deveConfigurar2fa ?? false
         profissional.setProfissional(data.profissional)
         if (!auth.onboardingPendente) {
             const ultimoId = data.usuario.ultimoEstabelecimentoId ?? null

@@ -15,7 +15,7 @@ import imedtoLogo from "@/assets/imedto-logo.png"
 const router = useRouter()
 const auth = useAuthStore()
 
-type Modo = "login" | "cadastro" | "recuperar"
+type Modo = "login" | "cadastro" | "recuperar" | "totp"
 
 const modo = ref<Modo>("login")
 const email = ref("")
@@ -29,6 +29,10 @@ const mostrarSenhaConfirm = ref(false)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
 const sucesso = ref<string | null>(null)
+
+// ── 2FA — segundo passo ───────────────────────────────────────────────────────
+const desafioToken = ref("")
+const codigoTotp = ref("")
 
 // Reenvio de confirmação (anti-spam: cooldown de 60s)
 const mostrarReenvio = ref(false)
@@ -52,6 +56,7 @@ const senhaForca = computed(() => {
 
 const formularioValido = computed(() => {
     if (modo.value === "recuperar") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.value)
+    if (modo.value === "totp") return codigoTotp.value.length === 6 && /^\d{6}$/.test(codigoTotp.value)
     if (!email.value || !senha.value) return false
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) return false
     if (modo.value === "cadastro") {
@@ -64,6 +69,7 @@ const titulo = computed(() => {
     switch (modo.value) {
         case "cadastro":  return "Crie sua conta"
         case "recuperar": return "Recuperar senha"
+        case "totp":      return "Verificação em duas etapas"
         default:          return "Bem-vindo de volta"
     }
 })
@@ -71,6 +77,7 @@ const subtitulo = computed(() => {
     switch (modo.value) {
         case "cadastro":  return "Cadastre-se para começar a organizar a agenda, prontuários e financeiro da sua clínica."
         case "recuperar": return "Digite seu e-mail e enviaremos instruções para redefinir sua senha."
+        case "totp":      return "Digite o código de 6 dígitos do seu aplicativo autenticador."
         default:          return "Entre na sua conta para acessar a agenda, prontuários e financeiro da sua clínica."
     }
 })
@@ -80,8 +87,20 @@ async function enviar() {
     sucesso.value = null
     carregando.value = true
     try {
+        if (modo.value === "totp") {
+            await auth.confirmarLogin2fa(desafioToken.value, codigoTotp.value)
+            router.push({ name: "Home" })
+            return
+        }
         if (modo.value === "login") {
-            await auth.login(email.value, senha.value)
+            const resultado = await auth.login(email.value, senha.value)
+            if (resultado?.requerSegundoFator) {
+                desafioToken.value = resultado.desafioToken
+                codigoTotp.value = ""
+                modo.value = "totp"
+                carregando.value = false
+                return
+            }
             router.push({ name: "Home" })
         } else if (modo.value === "cadastro") {
             try {
@@ -111,6 +130,13 @@ async function enviar() {
         // inexistente". O cooldown e o rate limit protegem de abuso.
         if (modo.value === "login" || modo.value === "cadastro") {
             mostrarReenvio.value = true
+        }
+        // Erro no 2º passo (código errado, desafio expirado): volta ao login para
+        // que o usuário reinicie o fluxo. Não revela detalhes do erro ao atacante.
+        if (modo.value === "totp") {
+            modo.value = "login"
+            desafioToken.value = ""
+            codigoTotp.value = ""
         }
     } finally {
         carregando.value = false
@@ -149,13 +175,15 @@ function iniciarCooldown(segundos: number) {
 
 onBeforeUnmount(() => { if (cooldownInterval) window.clearInterval(cooldownInterval) })
 
-function irPara(m: Modo) {
+function irPara(m: Exclude<Modo, "totp">) {
     modo.value = m
     mostrarReenvio.value = false
     reenvioOk.value = false
     erro.value = null
     sucesso.value = null
     resetEmail.value = ""
+    desafioToken.value = ""
+    codigoTotp.value = ""
 }
 </script>
 
@@ -197,8 +225,29 @@ function irPara(m: Modo) {
                     </button>
                 </div>
 
+                <!-- Modo TOTP — segundo passo do login -->
+                <template v-if="modo === 'totp'">
+                    <div class="field">
+                        <label for="codigo-totp">Código de verificação</label>
+                        <div class="input-wrap">
+                            <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                            <input
+                                id="codigo-totp"
+                                v-model="codigoTotp"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                maxlength="8"
+                                placeholder="000000"
+                                required
+                            />
+                        </div>
+                        <span class="hint">Digite o código de 6 dígitos do aplicativo autenticador, ou um código de recuperação de 8 caracteres.</span>
+                    </div>
+                </template>
+
                 <!-- Modo recuperar -->
-                <template v-if="modo === 'recuperar'">
+                <template v-else-if="modo === 'recuperar'">
                     <div class="field">
                         <label for="reset-email">E-mail</label>
                         <div class="input-wrap">
@@ -320,11 +369,13 @@ function irPara(m: Modo) {
                         <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
                         <template v-if="modo === 'login'">Entrando...</template>
                         <template v-else-if="modo === 'cadastro'">Criando conta...</template>
+                        <template v-else-if="modo === 'totp'">Verificando...</template>
                         <template v-else>Enviando...</template>
                     </template>
                     <template v-else>
                         <template v-if="modo === 'login'">Entrar</template>
                         <template v-else-if="modo === 'cadastro'">Criar conta</template>
+                        <template v-else-if="modo === 'totp'">Verificar</template>
                         <template v-else>Enviar e-mail</template>
                         <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                     </template>
@@ -338,6 +389,10 @@ function irPara(m: Modo) {
                     <template v-else-if="modo === 'cadastro'">
                         Já tem uma conta?
                         <button type="button" class="link-btn" @click="irPara('login')">Acesse</button>
+                    </template>
+                    <template v-else-if="modo === 'totp'">
+                        Problema com o código?
+                        <button type="button" class="link-btn" @click="irPara('login')">Voltar ao início</button>
                     </template>
                     <template v-else>
                         Lembrou sua senha?

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -31,6 +32,9 @@ public class LocalJwtAuthServiceLoginTests
     private Mock<IPasswordHasher> _hasher;
     private Mock<IJwtTokenIssuer> _issuer;
     private Mock<IEmailService> _emails;
+    private Mock<IUsuario2faRepository> _usuario2faRepo;
+    private Mock<IUsuario2faCodigoRecuperacaoRepository> _codigoRecuperacaoRepo;
+    private Mock<IUsuarioSegurancaAuditRepository> _auditRepo;
     private LocalJwtAuthService _sut;
 
     private static readonly Guid UsuarioId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -39,12 +43,19 @@ public class LocalJwtAuthServiceLoginTests
     [SetUp]
     public void SetUp()
     {
-        _credenciaisRepo = new Mock<IAuthCredencialRepository>();
-        _refreshRepo     = new Mock<IAuthRefreshTokenRepository>();
-        _emailTokenRepo  = new Mock<IAuthEmailTokenRepository>();
-        _hasher          = new Mock<IPasswordHasher>();
-        _issuer          = new Mock<IJwtTokenIssuer>();
-        _emails          = new Mock<IEmailService>();
+        _credenciaisRepo       = new Mock<IAuthCredencialRepository>();
+        _refreshRepo           = new Mock<IAuthRefreshTokenRepository>();
+        _emailTokenRepo        = new Mock<IAuthEmailTokenRepository>();
+        _hasher                = new Mock<IPasswordHasher>();
+        _issuer                = new Mock<IJwtTokenIssuer>();
+        _emails                = new Mock<IEmailService>();
+        _usuario2faRepo        = new Mock<IUsuario2faRepository>();
+        _codigoRecuperacaoRepo = new Mock<IUsuario2faCodigoRecuperacaoRepository>();
+        _auditRepo             = new Mock<IUsuarioSegurancaAuditRepository>();
+
+        // Sem 2FA ativo por padrão (regressão CA4)
+        _usuario2faRepo.Setup(r => r.ObterPorUsuarioId(It.IsAny<Guid>()))
+                       .ReturnsAsync((Usuario2fa)null);
 
         var emailOptions = Options.Create(new EmailOptions
         {
@@ -61,7 +72,11 @@ public class LocalJwtAuthServiceLoginTests
             _emails.Object,
             emailOptions,
             new HttpContextAccessor(),
-            NullLogger<LocalJwtAuthService>.Instance);
+            NullLogger<LocalJwtAuthService>.Instance,
+            _usuario2faRepo.Object,
+            _codigoRecuperacaoRepo.Object,
+            _auditRepo.Object,
+            new EphemeralDataProtectionProvider());
 
         // Default: refresh issuer retorna um par valido caso o caminho feliz chegue até lá.
         _issuer.Setup(i => i.EmitirAccessToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>()))

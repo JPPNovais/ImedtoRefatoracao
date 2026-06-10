@@ -53,7 +53,8 @@ public class EstabelecimentoQueryRepository
                     e.horarios_bloqueados::text       AS HorariosBloqueadosJson,
                     e.datas_bloqueadas::text          AS DatasBloqueadasJson,
                     '[]'::text                        AS PermissoesJson,
-                    '[]'::text                        AS PermissoesExtrasJson
+                    '[]'::text                        AS PermissoesExtrasJson,
+                    e.exigir_dono_2fa                 AS ExigirDono2fa
             FROM    public.estabelecimentos e
             WHERE   e.dono_usuario_id = @UsuarioId
             UNION
@@ -77,7 +78,8 @@ public class EstabelecimentoQueryRepository
                     e.horarios_bloqueados::text,
                     e.datas_bloqueadas::text,
                     COALESCE(mp.permissoes::text, '[]'),
-                    COALESCE(mp.permissoes_extras::text, '[]')
+                    COALESCE(mp.permissoes_extras::text, '[]'),
+                    e.exigir_dono_2fa
             FROM    public.estabelecimentos e
             JOIN    public.vinculo_profissional_estabelecimento v ON v.estabelecimento_id = e.id
             LEFT JOIN public.modelo_permissao_estabelecimento mp ON mp.id = v.modelo_permissao_id
@@ -112,6 +114,7 @@ public class EstabelecimentoQueryRepository
             DatasBloqueadas = JsonSerializer.Deserialize<List<DataBloqueadaDto>>(r.DatasBloqueadasJson ?? "[]", _jsonOpts) ?? new(),
             Permissoes = JsonSerializer.Deserialize<List<string>>(r.PermissoesJson ?? "[]") ?? new(),
             PermissoesExtras = JsonSerializer.Deserialize<List<string>>(r.PermissoesExtrasJson ?? "[]") ?? new(),
+            ExigirDono2fa = r.ExigirDono2fa,
         });
     }
 
@@ -200,5 +203,6 @@ public class EstabelecimentoQueryRepository
         public string DatasBloqueadasJson { get; set; }
         public string PermissoesJson { get; set; } = "[]";
         public string PermissoesExtrasJson { get; set; } = "[]";
+        public bool ExigirDono2fa { get; set; }
     }
 }

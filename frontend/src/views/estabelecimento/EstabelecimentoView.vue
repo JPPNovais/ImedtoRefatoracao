@@ -17,6 +17,7 @@ import { type ComputedRef, computed, defineAsyncComponent, onMounted, ref, watch
 import { useRoute, useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
+import { auth2faService } from "@/services/auth2faService"
 import { redimensionarImagem } from "@/services/imageUtils"
 import { invalidarCacheEstabelecimentoAtivo } from "@/composables/usePdfHeader"
 import { useTenantStore } from "@/stores/tenantStore"
@@ -52,7 +53,7 @@ const podeEditar       = ref(false)
 type SecaoId =
     | "dados" | "funcionamento" | "unidades" | "reparticoes"
     | "modelos-prontuario" | "termos" | "variaveis"
-    | "automacoes" | "ia" | "assinatura"
+    | "automacoes" | "ia" | "assinatura" | "seguranca"
 
 interface SecaoItem {
     id: SecaoId
@@ -91,6 +92,7 @@ const GRUPOS_NAV: GrupoNav[] = [
             { id: "automacoes", label: "Automações",          icone: "fa-solid fa-bolt",    visivel: podeVerAutomacoes },
             { id: "ia",         label: "Configurações de IA", icone: "fa-solid fa-wand-magic-sparkles", visivel: podeVerIa },
             { id: "assinatura", label: "Assinatura",          icone: "fa-solid fa-star",    visivel: true },
+            { id: "seguranca",  label: "Segurança",           icone: "fa-solid fa-shield-halved", visivel: computed(() => podeEditar.value) },
         ],
     },
 ]
@@ -115,7 +117,7 @@ const gruposFiltrados = computed(() => {
 const TODAS_SECOES: SecaoId[] = [
     "dados", "funcionamento", "unidades", "reparticoes",
     "modelos-prontuario", "termos", "variaveis",
-    "automacoes", "ia", "assinatura",
+    "automacoes", "ia", "assinatura", "seguranca",
 ]
 
 function secaoValida(s: string | null | undefined): s is SecaoId {
@@ -297,6 +299,25 @@ async function confirmarRemocaoFoto() {
         erroFoto.value = e?.response?.data?.mensagem ?? "Não foi possível remover a foto."
     } finally {
         enviandoFoto.value = false
+    }
+}
+
+// ─── Segurança — toggle exigir 2FA do Dono ───────────────────────────────────
+const salvandoExigir2fa = ref(false)
+const erroExigir2fa     = ref<string | null>(null)
+
+async function toggleExigirDono2fa() {
+    if (!estab.value || !podeEditar.value) return
+    const novoValor = !estab.value.exigirDono2fa
+    salvandoExigir2fa.value = true
+    erroExigir2fa.value = null
+    try {
+        await auth2faService.atualizarExigirDono2fa(estab.value.id, novoValor)
+        estab.value = { ...estab.value, exigirDono2fa: novoValor }
+    } catch (e: any) {
+        erroExigir2fa.value = e?.response?.data?.mensagem ?? "Não foi possível atualizar a configuração."
+    } finally {
+        salvandoExigir2fa.value = false
     }
 }
 
@@ -551,6 +572,41 @@ onMounted(async () => {
                 <section v-else-if="secaoAtiva === 'assinatura'" class="painel-secao">
                     <PainelAssinatura />
                 </section>
+
+                <!-- ── Segurança — 2FA do Dono ────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'seguranca'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Segurança</h2>
+                        <p class="secao-head-sub">Configure requisitos de segurança para o acesso ao estabelecimento.</p>
+                    </header>
+
+                    <div class="config-card">
+                        <div class="config-row">
+                            <div class="config-info">
+                                <strong class="config-label">Exigir 2FA do Dono</strong>
+                                <p class="config-desc">
+                                    Quando ativado, o dono do estabelecimento é obrigado a configurar
+                                    a verificação em duas etapas antes de acessar o sistema.
+                                </p>
+                            </div>
+                            <div class="config-toggle">
+                                <button
+                                    type="button"
+                                    :class="['toggle-btn', estab?.exigirDono2fa ? 'toggle-btn--on' : 'toggle-btn--off']"
+                                    :disabled="salvandoExigir2fa || !podeEditar"
+                                    :aria-label="estab?.exigirDono2fa ? 'Desativar exigência de 2FA' : 'Ativar exigência de 2FA'"
+                                    @click="toggleExigirDono2fa"
+                                >
+                                    <span class="toggle-thumb"></span>
+                                </button>
+                                <span class="toggle-label-status">
+                                    {{ estab?.exigirDono2fa ? "Ativado" : "Desativado" }}
+                                </span>
+                            </div>
+                        </div>
+                        <p v-if="erroExigir2fa" class="msg-erro-inline">{{ erroExigir2fa }}</p>
+                    </div>
+                </section>
             </div>
         </div>
 
@@ -766,5 +822,97 @@ onMounted(async () => {
     .grade-2 { grid-template-columns: 1fr; }
     .grade-cidade-uf { grid-template-columns: 1fr; }
     .md-subnav { position: static; }
+}
+
+/* ─── Card de configuração (seção Segurança) ────────────────────────────────── */
+.config-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+}
+
+.config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.config-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+.config-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text);
+}
+
+.config-desc {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.config-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
+/* Toggle switch */
+.toggle-btn {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    border-radius: 99px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+    padding: 0;
+    outline-offset: 2px;
+}
+
+.toggle-btn--on  { background: hsl(var(--primary)); }
+.toggle-btn--off { background: hsl(var(--border-strong, 220 14% 70%)); }
+
+.toggle-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px hsl(0 0% 0% / 0.15);
+    transition: transform 0.2s;
+}
+
+.toggle-btn--on .toggle-thumb {
+    transform: translateX(20px);
+}
+
+.toggle-label-status {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-muted);
+    min-width: 60px;
+}
+
+.msg-erro-inline {
+    font-size: var(--text-xs);
+    color: var(--danger);
+    margin: 0.75rem 0 0;
 }
 </style>

@@ -47,6 +47,13 @@ public class EstabelecimentoConfiguration : IEntityTypeConfiguration<Estabelecim
         builder.Ignore(e => e.HorariosBloqueados);
         builder.Ignore(e => e.DatasBloqueadas);
 
+        // 2FA — toggle por estabelecimento (briefing 2026-06-10_006).
+        builder.Property(e => e.ExigirDono2fa)
+            .HasColumnName("exigir_dono_2fa")
+            .HasColumnType("boolean")
+            .IsRequired()
+            .HasDefaultValue(false);
+
         // Regra: um usuário só pode ser dono de um único estabelecimento.
         builder.HasIndex(e => e.DonoUsuarioId).IsUnique().HasDatabaseName("uq_estabelecimentos_dono");
         builder.HasIndex(e => e.Cnpj).IsUnique().HasDatabaseName("uq_estabelecimentos_cnpj")

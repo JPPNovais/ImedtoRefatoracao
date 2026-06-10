@@ -116,6 +116,11 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request.Email, request.Password);
+
+        // Passo 1 com 2FA ativo: não seta cookies — devolve desafio (R3/CA5)
+        if (result is LocalJwtAuthService.LoginResultadoComDesafio desafio && desafio.RequerSegundoFator)
+            return Ok(new { requerSegundoFator = true, desafioToken = desafio.Desafio });
+
         SetAuthCookies(result);
 
         // Atualiza último acesso localmente (idempotente — cria o registro se não existir).
@@ -129,6 +134,150 @@ public class AuthController : ControllerBase
             return Ok(new { usuario = result.User, accessToken = result.AccessToken });
 
         return Ok(new { usuario = result.User });
+    }
+
+    /// <summary>
+    /// Login passo 2: valida o desafio efêmero + código TOTP ou de recuperação.
+    /// Em sucesso, seta os cookies de sessão.
+    /// Rate limit auth-sensitive = 3 req/IP (R4/CA8).
+    /// </summary>
+    /// <response code="200">Login concluído — cookies de sessão setados.</response>
+    /// <response code="422">Código inválido ou desafio expirado.</response>
+    [HttpPost("login/2fa")]
+    [AllowAnonymous]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> LoginSegundoFator([FromBody] Login2faRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.DesafioToken) || string.IsNullOrWhiteSpace(request?.Codigo))
+            throw new BusinessException("Código inválido.");
+
+        var result = await _localAuth.ConfirmarLogin2faAsync(request.DesafioToken, request.Codigo);
+        SetAuthCookies(result);
+
+        await _commandBus.Send(new CriarRegistroLocalUsuarioCommand
+        {
+            Id = Guid.Parse(result.User.Id),
+            Email = result.User.Email
+        });
+
+        if (_env.IsDevelopment())
+            return Ok(new { usuario = result.User, accessToken = result.AccessToken });
+
+        return Ok(new { usuario = result.User });
+    }
+
+    /// <summary>
+    /// Retorna o status atual do 2FA do usuário autenticado (ativo ou não).
+    /// </summary>
+    /// <response code="200">Status retornado.</response>
+    [HttpGet("2fa/status")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Status2fa()
+    {
+        var userId = ObterUsuarioId();
+        if (userId is null) return Unauthorized();
+
+        var ativo = await _localAuth.Tem2faAtivo(userId.Value);
+        return Ok(new Status2faDto(ativo));
+    }
+
+    /// <summary>
+    /// Passo 1 de ativação do 2FA: gera segredo TOTP (pendente), devolve URI otpauth://
+    /// e segredo base32 para o front renderizar o QR (R1/CA3).
+    /// O segredo é exposto APENAS aqui — após a confirmação, nunca mais volta em payload (CA18).
+    /// </summary>
+    /// <response code="200">URI e segredo retornados.</response>
+    [HttpPost("2fa/iniciar-ativacao")]
+    [Authorize]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> IniciarAtivacao2fa()
+    {
+        var userId = ObterUsuarioId();
+        if (userId is null) return Unauthorized();
+
+        // Busca o e-mail para montar o label do QR
+        var credencial = await ObterEmailDoUsuario(userId.Value);
+        var (uri, base32) = await _localAuth.Iniciar2faAtivacaoAsync(userId.Value, credencial);
+
+        return Ok(new Iniciar2faAtivacaoDto(uri, base32));
+    }
+
+    /// <summary>
+    /// Passo 2 de ativação: confirma código TOTP — ativa 2FA e retorna 10 códigos de recuperação
+    /// em claro (UMA única vez). Após este momento, os códigos não são mais recuperáveis (CA1/CA18).
+    /// </summary>
+    /// <response code="200">2FA ativado — códigos de recuperação retornados.</response>
+    /// <response code="422">Código inválido — 2FA não ativado.</response>
+    [HttpPost("2fa/confirmar-ativacao")]
+    [Authorize]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ConfirmarAtivacao2fa([FromBody] Confirmar2faRequest request)
+    {
+        var userId = ObterUsuarioId();
+        if (userId is null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request?.Codigo))
+            throw new BusinessException("Código inválido.");
+
+        // Valida o código antes de confirmar ativação (CA2)
+        var valido = await _localAuth.ValidarCodigo2faPendenteAsync(userId.Value, request.Codigo);
+        if (!valido)
+            throw new BusinessException("Código inválido.");
+
+        var codigos = await _localAuth.Confirmar2faAtivacaoAsync(userId.Value);
+
+        // Invalida cache do /me para que o próximo bootstrap reflita o estado 2FA
+        _cache.Remove(AuthMeCacheKey(userId.Value));
+
+        return Ok(new Confirmar2faAtivacaoDto(codigos));
+    }
+
+    /// <summary>
+    /// Desativa o 2FA do usuário autenticado.
+    /// Exige senha atual válida E código TOTP válido ou código de recuperação (R6/CA11/CA12).
+    /// </summary>
+    /// <response code="204">2FA desativado.</response>
+    /// <response code="422">Credenciais inválidas — 2FA permanece ativo.</response>
+    [HttpPost("2fa/desativar")]
+    [Authorize]
+    [EnableRateLimiting("auth-sensitive")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Desativar2fa([FromBody] Desativar2faRequest request)
+    {
+        var userId = ObterUsuarioId();
+        if (userId is null) return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request?.Senha) || string.IsNullOrWhiteSpace(request?.Codigo))
+            throw new BusinessException("Não foi possível desativar a verificação em duas etapas.");
+
+        await _localAuth.Desativar2faAsync(userId.Value, request.Senha, request.Codigo);
+
+        _cache.Remove(AuthMeCacheKey(userId.Value));
+        return NoContent();
+    }
+
+    // ── Helper RBAC para endpoints autenticados ───────────────────────────────
+
+    private Guid? ObterUsuarioId()
+    {
+        var claim = User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(claim) || !Guid.TryParse(claim, out var id))
+            return null;
+        return id;
+    }
+
+    private async Task<string> ObterEmailDoUsuario(Guid usuarioId)
+    {
+        var credencial = await _usuarioRepository.ObterPorIdParaLeitura(usuarioId);
+        return credencial?.Email ?? string.Empty;
     }
 
     /// <summary>Renova o access token usando o refresh token (cookie automático).</summary>
@@ -508,3 +657,12 @@ public record AlterarSenhaRequest(string SenhaAtual, string NovaSenha);
 
 /// <summary>Payload para registrar o último estabelecimento acessado.</summary>
 public record RegistrarUltimoEstabelecimentoRequest(long EstabelecimentoId);
+
+/// <summary>Payload do segundo passo de login com 2FA.</summary>
+public record Login2faRequest(string DesafioToken, string Codigo);
+
+/// <summary>Payload de confirmação de ativação do 2FA (código de 6 dígitos).</summary>
+public record Confirmar2faRequest(string Codigo);
+
+/// <summary>Payload de desativação do 2FA (senha atual + código TOTP/recuperação).</summary>
+public record Desativar2faRequest(string Senha, string Codigo);

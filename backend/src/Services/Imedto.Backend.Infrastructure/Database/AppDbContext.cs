@@ -136,6 +136,11 @@ public class AppDbContext : DbContext
     public DbSet<AuthRefreshToken> AuthRefreshTokens => Set<AuthRefreshToken>();
     public DbSet<AuthEmailToken> AuthEmailTokens => Set<AuthEmailToken>();
 
+    // 2FA TOTP por usuário (briefing 2026-06-10_006).
+    public DbSet<Usuario2fa> Usuario2fas => Set<Usuario2fa>();
+    public DbSet<Usuario2faCodigoRecuperacao> Usuario2faCodigosRecuperacao => Set<Usuario2faCodigoRecuperacao>();
+    public DbSet<UsuarioSegurancaAudit> UsuarioSegurancaAudits => Set<UsuarioSegurancaAudit>();
+
     // Área Admin Global (2026-05-30).
     public DbSet<ImedtoAdmin> ImedtoAdmins => Set<ImedtoAdmin>();
     public DbSet<ImedtoAdminRefreshToken> ImedtoAdminRefreshTokens => Set<ImedtoAdminRefreshToken>();

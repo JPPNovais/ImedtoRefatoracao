@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,9 +24,11 @@ namespace Imedto.Backend.Infrastructure.Auth;
 public class LocalJwtAuthService : IAuthService
 {
     private const int SenhaMinima = 8;
-    private static readonly TimeSpan TtlConfirmacao = TimeSpan.FromHours(24);
-    private static readonly TimeSpan TtlReset = TimeSpan.FromHours(1);
-    private static readonly TimeSpan TtlConvite = TimeSpan.FromDays(7);
+    private static readonly TimeSpan TtlConfirmacao  = TimeSpan.FromHours(24);
+    private static readonly TimeSpan TtlReset        = TimeSpan.FromHours(1);
+    private static readonly TimeSpan TtlConvite      = TimeSpan.FromDays(7);
+    private static readonly TimeSpan TtlDesafio2fa   = TimeSpan.FromMinutes(5);
+    private const int QuantidadeCodigosRecuperacao    = 10;
 
     /// <summary>
     /// Cooldown entre reenvios do mesmo tipo de token. Anti-spam: usuário (ou bot)
@@ -43,6 +46,11 @@ public class LocalJwtAuthService : IAuthService
     private readonly EmailOptions _emailOptions;
     private readonly IHttpContextAccessor _http;
     private readonly ILogger<LocalJwtAuthService> _logger;
+    private readonly IUsuario2faRepository _usuario2faRepo;
+    private readonly IUsuario2faCodigoRecuperacaoRepository _codigoRecuperacaoRepo;
+    private readonly IUsuarioSegurancaAuditRepository _auditRepo;
+    private readonly IDataProtector _totpSecretProtector;
+    private readonly IDataProtector _totpChallengeProtector;
 
     public LocalJwtAuthService(
         IAuthCredencialRepository credenciaisRepo,
@@ -53,7 +61,11 @@ public class LocalJwtAuthService : IAuthService
         IEmailService emails,
         IOptions<EmailOptions> emailOptions,
         IHttpContextAccessor http,
-        ILogger<LocalJwtAuthService> logger)
+        ILogger<LocalJwtAuthService> logger,
+        IUsuario2faRepository usuario2faRepo,
+        IUsuario2faCodigoRecuperacaoRepository codigoRecuperacaoRepo,
+        IUsuarioSegurancaAuditRepository auditRepo,
+        IDataProtectionProvider dataProtection)
     {
         _credenciaisRepo = credenciaisRepo;
         _refreshRepo = refreshRepo;
@@ -64,6 +76,11 @@ public class LocalJwtAuthService : IAuthService
         _emailOptions = emailOptions.Value;
         _http = http;
         _logger = logger;
+        _usuario2faRepo = usuario2faRepo;
+        _codigoRecuperacaoRepo = codigoRecuperacaoRepo;
+        _auditRepo = auditRepo;
+        _totpSecretProtector   = dataProtection.CreateProtector("auth.totp.secret");
+        _totpChallengeProtector = dataProtection.CreateProtector("auth.totp.challenge");
     }
 
     public async Task<SignupResult> SignupAsync(string email, string password)
@@ -138,8 +155,26 @@ public class LocalJwtAuthService : IAuthService
         credencial.RegistrarLoginBemSucedido();
         _credenciaisRepo.Atualizar(credencial);
 
+        // 2FA: se ativo, não seta cookies agora — devolve desafio efêmero (R3/CA5)
+        var estado2fa = await _usuario2faRepo.ObterPorUsuarioId(credencial.Id);
+        if (estado2fa is not null && estado2fa.Ativo)
+        {
+            return new LoginResultadoComDesafio(
+                Desafio: EmitirDesafio2fa(credencial.Id),
+                RequerSegundoFator: true);
+        }
+
         return await EmitirSessaoAsync(credencial);
     }
+
+    /// <summary>Resultado intermediário do login passo 1 quando 2FA está ativo.</summary>
+    public record LoginResultadoComDesafio(
+        string Desafio,
+        bool RequerSegundoFator) : AuthResult(
+            string.Empty,
+            string.Empty,
+            DateTime.MinValue,
+            new UserInfo(string.Empty, string.Empty, Array.Empty<string>()));
 
     public async Task<bool> ValidarSenhaAsync(Guid usuarioId, string password)
     {
@@ -471,6 +506,220 @@ public class LocalJwtAuthService : IAuthService
 
         return credencial.Id;
     }
+
+    // ===== 2FA TOTP =====
+
+    /// <summary>
+    /// Passo 1 de ativação: gera segredo TOTP, persiste em estado Pendente (cifrado)
+    /// e devolve URI otpauth:// + segredo base32 para o front gerar o QR (R1).
+    /// </summary>
+    public async Task<(string OtpauthUri, string SegredoBase32)> Iniciar2faAtivacaoAsync(Guid usuarioId, string email)
+    {
+        var segredoBase32 = TotpService.GerarSegredoBase32();
+        var segredoCifrado = _totpSecretProtector.Protect(segredoBase32);
+        var uri = TotpService.MontarOtpauthUri(email, segredoBase32);
+
+        var existente = await _usuario2faRepo.ObterPorUsuarioId(usuarioId);
+        if (existente is null)
+            await _usuario2faRepo.Adicionar(Usuario2fa.IniciarAtivacao(usuarioId, segredoCifrado));
+        else
+            existente.AtualizarSegredo(segredoCifrado);
+
+        return (uri, segredoBase32);
+    }
+
+    /// <summary>
+    /// Passo 2 de ativação: valida código TOTP contra segredo pendente.
+    /// Se válido, ativa 2FA, gera 10 códigos de recuperação (hasheados) e retorna
+    /// os códigos em claro — uma única vez (R2/CA1/CA2/CA21).
+    /// </summary>
+    public async Task<IReadOnlyList<string>> Confirmar2faAtivacaoAsync(Guid usuarioId)
+    {
+        var estado = await _usuario2faRepo.ObterPorUsuarioId(usuarioId);
+        if (estado is null)
+            throw new BusinessException("Não foi possível ativar a verificação em duas etapas.");
+
+        estado.ConfirmarAtivacao();
+        _usuario2faRepo.Atualizar(estado);
+
+        // Remove códigos antigos (reativação após desativar) antes de criar novos
+        await _codigoRecuperacaoRepo.RemoverTodosDoUsuario(usuarioId);
+
+        var codigos = GerarCodigosRecuperacao(usuarioId);
+        var codigosEmClaro = codigos.Select(c => c.Raw).ToList();
+        foreach (var c in codigos)
+            await _codigoRecuperacaoRepo.Adicionar(c.Entidade);
+
+        await _auditRepo.Adicionar(UsuarioSegurancaAudit.Registrar(
+            usuarioId, AcaoSeguranca.Ativou2fa, ObterIpAtual()));
+
+        return codigosEmClaro;
+    }
+
+    /// <summary>
+    /// Valida código TOTP do segredo pendente (sem confirmar ativação).
+    /// Retorna true se o código está dentro da janela ±1 step.
+    /// </summary>
+    public async Task<bool> ValidarCodigo2faPendenteAsync(Guid usuarioId, string codigo)
+    {
+        var estado = await _usuario2faRepo.ObterPorUsuarioId(usuarioId);
+        if (estado is null) return false;
+
+        var segredoBase32 = _totpSecretProtector.Unprotect(estado.SegredoCifrado);
+        return TotpService.Validar(segredoBase32, codigo);
+    }
+
+    /// <summary>
+    /// Login passo 2 (R4/CA6/CA7/CA8): valida desafio efêmero + código TOTP ou recuperação.
+    /// Em sucesso: emite sessão completa. Em falha: 422 genérico.
+    /// </summary>
+    public async Task<AuthResult> ConfirmarLogin2faAsync(string desafioToken, string codigo)
+    {
+        if (string.IsNullOrWhiteSpace(desafioToken) || string.IsNullOrWhiteSpace(codigo))
+            throw new BusinessException("Código inválido.");
+
+        var usuarioId = ValidarDesafio2fa(desafioToken);
+
+        var estado = await _usuario2faRepo.ObterPorUsuarioId(usuarioId);
+        if (estado is null || !estado.Ativo)
+            throw new BusinessException("Código inválido.");
+
+        // Tenta código TOTP
+        var segredoBase32 = _totpSecretProtector.Unprotect(estado.SegredoCifrado);
+        if (TotpService.Validar(segredoBase32, codigo))
+        {
+            var credencial = await _credenciaisRepo.ObterPorIdAsync(usuarioId)
+                ?? throw new BusinessException("Código inválido.");
+            return await EmitirSessaoAsync(credencial);
+        }
+
+        // Tenta código de recuperação (R7/CA7)
+        var codigos = await _codigoRecuperacaoRepo.ListarPorUsuario(usuarioId);
+        foreach (var c in codigos.Where(c => !c.JaUsado))
+        {
+            if (_hasher.Verificar(codigo, c.CodigoHash))
+            {
+                c.Consumir();
+                _codigoRecuperacaoRepo.Atualizar(c);
+
+                await _auditRepo.Adicionar(UsuarioSegurancaAudit.Registrar(
+                    usuarioId, AcaoSeguranca.UsouCodigoRecuperacao, ObterIpAtual()));
+
+                var credencial = await _credenciaisRepo.ObterPorIdAsync(usuarioId)
+                    ?? throw new BusinessException("Código inválido.");
+                return await EmitirSessaoAsync(credencial);
+            }
+        }
+
+        throw new BusinessException("Código inválido.");
+    }
+
+    /// <summary>
+    /// Desativa 2FA (R6/CA11/CA12): exige senha + código (TOTP ou recuperação).
+    /// Remove segredo e todos os códigos de recuperação.
+    /// </summary>
+    public async Task Desativar2faAsync(Guid usuarioId, string senha, string codigo)
+    {
+        var senhaValida = await ValidarSenhaAsync(usuarioId, senha);
+        if (!senhaValida)
+            throw new BusinessException("Não foi possível desativar a verificação em duas etapas.");
+
+        var estado = await _usuario2faRepo.ObterPorUsuarioId(usuarioId);
+        if (estado is null || !estado.Ativo)
+            throw new BusinessException("Não foi possível desativar a verificação em duas etapas.");
+
+        var codigoValido = false;
+
+        // TOTP
+        var segredoBase32 = _totpSecretProtector.Unprotect(estado.SegredoCifrado);
+        if (TotpService.Validar(segredoBase32, codigo))
+        {
+            codigoValido = true;
+        }
+        else
+        {
+            // Código de recuperação
+            var codigos = await _codigoRecuperacaoRepo.ListarPorUsuario(usuarioId);
+            foreach (var c in codigos.Where(c => !c.JaUsado))
+            {
+                if (_hasher.Verificar(codigo, c.CodigoHash))
+                {
+                    codigoValido = true;
+                    break;
+                }
+            }
+        }
+
+        if (!codigoValido)
+            throw new BusinessException("Não foi possível desativar a verificação em duas etapas.");
+
+        await _codigoRecuperacaoRepo.RemoverTodosDoUsuario(usuarioId);
+        _usuario2faRepo.Remover(estado);
+
+        await _auditRepo.Adicionar(UsuarioSegurancaAudit.Registrar(
+            usuarioId, AcaoSeguranca.Desativou2fa, ObterIpAtual()));
+    }
+
+    /// <summary>Retorna true se o usuário tem 2FA ativo.</summary>
+    public async Task<bool> Tem2faAtivo(Guid usuarioId)
+    {
+        var estado = await _usuario2faRepo.ObterPorUsuarioId(usuarioId);
+        return estado is not null && estado.Ativo;
+    }
+
+    // ── Desafio efêmero 2FA (R5) ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Emite token cifrado com {usuarioId}:{expiraEm}.
+    /// Falha-fechada: inválido/expirado → BusinessException ("Código inválido.").
+    /// </summary>
+    private string EmitirDesafio2fa(Guid usuarioId)
+    {
+        var payload = $"{usuarioId}:{DateTimeOffset.UtcNow.Add(TtlDesafio2fa).ToUnixTimeSeconds()}";
+        return _totpChallengeProtector.Protect(payload);
+    }
+
+    private Guid ValidarDesafio2fa(string token)
+    {
+        string payload;
+        try { payload = _totpChallengeProtector.Unprotect(token); }
+        catch { throw new BusinessException("Código inválido."); }
+
+        var partes = payload.Split(':');
+        if (partes.Length != 2
+            || !Guid.TryParse(partes[0], out var usuarioId)
+            || !long.TryParse(partes[1], out var expTs))
+            throw new BusinessException("Código inválido.");
+
+        if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expTs)
+            throw new BusinessException("Sua sessão de verificação expirou. Faça login novamente.");
+
+        return usuarioId;
+    }
+
+    // ── Geração de códigos de recuperação ────────────────────────────────────
+
+    private IReadOnlyList<(string Raw, Usuario2faCodigoRecuperacao Entidade)> GerarCodigosRecuperacao(Guid usuarioId)
+    {
+        var resultado = new List<(string, Usuario2faCodigoRecuperacao)>(QuantidadeCodigosRecuperacao);
+        for (var i = 0; i < QuantidadeCodigosRecuperacao; i++)
+        {
+            var cru = GerarCodigoCru();
+            var hash = _hasher.Hash(cru);
+            resultado.Add((cru, Usuario2faCodigoRecuperacao.Criar(usuarioId, hash)));
+        }
+        return resultado;
+    }
+
+    /// <summary>Gera código de recuperação: 8 caracteres base32 legíveis (40 bits).</summary>
+    private static string GerarCodigoCru()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(5);
+        return TotpService.EncodeBase32(bytes).ToUpperInvariant();
+    }
+
+    private string ObterIpAtual()
+        => _http?.HttpContext?.Connection?.RemoteIpAddress?.ToString();
 
     // ===== Helpers internos =====
 

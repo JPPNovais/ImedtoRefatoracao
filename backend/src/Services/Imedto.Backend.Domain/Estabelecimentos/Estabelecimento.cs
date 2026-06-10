@@ -325,6 +325,23 @@ public class Estabelecimento : Entity
         AtualizadoEm = DateTime.UtcNow;
     }
 
+    // --- 2FA (briefing 2026-06-10_006) ---
+
+    /// <summary>
+    /// Quando <c>true</c>, o usuário com papel Dono deste estabelecimento é forçado
+    /// a configurar 2FA no próximo login neste contexto (enforcement de fluxo via flag
+    /// <c>deveConfigurar2fa</c> no bootstrap/me + guard de rota no front).
+    /// Default: <c>false</c>.
+    /// </summary>
+    public virtual bool ExigirDono2fa { get; protected set; }
+
+    /// <summary>Liga/desliga o toggle "Exigir 2FA para o Dono". Apenas o Dono pode alterar (RBAC no handler).</summary>
+    public virtual void AtualizarExigirDono2fa(bool exigir)
+    {
+        ExigirDono2fa = exigir;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
     private static string SomenteDigitos(string valor) =>
         new(valor.Where(char.IsDigit).ToArray());
 }

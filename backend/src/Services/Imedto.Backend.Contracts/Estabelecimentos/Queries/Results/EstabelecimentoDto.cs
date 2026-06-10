@@ -32,6 +32,12 @@ public class EstabelecimentoDto
     public IReadOnlyList<DataBloqueadaDto> DatasBloqueadas { get; set; } = Array.Empty<DataBloqueadaDto>();
 
     /// <summary>
+    /// Toggle de exigência de 2FA para o papel Dono (R9/CA13).
+    /// Exposto no DTO para que o bootstrap possa computar a flag deveConfigurar2fa.
+    /// </summary>
+    public bool ExigirDono2fa { get; set; }
+
+    /// <summary>
     /// Permissões granulares do usuário neste estabelecimento (formato "area.acao").
     /// Vazio para Dono — Dono tem todas. Vazio para Profissional sem modelo atribuído.
     /// </summary>

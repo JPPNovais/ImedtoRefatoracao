@@ -41,6 +41,8 @@ export interface Estabelecimento {
     permissoes: string[]
     /** Permissões finas extras (config_estabelecimento, gerir_permissoes, ...). */
     permissoesExtras: string[]
+    /** Se verdadeiro, o dono do estabelecimento é obrigado a ativar o 2FA para acessar. */
+    exigirDono2fa: boolean
 }
 
 export interface CriarEstabelecimentoPayload {

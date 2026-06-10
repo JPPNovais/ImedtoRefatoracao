@@ -11,9 +11,12 @@ import { useProfissionalStore } from "@/stores/profissionalStore"
 import { AppButton, AppPhotoUpload, AppConfirmDialog, AppPageHeader } from "@/components/ui"
 import { redimensionarImagem } from "@/services/imageUtils"
 import AlterarSenhaModal from "@/components/minhaConta/AlterarSenhaModal.vue"
+import Ativar2faModal from "@/components/minhaConta/Ativar2faModal.vue"
+import Desativar2faModal from "@/components/minhaConta/Desativar2faModal.vue"
 import AssinaturaOnboardingModal from "@/components/prontuario/AssinaturaOnboardingModal.vue"
 import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
 import { assinaturaDigitalService, ASSINATURA_DIGITAL_HABILITADA } from "@/services/assinaturaDigitalService"
+import { auth2faService } from "@/services/auth2faService"
 
 const auth         = useAuthStore()
 const tenant       = useTenantStore()
@@ -264,7 +267,10 @@ const modalOnboardingAberto = ref(false)
 const removendoCert = ref(false)
 const erroCert = ref<string | null>(null)
 
-onMounted(() => assinaturaStore.carregarCertificado())
+onMounted(() => {
+    assinaturaStore.carregarCertificado()
+    void carregar2faStatus()
+})
 
 async function removerCertificado() {
     removendoCert.value = true
@@ -277,6 +283,32 @@ async function removerCertificado() {
     } finally {
         removendoCert.value = false
     }
+}
+
+// ─── 2FA ─────────────────────────────────────────────────────────────────────
+const tem2faAtivo       = ref(false)
+const carregando2fa     = ref(true)
+const ativar2faAberto   = ref(false)
+const desativar2faAberto= ref(false)
+
+async function carregar2faStatus() {
+    carregando2fa.value = true
+    try {
+        const s = await auth2faService.obterStatus()
+        tem2faAtivo.value = s.ativo
+    } finally {
+        carregando2fa.value = false
+    }
+}
+
+function on2faAtivado() {
+    tem2faAtivo.value = true
+    ativar2faAberto.value = false
+}
+
+function on2faDesativado() {
+    tem2faAtivo.value = false
+    desativar2faAberto.value = false
 }
 
 // ─── Segurança (trocar senha) ────────────────────────────────────────────────
@@ -467,6 +499,8 @@ onMounted(async () => {
         <!-- ── Card: Segurança ── -->
         <div class="card">
             <h2 class="ds-card-title">Segurança</h2>
+
+            <!-- Senha -->
             <p class="card-sub">
                 Atualize sua senha periodicamente para proteger sua conta. Ao trocar a senha,
                 as sessões abertas em outros dispositivos são encerradas automaticamente.
@@ -475,6 +509,57 @@ onMounted(async () => {
             <div class="card-footer">
                 <AppButton variant="secondary" icon="fa-solid fa-key" @click="trocarSenhaAberto = true">
                     Trocar senha
+                </AppButton>
+            </div>
+
+            <div class="separador" />
+
+            <!-- 2FA -->
+            <h3 class="ds-card-title" style="margin-bottom: 0.25rem">Verificação em duas etapas (2FA)</h3>
+            <p class="card-sub">
+                Adicione uma camada extra de segurança. Ao fazer login, será solicitado
+                um código do aplicativo autenticador além da senha.
+            </p>
+
+            <div v-if="carregando2fa" class="cert-status cert-status--vazio">
+                <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                <span>Carregando...</span>
+            </div>
+
+            <template v-else>
+                <!-- 2FA ativo -->
+                <div v-if="tem2faAtivo" class="cert-status cert-status--ok">
+                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    <div>
+                        <strong>2FA ativado</strong>
+                        <span class="cert-detalhe">
+                            Sua conta está protegida com verificação em duas etapas.
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 2FA inativo -->
+                <div v-else class="cert-status cert-status--vazio">
+                    <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
+                    <span>Verificação em duas etapas não ativada.</span>
+                </div>
+            </template>
+
+            <div class="card-footer">
+                <AppButton
+                    v-if="!tem2faAtivo && !carregando2fa"
+                    icon="fa-solid fa-shield-halved"
+                    @click="ativar2faAberto = true"
+                >
+                    Ativar 2FA
+                </AppButton>
+                <AppButton
+                    v-else-if="tem2faAtivo && !carregando2fa"
+                    variant="secondary"
+                    icon="fa-solid fa-shield"
+                    @click="desativar2faAberto = true"
+                >
+                    Desativar 2FA
                 </AppButton>
             </div>
         </div>
@@ -580,6 +665,18 @@ onMounted(async () => {
             :aberto="trocarSenhaAberto"
             @fechar="trocarSenhaAberto = false"
             @alterada="onSenhaAlterada"
+        />
+
+        <Ativar2faModal
+            :aberto="ativar2faAberto"
+            @fechar="ativar2faAberto = false"
+            @ativado="on2faAtivado"
+        />
+
+        <Desativar2faModal
+            :aberto="desativar2faAberto"
+            @fechar="desativar2faAberto = false"
+            @desativado="on2faDesativado"
         />
 
         <AssinaturaOnboardingModal

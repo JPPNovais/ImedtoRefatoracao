@@ -109,6 +109,27 @@ Implementa o direito do titular de saber quem acessou seus dados (Art. 9º e Art
 - **Nenhum dado pessoal novo é coletado** — apenas expõe o que já é gravado em audit trail existente.
 - **Fontes excluídas do MVP**: `termo_emitido_acesso_log` e `agendamento_confirmacao_acesso_log` (acesso público do próprio titular via token, sem `usuario_id`). Backlog se solicitado.
 
+## Autenticação de dois fatores (2FA TOTP) — dados sensíveis (briefing 2026-06-10_006)
+
+A feature de 2FA introduz novos dados sensíveis com tratamento obrigatório:
+
+| Dado | Tabela / campo | Classificação | Regra |
+|---|---|---|---|
+| Segredo TOTP | `usuario_2fa.segredo_cifrado` | Credencial de 2º fator — equivale à chave privada do app autenticador do usuário | Cifrado com `IDataProtector.CreateProtector("auth.totp.secret")` → `.Protect()` antes de persistir. Decifrado em memória **apenas** no momento de validar um código. **Nunca** retornado em payload pós-ativação — `otpauthUri`/base32 só transitam durante o fluxo de ativação, antes da confirmação (passo 1 do `iniciar`). |
+| Códigos de recuperação | `usuario_2fa_codigo_recuperacao.codigo_hash` | Credencial one-time de emergência | Armazenados **exclusivamente como hash**, usando o mesmo hasher de senha do projeto (BCrypt + pepper). Códigos em claro exibidos ao usuário **uma única vez** (passo 3 da ativação). Consumo idempotente-seguro: um código marcado com `usado_em` nunca mais autentica. |
+| Desafio de login | Não persistido | Token efêmero de coordenação entre passo 1 e passo 2 do login | Token opaco cifrado via `IDataProtector.CreateProtector("auth.totp.challenge")` contendo `{ usuario_id, exp }`. TTL 5 minutos. Sem tabela — zero lixo acumulado. `usuario_id` nunca transita em claro no desafio. |
+| Audit de segurança de conta | `usuario_seguranca_audit` | Metadado operacional — sem PII | Registra: `Ativou2fa`, `Desativou2fa`, `UsouCodigoRecuperacao`. Campos: `{ id, usuario_id, acao, ocorrido_em, ip_origem? }`. **Nunca** nome, CPF, telefone, e-mail, segredo ou código. Retenção: **365 dias** (alinhado a `paciente_acesso_log`). Logins bem-sucedidos com TOTP **não** geram linha — são login normal, auditados pelo fluxo de sessão já existente. |
+
+**Anti-bypass como INVARIANTE de segurança**: nenhum caminho emite cookies de sessão para usuário com 2FA ativo sem o passo 2 concluído com sucesso. Qualquer desvio é vulnerabilidade.
+
+**Mensagens de erro genéricas**: erros de 2FA (código inválido, desafio expirado, falha de desativação) retornam mensagens genéricas ("Código inválido.", "Não foi possível completar a verificação.") sem revelar se o usuário existe, se o código estava próximo de válido ou qual fator falhou.
+
+**Separação de lockout**: falhas no passo 2 (código TOTP/recuperação) **não** incrementam `TentativasFalhas` da senha em `auth_credenciais` — isso permitiria que um atacante travasse a conta da vítima errando apenas códigos. O rate limit do passo 2 é a política `auth-sensitive` (3 req/IP, sliding window), independente do lockout de senha.
+
+**Multi-tenant do estado de 2FA**: o estado ativo/inativo é **global** (da conta do usuário, não por tenant). O toggle de exigência (`exigir_2fa_dono`) é por estabelecimento. Um Dono com N estabelecimentos tem um único segredo TOTP que serve para todos os contextos.
+
+---
+
 ## Checklist multi-tenant — premissa não-negociável
 
 Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento, **assinatura digital**), valide:

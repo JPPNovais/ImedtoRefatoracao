@@ -40,6 +40,7 @@ export interface Usuario {
 
 export const useAuthStore = defineStore("auth", () => {
     const usuario = ref<Usuario | null>(null)
+    const deveConfigurar2fa = ref(false)
 
     const isAuthenticated = computed(() => !!usuario.value)
     const onboardingPendente = computed(
@@ -153,13 +154,32 @@ export const useAuthStore = defineStore("auth", () => {
         await realtimeService.stop()
     }
 
+    /**
+     * Passo 1 do login. Se o backend devolver `{ requerSegundoFator: true, desafioToken }`,
+     * NÃO faz bootstrap (sessão ainda não existe) — devolve o resultado para o chamador
+     * tratar o segundo passo. Se o login foi completado (sem 2FA), faz o bootstrap normal.
+     */
     async function login(email: string, password: string) {
         const { data } = await httpClient.post("/auth/login", { email, password })
+        if (data.requerSegundoFator) {
+            // Anti-bypass (CA5/CA9): sem cookies de sessão até o 2º passo completar.
+            return data as { requerSegundoFator: true; desafioToken: string }
+        }
         // Fail-safe: zera qualquer resíduo de sessão anterior (browser compartilhado,
         // logout que falhou, cookie expirado seguido de novo login) antes de hidratar.
         await limparSessao()
         await bootstrapPosAuth()
         return data
+    }
+
+    /**
+     * Passo 2 do login 2FA. Envia o desafio + código TOTP. Se aceito, o backend seta
+     * os cookies de sessão e o bootstrap reidrata normalmente.
+     */
+    async function confirmarLogin2fa(desafioToken: string, codigo: string) {
+        await httpClient.post("/auth/login/2fa", { desafioToken, codigo })
+        await limparSessao()
+        await bootstrapPosAuth()
     }
 
     async function signup(email: string, password: string) {
@@ -206,6 +226,7 @@ export const useAuthStore = defineStore("auth", () => {
     async function bootstrapPosAuth() {
         const data = await bootstrapService.obter()
         await hidratarUsuario(data.usuario)
+        deveConfigurar2fa.value = data.deveConfigurar2fa ?? false
         useProfissionalStore().setProfissional(data.profissional)
         if (!onboardingPendente.value) {
             // Respeita o último estabelecimento acessado (persistido server-side).
@@ -235,10 +256,12 @@ export const useAuthStore = defineStore("auth", () => {
 
     return {
         usuario,
+        deveConfigurar2fa,
         isAuthenticated,
         onboardingPendente,
         init,
         login,
+        confirmarLogin2fa,
         signup,
         logout,
         confirmarEmail,

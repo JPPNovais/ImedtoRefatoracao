@@ -175,6 +175,11 @@ public static class InfrastructureExtensions
         services.AddScoped<IAuthRefreshTokenRepository, Database.Repositories.EfAuthRefreshTokenRepository>();
         services.AddScoped<IAuthEmailTokenRepository, Database.Repositories.EfAuthEmailTokenRepository>();
 
+        // 2FA TOTP
+        services.AddScoped<IUsuario2faRepository, Database.Repositories.EfUsuario2faRepository>();
+        services.AddScoped<IUsuario2faCodigoRecuperacaoRepository, Database.Repositories.EfUsuario2faCodigoRecuperacaoRepository>();
+        services.AddScoped<IUsuarioSegurancaAuditRepository, Database.Repositories.EfUsuarioSegurancaAuditRepository>();
+
         // LocalJwtAuthService registrado pelo tipo concreto + via IAuthService (mesma instância
         // scope-wide). Os 3 endpoints específicos (confirmar-email, redefinir-senha, aceitar-convite)
         // injetam o tipo concreto pra acessar métodos fora da IAuthService.

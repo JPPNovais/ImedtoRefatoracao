@@ -100,6 +100,49 @@ A regra geral é **uma query Dapper por aggregate**. A exceção é a **consolid
 4. Requer `Microsoft.AspNetCore.Authentication.JwtBearer >= 10.0` — versões <10 não suportam ES256 nativamente.
 5. Confirmação de e-mail, reset de senha e convite usam tokens em `auth_email_tokens` (TTL 24h confirm, 1h reset, 7d invite). Para testes unitários, usar Moq de `IAuthService`.
 
+### Login em dois passos (2FA TOTP)
+
+**INVARIANTE DE SEGURANÇA — ANTI-BYPASS**: nenhum caminho do sistema emite cookies de sessão para um usuário com 2FA ativo sem a conclusão bem-sucedida do passo 2. Qualquer desvio é vulnerabilidade, não degradação graciosa.
+
+#### Passo 1 — senha
+
+`POST /api/auth/login` continua validando e-mail + senha contra `auth_credenciais`. **Mudança**: se a credencial autenticada tem 2FA ativo, **nenhum** cookie é emitido. A resposta retorna `{ requerSegundoFator: true }` (200) com um **desafio efêmero** — token opaco cifrado via `IDataProtector.CreateProtector("auth.totp.challenge")` contendo `{ usuario_id, exp: UtcNow + 5min }`. O `usuario_id` nunca transita em claro. O front transiciona para o painel de código.
+
+Se o usuário não tem 2FA ativo: comportamento atual inalterado (passo 2 não existe, cookies setados imediatamente no passo 1).
+
+#### Passo 2 — código TOTP ou código de recuperação
+
+`POST /api/auth/login/2fa` recebe `{ desafio, codigo }`. Fluxo:
+
+1. `IDataProtector.Unprotect("auth.totp.challenge")` decodifica o desafio → valida `exp` (TTL 5 min) e extrai `usuario_id`. Desafio inválido/expirado → 422 genérico sem revelar se o usuário existe.
+2. Busca `usuario_2fa` do usuário. Aceita:
+   - **Código TOTP**: `IDataProtector.Unprotect("auth.totp.secret")` recupera o segredo em memória, valida o código com janela **±1 step** (RFC 6238, SHA-1, 6 dígitos, period 30s).
+   - **Código de recuperação**: busca hash correspondente em `usuario_2fa_codigo_recuperacao`; hash one-time → marca `usado_em` se validar.
+3. Sucesso → `SetAuthCookies` (mesmo `AuthResult` do login normal). Código de recuperação → registra linha de auditoria (`UsouCodigoRecuperacao`) em `usuario_seguranca_audit`.
+4. Falha → 422 genérico ("Código inválido."). **Não** incrementa `TentativasFalhas` da senha — o lockout de senha não deve ser disparado por erros de código TOTP.
+
+**Rate limit**: endpoint do passo 2 usa política `auth-sensitive` (3 req/IP, sliding window).
+
+#### Ativação do 2FA
+
+`POST /api/auth/2fa/iniciar` (autenticado, passo 1): gera segredo TOTP (≥ 160 bits, base32), persiste cifrado via `IDataProtector.Protect("auth.totp.secret")` com `status = Pendente`, retorna `{ otpauthUri, segredoBase32 }`. O segredo base32 só transita neste momento.
+
+`POST /api/auth/2fa/confirmar` (autenticado, passo 2 da ativação): valida código TOTP contra o segredo pendente (±1 step). Se válido: status → `Ativo`, `ativado_em` preenchido, gera 10 códigos de recuperação aleatórios, persiste apenas seus **hashes** em `usuario_2fa_codigo_recuperacao`, retorna os 10 códigos em claro **uma única vez**. Se inválido: 422 genérico; 2FA permanece inativo.
+
+Pós-ativação, **nenhum** endpoint (`/auth/me`, bootstrap, qualquer GET de perfil) devolve o segredo TOTP nem os códigos de recuperação.
+
+#### Desativação do 2FA
+
+`POST /api/auth/2fa/desativar` (autenticado): exige **senha atual válida** (`ValidarSenhaAsync`) **E** código TOTP válido ou código de recuperação válido. Ambos precisam passar — falha em qualquer um → 422 genérico, 2FA permanece ativo. Sucesso → remove `usuario_2fa` + todos os `usuario_2fa_codigo_recuperacao`.
+
+#### Toggle por estabelecimento (exigir 2FA para o Dono)
+
+Coluna `exigir_2fa_dono boolean NOT NULL DEFAULT false` no aggregate `Estabelecimento`. Somente o **Dono** pode alterá-la (RBAC; 403 para outros papéis). O estado de 2FA do usuário é **global** (da conta, não por tenant); o toggle controla apenas o enforcement para o papel Dono naquele estabelecimento.
+
+Enforcement (R10): quando `exigir_2fa_dono = true` e o Dono sem 2FA ativo conclui o login, o backend inclui `deveConfigurar2fa: true` no bootstrap/me. O front redireciona para Minha Conta e bloqueia navegação para outras rotas `requiresTenant` via guard de rota (espelho de `onboardingPendente`) até o Dono ativar o 2FA.
+
+---
+
 ### Bootstrap da SPA e resolução de tenant
 
 `GET /api/auth/bootstrap` retorna em paralelo `{ usuario, profissional, estabelecimentos }` — substitui 3 round-trips serializados. Handler: `BootstrapMeQueryHandlers` (query singleton, sem UoW).

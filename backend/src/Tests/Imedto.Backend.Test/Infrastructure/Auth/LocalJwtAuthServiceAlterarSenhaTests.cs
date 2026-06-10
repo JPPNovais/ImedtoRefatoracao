@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -60,7 +61,11 @@ public class LocalJwtAuthServiceAlterarSenhaTests
             _emails.Object,
             emailOptions,
             new HttpContextAccessor(),
-            NullLogger<LocalJwtAuthService>.Instance);
+            NullLogger<LocalJwtAuthService>.Instance,
+            new Mock<IUsuario2faRepository>().Object,
+            new Mock<IUsuario2faCodigoRecuperacaoRepository>().Object,
+            new Mock<IUsuarioSegurancaAuditRepository>().Object,
+            new EphemeralDataProtectionProvider());
     }
 
     private static AuthCredencial CredencialAtiva()

@@ -7,6 +7,7 @@ using Imedto.Backend.Contracts.Estabelecimentos.Queries.Results;
 using Imedto.Backend.Domain.Common;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Tenancy;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -206,6 +207,27 @@ public class EstabelecimentoController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Atualiza o toggle "Exigir 2FA para o papel Dono" do estabelecimento.
+    /// Restrito ao Dono do estabelecimento (R9/CA13).
+    /// </summary>
+    /// <response code="204">Toggle atualizado.</response>
+    /// <response code="403">Usuário não é o Dono do estabelecimento.</response>
+    [HttpPut("{id:long}/seguranca/exigir-dono-2fa")]
+    [RequiresEstabelecimento]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AtualizarExigirDono2fa(long id, [FromBody] AtualizarExigirDono2faRequest request)
+    {
+        await _commandBus.Send(new AtualizarExigirDono2faCommand
+        {
+            EstabelecimentoId = id,
+            Exigir = request.Exigir,
+        });
+        return NoContent();
+    }
+
     private static string ValidarFoto(IFormFile arquivo)
     {
         if (arquivo is null || arquivo.Length == 0)
@@ -249,3 +271,6 @@ public record AtualizarFuncionamentoRequest(
 public record HorarioBloqueadoBody(Guid? Id, TimeOnly Inicio, TimeOnly Fim, string Descricao);
 
 public record DataBloqueadaBody(Guid? Id, DateOnly Data, string Descricao);
+
+/// <summary>Payload para atualizar o toggle de exigência de 2FA para o Dono.</summary>
+public record AtualizarExigirDono2faRequest(bool Exigir);

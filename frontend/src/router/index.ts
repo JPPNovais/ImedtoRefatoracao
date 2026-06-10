@@ -397,6 +397,18 @@ router.beforeEach(async (to) => {
         return { name: "Onboarding" }
     }
 
+    // Enforcement do 2FA obrigatório: Dono que precisa configurar é redirecionado
+    // para /minha-conta (seção Segurança). Rotas isentas: Login, MinhaConta, Logout.
+    // Espelha a lógica do backend (CA18/R8).
+    const rotasIsentas2fa = new Set(["Login", "MinhaConta", "MinhaContaLgpd", "Onboarding", "MeusConvites"])
+    if (
+        auth.isAuthenticated
+        && auth.deveConfigurar2fa
+        && !rotasIsentas2fa.has((to.name as string) ?? "")
+    ) {
+        return { name: "MinhaConta" }
+    }
+
     // Bloqueia acesso direto ao /onboarding após já ter completado
     if (to.name === "Onboarding" && auth.isAuthenticated && !auth.onboardingPendente) {
         return { name: "Home" }

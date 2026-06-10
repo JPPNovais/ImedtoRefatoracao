@@ -395,6 +395,7 @@ public static class Container
         services.AddScoped<AtualizarFuncionamentoCommandHandler>();
         services.AddScoped<AlterarFotoEstabelecimentoCommandHandler>();
         services.AddScoped<RemoverFotoEstabelecimentoCommandHandler>();
+        services.AddScoped<AtualizarExigirDono2faCommandHandler>();
         services.AddSingleton<ListarMeusEstabelecimentosQueryHandlers>();
         services.AddSingleton<VerificarCnpjDisponivelQueryHandler>();
         services.AddScoped<EstabelecimentoCriadoEventHandler>();
@@ -922,6 +923,7 @@ public static class Container
             bus.Register<AtualizarFuncionamentoCommand, AtualizarFuncionamentoCommandHandler>();
             bus.Register<AlterarFotoEstabelecimentoCommand, AlterarFotoEstabelecimentoCommandHandler>();
             bus.Register<RemoverFotoEstabelecimentoCommand, RemoverFotoEstabelecimentoCommandHandler>();
+            bus.Register<AtualizarExigirDono2faCommand, AtualizarExigirDono2faCommandHandler>();
             bus.Register<CriarUnidadeCommand, CriarUnidadeCommandHandler>();
             bus.Register<AtualizarUnidadeCommand, AtualizarUnidadeCommandHandler>();
             bus.Register<DeletarUnidadeCommand, DeletarUnidadeCommandHandler>();

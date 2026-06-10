@@ -20,6 +20,8 @@ export interface Bootstrap {
     usuario: UsuarioBootstrap
     profissional: ProfissionalPerfil | null
     estabelecimentos: Estabelecimento[]
+    /** Verdadeiro quando o usuário é Dono de um estabelecimento com exigir_dono_2fa=true e ainda não ativou o 2FA. */
+    deveConfigurar2fa: boolean
 }
 
 export const bootstrapService = {
