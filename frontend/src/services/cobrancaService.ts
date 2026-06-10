@@ -66,6 +66,56 @@ export interface ConfigTaxaFormaPagamento {
     ativo: boolean
 }
 
+// ── DTOs da aba Financeiro do paciente (F2) ───────────────────────────────────
+
+export interface EstornoAba {
+    id: number
+    valor: number
+    motivo: string
+    estornadoPorNome: string
+    dataEstorno: string
+}
+
+export interface PagamentoAba {
+    id: number
+    valor: number
+    formaPagamentoNome: string
+    parcelas: number
+    taxa: number
+    dataPagamento: string
+    estornado: boolean
+    estorno: EstornoAba | null
+}
+
+export interface HistoricoValorAba {
+    valorAnterior: number
+    valorNovo: number
+    alteradoPorNome: string
+    alteradoEm: string
+}
+
+export interface CobrancaAba {
+    id: number
+    origem: string
+    tipoAtendimento: TipoAtendimento
+    valorCobrado: number
+    desconto: number
+    totalLiquido: number
+    totalPagoLiquido: number
+    saldo: number
+    status: StatusCobranca
+    descricao: string | null
+    pagamentos: PagamentoAba[]
+    historicoValor: HistoricoValorAba[]
+}
+
+export interface FinanceiroAba {
+    totalCobrado: number
+    totalPagoLiquido: number
+    saldo: number
+    cobrancas: CobrancaAba[]
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 export const cobrancaService = {
@@ -126,5 +176,20 @@ export const cobrancaService = {
         ativo: boolean
     }): Promise<void> {
         await httpClient.post("/cobrancas/config/taxa-forma-pagamento", item)
+    },
+
+    // ── Aba Financeiro do paciente (F2) ────────────────────────────────────
+
+    /** CA23/CA36: retorna KPIs + cobranças/pagamentos/estornos do paciente. */
+    async obterFinanceiroAba(pacienteId: number): Promise<FinanceiroAba> {
+        const { data } = await httpClient.get<FinanceiroAba>(
+            `/cobrancas/paciente/${pacienteId}/financeiro-aba`,
+        )
+        return data
+    },
+
+    /** CA29/CA31: estorna um pagamento de uma cobrança. */
+    async estornarPagamento(cobrancaId: number, pagamentoId: number, motivo: string): Promise<void> {
+        await httpClient.post(`/cobrancas/${cobrancaId}/pagamentos/${pagamentoId}/estorno`, { motivo })
     },
 }

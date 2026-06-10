@@ -1,3 +1,4 @@
+using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Domain.Financeiro.Events;
 using Imedto.Backend.SharedKernel.Domain;
 
@@ -53,6 +54,42 @@ public class Lancamento : Entity
         PagamentoId = pagamentoId;
         AtualizadoEm = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Cria lançamento de estorno (INV-7 — DC2).
+    /// Valor negativo + categoria "Estorno: Pagamento" — sem coluna/flag nova.
+    /// CobrancaId e PagamentoId (do pagamento estornado) são desnormalizados para rastreabilidade.
+    /// Nasce já como Pago (estorno ocorre no ato do registro, não é conta a pagar).
+    /// </summary>
+    public static Lancamento CriarParaEstorno(
+        long estabelecimentoId,
+        decimal valorEstornado,
+        DateOnly dataEstorno,
+        Guid criadoPorUsuarioId,
+        long cobrancaId,
+        long pagamentoId)
+    {
+        // Valor negativo representa saída de receita (abate no fluxo de caixa).
+        var l = new Lancamento
+        {
+            EstabelecimentoId = estabelecimentoId,
+            Tipo = TipoLancamento.Receita,
+            Descricao = "Estorno de pagamento",
+            Valor = -ArredondamentoMonetario.Arredondar(valorEstornado),
+            DataVencimento = dataEstorno,
+            Status = StatusLancamento.Pago,
+            DataPagamento = dataEstorno,
+            Categoria = CategoriaEstorno,
+            CobrancaId = cobrancaId,
+            PagamentoId = pagamentoId,
+            CriadoPorUsuarioId = criadoPorUsuarioId,
+            CriadoEm = DateTime.UtcNow
+        };
+        return l;
+    }
+
+    /// <summary>Categoria de catálogo usada por lançamentos de estorno (DC2).</summary>
+    public const string CategoriaEstorno = "Estorno: Pagamento";
 
     public static Lancamento Criar(
         long estabelecimentoId,

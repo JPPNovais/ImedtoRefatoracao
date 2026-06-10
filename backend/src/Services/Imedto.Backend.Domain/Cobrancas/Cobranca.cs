@@ -34,6 +34,10 @@ public class Cobranca : Entity
     private readonly List<Pagamento> _pagamentos = new();
     public virtual IReadOnlyCollection<Pagamento> Pagamentos => _pagamentos.AsReadOnly();
 
+    // Coleção de estornos filhos (INV-7). EF preenche junto com Include nos repositórios.
+    private readonly List<EstornoPagamento> _estornos = new();
+    public virtual IReadOnlyCollection<EstornoPagamento> Estornos => _estornos.AsReadOnly();
+
     protected Cobranca() { }
 
     // ── Factory ─────────────────────────────────────────────────────────────
@@ -160,30 +164,83 @@ public class Cobranca : Entity
         return pagamento;
     }
 
+    // ── Estorno (INV-7) ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Estorna um pagamento por inteiro (DC3 — estorno total).
+    /// Atômico com Lancamento de estorno — handler chama VincularLancamento antes do commit.
+    /// Retorna o EstornoPagamento criado para que o handler vincule o LancamentoEstornoId.
+    /// </summary>
+    public virtual EstornoPagamento EstornarPagamento(
+        long pagamentoId,
+        string motivo,
+        Guid estornadoPorUsuarioId)
+    {
+        // R12: Convênio não tem pagamento de balcão, logo não tem estorno
+        if (TipoAtendimento == TipoAtendimento.Convenio)
+            throw new BusinessException("Estorno não disponível para cobranças de convênio.");
+
+        if (Status == StatusCobranca.Cancelada)
+            throw new BusinessException("Não é possível estornar pagamento em cobrança cancelada.");
+
+        // R5: motivo obrigatório
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new BusinessException("Motivo do estorno é obrigatório.");
+
+        var pagamento = _pagamentos.FirstOrDefault(p => p.Id == pagamentoId)
+            ?? throw new BusinessException("Não encontrado.");
+
+        // R8: 1 estorno por pagamento (DC3)
+        if (_estornos.Any(e => e.PagamentoId == pagamentoId))
+            throw new BusinessException("Este pagamento já foi estornado.");
+
+        var estorno = EstornoPagamento.Criar(
+            pagamentoId: pagamento.Id,
+            cobrancaId: Id,
+            estabelecimentoId: EstabelecimentoId,
+            valor: pagamento.Valor,
+            motivo: motivo,
+            estornadoPorUsuarioId: estornadoPorUsuarioId);
+
+        _estornos.Add(estorno);
+        RecalcularStatus();
+        AtualizadoEm = DateTime.UtcNow;
+
+        return estorno;
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /// <summary>Valor total líquido (cobrado − desconto).</summary>
     public decimal TotalLiquido()
         => ArredondamentoMonetario.Arredondar(ValorCobrado - Desconto);
 
-    /// <summary>Soma dos pagamentos registrados.</summary>
+    /// <summary>Soma bruta dos pagamentos registrados.</summary>
     public decimal TotalPago()
         => _pagamentos.Aggregate(0m, (acc, p) => acc + p.Valor);
 
-    /// <summary>Saldo devedor restante.</summary>
-    public decimal SaldoDevedor()
-        => ArredondamentoMonetario.Arredondar(TotalLiquido() - TotalPago());
+    /// <summary>Soma dos estornos registrados.</summary>
+    public decimal TotalEstornado()
+        => _estornos.Aggregate(0m, (acc, e) => acc + e.Valor);
 
-    /// <summary>INV-2: status derivado da soma líquida. Nunca setado à mão (salvo Cancelada).</summary>
+    /// <summary>Total pago líquido de estornos (R3/DC7).</summary>
+    public decimal TotalPagoLiquido()
+        => ArredondamentoMonetario.Arredondar(TotalPago() - TotalEstornado());
+
+    /// <summary>Saldo devedor restante (considerando estornos — R3).</summary>
+    public decimal SaldoDevedor()
+        => ArredondamentoMonetario.Arredondar(TotalLiquido() - TotalPagoLiquido());
+
+    /// <summary>INV-2: status derivado da soma líquida (pago − estornado). Nunca setado à mão (salvo Cancelada).</summary>
     private void RecalcularStatus()
     {
         if (Status == StatusCobranca.Cancelada) return;
-        var totalPago = TotalPago();
+        var totalLiquido = TotalPagoLiquido();
         var liquido = TotalLiquido();
 
-        Status = totalPago == 0
+        Status = totalLiquido == 0
             ? StatusCobranca.Aberta
-            : totalPago < liquido
+            : totalLiquido < liquido
                 ? StatusCobranca.ParcialmentePaga
                 : StatusCobranca.Paga;
     }

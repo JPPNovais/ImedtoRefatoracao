@@ -12,11 +12,13 @@ public class CobrancaRepository : ICobrancaRepository
     public async Task<Cobranca?> ObterPorIdOuNulo(long id, long estabelecimentoId)
         => await _db.Cobrancas
             .Include(c => c.Pagamentos)
+            .Include(c => c.Estornos)
             .FirstOrDefaultAsync(c => c.Id == id && c.EstabelecimentoId == estabelecimentoId);
 
     public async Task<Cobranca?> ObterPorAgendamentoOuNulo(long agendamentoId, long estabelecimentoId)
         => await _db.Cobrancas
             .Include(c => c.Pagamentos)
+            .Include(c => c.Estornos)
             .FirstOrDefaultAsync(c => c.AgendamentoId == agendamentoId && c.EstabelecimentoId == estabelecimentoId);
 
     public async Task Salvar(Cobranca cobranca)

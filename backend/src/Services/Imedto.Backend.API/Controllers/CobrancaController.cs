@@ -7,6 +7,7 @@ using Imedto.Backend.Contracts.Cobrancas.Queries.Results;
 using Imedto.Backend.Domain.ModelosPermissao;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -85,6 +86,46 @@ public class CobrancaController : ControllerBase
                 Parcelas = f.Parcelas,
                 Juros = f.Juros,
             }).ToList()
+        });
+        return NoContent();
+    }
+
+    // ── Aba Financeiro do paciente (F2) ───────────────────────────────────────
+
+    /// <summary>
+    /// Retorna KPIs + cobranças/pagamentos/estornos do paciente (aba Financeiro — CA23/CA36).
+    /// Audit de acesso LGPD: registrado no handler via IPacienteAcessoLogService (R10).
+    /// </summary>
+    [HttpGet("paciente/{pacienteId:long}/financeiro-aba")]
+    [RequiresAcao("financeiro_paciente", "ver")]
+    public async Task<ActionResult<FinanceiroAbaDto>> ObterFinanceiroAba(long pacienteId)
+    {
+        var result = await _query.Query<ObterFinanceiroAbaQuery, FinanceiroAbaDto>(
+            new ObterFinanceiroAbaQuery
+            {
+                PacienteId = pacienteId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                UsuarioId = _tenant.UsuarioId,
+            });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Estorna um pagamento de uma cobrança (INV-7 — CA29/CA30/CA31/CA32).
+    /// Atômico: EstornoPagamento + Lancamento negativo na mesma transação.
+    /// </summary>
+    [HttpPost("{id:long}/pagamentos/{pagamentoId:long}/estorno")]
+
+    [RequiresAcao("financeiro_paciente", "registrar")]
+    public async Task<ActionResult> EstornarPagamento(long id, long pagamentoId, [FromBody] EstornarPagamentoDto dto)
+    {
+        await _cmd.Send(new EstornarPagamentoCommand
+        {
+            CobrancaId = id,
+            PagamentoId = pagamentoId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            UsuarioId = _tenant.UsuarioId,
+            Motivo = dto.Motivo,
         });
         return NoContent();
     }
@@ -192,6 +233,8 @@ public record SalvarTabelaPrecoConsultaDto(
     long? Id,
     Guid? ProfissionalId,
     decimal ValorSugerido);
+
+public record EstornarPagamentoDto(string Motivo);
 
 public record SalvarConfigTaxaFormaPagamentoDto(
     long? Id,

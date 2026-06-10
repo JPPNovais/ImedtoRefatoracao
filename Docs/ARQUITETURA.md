@@ -459,14 +459,17 @@ Introduz contas a receber do paciente (`cobrado ≠ pago`). **Não confundir** c
 
 ### Agregados
 - **`Cobranca`** (aggregate root) — conta a receber: `estabelecimento_id` (tenant), `paciente_id`, `origem` (`Consulta` na F1; enum aberto para `Procedimento`/`Cirurgia` em F4/F5), `tipo_atendimento` (`Particular`|`Convenio`), `agendamento_id?`, `orcamento_id?` (F5), `convenio_id?` (F6), `valor_cobrado`, `desconto`, `status`.
-- **`Pagamento`** (entidade filha) — quita a cobrança; reusa `FormaPagamento`. **Imutável** por design (preparado para estorno com histórico na F2/INV-7 — nunca update/delete de valor).
+- **`Pagamento`** (entidade filha) — quita a cobrança; reusa `FormaPagamento`. **Imutável** por design (estorno com histórico na F2/INV-7 — nunca update/delete de valor).
+- **`EstornoPagamento`** (entidade de histórico — briefing 2026-06-10_010 / F2) — desfaz um `Pagamento` **sem apagá-lo**: `pagamento_id`, `cobranca_id`, `estabelecimento_id`, `valor` (total — 1 estorno anula 1 pagamento por inteiro nesta versão), `motivo` (obrigatório), `lancamento_estorno_id`. O `Lancamento` de estorno reusa as colunas `cobranca_id`/`pagamento_id` com **valor negativo** + categoria de estorno (sem flag/coluna nova em `lancamentos`).
 - Config: `TabelaPrecoConsulta` (valor sugerido no check-in) e `ConfigTaxaFormaPagamento` (taxa de cartão por forma, aplicada automaticamente — vive na aba de Config do Financeiro, padrão master-detail de `OrcamentoSettingsView.vue`).
+- **Porta única de domínio** (F2): o badge na agenda e a **aba Financeiro do paciente** (`PacienteDetalheView.vue`) operam a **MESMA** `Cobranca` via o mesmo `CobrancaController`/store/service — registrar/estornar numa porta repercute na outra, sem duplicidade.
 
 ### Invariantes (validadas no Domain, 422 via `BusinessException`)
 - **INV-1**: `SUM(pagamentos.valor) ≤ valor_cobrado − desconto`.
 - **INV-2**: `status` derivado (Aberta/ParcialmentePaga/Paga) da soma **líquida** (pagamentos − estornos futuros); nunca setado à mão salvo `Cancelada`.
 - **INV-3**: registrar `Pagamento` **gera `Lancamento`** (Receita/Pago, `cobranca_id`+`pagamento_id`) na **MESMA transação** (atômico — rollback de ambos em falha).
 - **INV-4**: `0 ≤ desconto ≤ valor_cobrado`. **INV-5**: cada `Pagamento.valor > 0`. **INV-6**: `Cobranca` sempre com `estabelecimento_id`+`paciente_id`.
+- **INV-7** (F2): estornar um `Pagamento` **gera `EstornoPagamento` + `Lancamento` de estorno** (valor negativo) na **MESMA transação** (atômico — rollback de ambos em falha); o `Pagamento`/`Lancamento` originais permanecem imutáveis; o `status` recalcula pela soma líquida (pagamentos − estornos). 1 estorno (total) por pagamento (unique `pagamento_id` em `estorno_pagamentos`).
 - **INV-8** (RBAC): só aplica desconto quem tem `orcamento.aprovar` OU `financeiro.lancar`/`financeiro_paciente.registrar` OU é Dono.
 
 ### Padrões

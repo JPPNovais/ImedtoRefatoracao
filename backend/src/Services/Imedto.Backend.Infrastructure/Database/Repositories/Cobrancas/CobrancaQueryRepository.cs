@@ -150,6 +150,183 @@ public class CobrancaQueryRepository
     }
 
     /// <summary>
+    /// Retorna KPIs + lista completa de cobranças/pagamentos/estornos do paciente na aba Financeiro (F2).
+    /// Multi-tenant: filtra por estabelecimento_id + paciente_id.
+    /// DTO mínimo LGPD: sem dado clínico.
+    /// </summary>
+    public async Task<FinanceiroAbaDto> ObterFinanceiroAba(long pacienteId, long estabelecimentoId)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+
+        // Query 1: cobranças do paciente
+        const string sqlCobrancas = """
+            SELECT
+                c.id                AS Id,
+                c.origem            AS Origem,
+                c.tipo_atendimento  AS TipoAtendimento,
+                c.valor_cobrado     AS ValorCobrado,
+                c.desconto          AS Desconto,
+                c.status            AS Status,
+                c.descricao         AS Descricao
+            FROM cobrancas c
+            WHERE c.paciente_id = @PacienteId
+              AND c.estabelecimento_id = @EstabelecimentoId
+            ORDER BY c.criado_em DESC;
+            """;
+
+        // Query 2: pagamentos das cobranças do paciente
+        const string sqlPagamentos = """
+            SELECT
+                p.id                    AS Id,
+                p.cobranca_id           AS CobrancaId,
+                p.valor                 AS Valor,
+                COALESCE(fp.nome, '')   AS FormaPagamentoNome,
+                p.parcelas              AS Parcelas,
+                p.taxa                  AS Taxa,
+                p.data_pagamento        AS DataPagamento
+            FROM pagamentos p
+            JOIN cobrancas c ON c.id = p.cobranca_id
+            LEFT JOIN formas_pagamento fp ON fp.id = p.forma_pagamento_id
+            WHERE c.paciente_id = @PacienteId
+              AND c.estabelecimento_id = @EstabelecimentoId
+            ORDER BY p.criado_em;
+            """;
+
+        // Query 3: estornos das cobranças do paciente
+        const string sqlEstornos = """
+            SELECT
+                ep.id                                   AS Id,
+                ep.pagamento_id                         AS PagamentoId,
+                ep.cobranca_id                          AS CobrancaId,
+                ep.valor                                AS Valor,
+                ep.motivo                               AS Motivo,
+                COALESCE(u.nome_completo, u.email, '')  AS EstornadoPorNome,
+                ep.data_estorno                         AS DataEstorno
+            FROM estorno_pagamentos ep
+            JOIN cobrancas c ON c.id = ep.cobranca_id
+            LEFT JOIN usuarios u ON u.id = ep.estornado_por_usuario_id
+            WHERE c.paciente_id = @PacienteId
+              AND c.estabelecimento_id = @EstabelecimentoId
+            ORDER BY ep.criado_em;
+            """;
+
+        var param = new { PacienteId = pacienteId, EstabelecimentoId = estabelecimentoId };
+
+        // Executa as 3 queries em paralelo (3 conexões separadas para simplicidade).
+        var cobrancasTask  = conn.QueryAsync<CobrancaAbaRaw>(sqlCobrancas, param);
+        var pagamentosTask = conn.QueryAsync<PagamentoAbaRaw>(sqlPagamentos, param);
+        var estornosTask   = conn.QueryAsync<EstornoAbaRaw>(sqlEstornos, param);
+
+        await Task.WhenAll(cobrancasTask, pagamentosTask, estornosTask);
+
+        var cobrancas  = (await cobrancasTask).ToList();
+        var pagamentos = (await pagamentosTask).ToList();
+        var estornos   = (await estornosTask).ToList();
+
+        // Índices por cobranca_id
+        var pagamentosPorCobranca = pagamentos.GroupBy(p => p.CobrancaId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var estornosPorPagamento  = estornos.GroupBy(e => e.PagamentoId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var cobrancasDtos = cobrancas.Select(c =>
+        {
+            var pags = pagamentosPorCobranca.TryGetValue(c.Id, out var pl) ? pl : new();
+            var pagDtos = pags.Select(p =>
+            {
+                var estornado = estornosPorPagamento.TryGetValue(p.Id, out var est);
+                return new PagamentoAbaDto
+                {
+                    Id = p.Id,
+                    Valor = p.Valor,
+                    FormaPagamentoNome = p.FormaPagamentoNome,
+                    Parcelas = p.Parcelas,
+                    Taxa = p.Taxa,
+                    DataPagamento = p.DataPagamento,
+                    Estornado = estornado,
+                    Estorno = estornado ? new EstornoAbaDto
+                    {
+                        Id = est!.Id,
+                        Valor = est.Valor,
+                        Motivo = est.Motivo,
+                        EstornadoPorNome = est.EstornadoPorNome,
+                        DataEstorno = est.DataEstorno,
+                    } : null,
+                };
+            }).ToList();
+
+            var totalPago      = pags.Sum(p => p.Valor);
+            var totalEstornado = estornos.Where(e => e.CobrancaId == c.Id).Sum(e => e.Valor);
+            var totalLiquido   = c.ValorCobrado - c.Desconto;
+            var totalPagoLiq   = totalPago - totalEstornado;
+            var saldo          = totalLiquido - totalPagoLiq;
+
+            return new CobrancaAbaDto
+            {
+                Id = c.Id,
+                Origem = c.Origem,
+                TipoAtendimento = c.TipoAtendimento,
+                ValorCobrado = c.ValorCobrado,
+                Desconto = c.Desconto,
+                TotalLiquido = totalLiquido,
+                TotalPagoLiquido = totalPagoLiq,
+                Saldo = saldo,
+                Status = c.Status,
+                Descricao = c.Descricao,
+                Pagamentos = pagDtos,
+                HistoricoValor = Array.Empty<HistoricoValorAbaDto>(), // F5 popula; F2 exibe se existir — DC4
+            };
+        }).ToList();
+
+        // KPIs agregados (DC7/R3)
+        var kpiTotalCobrado    = cobrancasDtos.Sum(c => c.TotalLiquido);
+        var kpiTotalPagoLiq    = cobrancasDtos.Sum(c => c.TotalPagoLiquido);
+        var kpiSaldo           = cobrancasDtos.Sum(c => c.Saldo);
+
+        return new FinanceiroAbaDto
+        {
+            TotalCobrado     = kpiTotalCobrado,
+            TotalPagoLiquido = kpiTotalPagoLiq,
+            Saldo            = kpiSaldo,
+            Cobrancas        = cobrancasDtos,
+        };
+    }
+
+    // ── Tipos internos de mapeamento Dapper ──────────────────────────────────
+    private class CobrancaAbaRaw
+    {
+        public long Id { get; set; }
+        public string Origem { get; set; } = string.Empty;
+        public string TipoAtendimento { get; set; } = string.Empty;
+        public decimal ValorCobrado { get; set; }
+        public decimal Desconto { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? Descricao { get; set; }
+    }
+
+    private class PagamentoAbaRaw
+    {
+        public long Id { get; set; }
+        public long CobrancaId { get; set; }
+        public decimal Valor { get; set; }
+        public string FormaPagamentoNome { get; set; } = string.Empty;
+        public int Parcelas { get; set; }
+        public decimal Taxa { get; set; }
+        public DateOnly DataPagamento { get; set; }
+    }
+
+    private class EstornoAbaRaw
+    {
+        public long Id { get; set; }
+        public long PagamentoId { get; set; }
+        public long CobrancaId { get; set; }
+        public decimal Valor { get; set; }
+        public string Motivo { get; set; } = string.Empty;
+        public string EstornadoPorNome { get; set; } = string.Empty;
+        public DateOnly DataEstorno { get; set; }
+    }
+
+    /// <summary>
     /// Retorna dados de badge de pagamento para uma lista de agendamentos (CA3 — anti-N+1).
     /// Usada pelo AgendamentoQueryRepository para enricher o DTO da agenda.
     /// </summary>

@@ -183,6 +183,7 @@ using Imedto.Backend.Application.Cobrancas.Queries;
 using Imedto.Backend.Contracts.Cobrancas.Commands;
 using Imedto.Backend.Contracts.Cobrancas.Queries;
 using Imedto.Backend.Contracts.Cobrancas.Queries.Results;
+using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Infrastructure.Database.Repositories.Cobrancas;
 using Imedto.Backend.Domain.AssinaturaDigital;
@@ -914,19 +915,22 @@ public static class Container
         services.AddSingleton<RelatorioOrcamentosQueryHandler>();
         services.AddSingleton<RelatorioQueryRepository>();
 
-        // Cobranças F1 — repositórios + handlers
+        // Cobranças F1/F2 — repositórios + handlers
         // Query repo singleton (Dapper — sem estado por request)
         services.AddSingleton<CobrancaQueryRepository>();
         // Commands scoped (escrita via EF — mesma transação UoW)
         services.AddScoped<RegistrarPagamentosCommandHandler>();
+        services.AddScoped<EstornarPagamentoCommandHandler>();
         services.AddScoped<SalvarTabelaPrecoConsultaCommandHandler>();
         services.AddScoped<InativarTabelaPrecoConsultaCommandHandler>();
         services.AddScoped<SalvarConfigTaxaFormaPagamentoCommandHandler>();
-        // Query handlers singleton (leitura Dapper)
+        // Query handlers singleton (leitura Dapper) — exceto ObterFinanceiroAba que audita acesso (scoped)
         services.AddSingleton<ObterCobrancaDaAgendaQueryHandlers>();
         services.AddSingleton<ObterValorSugeridoCheckInQueryHandlers>();
         services.AddSingleton<ListarTabelaPrecoConsultaQueryHandlers>();
         services.AddSingleton<ListarConfigTaxaFormaPagamentoQueryHandlers>();
+        // F2: scoped — injeta IPacienteAcessoLogService (scoped, LGPD audit)
+        services.AddScoped<ObterFinanceiroAbaQueryHandler>();
     }
 
     private static void RegistrarBuses(IServiceCollection services)
@@ -1121,8 +1125,9 @@ public static class Container
             bus.Register<DispararAssinaturaCommand, DispararAssinaturaCommandHandler>();
             bus.Register<ProcessarCallbackAssinaturaCommand, ProcessarCallbackAssinaturaCommandHandler>();
             bus.Register<ExpirarAssinaturasPendentesCommand, ExpirarAssinaturasPendentesCommandHandler>();
-            // Cobranças F1 (2026-06-10).
+            // Cobranças F1/F2 (2026-06-10).
             bus.Register<RegistrarPagamentosCommand, RegistrarPagamentosCommandHandler>();
+            bus.Register<EstornarPagamentoCommand, EstornarPagamentoCommandHandler>();
             bus.Register<SalvarTabelaPrecoConsultaCommand, SalvarTabelaPrecoConsultaCommandHandler>();
             bus.Register<InativarTabelaPrecoConsultaCommand, InativarTabelaPrecoConsultaCommandHandler>();
             bus.Register<SalvarConfigTaxaFormaPagamentoCommand, SalvarConfigTaxaFormaPagamentoCommandHandler>();
@@ -1259,11 +1264,12 @@ public static class Container
             // Assinatura Digital ICP-Brasil (2026-06-01).
             bus.Register<ObterStatusAssinaturaQuery, StatusAssinaturaDto, ObterStatusAssinaturaQueryHandler>();
             bus.Register<ObterCertificadoVinculadoQuery, CertificadoVinculadoDto?, ObterCertificadoVinculadoQueryHandler>();
-            // Cobranças F1 (2026-06-10).
+            // Cobranças F1/F2 (2026-06-10).
             bus.Register<ObterCobrancaDaAgendaQuery, CobrancaDetalheDto?, ObterCobrancaDaAgendaQueryHandlers>();
             bus.Register<ObterValorSugeridoCheckInQuery, ValorSugeridoCheckInDto, ObterValorSugeridoCheckInQueryHandlers>();
             bus.Register<ListarTabelaPrecoConsultaQuery, IEnumerable<TabelaPrecoConsultaDto>, ListarTabelaPrecoConsultaQueryHandlers>();
             bus.Register<ListarConfigTaxaFormaPagamentoQuery, IEnumerable<ConfigTaxaFormaPagamentoDto>, ListarConfigTaxaFormaPagamentoQueryHandlers>();
+            bus.Register<ObterFinanceiroAbaQuery, FinanceiroAbaDto, ObterFinanceiroAbaQueryHandler>();
             return bus;
         });
 

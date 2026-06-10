@@ -18,6 +18,7 @@ import { resolverTag } from "@/constants/pacienteTags"
 import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { documentoService, type DocumentoResumo, type TipoDocumento } from "@/services/documentoService"
+import FinanceiroTab from "@/components/pacientes/FinanceiroTab.vue"
 import { acessoService, type AcessoResumo } from "@/services/acessoService"
 import { useAcessosPdf } from "@/composables/useAcessosPdf"
 import { useReceitaPdf } from "@/composables/useReceitaPdf"
@@ -1086,12 +1087,12 @@ function orcStatusClass(s: string): string {
                     </div>
                 </section>
 
-                <!-- Financeiro / Convênios / Termos -->
+                <!-- Financeiro (F2) -->
                 <section v-else-if="aba === 'financeiro'">
-                    <AppEmptyState
-                        icone="💳"
-                        titulo="Financeiro do paciente"
-                        descricao="Cobranças, recebimentos e saldo em aberto deste paciente serão exibidos aqui em breve."
+                    <FinanceiroTab
+                        :paciente-id="pacienteId"
+                        :ativa="aba === 'financeiro'"
+                        @notificar="notificar"
                     />
                 </section>
 
