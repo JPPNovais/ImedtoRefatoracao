@@ -3,6 +3,7 @@
     "compilerOptions": {
         "baseUrl": ".",
         "noEmit": true,
+        "lib": ["ES2020", "ES2022.Array", "DOM", "DOM.Iterable"],
         "paths": {
             "@/*": ["./src/*"],
             "@imedto/ui": ["../design-system/dist/index.d.ts"]

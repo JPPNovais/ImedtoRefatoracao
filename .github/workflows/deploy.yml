@@ -65,6 +65,8 @@ jobs:
       - run: npm ci --no-audit --no-fund --legacy-peer-deps
       # Lint best-effort (config legacy ainda).
       - run: npm run lint --if-present || true
+      # Garante que nenhum PR introduz font-size/font-weight literal em CSS scoped.
+      - run: npm run check:typography -- --ci
 
   # ─────────────────────────────────────────────────────────────────
   # Build & push das imagens Docker pro ghcr.io.
