@@ -28,6 +28,14 @@ FASE 4  Paridade e expansão (tele, portal, mobile)─┘
 | **F4** | [`FASE_4_PARIDADE_EXPANSAO.md`](FASE_4_PARIDADE_EXPANSAO.md) | Telemedicina, portal do paciente, mobile, API pública, TISS (condicional) | tração da F2-F3 |
 | **FT** | [`FASE_TRANSVERSAL_QUALIDADE.md`](FASE_TRANSVERSAL_QUALIDADE.md) | Correções de BD e backend (auditorias 2026-06-09), god components, design system, tipografia | contínua |
 
+### Épicos com plano mestre dedicado
+
+Épicos grandes demais para um item de fase ganham plano próprio (visão + fases internas + questões abertas). Cada fase interna vira um briefing imutável em `planejamentos/`, refinada com o usuário antes de executar.
+
+| Épico | Plano mestre | Materializa | Estado |
+|---|---|---|---|
+| **Financeiro / Cobranças** | [`MODULO_FINANCEIRO_COBRANCAS.md`](MODULO_FINANCEIRO_COBRANCAS.md) | item "financeiro" da [F3](FASE_3_DIFERENCIACAO.md) | plano mestre — em refinamento por fase (F1→F2→F3→F3B→F4→F5→F6→F7); inclui conduta-checklist (F3B) e caixa/comissão (F7) |
+
 ## Documentos de estratégia (insumo, não execução)
 
 - [Pesquisa de mercado](../Discoverys/roadmap-melhorias-2026/02_pesquisa_mercado.md) — concorrentes, preços, dores ranqueadas (válida ~6 meses)

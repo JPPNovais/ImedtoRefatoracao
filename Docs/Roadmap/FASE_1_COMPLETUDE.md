@@ -4,6 +4,10 @@
 >
 > **Duração estimada**: 3-5 semanas. **Pré-requisitos**: nenhum (paralelizável com F0-E0).
 
+## ✅ EXECUTADA em 2026-06-10 (exceto 1.3, em espera)
+
+Fila executada pela pipeline (dev → QA) na sessão de 2026-06-10: **001** (`7ebe129`), **003** (`2263507`), **004** (`7fe16da`), **005** (`175fbc2`), **007** (`b11bd4c`), **008** (`2aab3d2`), **002** (`d8691a1`), **lint §5 + fix TS2550** (`dc98557`) e **006/2FA** (schema + implementação + docs — commit final da sessão). 4 devoluções Tipo A no ciclo (campo não-salvo no 005, teto de paginação no 007, literal tipográfico no 008, docs §10 no 006) — todas corrigidas e revalidadas. Validação visual em produção fica com o usuário (sandbox sem browser). **1.3/F1B segue em espera da Valid.**
+
 ## ⚡ Status de execução (2026-06-10) — pipeline carregada
 
 Briefings imutáveis criados em `planejamentos/` (modo autônomo; decisões registradas no §11 de cada um). A investigação dos analistas corrigiu o estado real de vários itens — **ler a coluna de correção antes de executar**:
