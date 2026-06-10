@@ -212,6 +212,13 @@ const router = createRouter({
             redirect: { path: "/estabelecimento", query: { secao: "ia" } },
         },
 
+        // Configurações Financeiro (F1) — tabela de preços + taxa por forma de pagamento.
+        {
+            path: "/configuracoes/financeiro",
+            name: "FinanceiroSettings",
+            redirect: { path: "/estabelecimento", query: { secao: "financeiro" } },
+        },
+
         // Notificações full-page
         {
             path: "/notificacoes",

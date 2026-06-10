@@ -31,4 +31,12 @@ public class AgendamentoDto
     public long? SalaId { get; set; }
     public string? SalaNome { get; set; }
     public string? SalaTipoNome { get; set; }
+
+    // Badge de cobrança agregado na query (CA3 — sem N+1)
+    public long? CobrancaId { get; set; }
+    /// <summary>Aberta | ParcialmentePaga | Paga | Convenio | null (sem cobrança)</summary>
+    public string? CobrancaStatus { get; set; }
+    public decimal? CobrancaValorCobrado { get; set; }
+    public decimal? CobrancaTotalPago { get; set; }
+    public decimal? CobrancaSaldoDevedor { get; set; }
 }

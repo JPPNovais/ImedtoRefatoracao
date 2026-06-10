@@ -1,8 +1,10 @@
 using Imedto.Backend.Application.Agendamentos.Commands;
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.Test.Helpers;
 using Moq;
 using NUnit.Framework;
 
@@ -14,6 +16,7 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
     private Mock<IAgendamentoRepository> _agendaRepo;
     private Mock<ISalaRepository> _salaRepo;
     private Mock<IAgendamentoSalaAuditRepository> _auditRepo;
+    private Mock<ICobrancaRepository> _cobrancaRepo;
     private RegistrarCheckInAgendamentoCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -25,14 +28,19 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         _agendaRepo = new Mock<IAgendamentoRepository>();
         _salaRepo = new Mock<ISalaRepository>();
         _auditRepo = new Mock<IAgendamentoSalaAuditRepository>();
-        _sut = new RegistrarCheckInAgendamentoCommandHandler(_agendaRepo.Object, _salaRepo.Object, _auditRepo.Object);
+        _cobrancaRepo = new Mock<ICobrancaRepository>();
+        _sut = new RegistrarCheckInAgendamentoCommandHandler(
+            _agendaRepo.Object, _salaRepo.Object, _auditRepo.Object, _cobrancaRepo.Object);
     }
 
     private static Agendamento CriarAgendamento(long estabId = EstabelecimentoId)
     {
         var inicio = DateTime.UtcNow.AddDays(1);
-        return Agendamento.Criar(estabId, 100L, Guid.NewGuid(), Guid.NewGuid(),
+        var ag = Agendamento.Criar(estabId, 100L, Guid.NewGuid(), Guid.NewGuid(),
             inicio, inicio.AddMinutes(30), "Consulta", null);
+        // Simula Id gerado pelo banco — necessário para que CriarParaConsulta passe INV-6 (agendamentoId > 0).
+        ag.SimularIdBanco(AgendamentoId);
+        return ag;
     }
 
     private static Agendamento CriarAgendamentoConfirmado(long estabId = EstabelecimentoId)
@@ -52,6 +60,7 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         {
             AgendamentoId = AgendamentoId,
             EstabelecimentoId = EstabelecimentoId,
+            ValorCobrado = 150m,
         });
 
         Assert.That(ag.CheckInEm, Is.Not.Null);
@@ -70,6 +79,7 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         {
             AgendamentoId = AgendamentoId,
             EstabelecimentoId = EstabelecimentoId,
+            ValorCobrado = 150m,
         });
 
         Assert.That(ag.CheckInEm, Is.Not.Null);
@@ -153,6 +163,7 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
             EstabelecimentoId = EstabelecimentoId,
             SalaId = 7L,
             UsuarioSolicitanteId = Guid.NewGuid(),
+            ValorCobrado = 150m,
         });
 
         Assert.That(ag.CheckInEm, Is.Not.Null);
@@ -187,6 +198,7 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         {
             AgendamentoId = AgendamentoId,
             EstabelecimentoId = EstabelecimentoId,
+            ValorCobrado = 150m,
         });
 
         Assert.That(ag.SalaId, Is.Null);
@@ -207,5 +219,57 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         }));
         Assert.That(ex.Message, Does.Contain("não encontrado"));
         _agendaRepo.Verify(r => r.Salvar(It.IsAny<Agendamento>()), Times.Never);
+    }
+
+    // ── CA1: cobrança criada no check-in ──────────────────────────────────
+
+    [Test]
+    public async Task Handle_CheckInParticular_CriaCobranca()
+    {
+        var ag = CriarAgendamentoConfirmado();
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
+        Cobranca? cobrancaSalva = null;
+        _cobrancaRepo.Setup(r => r.Salvar(It.IsAny<Cobranca>()))
+            .Callback<Cobranca>(c => cobrancaSalva = c)
+            .Returns(Task.CompletedTask);
+
+        await _sut.Handle(new RegistrarCheckInAgendamentoCommand
+        {
+            AgendamentoId = AgendamentoId,
+            EstabelecimentoId = EstabelecimentoId,
+            TipoAtendimento = "Particular",
+            ValorCobrado = 250m,
+            UsuarioSolicitanteId = Guid.NewGuid(),
+        });
+
+        _cobrancaRepo.Verify(r => r.Salvar(It.IsAny<Cobranca>()), Times.Once);
+        Assert.That(cobrancaSalva, Is.Not.Null);
+        Assert.That(cobrancaSalva!.ValorCobrado, Is.EqualTo(250m));
+        Assert.That(cobrancaSalva.TipoAtendimento, Is.EqualTo(TipoAtendimento.Particular));
+        Assert.That(cobrancaSalva.Status, Is.EqualTo(StatusCobranca.Aberta));
+    }
+
+    [Test]
+    public async Task Handle_CheckInConvenio_CriaCobrancaConvenioSemValor()
+    {
+        var ag = CriarAgendamentoConfirmado();
+        _agendaRepo.Setup(r => r.ObterPorIdOuNulo(AgendamentoId, EstabelecimentoId)).ReturnsAsync(ag);
+        Cobranca? cobrancaSalva = null;
+        _cobrancaRepo.Setup(r => r.Salvar(It.IsAny<Cobranca>()))
+            .Callback<Cobranca>(c => cobrancaSalva = c)
+            .Returns(Task.CompletedTask);
+
+        await _sut.Handle(new RegistrarCheckInAgendamentoCommand
+        {
+            AgendamentoId = AgendamentoId,
+            EstabelecimentoId = EstabelecimentoId,
+            TipoAtendimento = "Convenio",
+            ValorCobrado = 0m, // R12: Convênio não tem valor no balcão
+            UsuarioSolicitanteId = Guid.NewGuid(),
+        });
+
+        _cobrancaRepo.Verify(r => r.Salvar(It.IsAny<Cobranca>()), Times.Once);
+        Assert.That(cobrancaSalva!.TipoAtendimento, Is.EqualTo(TipoAtendimento.Convenio));
+        Assert.That(cobrancaSalva.ValorCobrado, Is.EqualTo(0m)); // R12
     }
 }

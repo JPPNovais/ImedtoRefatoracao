@@ -1,6 +1,7 @@
 using Dapper;
 using Imedto.Backend.Contracts.Agendamentos.Queries.Results;
 using Imedto.Backend.Domain.Common;
+using Imedto.Backend.Infrastructure.Database.Repositories.Cobrancas;
 using Imedto.Backend.SharedKernel.Domain;
 using Npgsql;
 
@@ -12,11 +13,16 @@ public class AgendamentoQueryRepository
 {
     private readonly string _connStr;
     private readonly IFotoStorageService _fotoStorage;
+    private readonly CobrancaQueryRepository _cobrancaRepo;
 
-    public AgendamentoQueryRepository(AppReadConnectionString conn, IFotoStorageService fotoStorage)
+    public AgendamentoQueryRepository(
+        AppReadConnectionString conn,
+        IFotoStorageService fotoStorage,
+        CobrancaQueryRepository cobrancaRepo)
     {
         _connStr = conn.Value;
         _fotoStorage = fotoStorage;
+        _cobrancaRepo = cobrancaRepo;
     }
 
     public async Task<PaginaAgendamentosDto> Listar(
@@ -106,6 +112,24 @@ public class AgendamentoQueryRepository
 
         foreach (var a in itens)
             a.ProfissionalFotoUrl = _fotoStorage.GerarUrlLeitura(a.ProfissionalFotoUrl);
+
+        // CA3: enrich com badge de cobrança agregado (sem N+1 — 1 query para todos)
+        if (itens.Any())
+        {
+            var badges = await _cobrancaRepo.ObterBadgesPorAgendamentos(
+                estabelecimentoId,
+                itens.Select(a => a.Id));
+            var badgeMap = badges.ToDictionary(b => b.AgendamentoId);
+            foreach (var a in itens)
+            {
+                if (!badgeMap.TryGetValue(a.Id, out var badge)) continue;
+                a.CobrancaId = badge.CobrancaId;
+                a.CobrancaStatus = badge.TipoAtendimento == "Convenio" ? "Convenio" : badge.Status;
+                a.CobrancaValorCobrado = badge.ValorCobrado;
+                a.CobrancaTotalPago = badge.TotalPago;
+                a.CobrancaSaldoDevedor = badge.SaldoDevedor;
+            }
+        }
 
         return new PaginaAgendamentosDto
         {

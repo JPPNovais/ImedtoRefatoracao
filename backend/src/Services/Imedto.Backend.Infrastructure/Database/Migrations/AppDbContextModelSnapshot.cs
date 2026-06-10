@@ -1782,6 +1782,259 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("procedimentos_cirurgicos", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.Cobranca", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AgendamentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("agendamento_id");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<long?>("ConvenioId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("convenio_id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<Guid>("CriadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("criado_por_usuario_id");
+
+                    b.Property<decimal>("Desconto")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("desconto");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("descricao");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<long?>("OrcamentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("orcamento_id");
+
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("origem");
+
+                    b.Property<long>("PacienteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paciente_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TipoAtendimento")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo_atendimento");
+
+                    b.Property<decimal>("ValorCobrado")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("valor_cobrado");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgendamentoId")
+                        .HasDatabaseName("ix_cobrancas_agendamento_id");
+
+                    b.HasIndex("EstabelecimentoId", "PacienteId")
+                        .HasDatabaseName("ix_cobrancas_estab_paciente");
+
+                    b.HasIndex("EstabelecimentoId", "Status")
+                        .HasDatabaseName("ix_cobrancas_estab_status");
+
+                    b.ToTable("cobrancas", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.ConfigTaxaFormaPagamento", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<long>("FormaPagamentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("forma_pagamento_id");
+
+                    b.Property<decimal>("TaxaPercentual")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(6, 3)
+                        .HasColumnType("numeric(6,3)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("taxa_percentual");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FormaPagamentoId")
+                        .HasDatabaseName("ix_config_taxa_forma_pagamento_forma_id");
+
+                    b.HasIndex("EstabelecimentoId", "FormaPagamentoId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_config_taxa_forma_pagamento_estab_forma");
+
+                    b.ToTable("config_taxa_forma_pagamento", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.Pagamento", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CobrancaId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cobranca_id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateOnly>("DataPagamento")
+                        .HasColumnType("date")
+                        .HasColumnName("data_pagamento");
+
+                    b.Property<long>("FormaPagamentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("forma_pagamento_id");
+
+                    b.Property<decimal>("Juros")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("juros");
+
+                    b.Property<long?>("LancamentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("lancamento_id");
+
+                    b.Property<int>("Parcelas")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("parcelas");
+
+                    b.Property<Guid>("RegistradoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("registrado_por_usuario_id");
+
+                    b.Property<decimal>("Taxa")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("taxa");
+
+                    b.Property<decimal>("Valor")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("valor");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CobrancaId")
+                        .HasDatabaseName("ix_pagamentos_cobranca_id");
+
+                    b.HasIndex("FormaPagamentoId")
+                        .HasDatabaseName("ix_pagamentos_forma_pagamento_id");
+
+                    b.ToTable("pagamentos", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.TabelaPrecoConsulta", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<Guid?>("ProfissionalId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("profissional_id");
+
+                    b.Property<decimal>("ValorSugerido")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("valor_sugerido");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "ProfissionalId")
+                        .HasDatabaseName("ix_tabela_preco_consulta_estab_profissional");
+
+                    b.ToTable("tabela_preco_consulta", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", b =>
                 {
                     b.Property<long>("Id")
@@ -2035,6 +2288,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("categoria");
 
+                    b.Property<long?>("CobrancaId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cobranca_id");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("criado_em");
@@ -2065,6 +2322,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("orcamento_id");
 
+                    b.Property<long?>("PagamentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("pagamento_id");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2083,6 +2344,9 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnName("valor");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CobrancaId")
+                        .HasDatabaseName("ix_lancamentos_cobranca_id");
 
                     b.HasIndex("OrcamentoId");
 
@@ -6110,6 +6374,60 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasConstraintName("fk_procedimento_prontuario");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.Cobranca", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cobrancas_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.ConfigTaxaFormaPagamento", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_config_taxa_forma_pagamento_estabelecimento");
+
+                    b.HasOne("Imedto.Backend.Domain.Financeiro.FormaPagamento", null)
+                        .WithMany()
+                        .HasForeignKey("FormaPagamentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_config_taxa_forma_pagamento_forma");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.Pagamento", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Cobrancas.Cobranca", null)
+                        .WithMany("Pagamentos")
+                        .HasForeignKey("CobrancaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_pagamentos_cobranca");
+
+                    b.HasOne("Imedto.Backend.Domain.Financeiro.FormaPagamento", null)
+                        .WithMany()
+                        .HasForeignKey("FormaPagamentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_pagamentos_forma_pagamento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.TabelaPrecoConsulta", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tabela_preco_consulta_estabelecimento");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.CategoriaFinanceira", b =>
                 {
                     b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
@@ -6615,6 +6933,11 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
             modelBuilder.Entity("Imedto.Backend.Domain.Cirurgias.ProcedimentoCirurgico", b =>
                 {
                     b.Navigation("Equipe");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.Cobranca", b =>
+                {
+                    b.Navigation("Pagamentos");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Orcamentos.Catalogos.OrcamentoAnestesista", b =>

@@ -128,6 +128,16 @@ A feature de 2FA introduz novos dados sensíveis com tratamento obrigatório:
 
 **Multi-tenant do estado de 2FA**: o estado ativo/inativo é **global** (da conta do usuário, não por tenant). O toggle de exigência (`exigir_2fa_dono`) é por estabelecimento. Um Dono com N estabelecimentos tem um único segredo TOTP que serve para todos os contextos.
 
+## Dado financeiro do paciente — sensível (briefing 2026-06-10_009, Módulo Cobranças F1)
+
+Contas a receber do paciente (`Cobranca`/`Pagamento`) são dado **sensível** — vinculam valor cobrado/pago a um paciente identificado.
+
+- **Minimização**: DTOs de cobrança/pagamento contêm **apenas** os campos da tela (saldo, valores, forma, status). Nunca CPF/diagnóstico/conteúdo clínico no payload financeiro.
+- **Sem PII em log/erro**: mensagens de 422/404 de cobrança/pagamento são **genéricas** ("Cobrança não encontrada.", "Valor excede o saldo.") — não revelam nome/CPF do paciente nem valores de tenant alheio. Logs de domínio sem PII.
+- **Multi-tenant falha-fechada**: `Cobranca`/`Pagamento`/`TabelaPrecoConsulta`/`ConfigTaxaFormaPagamento` filtram `estabelecimento_id` do tenant ativo; acesso a id de outro tenant → "não encontrado" genérico.
+- **Permissões dedicadas**: `financeiro_paciente.ver` / `financeiro_paciente.registrar` — **separadas** de `financeiro.*` (Financeiro da clínica, agregado, mais amplo). Não confundir.
+- **Audit de acesso por paciente**: a **aba Financeiro do paciente** (porta direta ao dado financeiro por paciente identificado) será auditada na **F2**, no padrão `paciente_acesso_log`. Na F1, criação de cobrança/pagamento registra `criado_por`/`registrado_por_usuario_id`+timestamps (rastreabilidade de quem cobrou/recebeu).
+
 ---
 
 ## Checklist multi-tenant — premissa não-negociável

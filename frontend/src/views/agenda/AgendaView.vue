@@ -17,7 +17,7 @@ import { useRoute, useRouter } from "vue-router"
 import {
     AppButton, AppCard, AppPageHeader, AppEmptyState, AppSelect,
     AppDateStrip, AppStatCard, AppField, AppInput, AppAvatarSelect,
-    AppToast, AppConfirmDialog,
+    AppToast, AppConfirmDialog, PaymentModal,
 } from "@/components/ui"
 import AgendamentoRow from "@/components/agenda/AgendamentoRow.vue"
 import AgendaRail from "@/components/agenda/AgendaRail.vue"
@@ -34,10 +34,16 @@ import { vinculoService, type ProfissionalPublico } from "@/services/vinculoServ
 import { profissionalService } from "@/services/profissionalService"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 import { dataISO, formatHora, hojeISO } from "@/utils/datetime"
+import { useCobrancaStore } from "@/stores/cobrancaStore"
+import { cobrancaService, type CobrancaDetalhe, type ConfigTaxaFormaPagamento } from "@/services/cobrancaService"
+import { formaPagamentoService } from "@/services/categoriaFinanceiraService"
 
 const auth = useAuthStore()
 const tenant = useTenantStore()
+const permissoes = usePermissoesStore()
+const cobrancaStore = useCobrancaStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -359,6 +365,65 @@ async function onCheckInRealizado() {
     await recarregarSemCache()
 }
 
+// ─── Modal de pagamento (F1 — Financeiro) ───────────────────────────────────
+const modalPagamentoAberto = ref(false)
+const cobrancaPagamento = ref<CobrancaDetalhe | null>(null)
+const formasPagamentoDisponiveis = ref<Array<{ value: number; label: string; taxaPercentual?: number }>>([])
+const formasCarregadas = ref(false)
+
+async function garantirFormasPagamento(): Promise<void> {
+    if (formasCarregadas.value) return
+    try {
+        const [formas, configsTaxa] = await Promise.all([
+            formaPagamentoService.listar(),
+            cobrancaService.listarConfigTaxa(),
+        ])
+        const taxaMap = new Map<number, number>()
+        for (const c of configsTaxa) {
+            if (c.ativo && c.taxaPercentual > 0) taxaMap.set(c.formaPagamentoId, c.taxaPercentual)
+        }
+        formasPagamentoDisponiveis.value = formas.map(f => ({
+            value: f.id,
+            label: f.nome,
+            taxaPercentual: taxaMap.get(f.id),
+        }))
+        formasCarregadas.value = true
+    } catch {
+        // silencioso — PaymentModal exibe campos sem formas se necessário
+    }
+}
+
+const podeDesconto = computed(() =>
+    permissoes.tudo ||
+    permissoes.pode("orcamento.aprovar") ||
+    permissoes.pode("financeiro.lancar") ||
+    permissoes.pode("financeiro_paciente.registrar")
+)
+
+async function abrirPagamento(a: Agendamento): Promise<void> {
+    if (!a.cobrancaId) return
+    await garantirFormasPagamento()
+    cobrancaStore.limpar()
+    try {
+        cobrancaPagamento.value = await cobrancaService.obterPorAgendamento(a.id)
+    } catch {
+        cobrancaPagamento.value = null
+    }
+    modalPagamentoAberto.value = true
+}
+
+async function onPagamentoPago(payload: import("@/services/cobrancaService").RegistrarPagamentosRequest): Promise<void> {
+    if (!cobrancaPagamento.value) return
+    try {
+        await cobrancaService.registrarPagamentos(cobrancaPagamento.value.id, payload)
+        modalPagamentoAberto.value = false
+        cobrancaPagamento.value = null
+        await recarregarSemCache()
+    } catch {
+        // Erro 422 é exibido no modal — não há tratamento adicional aqui
+    }
+}
+
 function onSolicitarEdicaoPaciente(p: Paciente) {
     pacienteEmEdicao.value = p
     editarPacienteAberto.value = true
@@ -653,6 +718,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                             @cancelar="cancelarAgendamento"
                             @concluir="concluirAgendamento"
                             @checkin="abrirCheckIn"
+                            @pagamento="abrirPagamento"
                         />
                     </template>
                     <div v-if="mostrarAgoraNoFinal" class="agora-marker" aria-label="Horário atual">
@@ -709,6 +775,16 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :agendamento="agendamentoCancelar"
         @fechar="modalCancelarAberto = false; agendamentoCancelar = null"
         @cancelado="onAgendamentoCancelado"
+    />
+
+    <!-- Modal de pagamento (F1 — Financeiro) -->
+    <PaymentModal
+        :aberto="modalPagamentoAberto"
+        :cobranca="cobrancaPagamento"
+        :formas-pagamento="formasPagamentoDisponiveis"
+        :pode-desconto="podeDesconto"
+        @fechar="modalPagamentoAberto = false; cobrancaPagamento = null"
+        @pago="onPagamentoPago"
     />
 
     <AppConfirmDialog

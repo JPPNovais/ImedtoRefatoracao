@@ -55,6 +55,11 @@ const AGENDAMENTO_PADRAO = {
     salaId:         null,
     salaNome:       null,
     salaTipoNome:   null,
+    cobrancaId:     null,
+    cobrancaStatus: null,
+    cobrancaValorCobrado: null,
+    cobrancaTotalPago: null,
+    cobrancaSaldoDevedor: null,
 }
 
 function montar(aberto = true) {

@@ -185,6 +185,8 @@ public class AgendamentoController : ControllerBase
             EstabelecimentoId = _tenant.EstabelecimentoId,
             SalaId = dto?.SalaId,
             UsuarioSolicitanteId = _tenant.UsuarioId,
+            TipoAtendimento = dto?.TipoAtendimento ?? "Particular",
+            ValorCobrado = dto?.ValorCobrado ?? 0m,
         });
         return NoContent();
     }
@@ -285,6 +287,6 @@ public record AtualizarAgendamentoDto(
 
 public record CancelarAgendamentoDto(string Motivo);
 
-public record RegistrarCheckInDto(long? SalaId);
+public record RegistrarCheckInDto(long? SalaId, string TipoAtendimento = "Particular", decimal ValorCobrado = 0m);
 
 public record AlocarSalaDto(long? SalaId);

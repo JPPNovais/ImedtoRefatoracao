@@ -42,6 +42,13 @@ export interface Agendamento {
     salaId: number | null
     salaNome: string | null
     salaTipoNome: string | null
+    // Badge de cobrança — CA3 (agregado na query, sem N+1)
+    cobrancaId: number | null
+    /** Aberta | ParcialmentePaga | Paga | Convenio | null (sem cobrança) */
+    cobrancaStatus: "Aberta" | "ParcialmentePaga" | "Paga" | "Convenio" | null
+    cobrancaValorCobrado: number | null
+    cobrancaTotalPago: number | null
+    cobrancaSaldoDevedor: number | null
 }
 
 export interface CriarAgendamentoPayload {
@@ -119,9 +126,16 @@ export const agendaService = {
         await httpClient.post(`/agendamentos/${id}/concluir`)
     },
 
-    async registrarCheckIn(id: number, salaId?: number | null): Promise<void> {
-        const body = salaId !== undefined ? { salaId } : undefined
-        await httpClient.post(`/agendamentos/${id}/checkin`, body)
+    async registrarCheckIn(
+        id: number,
+        salaId?: number | null,
+        cobranca?: { tipoAtendimento: "Particular" | "Convenio"; valorCobrado: number },
+    ): Promise<void> {
+        const body = {
+            ...(salaId !== undefined ? { salaId } : {}),
+            ...(cobranca ?? {}),
+        }
+        await httpClient.post(`/agendamentos/${id}/checkin`, Object.keys(body).length ? body : undefined)
     },
 
     async alocarSala(_estabId: number, agendamentoId: number, salaId: number | null): Promise<void> {

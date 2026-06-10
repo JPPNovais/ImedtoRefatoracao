@@ -26,6 +26,7 @@ const emit = defineEmits<{
     (e: "cancelar", a: Agendamento): void
     (e: "concluir", a: Agendamento): void
     (e: "checkin", a: Agendamento): void
+    (e: "pagamento", a: Agendamento): void
 }>()
 
 const STATUS_META: Record<Agendamento["status"], {
@@ -125,6 +126,33 @@ const podeAlterar = computed(() => {
     if (s !== "Agendado" && s !== "Confirmado") return false
     return new Date(props.agendamento.inicioPrevisto).getTime() > Date.now()
 })
+
+// ── Badge de cobrança (CA3 — F1 Financeiro) ──────────────────────────────────
+
+function fmt(v: number): string {
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+const badgeCobranca = computed(() => {
+    const a = props.agendamento
+    if (!a.cobrancaId) return null
+    const s = a.cobrancaStatus
+    if (s === "Convenio") return { tipo: "convenio" as const, label: "Convênio", clicavel: false }
+    if (s === "Paga")     return { tipo: "paga" as const,    label: "Pago",       clicavel: true }
+    if (s === "ParcialmentePaga") {
+        const pago   = a.cobrancaTotalPago ?? 0
+        const total  = a.cobrancaValorCobrado ?? 0
+        return { tipo: "parcial" as const, label: `${fmt(pago)} de ${fmt(total)}`, clicavel: true }
+    }
+    // Aberta
+    const saldo = a.cobrancaSaldoDevedor ?? a.cobrancaValorCobrado ?? 0
+    return { tipo: "aberta" as const, label: `A receber ${fmt(saldo)}`, clicavel: true }
+})
+
+function clicarBadge() {
+    if (!badgeCobranca.value?.clicavel) return
+    emit("pagamento", props.agendamento)
+}
 </script>
 
 <template>
@@ -153,6 +181,19 @@ const podeAlterar = computed(() => {
                 >
                     <span class="dot"></span>{{ meta.label }}
                 </span>
+                <!-- Badge de cobrança (CA3) -->
+                <button
+                    v-if="badgeCobranca"
+                    type="button"
+                    :class="['payment-badge', `payment-badge--${badgeCobranca.tipo}`, { 'payment-badge--link': badgeCobranca.clicavel }]"
+                    :title="badgeCobranca.clicavel ? 'Ver/registrar pagamento' : ''"
+                    @click.stop="clicarBadge"
+                >
+                    <i v-if="badgeCobranca.tipo === 'paga'" class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                    <i v-else-if="badgeCobranca.tipo === 'convenio'" class="fa-solid fa-shield-halved" aria-hidden="true"></i>
+                    <i v-else class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i>
+                    {{ badgeCobranca.label }}
+                </button>
             </div>
             <div class="meta-row">
                 <span class="prof-cell">
@@ -568,6 +609,44 @@ const podeAlterar = computed(() => {
 }
 .checkin-pill .lbl {
     color: hsl(160 79% 28%);
+}
+
+/* ── Badge de cobrança (CA3 — F1 Financeiro) ── */
+.payment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4;
+    white-space: nowrap;
+    border: none;
+    cursor: default;
+    font-family: inherit;
+}
+.payment-badge--link {
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.payment-badge--link:hover { opacity: 0.8; }
+
+.payment-badge--aberta {
+    background: hsl(45 96% 47% / 0.18);
+    color: hsl(35 90% 25%);
+}
+.payment-badge--parcial {
+    background: hsl(28 90% 52% / 0.16);
+    color: hsl(28 90% 28%);
+}
+.payment-badge--paga {
+    background: hsl(160 79% 39% / 0.14);
+    color: hsl(160 79% 28%);
+}
+.payment-badge--convenio {
+    background: hsl(var(--primary) / 0.10);
+    color: hsl(var(--primary));
 }
 
 @media (max-width: 720px) {

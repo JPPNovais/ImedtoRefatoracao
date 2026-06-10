@@ -124,6 +124,11 @@ public static class InfrastructureExtensions
         // Financeiro
         services.AddScoped<Domain.Financeiro.ILancamentoRepository, Database.Repositories.LancamentoRepository>();
 
+        // Cobranças F1 — repositórios de escrita (EF scoped)
+        services.AddScoped<Domain.Cobrancas.ICobrancaRepository, Database.Repositories.Cobrancas.CobrancaRepository>();
+        services.AddScoped<Domain.Cobrancas.ITabelaPrecoConsultaRepository, Database.Repositories.Cobrancas.TabelaPrecoConsultaRepository>();
+        services.AddScoped<Domain.Cobrancas.IConfigTaxaFormaPagamentoRepository, Database.Repositories.Cobrancas.ConfigTaxaFormaPagamentoRepository>();
+
         // Dashboard & Relatórios (query-only, singleton)
         // — repositórios registrados no Container da API junto com os handlers
 

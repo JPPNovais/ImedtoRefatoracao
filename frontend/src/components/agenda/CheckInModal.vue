@@ -12,12 +12,13 @@
  * 5. Emite `checkin-realizado` em caso de sucesso; exibe erro 422 sem fechar.
  */
 import { computed, ref, watch } from "vue"
-import { AppButton, AppField, AppModal, AppSelect } from "@/components/ui"
+import { AppButton, AppField, AppInputDecimal, AppModal, AppPillToggle, AppSelect } from "@/components/ui"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { formatDataHora, formatHora } from "@/utils/datetime"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
+import { cobrancaService } from "@/services/cobrancaService"
 
 const tenant = useTenantStore()
 
@@ -46,6 +47,16 @@ const executando = ref(false)
 const salas = ref<Sala[]>([])
 const salasCarregadas = ref(false)
 const salaIdSel = ref<number | null>(null)
+
+// ── Atendimento (F1 — Financeiro) ────────────────────────────────────────────
+const tipoAtendimento = ref<"Particular" | "Convenio">("Particular")
+const valorCobrado = ref("")
+const semTabelaPreco = ref(false)
+
+const OPCOES_TIPO: Array<{ valor: "Particular" | "Convenio"; label: string }> = [
+    { valor: "Particular", label: "Particular" },
+    { valor: "Convenio",   label: "Convênio" },
+]
 
 async function garantirSalas() {
     if (salasCarregadas.value) return
@@ -94,6 +105,9 @@ watch(() => props.aberto, async (aberto) => {
         erroCheckIn.value = null
         erroPaciente.value = null
         salaIdSel.value = null
+        tipoAtendimento.value = "Particular"
+        valorCobrado.value = ""
+        semTabelaPreco.value = false
         return
     }
     if (!props.agendamento) return
@@ -103,6 +117,16 @@ watch(() => props.aberto, async (aberto) => {
     void garantirSalas().then(() => {
         salaIdSel.value = sugerirSala()
     })
+    // R2: valor sugerido para o profissional
+    void cobrancaService.obterValorSugerido(props.agendamento.profissionalUsuarioId).then(r => {
+        if (r.valorSugerido != null) {
+            valorCobrado.value = r.valorSugerido.toFixed(2)
+            semTabelaPreco.value = false
+        } else {
+            valorCobrado.value = ""
+            semTabelaPreco.value = true
+        }
+    }).catch(() => { /* silencioso — check-in não é bloqueado */ })
     try {
         paciente.value = await pacienteService.obter(props.agendamento.pacienteId)
     } catch {
@@ -145,10 +169,22 @@ function solicitarEdicaoPaciente() {
 
 async function confirmarCheckIn() {
     if (!props.agendamento || executando.value) return
+    // Validação front (R3 front): Particular exige valor > 0
+    if (tipoAtendimento.value === "Particular" && (parseFloat(valorCobrado.value) || 0) <= 0) {
+        erroCheckIn.value = "Informe o valor da consulta."
+        return
+    }
     executando.value = true
     erroCheckIn.value = null
     try {
-        await agendaService.registrarCheckIn(props.agendamento.id, salaIdSel.value)
+        await agendaService.registrarCheckIn(
+            props.agendamento.id,
+            salaIdSel.value,
+            {
+                tipoAtendimento: tipoAtendimento.value,
+                valorCobrado: tipoAtendimento.value === "Convenio" ? 0 : (parseFloat(valorCobrado.value) || 0),
+            },
+        )
         emit("checkin-realizado")
     } catch (e: any) {
         erroCheckIn.value = e?.response?.data?.mensagem ?? "Erro ao registrar check-in."
@@ -249,6 +285,38 @@ function fechar() {
                     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                     <span>{{ paciente.alertas.join(" · ") }}</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Seção Atendimento (F1 — Financeiro) -->
+        <div class="secao-atendimento">
+            <span class="ds-section-title">
+                <i class="fa-solid fa-hand-holding-dollar" aria-hidden="true"></i>
+                Atendimento
+            </span>
+            <div class="atend-campos">
+                <AppField label="Tipo de atendimento">
+                    <AppPillToggle
+                        v-model="tipoAtendimento"
+                        :opcoes="OPCOES_TIPO"
+                    />
+                </AppField>
+                <template v-if="tipoAtendimento === 'Particular'">
+                    <AppField label="Valor (R$)">
+                        <AppInputDecimal
+                            v-model="valorCobrado"
+                            placeholder="0,00"
+                        />
+                    </AppField>
+                    <p v-if="semTabelaPreco" class="atend-hint">
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                        Configure a tabela de preços em Configurações &rsaquo; Financeiro.
+                    </p>
+                </template>
+                <p v-else class="atend-hint atend-hint--info">
+                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                    Cobrança de convênio será tratada na aba financeiro.
+                </p>
             </div>
         </div>
 
@@ -447,6 +515,29 @@ function fechar() {
     padding: 8px 12px;
     font-size: 13px;
     margin: 0;
+}
+
+/* Seção atendimento */
+.secao-atendimento {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.atend-campos {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.atend-hint {
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+.atend-hint--info {
+    color: hsl(var(--primary));
 }
 
 .secao-sala { display: flex; flex-direction: column; gap: 8px; }

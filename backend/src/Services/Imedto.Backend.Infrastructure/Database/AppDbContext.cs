@@ -10,6 +10,7 @@ using Imedto.Backend.Domain.Automacoes;
 using Imedto.Backend.Domain.Catalogo;
 using Imedto.Backend.Domain.Cirurgias;
 using Imedto.Backend.Domain.Estabelecimentos;
+using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
@@ -83,6 +84,12 @@ public class AppDbContext : DbContext
     public DbSet<Lancamento> Lancamentos => Set<Lancamento>();
     public DbSet<CategoriaFinanceira> CategoriasFinanceiras => Set<CategoriaFinanceira>();
     public DbSet<FormaPagamento> FormasPagamento => Set<FormaPagamento>();
+
+    // F1 — Cobranças (contas a receber do paciente)
+    public DbSet<Cobranca> Cobrancas => Set<Cobranca>();
+    public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
+    public DbSet<TabelaPrecoConsulta> TabelasPrecoConsulta => Set<TabelaPrecoConsulta>();
+    public DbSet<ConfigTaxaFormaPagamento> ConfigTaxasFormaPagamento => Set<ConfigTaxaFormaPagamento>();
     public DbSet<ConfiguracaoAutomacao> ConfiguracoesAutomacao => Set<ConfiguracaoAutomacao>();
     public DbSet<RegraAutomacao> RegrasAutomacao => Set<RegraAutomacao>();
     public DbSet<EventoAutomacao> EventosAutomacao => Set<EventoAutomacao>();

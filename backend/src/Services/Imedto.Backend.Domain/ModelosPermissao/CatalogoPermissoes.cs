@@ -24,7 +24,8 @@ public static class CatalogoPermissoes
         new Area("prontuario",    new[] { "ver", "editar", "assinar" }),
         new Area("prescricao",    new[] { "criar", "assinar" }),
         new Area("pacientes",     new[] { "ver", "criar", "editar", "excluir" }),
-        new Area("financeiro",    new[] { "ver", "lancar", "fechar" }),
+        new Area("financeiro",          new[] { "ver", "lancar", "fechar" }),
+        new Area("financeiro_paciente", new[] { "ver", "registrar" }),
         new Area("orcamento",     new[] { "ver", "criar", "editar", "aprovar", "configurar" }),
         new Area("convenios",     new[] { "ver", "gerenciar" }),
         new Area("estoque",       new[] { "ver", "gerenciar" }),
@@ -53,7 +54,7 @@ public static class CatalogoPermissoes
         "termos.emitir",
     };
 
-    /// <summary>Conjunto padrão para o papel Recepção (agenda + cadastro de pacientes + leitura financeiro).</summary>
+    /// <summary>Conjunto padrão para o papel Recepção (agenda + cadastro de pacientes + leitura financeiro + registrar pagamento).</summary>
     public static readonly IReadOnlyList<string> RecepcaoPadrao = new[]
     {
         "agenda.ver", "agenda.criar", "agenda.editar", "agenda.excluir",
@@ -61,6 +62,7 @@ public static class CatalogoPermissoes
         "prontuario.ver",
         "convenios.ver",
         "financeiro.ver",
+        "financeiro_paciente.ver", "financeiro_paciente.registrar",
         "termos.emitir",
     };
 

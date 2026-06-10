@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
+using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
@@ -11,15 +12,18 @@ public class RegistrarCheckInAgendamentoCommandHandler : ICommandHandler<Registr
     private readonly IAgendamentoRepository _agendamentoRepo;
     private readonly ISalaRepository _salaRepo;
     private readonly IAgendamentoSalaAuditRepository _auditRepo;
+    private readonly ICobrancaRepository _cobrancaRepo;
 
     public RegistrarCheckInAgendamentoCommandHandler(
         IAgendamentoRepository agendamentoRepo,
         ISalaRepository salaRepo,
-        IAgendamentoSalaAuditRepository auditRepo)
+        IAgendamentoSalaAuditRepository auditRepo,
+        ICobrancaRepository cobrancaRepo)
     {
         _agendamentoRepo = agendamentoRepo;
         _salaRepo = salaRepo;
         _auditRepo = auditRepo;
+        _cobrancaRepo = cobrancaRepo;
     }
 
     public async Task Handle(RegistrarCheckInAgendamentoCommand cmd)
@@ -42,6 +46,22 @@ public class RegistrarCheckInAgendamentoCommandHandler : ICommandHandler<Registr
             agendamento.AlocarSala(cmd.SalaId);
 
         await _agendamentoRepo.Salvar(agendamento);
+
+        // R1: Cria cobrança na mesma transação do check-in (UnitOfWork do controller)
+        var tipoAtendimento = Enum.TryParse<TipoAtendimento>(cmd.TipoAtendimento, out var ta)
+            ? ta
+            : TipoAtendimento.Particular;
+
+        var cobranca = Cobranca.CriarParaConsulta(
+            estabelecimentoId: agendamento.EstabelecimentoId,
+            pacienteId: agendamento.PacienteId,
+            agendamentoId: agendamento.Id,
+            tipoAtendimento: tipoAtendimento,
+            valorCobrado: cmd.ValorCobrado,
+            descricao: $"Consulta — {agendamento.TipoServico}",
+            criadoPorUsuarioId: cmd.UsuarioSolicitanteId);
+
+        await _cobrancaRepo.Salvar(cobranca);
 
         if (cmd.SalaId.HasValue && salaIdAnterior != cmd.SalaId)
         {

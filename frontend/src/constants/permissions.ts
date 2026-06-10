@@ -82,6 +82,16 @@ export const PERMISSION_AREAS: AreaPermissao[] = [
         ],
     },
     {
+        chave: "financeiro_paciente",
+        label: "Cobrança do paciente",
+        icone: "fa-hand-holding-dollar",
+        descricao: "Ver e registrar pagamentos de consultas e atendimentos",
+        acoes: [
+            { chave: "ver",       label: "Ver cobranças" },
+            { chave: "registrar", label: "Registrar pagamentos" },
+        ],
+    },
+    {
         chave: "orcamento",
         label: "Orçamento",
         icone: "fa-file-invoice-dollar",

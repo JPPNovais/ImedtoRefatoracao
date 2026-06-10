@@ -23,6 +23,9 @@ public class LancamentoConfiguration : IEntityTypeConfiguration<Lancamento>
             .HasConversion<string>();
         builder.Property(l => l.Categoria).HasColumnName("categoria").HasMaxLength(100).IsRequired();
         builder.Property(l => l.OrcamentoId).HasColumnName("orcamento_id");
+        // F1: colunas para vínculo com cobrança/pagamento (ALTER TABLE — schema pelo imedto-database)
+        builder.Property(l => l.CobrancaId).HasColumnName("cobranca_id");
+        builder.Property(l => l.PagamentoId).HasColumnName("pagamento_id");
         builder.Property(l => l.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
         builder.Property(l => l.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(l => l.AtualizadoEm).HasColumnName("atualizado_em");
@@ -33,6 +36,9 @@ public class LancamentoConfiguration : IEntityTypeConfiguration<Lancamento>
             .HasDatabaseName("ix_lancamento_estab_status_venc");
         builder.HasIndex(l => new { l.EstabelecimentoId, l.Tipo })
             .HasDatabaseName("ix_lancamento_estab_tipo");
+        // F1: índice em cobranca_id para join na query da cobrança sem N+1 (briefing §10)
+        builder.HasIndex(l => l.CobrancaId)
+            .HasDatabaseName("ix_lancamentos_cobranca_id");
 
         builder.HasOne<Domain.Estabelecimentos.Estabelecimento>()
             .WithMany()

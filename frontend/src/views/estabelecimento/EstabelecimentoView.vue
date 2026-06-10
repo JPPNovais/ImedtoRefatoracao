@@ -34,6 +34,7 @@ const PainelModelosPront    = defineAsyncComponent(() => import("@/views/configu
 const PainelIa              = defineAsyncComponent(() => import("@/views/configuracoes/MinhaIaSettingsView.vue"))
 const PainelAssinatura      = defineAsyncComponent(() => import("@/views/assinatura/MinhaAssinaturaView.vue"))
 const PainelTermos          = defineAsyncComponent(() => import("@/components/termos/TermosPainelEmbutido.vue"))
+const PainelFinanceiro      = defineAsyncComponent(() => import("@/views/financeiro/FinanceiroConfigView.vue"))
 
 // ─── Stores e router ──────────────────────────────────────────────────────────
 const route   = useRoute()
@@ -54,6 +55,7 @@ type SecaoId =
     | "dados" | "funcionamento" | "unidades" | "reparticoes"
     | "modelos-prontuario" | "termos" | "variaveis"
     | "automacoes" | "ia" | "assinatura" | "seguranca"
+    | "financeiro"
 
 interface SecaoItem {
     id: SecaoId
@@ -95,6 +97,12 @@ const GRUPOS_NAV: GrupoNav[] = [
             { id: "seguranca",  label: "Segurança",           icone: "fa-solid fa-shield-halved", visivel: computed(() => podeEditar.value) },
         ],
     },
+    {
+        label: "Financeiro",
+        secoes: [
+            { id: "financeiro", label: "Financeiro", icone: "fa-solid fa-hand-holding-dollar", visivel: true },
+        ],
+    },
 ]
 
 // ─── Busca client-side no sub-nav ──────────────────────────────────────────────
@@ -118,6 +126,7 @@ const TODAS_SECOES: SecaoId[] = [
     "dados", "funcionamento", "unidades", "reparticoes",
     "modelos-prontuario", "termos", "variaveis",
     "automacoes", "ia", "assinatura", "seguranca",
+    "financeiro",
 ]
 
 function secaoValida(s: string | null | undefined): s is SecaoId {
@@ -571,6 +580,11 @@ onMounted(async () => {
                 <!-- ── Assinatura (lazy) ──────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'assinatura'" class="painel-secao">
                     <PainelAssinatura />
+                </section>
+
+                <!-- ── Financeiro — tabela de preços + taxa (lazy) ────────── -->
+                <section v-else-if="secaoAtiva === 'financeiro'" class="painel-secao">
+                    <PainelFinanceiro />
                 </section>
 
                 <!-- ── Segurança — 2FA do Dono ────────────────────────────── -->

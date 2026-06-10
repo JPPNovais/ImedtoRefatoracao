@@ -14,11 +14,45 @@ public class Lancamento : Entity
     public virtual StatusLancamento Status { get; protected set; }
     public virtual string Categoria { get; protected set; } = string.Empty;
     public virtual long? OrcamentoId { get; protected set; }
+    /// <summary>F1 — vínculo com cobrança (INV-3). Nullable — lançamentos manuais não têm cobrança.</summary>
+    public virtual long? CobrancaId { get; protected set; }
+    /// <summary>F1 — vínculo com pagamento (INV-3). Nullable — lançamentos manuais não têm pagamento.</summary>
+    public virtual long? PagamentoId { get; protected set; }
     public virtual Guid CriadoPorUsuarioId { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
 
     protected Lancamento() { }
+
+    /// <summary>
+    /// Cria lançamento vinculado a cobrança (INV-3 — Cobranças F1).
+    /// PagamentoId é vinculado após persistência via <see cref="VincularPagamento"/>.
+    /// Nasce com Status=Pendente; o caller chama Pagar() logo após.
+    /// </summary>
+    public static Lancamento CriarParaPagamento(
+        long estabelecimentoId,
+        string descricao,
+        decimal valor,
+        DateOnly dataVencimento,
+        string categoria,
+        Guid criadoPorUsuarioId,
+        long cobrancaId)
+    {
+        var l = Criar(estabelecimentoId, TipoLancamento.Receita, descricao, valor, dataVencimento, categoria, criadoPorUsuarioId);
+        l.CobrancaId = cobrancaId;
+        return l;
+    }
+
+    /// <summary>
+    /// Vincula o pagamento ao lançamento após o Pagamento ter sido persistido (INV-3).
+    /// Deve ser chamado ANTES do commit da transação.
+    /// </summary>
+    public void VincularPagamento(long pagamentoId)
+    {
+        if (pagamentoId <= 0) throw new InvalidOperationException("PagamentoId inválido.");
+        PagamentoId = pagamentoId;
+        AtualizadoEm = DateTime.UtcNow;
+    }
 
     public static Lancamento Criar(
         long estabelecimentoId,
