@@ -453,3 +453,14 @@ Fase 6.4 (conversão + PDF + integração prontuário)
 - **Não criar TODO/feature flag para a Fase 6**: a área é grande, mas mergeable em pedaços. Cada subfase 6.X é um PR fechado.
 - **Reusar o máximo do design system** ([frontend/src/components/ui/](../frontend/src/components/ui/)). Se um componente novo for proposto (ex: `OrcamentoTotaisCard`), pesar se vale promover ao design system ou ficar específico do módulo.
 - **Não inventar UX**: seguir o legado nas decisões de quais campos exibir. Se algo do legado for ruim, abrir issue separada — esta fase é **paridade**, não redesign.
+
+---
+
+## Pós-Fase 6 — Completude da configuração (briefing 2026-06-10_005)
+
+A aba "Outras configurações" de `OrcamentoSettingsView` passou a ser **totalmente editável** para Implantes, Equipes-legado e Pagamento (briefing `2026-06-10_005`, entregue em 2026-06-10). Antes, essas três sub-seções eram somente-leitura com mensagem "gerenciados no formulário antigo". A partir desta entrega:
+
+- Implantes, Equipes (legado) e Pagamento têm CRUD completo na configuração (drawer + `AppConfirmDialog` + `AppToast`), consumindo os endpoints já existentes em `OrcamentoCatalogoController`.
+- A dependência do "formulário antigo" foi eliminada — a configuração é autossuficiente.
+- Os botões placeholder "Importar planilha" e "Exportar" foram removidos do cabeçalho (UX morta eliminada).
+- Mudança **100% frontend** — schema, backend e endpoints inalterados.

@@ -6,9 +6,9 @@
  *
  * Cada aba é um componente independente em `components/orcamento/config/*Tab.vue`.
  */
-import { ref, computed, onMounted, watch } from "vue"
+import { ref, computed, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { AppPageHeader, AppTabs, AppButton, AppToast } from "@/components/ui"
+import { AppPageHeader, AppTabs } from "@/components/ui"
 import ProcedimentosTab from "@/components/orcamento/config/ProcedimentosTab.vue"
 import ProdutosTab from "@/components/orcamento/config/ProdutosTab.vue"
 import EquipeTab from "@/components/orcamento/config/EquipeTab.vue"
@@ -54,12 +54,6 @@ watch(() => route.query.aba, (q) => {
 function setContagem(chave: string, n: number) {
     contagens.value = { ...contagens.value, [chave]: n }
 }
-
-const toast = ref<{ visivel: boolean; texto: string }>({ visivel: false, texto: "" })
-function mostrarBreve(texto: string) {
-    toast.value = { visivel: true, texto }
-    setTimeout(() => { toast.value.visivel = false }, 2200)
-}
 </script>
 
 <template>
@@ -67,12 +61,7 @@ function mostrarBreve(texto: string) {
         <AppPageHeader
             titulo="Configurações de orçamento"
             subtitulo="Procedimentos, produtos, equipe, anestesistas e pacotes que alimentam os orçamentos do estabelecimento."
-        >
-            <template #acoes>
-                <AppButton variant="secondary" icon="fa-solid fa-file-import" @click="mostrarBreve('Importação de planilha em breve.')">Importar planilha</AppButton>
-                <AppButton variant="secondary" icon="fa-solid fa-file-export" @click="mostrarBreve('Exportação em breve.')">Exportar</AppButton>
-            </template>
-        </AppPageHeader>
+        />
 
         <AppTabs :model-value="aba" :abas="abas" variante="underline" @update:model-value="(v: any) => trocarAba(v as AbaKey)" />
 
@@ -86,7 +75,6 @@ function mostrarBreve(texto: string) {
             <OutrasConfigsTab v-else-if="aba === 'outras'" />
         </div>
 
-        <AppToast v-if="toast.visivel" :mensagem="toast.texto" tipo="info" />
     </div>
 </template>
 
