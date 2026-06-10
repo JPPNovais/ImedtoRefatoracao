@@ -17,6 +17,7 @@ Use esta tabela para decidir o que carregar antes de cada tarefa:
 | Build, testes, lint, rodar dev local | [COMANDOS.md](COMANDOS.md) |
 | Paciente, prontuário, PII, audit, mensagem de erro | [LGPD.md](LGPD.md) |
 | Investigar viabilidade de nova feature/integração | [Discoverys/](Discoverys/) |
+| Priorizar/implementar melhorias do roadmap 2026 (fases) | [Roadmap/](Roadmap/README.md) |
 
 ## Estrutura
 
@@ -32,6 +33,9 @@ Docs/
 ├── Discoverys/           ← investigações de viabilidade (antes de cravar arquitetura)
 │   ├── README.md
 │   └── nota-fiscal/
+│
+├── Roadmap/              ← roadmap 2026 em fases de implementação (F0 infra → F4 expansão + transversal)
+│   └── README.md
 │
 ├── DESIGN_SYSTEM.md      ← referência completa do design system (componentes, tokens)
 │

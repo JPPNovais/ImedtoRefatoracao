@@ -12,7 +12,7 @@ Sistema de saúde → dados pessoais sensíveis (Art. 5º II e Art. 11 LGPD). LG
 
 - **Minimização**: query/DTO retorna apenas os campos que a tela usa. Não trazer `cpf`, `data_nascimento`, `telefone`, etc. se a tela não exibe.
 - **Direitos do titular**: endpoints de export (`GET /api/minha-conta/exportar-dados`) e exclusão (`DELETE /api/minha-conta`).
-- **Audit trail**: log de acesso a dados de paciente/prontuário em audit table (quem, quando, qual registro).
+- **Audit trail**: log de acesso a dados de paciente/prontuário em audit table (quem, quando, qual registro). Operações auditadas em `prontuario_acesso_log` (`TipoAcessoProntuario`): `Leitura` (consulta ao prontuário/timeline), `Escrita` (registro de evolução, início de prontuário) e `Exportacao` — exportação completa do prontuário (`GET /api/prontuario/{id}/pdf`), exportação de evolução individual e **download do PDF oficial de receita** (`GET /api/receitas/{id}/pdf`, briefing 2026-06-10_001). Audit de exportação de receita é best-effort (falha não bloqueia o download) e condicional à existência de prontuário para o paciente.
 - **Não vazar PII**:
   - Nunca incluir CPF, telefone, e-mail ou nome completo em log estruturado ou em mensagem de erro retornada ao cliente.
   - Nunca retornar token, hash de senha ou ID interno de auth em payload.

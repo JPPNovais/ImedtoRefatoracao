@@ -25,7 +25,7 @@ public class QuestPdfReceitaServiceTests
         QuestPdfReceitaService.InicializarQuestPdf();
     }
 
-    private static QuestPdfReceitaService.ReceitaRow Receita(
+    private static ReceitaRow Receita(
         string tipo = "Comum",
         string status = "Emitida",
         string tipoNotificacao = null,
@@ -33,8 +33,9 @@ public class QuestPdfReceitaServiceTests
         string motivoCancelamento = null,
         bool comFotoUrl = true,
         bool comEstabelecimentoCompleto = true,
-        string observacoes = null)
-        => new QuestPdfReceitaService.ReceitaRow(
+        string observacoes = null,
+        long pacienteId = 99)
+        => new ReceitaRow(
             Id: 100,
             Tipo: tipo,
             TipoNotificacao: tipoNotificacao,
@@ -44,6 +45,7 @@ public class QuestPdfReceitaServiceTests
             ValidadeAte: tipo == "Controlada" ? new DateTime(2026, 6, 11, 0, 0, 0, DateTimeKind.Utc) : null,
             Observacoes: observacoes,
             MotivoCancelamento: motivoCancelamento,
+            PacienteId: pacienteId,
             PacienteNome: "Maria Aparecida da Silva",
             PacienteCpf: "12345678901",
             PacienteDataNascimento: new DateTime(1985, 4, 12),
@@ -60,8 +62,8 @@ public class QuestPdfReceitaServiceTests
             EstabelecimentoEndereco: comEstabelecimentoCompleto ? "Av. Paulista, 1842 — São Paulo/SP" : null,
             EstabelecimentoFotoUrl: comFotoUrl ? "https://imedto.com/logo.png" : null);
 
-    private static QuestPdfReceitaService.ItemRow Item(int ordem, string nome = "Losartana", string posologia = "1 cp 12/12h")
-        => new QuestPdfReceitaService.ItemRow(
+    private static ItemRow Item(int ordem, string nome = "Losartana", string posologia = "1 cp 12/12h")
+        => new ItemRow(
             Ordem: ordem,
             Medicamento: nome,
             Posologia: posologia,
@@ -83,9 +85,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_ReceitaComum_UmItem_ProduzPdfValido()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
@@ -100,12 +102,12 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_ReceitaComum_MultiplosItens_NaoCrasha()
     {
-        var itens = new List<QuestPdfReceitaService.ItemRow>();
+        var itens = new List<ItemRow>();
         for (int i = 0; i < 8; i++)
             itens.Add(Item(i, $"Medicamento {i}", $"Posologia detalhada do item {i}"));
 
         var bytes = QuestPdfReceitaService.GerarPdf(
-            new QuestPdfReceitaService.DadosPdf(Receita(), itens));
+            new DadosPdf(Receita(), itens));
 
         Assert.That(EhPdfValido(bytes), Is.True);
     }
@@ -113,9 +115,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_ReceitaControlada_NotificacaoB_AplicaVarianteVermelha()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(tipo: "Controlada", tipoNotificacao: "B"),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0, "Clonazepam", "1 cp à noite") });
+            new List<ItemRow> { Item(0, "Clonazepam", "1 cp à noite") });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
 
@@ -128,9 +130,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_ReceitaAntibiotico_RendererAvisoRetencao()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(tipo: "Antibiotico"),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0, "Amoxicilina", "1 cp 8/8h") });
+            new List<ItemRow> { Item(0, "Amoxicilina", "1 cp 8/8h") });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
 
@@ -140,9 +142,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_StatusRascunho_RodapeOmiteAssinatura()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(status: "Rascunho"),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
         Assert.That(EhPdfValido(bytes), Is.True);
@@ -151,9 +153,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_StatusCancelada_MostraMotivoCancelamento()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(status: "Cancelada", motivoCancelamento: "Dose corrigida após nova avaliação"),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
         Assert.That(EhPdfValido(bytes), Is.True);
@@ -162,9 +164,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_SemFotoUrl_UsaPlaceholderComIniciais()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(comFotoUrl: false),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
         Assert.That(EhPdfValido(bytes), Is.True);
@@ -173,9 +175,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_SemCnpjEndereco_NaoQuebraLayout()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(comEstabelecimentoCompleto: false),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
         Assert.That(EhPdfValido(bytes), Is.True);
@@ -186,9 +188,9 @@ public class QuestPdfReceitaServiceTests
     {
         var observacaoLonga = new string('x', 1800)
             + " — descrição clínica detalhada com várias considerações e instruções específicas para o paciente.";
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(observacoes: observacaoLonga),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
         Assert.That(EhPdfValido(bytes), Is.True);
@@ -197,9 +199,9 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_AssinaturaDigitalIcp_RenderizaSeloVerde()
     {
-        var dados = new QuestPdfReceitaService.DadosPdf(
+        var dados = new DadosPdf(
             Receita(assinaturaStatus: "AssinadaIcp"),
-            new List<QuestPdfReceitaService.ItemRow> { Item(0) });
+            new List<ItemRow> { Item(0) });
 
         var bytes = QuestPdfReceitaService.GerarPdf(dados);
         Assert.That(EhPdfValido(bytes), Is.True);
@@ -208,7 +210,7 @@ public class QuestPdfReceitaServiceTests
     [Test]
     public void GerarPdf_ItemSemViaOuQuantidade_NaoCrasha()
     {
-        var item = new QuestPdfReceitaService.ItemRow(
+        var item = new ItemRow(
             Ordem: 0,
             Medicamento: "Dipirona",
             Posologia: "40 gotas se febre",
@@ -216,7 +218,7 @@ public class QuestPdfReceitaServiceTests
             Via: null, Quantidade: null, Duracao: null, Observacao: null);
 
         var bytes = QuestPdfReceitaService.GerarPdf(
-            new QuestPdfReceitaService.DadosPdf(Receita(), new List<QuestPdfReceitaService.ItemRow> { item }));
+            new DadosPdf(Receita(), new List<ItemRow> { item }));
 
         Assert.That(EhPdfValido(bytes), Is.True);
     }

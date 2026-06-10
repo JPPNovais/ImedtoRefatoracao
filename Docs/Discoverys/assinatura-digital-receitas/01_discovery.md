@@ -419,3 +419,39 @@ A **RDC 1.000/2025** criou o **SNCR (Sistema Nacional de Controle de Receituári
 ---
 
 > **Próximo passo sugerido:** se este discovery virar decisão, abrir briefing na pipeline (`imedto-business-analyst`) para o MVP da Opção A — definindo CAs de assinatura (multi-tenant: cert vinculado ao médico do tenant; LGPD: PDF assinado é dado sensível; estados: assinatura pendente/concluída/falha; validação ITI). E pedir as 4 cotações 🔸 em paralelo (VIDaaS API, Lacuna, carimbo do tempo, Memed) para fechar os números antes de cravar.
+
+---
+
+## 12. ATUALIZAÇÃO 2026-06-10 — Proposta comercial recebida (IntegraICP / V-Cert)
+
+A cotação 🔸 da Valid foi respondida: **proposta nº 0350/2026 (V/Cert — Valid Certificadora)**, recebida em 2026-06-01 via Cléo Santos (Executiva de Contas Health, ecleoneide.santos@valid.com, +55 11 97507-8534). Arquivo: `~/Downloads/Proposta Comercial IntegraICP.pdf`. Doc API: https://developers.integraicp.com.br/api-reference/icp/v3/index.html
+
+### Termos comerciais
+
+| Item | Valor |
+|---|---|
+| Integração IntegraICP (one-time) | **R$ 1.800,00** |
+| Consumo via certificado em nuvem **Valid APP VIDaaS** | **Sem custo**, contrato 12 meses |
+| Consumo via certificados de **outras ACs** (BirdID, NeoID, etc.) | **R$ 0,10/assinatura** |
+| Certificado A3 Nuvem | não cotado (BYOC — médico traz o seu, conforme §5) |
+| Carimbo do tempo / serviço de assinatura | **fora de escopo** da proposta (alinhado à decisão AD_RB do §3) |
+
+Apuração de consumo mensal; vigência a partir da assinatura; chave de API em até 2 dias úteis pós-aceite; cronograma sugerido ~10 dias úteis (kickoff → dev cliente → homologação conjunta → go-live); suporte remoto.
+
+### Leitura vs. o esperado neste discovery
+
+- **Melhor que o esperado**: o IntegraICP é **agregador multi-PSC** — uma única integração cobre VIDaaS, BirdID e demais provedores da plataforma CFM. Isso entrega a "Opção B (multi-provedor)" do §4 **sem** a licença recorrente da Lacuna. O stub BirdID atual do código pode ser substituído/abstraído pelo fluxo IntegraICP (clearances por CPF → redirect ao provedor → autorização no app do médico → credentialId → POST /signatures com hashes SHA-256).
+- **Custo recorrente** continua ~zero no caminho dominante (médico com VIDaaS); pior caso R$ 0,10/assinatura ≈ R$ 50-60/ano por médico de outras ACs — irrisório, absorvível no plano.
+- **Único custo novo**: R$ 1.800 one-time — razoável vs. manter N integrações próprias.
+
+### Perguntas a fechar com a Valid ANTES de assinar 🔸
+
+1. O **certificado gratuito do CFM** conta como "VIDaaS" (sem custo) ou "outra AC" (R$ 0,10)? — define o custo do caminho mais comum.
+2. O R$ 1.800 inclui **ambiente de homologação/sandbox** permanente, ou só durante o projeto?
+3. "Sem custo, contrato 12 meses": há **renovação automática/reajuste** após 12 meses? Multa de rescisão?
+4. A chave de API tem **limite de volume/rate limit**? Multi-tenant (vários estabelecimentos sob a mesma chave do Imedto) é contemplado?
+5. O fluxo suporta **assinatura em lote** (ex.: receita + atestado da mesma consulta numa autorização só)?
+
+### Próximo passo
+
+Gate único: **decisão comercial do usuário** (aceitar proposta, idealmente após as 5 perguntas). Pós-aceite → briefing de integração na pipeline (BA), conforme item 1.3 de `Docs/Roadmap/FASE_1_COMPLETUDE.md`. O PDF de receita no servidor (briefing `2026-06-10_001`) é pré-requisito técnico e já está na fila.

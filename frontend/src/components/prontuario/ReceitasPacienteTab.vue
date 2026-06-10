@@ -441,7 +441,7 @@ async function duplicar() {
     }
 }
 
-// ─── Impressão — PDF institucional (mesmo layout dos demais documentos) ──────
+// ─── Impressão — visualização rápida via jsPDF (CA11) ────────────────────────
 async function imprimir() {
     const r = receitaAberta.value
     if (!r) return
@@ -451,6 +451,32 @@ async function imprimir() {
         if (blobUrl) window.open(blobUrl, "_blank", "noopener,noreferrer")
     } catch (e: any) {
         notificar(e?.response?.data?.mensagem ?? "Erro ao gerar PDF.", "error")
+    }
+}
+
+// ─── Download do PDF oficial do servidor (CA1/CA12) ──────────────────────────
+// Distinto de "Imprimir" (jsPDF/visualização rápida) e "Baixar PDF assinado" (BirdID).
+// Chama receitaService.baixarPdf → blob → dispara download via <a download> temporário.
+const baixandoPdfOficial = ref(false)
+
+async function baixarPdfOficial() {
+    const r = receitaAberta.value
+    if (!r) return
+    baixandoPdfOficial.value = true
+    try {
+        const blob = await receitaService.baixarPdf(r.id)
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `receita-${r.id}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    } catch (e: any) {
+        notificar(e?.response?.data?.mensagem ?? "Erro ao baixar o PDF.", "error")
+    } finally {
+        baixandoPdfOficial.value = false
     }
 }
 
@@ -759,6 +785,17 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                 </AppButton>
                 <AppButton icon="fa-solid fa-print" @click="imprimir">
                     Imprimir
+                </AppButton>
+                <!-- Botão de download do PDF oficial do servidor (CA1/CA12) —
+                     distinto do "Imprimir" (jsPDF) e do "Baixar PDF assinado" (BirdID). -->
+                <AppButton
+                    variant="secondary"
+                    icon="fa-solid fa-file-pdf"
+                    :loading="baixandoPdfOficial"
+                    :disabled="baixandoPdfOficial"
+                    @click="baixarPdfOficial"
+                >
+                    Baixar PDF oficial
                 </AppButton>
 
                 <!-- Ações de assinatura digital — CA-04/CA-05/CA-06/CA-13 -->

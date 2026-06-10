@@ -220,13 +220,18 @@ public class ReceitaController : ControllerBase
         return Ok(dto);
     }
 
-    /// <summary>Download do PDF da receita.</summary>
+    /// <summary>
+    /// Download do PDF oficial da receita. Receita em Rascunho retorna 422.
+    /// Registra audit LGPD de Exportacao quando há prontuário (CA4).
+    /// LGPD: Content-Disposition usa apenas o id — sem nome/CPF do paciente (CA10).
+    /// </summary>
     [HttpGet("api/receitas/{id:long}/pdf")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> BaixarPdf(long id)
     {
-        var bytes = await _pdfService.GerarAsync(id, _tenant.EstabelecimentoId);
+        var bytes = await _pdfService.GerarAsync(id, _tenant.EstabelecimentoId, _tenant.UsuarioId);
         return File(bytes, "application/pdf", $"receita-{id}.pdf");
     }
 

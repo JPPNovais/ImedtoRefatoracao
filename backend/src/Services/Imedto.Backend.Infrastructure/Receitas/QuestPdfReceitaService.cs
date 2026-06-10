@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Reflection;
 using Dapper;
+using Imedto.Backend.Domain.Prontuarios;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using QuestPDF.Drawing;
 using QuestPDF.Fluent;
@@ -14,8 +16,11 @@ namespace Imedto.Backend.Infrastructure.Receitas;
 /// </summary>
 public interface IReceitaPdfService
 {
-    /// <summary>Gera o PDF da receita. Lança <see cref="SharedKernel.Domain.BusinessException"/> se não encontrada.</summary>
-    Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId);
+    /// <summary>
+    /// Gera o PDF da receita. Lança <see cref="SharedKernel.Domain.BusinessException"/> se não
+    /// encontrada ou se estiver em Rascunho. Registra audit LGPD de Exportacao quando há prontuário.
+    /// </summary>
+    Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId, Guid solicitanteUsuarioId);
 }
 
 /// <summary>
@@ -74,10 +79,22 @@ public class QuestPdfReceitaService : IReceitaPdfService
     /// <summary>Nome lógico do HttpClient usado para baixar a logo (registrado no Program.cs).</summary>
     public const string HttpClientName = "PdfReceitaLogo";
 
-    public QuestPdfReceitaService(AppReadConnectionString conn, IHttpClientFactory httpFactory)
+    private readonly IProntuarioRepository _prontuarioRepo;
+    private readonly IProntuarioAcessoLogService _acessoLog;
+    private readonly ILogger<QuestPdfReceitaService> _logger;
+
+    public QuestPdfReceitaService(
+        AppReadConnectionString conn,
+        IHttpClientFactory httpFactory,
+        IProntuarioRepository prontuarioRepo,
+        IProntuarioAcessoLogService acessoLog,
+        ILogger<QuestPdfReceitaService> logger)
     {
         _connStr = conn.Value;
         _httpFactory = httpFactory;
+        _prontuarioRepo = prontuarioRepo;
+        _acessoLog = acessoLog;
+        _logger = logger;
         InicializarQuestPdf();
     }
 
@@ -88,17 +105,58 @@ public class QuestPdfReceitaService : IReceitaPdfService
         RegistrarFontesNunitoUmaVez();
     }
 
-    public async Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId)
+    public async Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId, Guid solicitanteUsuarioId)
     {
         var dados = await CarregarDadosAsync(receitaId, estabelecimentoId);
         if (dados is null)
             throw new SharedKernel.Domain.BusinessException("Receita não encontrada.");
 
+        // CA2: Rascunho não é documento — 422 antes de gerar qualquer byte.
+        if (string.Equals(dados.Receita.Status, "Rascunho", StringComparison.OrdinalIgnoreCase))
+            throw new SharedKernel.Domain.BusinessException("Receita em rascunho não pode ser exportada em PDF.");
+
+        // CA4/CA5: Audit LGPD best-effort — falha não bloqueia o download (CA6).
+        await RegistrarAuditExportacaoAsync(dados.Receita.PacienteId, estabelecimentoId, solicitanteUsuarioId);
+
         // Baixa a logo (best-effort) — se falhar, o layout usa o placeholder
         // com iniciais sem propagar erro: emissão de receita é prioridade.
         var logoBytes = await BaixarLogoAsync(dados.Receita.EstabelecimentoFotoUrl);
 
+        // CA13 — ponto de extensão para assinatura digital:
+        // Quando assinatura_digital_status ∈ {AssinadaIcp, AssinadaMemed}, este método
+        // deverá servir o arquivo assinado armazenado (item 1.3 do roadmap) em vez de
+        // regerar o PDF não assinado. Nesta entrega, o caminho não assinado continua sendo
+        // servido enquanto a feature de assinatura ICP ainda não está ativa no ambiente.
+        // TODO(item-1.3): implementar quando integração BirdID/Memed for concluída:
+        // if (dados.Receita.AssinaturaDigitalStatus is "AssinadaIcp" or "AssinadaMemed")
+        //     return await _arquivoAssinadoStorage.ObterAsync(dados.Receita.Id, estabelecimentoId);
+
         return GerarPdf(dados with { LogoBytes = logoBytes });
+    }
+
+    /// <summary>
+    /// Registra audit LGPD de Exportacao no prontuário do paciente da receita.
+    /// Best-effort: engole exceção e loga erro — o download nunca é bloqueado (CA6).
+    /// Não insere linha se o paciente não tiver prontuário iniciado (CA5).
+    /// </summary>
+    private async Task RegistrarAuditExportacaoAsync(long pacienteId, long estabelecimentoId, Guid usuarioId)
+    {
+        try
+        {
+            var prontuario = await _prontuarioRepo.ObterPorPaciente(pacienteId, estabelecimentoId);
+            if (prontuario is null) return; // CA5: sem prontuário → sem audit, sem erro.
+
+            await _acessoLog.RegistrarAsync(
+                prontuario.Id,
+                usuarioId,
+                estabelecimentoId,
+                TipoAcessoProntuario.Exportacao);
+        }
+        catch (Exception ex)
+        {
+            // CA6: falha do audit não bloqueia o PDF. Sem PII no log (CA10).
+            _logger.LogError(ex, "Falha ao registrar audit de exportação de receita.");
+        }
     }
 
     /// <summary>
@@ -132,7 +190,9 @@ public class QuestPdfReceitaService : IReceitaPdfService
     // Carregamento de dados — Dapper (leitura, sem EF)
     // ────────────────────────────────────────────────────────────────
 
-    private async Task<DadosPdf> CarregarDadosAsync(long receitaId, long estabelecimentoId)
+    // internal virtual para permitir override em testes de unidade (sem banco).
+    // InternalsVisibleTo("Imedto.Backend.Test") no .csproj habilita o override na suíte.
+    internal virtual async Task<DadosPdf> CarregarDadosAsync(long receitaId, long estabelecimentoId)
     {
         const string sqlReceita = """
             SELECT  r.id                    AS Id,
@@ -144,6 +204,7 @@ public class QuestPdfReceitaService : IReceitaPdfService
                     r.validade_ate          AS ValidadeAte,
                     r.observacoes           AS Observacoes,
                     r.motivo_cancelamento   AS MotivoCancelamento,
+                    r.paciente_id           AS PacienteId,
                     pa.nome_completo        AS PacienteNome,
                     pa.cpf                  AS PacienteCpf,
                     pa.data_nascimento      AS PacienteDataNascimento,
@@ -754,52 +815,6 @@ public class QuestPdfReceitaService : IReceitaPdfService
         FontManager.RegisterFont(stream);
     }
 
-    // ────────────────────────────────────────────────────────────────
-    // DTOs internos (leitura Dapper)
-    // ────────────────────────────────────────────────────────────────
-
-    internal sealed record ReceitaRow(
-        long Id,
-        string Tipo,
-        string TipoNotificacao,
-        string Status,
-        string AssinaturaDigitalStatus,
-        DateTime? EmitidaEm,
-        DateTime? ValidadeAte,
-        string Observacoes,
-        string MotivoCancelamento,
-        string PacienteNome,
-        string PacienteCpf,
-        DateTime? PacienteDataNascimento,
-        string PacienteGenero,
-        string PacienteTelefone,
-        string ProfissionalNome,
-        string ProfissionalCrmCro,
-        string CabecalhoHtml,
-        string RodapeHtml,
-        string EmissorPadrao,
-        string EstabelecimentoNomeFantasia,
-        string EstabelecimentoCnpj,
-        string EstabelecimentoTelefone,
-        string EstabelecimentoEndereco,
-        string EstabelecimentoFotoUrl);
-
-    internal sealed record ItemRow(
-        int Ordem,
-        string Medicamento,
-        string Posologia,
-        string Concentracao,
-        string FormaFarmaceutica,
-        string Via,
-        string Quantidade,
-        string Duracao,
-        string Observacao);
-
-    internal sealed record DadosPdf(ReceitaRow Receita, List<ItemRow> Itens)
-    {
-        /// <summary>Bytes da logo do estabelecimento (null = usa placeholder de iniciais).</summary>
-        public byte[] LogoBytes { get; init; }
-    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
