@@ -561,6 +561,8 @@ public static class Container
         services.AddSingleton<ITermoEmitidoQueryRepository, TermoEmitidoQueryRepository>();
         services.AddScoped<ITermoAuditLogger, EfTermoAuditLogger>();
         services.AddScoped<ITermoPdfStorageService, S3TermoPdfStorageService>();
+        // Briefing 2026-06-10_002 — PDF probatório gerado no servidor via QuestPDF.
+        services.AddScoped<ITermoPdfGeradoService, QuestPdfTermoService>();
         services.AddScoped<CriarModeloTermoCommandHandler>();
         services.AddScoped<AtualizarModeloTermoCommandHandler>();
         services.AddScoped<AlterarAtivoModeloTermoCommandHandler>();

@@ -210,14 +210,17 @@ async function baixarPdfAnexado(t: TermoEmitidoResumo) {
     }
 }
 
-async function gerarPdfImpressao(t: TermoEmitidoResumo) {
+/**
+ * Briefing 2026-06-10_002 — baixa o PDF probatório gerado pelo servidor.
+ * Usado apenas para termos sem anexo manual (`!t.temPdf`).
+ */
+async function baixarPdfGerado(t: TermoEmitidoResumo) {
     if (acaoEmAndamentoId.value !== null) return
     acaoEmAndamentoId.value = t.id
     try {
-        const detalhe = await pacienteTermoService.obter(props.paciente.id, t.id)
-        await gerarPdf(detalhe, props.paciente, "download")
+        await pacienteTermoService.baixarPdfGerado(t.id)
     } catch (e: any) {
-        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao gerar PDF.", "error")
+        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao gerar o PDF.", "error")
     } finally {
         acaoEmAndamentoId.value = null
     }
@@ -431,15 +434,15 @@ onMounted(() => {
                             <i class="fa-solid fa-download"></i>
                         </button>
 
-                        <!-- Gerar PDF impressão: quando não tem anexo (todos os outros estados) -->
+                        <!-- Baixar PDF gerado pelo servidor: quando não tem anexo manual -->
                         <button
                             v-else
                             class="btn-icon"
-                            title="Gerar PDF para impressão"
+                            title="Baixar PDF"
                             :disabled="acaoEmAndamentoId === t.id"
-                            @click="gerarPdfImpressao(t)"
+                            @click="baixarPdfGerado(t)"
                         >
-                            <i class="fa-solid fa-print"></i>
+                            <i class="fa-solid fa-file-pdf"></i>
                         </button>
 
                         <!-- Anexar PDF assinado: pendente + PdfAnexado + sem PDF ainda -->

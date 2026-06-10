@@ -86,6 +86,17 @@ A tabela `prontuario_variaveis_pool` guarda nomes genéricos de itens clínicos 
 - **Dedup canônica é LGPD-segura.** A normalização (trim + lower + sem acento) ocorre em memória antes de criar item; não persiste a forma bruta digitada pelo profissional quando colide com existente.
 - **Sem PII em log.** Nenhum campo livre (que pode conter nome/contexto do paciente) transita por `_logger.*`. `PoolExtratorEvolucao` opera em silêncio — falha-suave sem log de dados da evolução.
 
+## PDF probatório de termo de consentimento — briefing 2026-06-10_002
+
+Geração server-side do documento probatório de aceite digital do termo de consentimento.
+
+- **Endpoint**: `GET /api/termos/{id}/pdf-gerado` — gera e devolve `application/pdf` com o snapshot da versão aceita + bloco de evidência do aceite. Gate: `[RequiresAcao("termos", "emitir")]`.
+- **Token de aceite**: nunca exposto completo no PDF. O bloco de evidência exibe apenas os **últimos 6 caracteres** (`TokenAceite[^6..]`) e o **hash SHA-256** (`HashIntegridade`). O token completo nunca transita em payload, log ou PDF.
+- **Audit**: cada geração bem-sucedida registra 1 linha em `termo_audit_log` via `ITermoAuditLogger` com `{ estabelecimento_id, usuario_id, acao = "termo-pdf-gerado", entidade = "TermoEmitido", entidade_id }`. O audit é **best-effort** — falha não bloqueia o download do PDF.
+- **Minimização — nome do arquivo**: `Content-Disposition` usa `termo-{id}.pdf` — sem nome/CPF/dados do paciente.
+- **Dados degradados graciosamente**: `IpAssinatura`/`UserAgentAssinatura` nulos (termos antigos) são omitidos do bloco de evidência sem quebrar o documento. Todos os campos opcionais fazem null-check antes de renderizar.
+- **Multi-tenant**: query filtra `estabelecimento_id = @EstabelecimentoId`; termo de outro tenant → `BusinessException("Termo não encontrado.")` (mensagem genérica — não vaza existência).
+
 ## Relatório de acessos ao titular (Art. 9º/18) — briefing 2026-06-10_007
 
 Implementa o direito do titular de saber quem acessou seus dados (Art. 9º e Art. 18 LGPD).

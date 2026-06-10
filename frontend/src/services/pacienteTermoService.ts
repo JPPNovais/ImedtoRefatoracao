@@ -158,6 +158,34 @@ export const pacienteTermoService = {
     },
 
     /**
+     * Briefing 2026-06-10_002 — Baixa o PDF probatório gerado pelo servidor
+     * (snapshot da versão aceita + bloco de evidência + marca d'água por status).
+     *
+     * Usado apenas quando o termo NÃO tem PDF anexado manualmente (`temPdf = false`).
+     * Quando `temPdf = true`, usar `obterUrlPdf` (presigned URL do anexo).
+     *
+     * O endpoint retorna `application/pdf` como blob. O arquivo baixado é
+     * `termo-{id}.pdf` (sem PII — minimização LGPD, CA11).
+     *
+     * Audit LGPD é registrado server-side (ação "termo-pdf-gerado").
+     * Multi-tenant + RBAC (`termos.emitir`) validados no backend.
+     */
+    async baixarPdfGerado(termoId: number): Promise<void> {
+        const response = await httpClient.get(`/termos/${termoId}/pdf-gerado`, {
+            responseType: "blob",
+        })
+        const blob = new Blob([response.data as BlobPart], { type: "application/pdf" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `termo-${termoId}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(url), 30_000)
+    },
+
+    /**
      * Fase 4 — reenvia o link público (`aceite_link`) por e-mail ou apenas
      * devolve o token pra ser exibido/copiado pelo emissor.
      *

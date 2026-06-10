@@ -2,6 +2,7 @@ using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Termos.Commands;
 using Imedto.Backend.Contracts.Termos.Dtos;
 using Imedto.Backend.Contracts.Termos.Queries;
+using Imedto.Backend.Infrastructure.Termos;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.AspNetCore.Authorization;
@@ -23,12 +24,18 @@ public class PacienteTermoController : ControllerBase
     private readonly ICommandBus _commandBus;
     private readonly IRequestBus _requestBus;
     private readonly ICurrentTenantAccessor _tenant;
+    private readonly ITermoPdfGeradoService _pdfGerado;
 
-    public PacienteTermoController(ICommandBus commandBus, IRequestBus requestBus, ICurrentTenantAccessor tenant)
+    public PacienteTermoController(
+        ICommandBus commandBus,
+        IRequestBus requestBus,
+        ICurrentTenantAccessor tenant,
+        ITermoPdfGeradoService pdfGerado)
     {
         _commandBus = commandBus;
         _requestBus = requestBus;
         _tenant = tenant;
+        _pdfGerado = pdfGerado;
     }
 
     [HttpGet("api/pacientes/{pacienteId:long}/termos")]
@@ -144,19 +151,22 @@ public class PacienteTermoController : ControllerBase
     }
 
     /// <summary>
-    /// Stub Fase 3 — geração de PDF on-the-fly a partir do snapshot HTML. Não implementado
-    /// nessa fase. Responde 501.
+    /// Gera e devolve o PDF probatório do termo a partir do snapshot HTML.
+    /// Inclui cabeçalho institucional, bloco do paciente, snapshot da versão aceita,
+    /// bloco de evidência do aceite (data/hora, identificação, IP/UA, hash, últimos 6 chars do token)
+    /// e marca d'água por status.
+    /// Multi-tenant: termo de outro estabelecimento devolve 422 genérico.
+    /// Audit LGPD best-effort em <c>termo_audit_log</c> (ação: "termo-pdf-gerado").
+    /// CA11: nome do arquivo <c>termo-{id}.pdf</c> — sem PII.
     /// </summary>
     [HttpGet("api/termos/{id:long}/pdf-gerado")]
     [RequiresAcao("termos", "emitir")]
-    [ProducesResponseType(StatusCodes.Status501NotImplemented)]
-    public IActionResult ObterPdfGerado(long id)
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "application/pdf")]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ObterPdfGerado(long id)
     {
-        return StatusCode(StatusCodes.Status501NotImplemented, new
-        {
-            tipo = "NaoImplementado",
-            mensagem = "Geração de PDF a partir do snapshot ainda não disponível (planejado para a Fase 3).",
-        });
+        var bytes = await _pdfGerado.GerarAsync(id, _tenant.EstabelecimentoId, _tenant.UsuarioId);
+        return File(bytes, "application/pdf", $"termo-{id}.pdf");
     }
 
     [HttpPost("api/termos/{id:long}/revogar")]
