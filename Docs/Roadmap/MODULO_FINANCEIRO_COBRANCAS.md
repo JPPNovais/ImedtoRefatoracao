@@ -331,6 +331,7 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
 - **Riscos**: garantir porta única de domínio (não duplicar lógica entre as duas telas).
 
 ### F3 — Procedimentos indicados ligados ao catálogo + atalho de criação — **M** *(pode rodar em paralelo à F1/F2)*
+- **Status**: implementado — `planejamentos/2026-06-10_011_financeiro-f3-procedimentos-catalogo.md` (CA43–CA58); build verde; 711 testes verdes; aguarda commit do QA.
 - **Objetivo**: preparar o prontuário para gerar cobrança de procedimento.
 - **IN**: `SecaoProcedimentosIndicados.vue` passa de texto livre para seletor do catálogo de
   procedimentos do estabelecimento ativo; atalho de criação inline (procedimento só do tenant ativo);

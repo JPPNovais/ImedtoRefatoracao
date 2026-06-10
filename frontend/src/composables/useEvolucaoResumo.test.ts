@@ -216,3 +216,62 @@ describe("formatarSecaoLegivel — paridade modal ↔ PDF (CA16)", () => {
         expect(a).toContain("Medicações de uso: Nega")
     })
 })
+
+// ── F3 — Procedimentos indicados: snapshot + retrocompat (CA58) ───────────────
+
+describe("formatarSecaoLegivel — procedimentos-indicados (F3/CA58)", () => {
+    it("CA58 — formato novo: exibe descrição + valor do snapshot, não re-resolve catálogo", () => {
+        const out = formatarSecaoLegivel("procedimentos-indicados", {
+            procedimentos: [
+                { catalogoCirurgiaId: 1, descricao: "Infiltração articular", valor: 350, observacao: "joelho D" },
+            ],
+        })
+        expect(out).toContain("Infiltração articular")
+        expect(out).toContain("R$ 350,00")
+        expect(out).toContain("joelho D")
+        // Não deve conter catalogoCirurgiaId cru
+        expect(out).not.toContain("catalogoCirurgiaId")
+    })
+
+    it("CA58 — formato legado: exibe texto livre sem valor (sem quebrar)", () => {
+        const out = formatarSecaoLegivel("procedimentos-indicados", {
+            procedimentos: [
+                { descricao: "Curativo simples", observacao: "tecido granulado" },
+            ],
+        })
+        expect(out).toContain("Curativo simples")
+        expect(out).toContain("tecido granulado")
+        // Sem valor (legado não tem)
+        expect(out).not.toContain("R$")
+    })
+
+    it("CA58 — coexistência: novo e legado no mesmo render (sem quebrar)", () => {
+        const out = formatarSecaoLegivel("procedimentos-indicados", {
+            procedimentos: [
+                { catalogoCirurgiaId: 1, descricao: "Infiltração articular", valor: 350, observacao: "" },
+                { descricao: "Curativo", observacao: "" },
+            ],
+        })
+        expect(out).toContain("Infiltração articular")
+        expect(out).toContain("R$ 350")
+        expect(out).toContain("Curativo")
+    })
+
+    it("CA58 — observações gerais da seção aparecem no render", () => {
+        const out = formatarSecaoLegivel("procedimentos-indicados", {
+            procedimentos: [],
+            observacoes: "Aguardar autorização do plano.",
+        })
+        expect(out).toContain("Aguardar autorização do plano.")
+    })
+
+    it("CA58 — observação vazia não imprime parênteses vazios", () => {
+        const out = formatarSecaoLegivel("procedimentos-indicados", {
+            procedimentos: [
+                { catalogoCirurgiaId: 2, descricao: "Drenagem", valor: 120, observacao: "" },
+            ],
+        })
+        expect(out).toContain("Drenagem")
+        expect(out).not.toContain("()")
+    })
+})

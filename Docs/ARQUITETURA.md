@@ -273,6 +273,15 @@ Desde 2026-06-06, o pool de variáveis está conectado aos campos do prontuário
 **Permissão:** criação automática via evolução não exige `ModelosProntuario` (qualquer profissional com acesso ao prontuário). CRUD manual via `ProntuarioTemplateController` continua exigindo `ModelosProntuario`.
 
 **Falha-suave:** JSON inválido ou chave ausente não interrompe o salvamento da evolução — `PoolExtratorEvolucao` degrada silenciosamente.
+
+#### Seção `procedimentos-indicados` ligada ao catálogo (briefing 2026-06-10_011 — Financeiro F3)
+
+A seção `procedimentos-indicados` do `ConteudoJson` deixou de ser texto livre e passou a referenciar o **catálogo de procedimentos do estabelecimento ativo** (`CatalogoCirurgia` / `orcamento_catalogo_cirurgia`). O formato dentro do `jsonb` aceita **dois tipos de item por lista, distinguidos pela presença de `catalogoCirurgiaId`**:
+
+- **Novo (catálogo):** `{ catalogoCirurgiaId, descricao, valor, observacao }` — `descricao` e `valor` são **snapshot** copiado do catálogo no momento da indicação.
+- **Legado (texto livre):** `{ descricao, observacao }` sem `catalogoCirurgiaId` — evoluções antigas coexistem e renderizam read-only sem conversão.
+
+Premissas: (1) a referência ao catálogo é guardada **como dado no JSON, não como FK relacional** — preserva a imutabilidade append-only da evolução mesmo que o item do catálogo seja editado/removido depois; o render nunca re-resolve o valor pelo `catalogoCirurgiaId` (sempre snapshot). (2) Leitura/criação do catálogo reusa `orcamentoCatalogoService.listarProcedimentos`/`criarProcedimento` (endpoint `api/orcamentos/configuracoes/procedimentos`), já filtrado por tenant e sob o gate `[FeatureGate(OrcamentoCompleto)]` + `[RequiresAcao("orcamento","configurar")]` + `[RequiresPapel(Dono,Recepcionista)]` — sem endpoint paralelo. (3) Sem migration (campo é `jsonb`). `catalogoCirurgiaId` é contrato consumido por F4 (cobrança de procedimento) e F5 (orçamento pré-preenchido).
 | **Modelo de permissão** | `modelo_permissao_estabelecimento` | `estabelecimento_id=NULL`, `eh_padrao=true` | FK via cópia `(estabelecimento_id=@X, eh_padrao=true)` | **Cópia materializada + propagação** |
 
 ### Dashboard Admin (Wave 6)

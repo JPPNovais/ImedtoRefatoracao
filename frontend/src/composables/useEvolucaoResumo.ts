@@ -297,7 +297,15 @@ function fmtProcedimentos(d: Record<string, unknown>): string {
         const desc = s(p.descricao)
         if (!desc) continue
         const obs = s(p.observacao)
-        linhas.push(obs ? `${desc} — ${obs}` : desc)
+        // Formato novo (catálogo): snapshot inclui valor → exibe "desc — R$ X,XX — obs".
+        // Legado (texto-livre): sem catalogoCirurgiaId/valor → mantém "desc — obs".
+        const valor = p.valor != null && p.valor !== "" ? Number(p.valor) : null
+        if (valor != null && isFinite(valor)) {
+            const valorStr = valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            linhas.push(obs ? `${desc} — R$ ${valorStr} — ${obs}` : `${desc} — R$ ${valorStr}`)
+        } else {
+            linhas.push(obs ? `${desc} — ${obs}` : desc)
+        }
     }
     if (s(d.observacoes)) linhas.push(`Observações: ${s(d.observacoes)}`)
     return linhas.join("\n")
