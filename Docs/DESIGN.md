@@ -184,6 +184,30 @@ Typeahead de texto livre com sugestões do pool de variáveis. Localização: [`
 - `SecaoHistoriaFamiliar.vue`: campo `parentesco` de parentes (tipo RelacaoFamiliar).
 - As listas são carregadas uma vez no `onMounted` da seção via `variavelPoolService.listar(tipo)`.
 
+## Widget global de tarefas pendentes — `WidgetProximosPassos` (addendum 2, F3B)
+
+`WidgetProximosPassos` é um **widget global persistente** montado uma única vez em `AppLayout.vue`. Fica visível em todas as rotas autenticadas enquanto houver pendências do último atendimento na sessão.
+
+**Responsabilidade de estado:** `proximosPassosStore` (Pinia). A store persiste em `sessionStorage` (chave `imedto.proximosPassos`) — sobrevive a reload na mesma aba; some ao fechar a aba/browser. Reidratação ocorre no boot (`main.ts → proximosPassosStore.reidratar()`).
+
+**Fluxo de uso:**
+1. `ProntuarioView` chama `proximosPassosStore.iniciar({ pacienteId, evolucaoId, acoesMarcadas })` ao salvar evolução com ≥1 ação de conduta.
+2. O widget (já montado no layout) reage e exibe expandido no canto inferior direito.
+3. A cada troca de rota, o widget chama `atualizarAbertas()` para refletir conclusões.
+4. Quando todas as ações estão concluídas, exibe feedback breve "Tudo concluído!" e some.
+
+**Estados:** expandido / minimizado (pílula) / concluido (transitório ~2s) / fechado.
+
+**Pílula minimizada:** fundo `hsl(var(--primary))` (sólido, não transparente), texto e ícone brancos, contador "X/N". Padrão de "indicador flutuante de tarefas pendentes" — a pílula é `<button>` com `aria-label` descritivo.
+
+**Fechar com confirmação:** clicar no X com ≥1 pendência aberta → `AppConfirmDialog` ("Fechar sem concluir as pendências? Elas continuam no painel do paciente."). Sem abertas → fecha direto.
+
+**Z-index:** faixa 700–800 (abaixo de modais em 900). `Teleport to="body"`.
+
+**Limpeza multi-tenant (R30):** a store é zerada em logout (`authStore.limparSessao`) e em troca de estabelecimento (`tenantStore.selecionar` com `trocouEstab`), pelo mesmo padrão de import dinâmico da `assinaturaStore`.
+
+**LGPD:** o `sessionStorage` guarda apenas ids técnicos (`pacienteId`, `evolucaoId`) e enums de ação — sem texto clínico, dentro do padrão de minimização.
+
 ## Padrão master-detail de página de configurações (briefing 2026-06-08_002)
 
 A página `/estabelecimento` usa layout **master-detail**: sub-nav agrupada (~248px) à esquerda + painel de detalhe à direita que troca conforme a seção selecionada. Padrão aplicado em `EstabelecimentoView.vue`.

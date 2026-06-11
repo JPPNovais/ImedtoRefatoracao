@@ -36,7 +36,7 @@ import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTa
 import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
 import PedidoExameTab              from "@/components/prontuario/tabs/PedidoExameTab.vue"
 import { exameFisicoService }      from "@/services/exameFisicoService"
-import WidgetProximosPassos        from "@/components/prontuario/WidgetProximosPassos.vue"
+import { useProximosPassosStore }  from "@/stores/proximosPassosStore"
 import { type AcaoPendencia }     from "@/services/pendenciaService"
 
 const { gerarPdf: gerarPdfProntuario, gerarPdfEvolucao } = useProntuarioPdf()
@@ -75,11 +75,9 @@ function notificar(msg: string, variante: "info" | "success" | "error" = "succes
     toast.value = { msg, variante }
 }
 
-// Widget "Próximos passos" — aberto após salvar evolução com conduta checklist (CA70/CA190)
-const proximosPassosVisivel = ref(false)
-const proximosPassosAcoes = ref<AcaoPendencia[]>([])
-// F5/R1: id da evolução recém-salva — passado ao widget para CriarOrcamento gerar pré-preenchimento (CA97/CA195).
-const proximosPassosEvolucaoId = ref<number | undefined>(undefined)
+// Widget "Próximos passos" — estado global em Pinia store (addendum 2, R24/R25).
+// A montagem do componente foi movida para AppLayout.vue; esta view apenas dispara a store.
+const proximosPassosStore = useProximosPassosStore()
 
 // Seções do modelo atualmente selecionado
 const secoesConsultaAtual = computed(() => {
@@ -239,16 +237,18 @@ async function salvarEvolucao() {
             }
         }
 
-        // Extrai ações marcadas da conduta para abrir modal "Próximos passos" (CA70).
-        // Só abre se houver ≥1 ação marcada.
+        // Extrai ações marcadas da conduta para disparar o widget global (CA70/R25).
+        // Só dispara se houver ≥1 ação marcada.
         const conduta = conteudoNaoVazio["conduta"]
         if (conduta && typeof conduta === "object" && "acoesMarcadas" in conduta) {
             const acoes = (conduta as { acoesMarcadas?: AcaoPendencia[] }).acoesMarcadas ?? []
             if (acoes.length > 0) {
-                proximosPassosAcoes.value = acoes
-                // F5/R1: salva evolucaoId para pré-preenchimento do form de orçamento (CA97/CA195).
-                proximosPassosEvolucaoId.value = evolucaoId ?? undefined
-                proximosPassosVisivel.value = true
+                // F5/R1: evolucaoId para pré-preenchimento do form de orçamento (CA97/CA195).
+                void proximosPassosStore.iniciar({
+                    pacienteId: pacienteId.value,
+                    evolucaoId: evolucaoId ?? undefined,
+                    acoesMarcadas: acoes,
+                })
             }
         }
 
@@ -481,15 +481,7 @@ async function finalizarAtendimento() {
             @fechar="toast = null"
         />
 
-        <!-- Widget flutuante pós-save com conduta (CA190). Só monta se visível (CA191). -->
-        <WidgetProximosPassos
-            v-if="proximosPassosVisivel"
-            :acoes-marcadas="proximosPassosAcoes"
-            :paciente-id="pacienteId"
-            :evolucao-id="proximosPassosEvolucaoId"
-            :rota-atual="route.fullPath"
-            @fechar="proximosPassosVisivel = false"
-        />
+        <!-- Widget "Próximos passos" movido para AppLayout.vue (addendum 2, R25/CA202). -->
     </main>
 </template>
 

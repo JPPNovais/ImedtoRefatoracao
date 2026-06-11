@@ -1,146 +1,111 @@
 <!--
-  Widget flutuante "Próximos passos do atendimento" — substitui o modal central (addendum CA190–CA201).
+  Widget flutuante "Próximos passos do atendimento" — global (addendum 2, CA202–CA215).
 
-  Renderizado após salvar evolução com ≥1 ação de conduta marcada.
-  Ancorado no canto inferior direito (position: fixed), sem overlay — a página
-  continua interativa por trás (CA193).
+  Montado UMA VEZ em AppLayout.vue (R25). Estado e persistência geridos por
+  proximosPassosStore (sessionStorage, R26). ProntuarioView deixou de montá-lo
+  diretamente; apenas dispara a store ao salvar (CA202/CA213).
 
   Estados:
-    - expandido: mostra header + lista de ações
-    - minimizado: pílula compacta (ícone + contador X/N)
-    - fechado: invisível (emite "fechar"; pendências permanecem no banco — CA198)
+    expandido  → mostra header + lista de ações
+    minimizado → pílula compacta (cor primária sólida + contador X/N)
+    concluido  → transição breve "Tudo concluído" → some sozinho (CA204)
+    fechado    → invisível
 
-  Re-fetch de pendências abertas:
-    - ao expandir a partir do minimizado (CA197)
-    - ao voltar para a rota do paciente após navegar via link de ação (CA196)
-    → controlado pelo watch de `route.fullPath` passado como prop.
+  Fechar:
+    - Com ≥1 pendência aberta → AppConfirmDialog (R28/CA206)
+    - Sem pendências abertas  → fecha direto (CA207)
 
-  Props:
-    - acoesMarcadas: AcaoPendencia[] — ações que geraram pendências (do save)
-    - pacienteId: number
-    - evolucaoId?: number — para CriarOrcamento gerar pré-preenchimento (CA195)
-    - rotaAtual: string — repassa route.fullPath para detectar retorno (CA196)
-
-  Emits:
-    - fechar — usuário clicou "Fazer depois" / X (CA198)
+  Re-fetch: a cada troca de route.fullPath (CA205).
 -->
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
-import { useRouter } from "vue-router"
-import {
-    ACAO_LABELS,
-    pendenciaService,
-    rotaParaAcao,
-    type AcaoPendencia,
-    type PendenciaAberta,
-} from "@/services/pendenciaService"
+import { ref, watch, onMounted } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { useProximosPassosStore } from "@/stores/proximosPassosStore"
+import { ACAO_LABELS, rotaParaAcao } from "@/services/pendenciaService"
+import { AppConfirmDialog } from "@/components/ui"
 
-// ── Props / emits ──────────────────────────────────────────────────────────────
-
-const props = defineProps<{
-    acoesMarcadas: AcaoPendencia[]
-    pacienteId: number
-    /** F5/R1: id da evolução recém-salva — passado para CriarOrcamento (CA195). */
-    evolucaoId?: number
-    /** Repassa route.fullPath para detectar retorno ao paciente (CA196). */
-    rotaAtual: string
-}>()
-
-const emit = defineEmits<{ fechar: [] }>()
-
+const store  = useProximosPassosStore()
+const route  = useRoute()
 const router = useRouter()
 
-// ── Estado interno ─────────────────────────────────────────────────────────────
+// ── Confirmação ao fechar (R28/CA206) ─────────────────────────────────────────
+const confirmandoFechar = ref(false)
 
-type EstadoWidget = "expandido" | "minimizado"
-const estado = ref<EstadoWidget>("expandido")
-
-/** Pendências ainda abertas, conforme último fetch. */
-const abertas = ref<PendenciaAberta[]>([])
-const buscando = ref(false)
-
-// ── Computed ───────────────────────────────────────────────────────────────────
-
-const total = computed(() => props.acoesMarcadas.length)
-
-/** Quantas das ações do widget foram concluídas (não estão mais em `abertas`). */
-const concluidas = computed(() => {
-    const abertasAcoes = new Set(abertas.value.map(p => p.acao))
-    return props.acoesMarcadas.filter(a => !abertasAcoes.has(a)).length
-})
-
-/** Texto do contador: "X de N concluídas". */
-const textoContador = computed(() => `${concluidas.value} de ${total.value} concluídas`)
-
-/** Texto compacto da pílula. */
-const textoPilula = computed(() => `${concluidas.value}/${total.value}`)
-
-function estaConcluida(acao: AcaoPendencia): boolean {
-    return !abertas.value.some(p => p.acao === acao)
-}
-
-function temRota(acao: AcaoPendencia): boolean {
-    return rotaParaAcao(props.pacienteId, acao) !== null
-}
-
-// ── Fetch ──────────────────────────────────────────────────────────────────────
-
-async function buscarAbertas() {
-    buscando.value = true
-    try {
-        abertas.value = await pendenciaService.listarAbertas(props.pacienteId)
-    } finally {
-        buscando.value = false
+function solicitarFechar() {
+    if (store.temAberta) {
+        confirmandoFechar.value = true
+    } else {
+        store.fechar()
     }
 }
 
-// Fetch inicial para saber quais já foram concluídas (caso o widget seja montado
-// após uma evolução que tinha pendências pré-existentes já concluídas).
-buscarAbertas()
+function confirmarFechar() {
+    confirmandoFechar.value = false
+    store.fechar()
+}
 
-// CA196: re-fetch quando a rota volta para a página do paciente após navegar.
-// Usa `rotaAtual` repassado pela view para não depender de watch interno de route.
+function cancelarFechar() {
+    confirmandoFechar.value = false
+}
+
+// ── Navegação para ação (CA195) ────────────────────────────────────────────────
+function irParaAcao(acao: string) {
+    const rota = rotaParaAcao(
+        store.pacienteId!,
+        acao as Parameters<typeof rotaParaAcao>[1],
+        store.evolucaoId,
+    )
+    if (rota) router.push(rota)
+}
+
+// ── CA205: re-fetch a cada troca de rota ─────────────────────────────────────
 watch(
-    () => props.rotaAtual,
-    () => {
-        if (estado.value === "expandido") {
-            buscarAbertas()
+    () => route.fullPath,
+    async () => {
+        if (store.visivel) {
+            await store.atualizarAbertas()
         }
     },
 )
 
-// ── Ações ──────────────────────────────────────────────────────────────────────
+// ── CA204: sumiço automático 2s após "concluido" ──────────────────────────────
+watch(
+    () => store.estado,
+    (novoEstado) => {
+        if (novoEstado === "concluido") {
+            setTimeout(() => {
+                store.fechar()
+            }, 2000)
+        }
+    },
+)
 
-function minimizar() {
-    estado.value = "minimizado"
-}
-
+// ── Expandir a partir da pílula (CA197) ───────────────────────────────────────
 async function expandir() {
-    estado.value = "expandido"
-    // CA197: re-fetch ao expandir para refletir conclusões ocorridas minimizado.
-    await buscarAbertas()
+    store.expandir()
+    await store.atualizarAbertas()
 }
 
-function fechar() {
-    emit("fechar")
+// ── Indicador de ação concluída ───────────────────────────────────────────────
+function estaConcluida(acao: string) {
+    return !store.abertas.some(p => p.acao === acao)
 }
 
-function irParaAcao(acao: AcaoPendencia) {
-    const rota = rotaParaAcao(props.pacienteId, acao, props.evolucaoId)
-    if (rota) {
-        router.push(rota)
-    }
-    // MarcarProcedimentoRealizado: sem rota — conclusão pelo painel (CA66)
+function temRota(acao: string) {
+    return rotaParaAcao(
+        store.pacienteId ?? 0,
+        acao as Parameters<typeof rotaParaAcao>[1],
+    ) !== null
 }
 </script>
 
 <template>
     <Teleport to="body">
-        <!-- Pílula minimizada (CA197/CA200) -->
+        <!-- Pílula minimizada (CA208/CA209) -->
         <button
-            v-if="estado === 'minimizado'"
+            v-if="store.estado === 'minimizado'"
             class="wpp-pilula"
-            aria-label="Expandir próximos passos"
+            :aria-label="`Próximos passos: ${store.concluidas} de ${store.total} concluídas — clique para expandir`"
             @click="expandir"
         >
             <!-- ícone checklist -->
@@ -148,12 +113,27 @@ function irParaAcao(acao: AcaoPendencia) {
                 <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="wpp-pilula-contador">{{ textoPilula }}</span>
+            <span class="wpp-pilula-contador">{{ store.concluidas }}/{{ store.total }}</span>
         </button>
 
-        <!-- Widget expandido (CA190/CA192/CA193) -->
+        <!-- Widget "tudo concluído" — feedback breve (CA204) -->
         <div
-            v-else
+            v-else-if="store.estado === 'concluido'"
+            class="wpp-widget wpp-widget--concluido"
+            role="status"
+            aria-live="polite"
+        >
+            <span class="wpp-concluido-icone" aria-hidden="true">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            <span class="wpp-concluido-texto">Tudo concluído!</span>
+        </div>
+
+        <!-- Widget expandido (CA190/CA192/CA193/CA214) -->
+        <div
+            v-else-if="store.estado === 'expandido'"
             class="wpp-widget"
             role="complementary"
             aria-label="Próximos passos do atendimento"
@@ -168,12 +148,12 @@ function irParaAcao(acao: AcaoPendencia) {
                 </span>
                 <div class="wpp-titulo-grupo">
                     <span class="wpp-titulo">Próximos passos</span>
-                    <span class="wpp-contador">{{ textoContador }}</span>
+                    <span class="wpp-contador">{{ store.concluidas }} de {{ store.total }} concluídas</span>
                 </div>
                 <button
                     class="wpp-btn-icone"
                     aria-label="Minimizar"
-                    @click="minimizar"
+                    @click="store.minimizar()"
                 >
                     <!-- ícone traço (minimizar) -->
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -183,7 +163,7 @@ function irParaAcao(acao: AcaoPendencia) {
                 <button
                     class="wpp-btn-icone"
                     aria-label="Fechar — Fazer depois"
-                    @click="fechar"
+                    @click="solicitarFechar"
                 >
                     <!-- ícone X (fechar) -->
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -195,7 +175,7 @@ function irParaAcao(acao: AcaoPendencia) {
             <!-- Corpo: lista de ações (CA195/CA196) -->
             <ul class="wpp-lista">
                 <li
-                    v-for="acao in acoesMarcadas"
+                    v-for="acao in store.acoesMarcadas"
                     :key="acao"
                     class="wpp-item"
                     :class="{ 'wpp-item--concluida': estaConcluida(acao) }"
@@ -209,7 +189,7 @@ function irParaAcao(acao: AcaoPendencia) {
                             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
                         </svg>
                     </span>
-                    <span class="wpp-item-label">{{ ACAO_LABELS[acao] }}</span>
+                    <span class="wpp-item-label">{{ ACAO_LABELS[acao as keyof typeof ACAO_LABELS] }}</span>
                     <!-- Botão "ir" só para ações abertas com rota (CA195) -->
                     <button
                         v-if="!estaConcluida(acao) && temRota(acao)"
@@ -239,11 +219,23 @@ function irParaAcao(acao: AcaoPendencia) {
                 Visíveis no painel do paciente
             </div>
         </div>
+
+        <!-- Diálogo de confirmação ao fechar com pendências (R28/CA206) -->
+        <AppConfirmDialog
+            v-model:aberto="confirmandoFechar"
+            titulo="Fechar sem concluir?"
+            mensagem="Fechar sem concluir as pendências? Elas continuam no painel do paciente."
+            confirmar-rotulo="Fechar assim mesmo"
+            cancelar-rotulo="Manter aberto"
+            variante="primary"
+            @confirmar="confirmarFechar"
+            @cancelar="cancelarFechar"
+        />
     </Teleport>
 </template>
 
 <style scoped>
-/* ── Pílula minimizada (CA197/CA200) ──────────────── */
+/* ── Pílula minimizada (CA208/CA209) ──────────────────── */
 .wpp-pilula {
     position: fixed;
     bottom: 1.25rem;
@@ -252,7 +244,8 @@ function irParaAcao(acao: AcaoPendencia) {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    background: hsl(var(--primary-hsl));
+    /* CA208: fundo primário sólido — token correto do DS é --primary (HSL sem hsl()) */
+    background: hsl(var(--primary));
     color: hsl(0 0% 100%);
     border: none;
     border-radius: 999px;
@@ -281,14 +274,35 @@ function irParaAcao(acao: AcaoPendencia) {
     z-index: 750;
     width: 320px;
     max-width: calc(100vw - 2rem);   /* CA200: não excede a largura útil */
-    background: hsl(var(--card));    /* CA192: token HSL embrulhado — nunca var(--card) cru */
+    background: hsl(var(--card));    /* CA192: token HSL embrulhado */
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius-lg, var(--radius));
     box-shadow: 0 8px 32px hsl(0 0% 0% / 0.14);
     display: flex;
     flex-direction: column;
-    /* Sem overlay — a página continua interativa (CA193). pointer-events só no widget. */
     pointer-events: auto;
+}
+
+/* ── "Tudo concluído" — feedback breve (CA204) ───── */
+.wpp-widget--concluido {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    width: auto;
+    min-width: 200px;
+}
+
+.wpp-concluido-icone {
+    display: flex;
+    color: hsl(var(--success, 142 72% 42%));
+}
+
+.wpp-concluido-texto {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--foreground));
 }
 
 /* ── Header ───────────────────────────────────────── */
@@ -301,7 +315,7 @@ function irParaAcao(acao: AcaoPendencia) {
 }
 
 .wpp-icone {
-    color: hsl(var(--primary-hsl));
+    color: hsl(var(--primary));
     display: flex;
     flex-shrink: 0;
 }
@@ -353,7 +367,6 @@ function irParaAcao(acao: AcaoPendencia) {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    /* Scroll se houver muitos itens (edge case) */
     max-height: 280px;
     overflow-y: auto;
 }
@@ -379,11 +392,11 @@ function irParaAcao(acao: AcaoPendencia) {
 .wpp-item-icone {
     display: flex;
     flex-shrink: 0;
-    color: hsl(var(--primary-hsl));
+    color: hsl(var(--primary));
 }
 
 .wpp-item--concluida .wpp-item-icone {
-    color: hsl(var(--success-hsl, 142 72% 42%));
+    color: hsl(var(--success, 142 72% 42%));
 }
 
 .wpp-item-label {
@@ -403,13 +416,13 @@ function irParaAcao(acao: AcaoPendencia) {
     cursor: pointer;
     padding: 0.25rem;
     border-radius: var(--radius);
-    color: hsl(var(--primary-hsl));
+    color: hsl(var(--primary));
     transition: background 0.1s;
     flex-shrink: 0;
 }
 
 .wpp-ir:hover {
-    background: hsl(var(--primary-hsl) / 0.1);
+    background: hsl(var(--primary) / 0.1);
 }
 
 /* "Pelo painel" — MarcarProcedimentoRealizado sem rota */

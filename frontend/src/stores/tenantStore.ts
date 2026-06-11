@@ -71,6 +71,8 @@ export const useTenantStore = defineStore("tenant", () => {
         })
         if (trocouEstab) {
             void import("@/stores/assinaturaStore").then((m) => m.useAssinaturaStore().limpar())
+            // CA212/R30: pendências são do tenant — nunca vazar para outro estabelecimento.
+            void import("@/stores/proximosPassosStore").then((m) => m.useProximosPassosStore().limpar())
         }
     }
 

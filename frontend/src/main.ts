@@ -7,6 +7,7 @@ import { useAuthStore } from "./stores/authStore"
 import { useProfissionalStore } from "./stores/profissionalStore"
 import { useTenantStore } from "./stores/tenantStore"
 import { usePermissoesStore } from "./stores/permissoesStore"
+import { useProximosPassosStore } from "./stores/proximosPassosStore"
 import { bootstrapService } from "./services/bootstrapService"
 import { usuarioService } from "./services/usuarioService"
 import realtimeService from "./services/realtimeService"
@@ -72,6 +73,11 @@ async function bootstrap() {
         auth.ativarRealtime()
         registrarListenersPermissoes()
     }
+
+    // CA203/R26: reidrata o widget "Próximos passos" do sessionStorage, se existir.
+    // Feito incondicionalmente (mesmo sem sessão ativa) — a store apenas lê refs do
+    // sessionStorage; o fetch ocorre lazy via watch de rota no widget.
+    useProximosPassosStore().reidratar()
 
     app.use(router)
     await router.isReady()

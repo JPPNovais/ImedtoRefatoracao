@@ -148,6 +148,8 @@ export const useAuthStore = defineStore("auth", () => {
         useAssinaturaStore().limpar()
         usePermissoesStore().limpar()
         useUpsellStore().fechar()
+        // CA211/R30: widget "Próximos passos" é do tenant/sessão — zera ao sair.
+        void import("@/stores/proximosPassosStore").then((m) => m.useProximosPassosStore().limpar())
         for (const key of STORAGE_KEYS_SESSAO) {
             try { localStorage.removeItem(key) } catch { /* modo privado / quota */ }
         }

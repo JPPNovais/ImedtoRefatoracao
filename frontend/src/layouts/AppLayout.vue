@@ -19,6 +19,7 @@ import { useNotificacoesStore } from "@/stores/notificacoesStore"
 import { useTheme, type Theme } from "@/composables/useTheme"
 import { AppTopBar, AppSidebar } from "@/components/ui"
 import EstabelecimentoSeletorModal from "@/components/ui/EstabelecimentoSeletorModal.vue"
+import WidgetProximosPassos from "@/components/prontuario/WidgetProximosPassos.vue"
 import { podeAcessarRota } from "@/router/routePermissions"
 import { usuarioService } from "@/services/usuarioService"
 import logoBranco from "@/assets/imedto-logo-branco.png"
@@ -319,6 +320,10 @@ async function sincronizarNotificacoes() {
         @fechar="modalSeletorAberto = false"
         @selecionar="confirmarTrocaEstabelecimento"
     />
+
+    <!-- Widget "Próximos passos" global — montado aqui para persistir entre rotas (R25/CA202).
+         Só existe dentro do layout autenticado; login/público ficam de fora naturalmente (CA210). -->
+    <WidgetProximosPassos />
 </template>
 
 <style scoped>
