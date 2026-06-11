@@ -16,6 +16,7 @@ import {
     AppButton, AppEmptyState, AppField, AppInput, AppPagination, AppSelect, AppTextarea,
     AppModal, AppToast,
 } from "@/components/ui"
+import { useProximosPassosStore } from "@/stores/proximosPassosStore"
 
 const props = defineProps<{
     pacienteId: number
@@ -23,6 +24,7 @@ const props = defineProps<{
 }>()
 
 const { gerarPdf } = usePedidoExamePdf()
+const proximosPassos = useProximosPassosStore()
 
 const pedidos = ref<PedidoExame[]>([])
 const total   = ref(0)
@@ -159,6 +161,8 @@ async function emitirPedido() {
         })
         notificar("Pedido de exame emitido.", "success")
         emissaoAberta.value = false
+        // Notifica o widget "Próximos passos" sobre a conclusão (bug 2 — CA63/CA64).
+        void proximosPassos.atualizarAbertas()
 
         const completo = await pedidoExameService.obter(pedidoExameId)
         const pac = paciente.value ?? { nomeCompleto: props.pacienteNome } as Paciente

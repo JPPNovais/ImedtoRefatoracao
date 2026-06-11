@@ -30,6 +30,7 @@ import { useAssinaturaDigitalStore } from "@/stores/assinaturaDigitalStore"
 import { useAuthStore } from "@/stores/authStore"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { useReceitaPdf } from "@/composables/useReceitaPdf"
+import { useProximosPassosStore } from "@/stores/proximosPassosStore"
 
 const props = defineProps<{
     pacienteId: number
@@ -37,6 +38,7 @@ const props = defineProps<{
 }>()
 
 const { gerarPdf } = useReceitaPdf()
+const proximosPassos = useProximosPassosStore()
 const paciente = ref<Paciente | null>(null)
 
 // ─── Assinatura digital ───────────────────────────────────────────────────────
@@ -412,6 +414,8 @@ async function finalizar() {
                 await receitaService.finalizar(receitaAberta.value!.id)
                 await abrirReceita(receitaAberta.value!.id)
                 notificar("Receita finalizada.", "success")
+                // Notifica o widget "Próximos passos" sobre a conclusão (bug 2 — CA63).
+                void proximosPassos.atualizarAbertas()
             } catch (e: any) {
                 notificar(e?.response?.data?.mensagem ?? "Erro ao finalizar.", "error")
             } finally {

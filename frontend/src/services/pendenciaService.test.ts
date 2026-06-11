@@ -33,10 +33,19 @@ describe("ACAO_LABELS", () => {
 describe("rotaParaAcao", () => {
     const pacienteId = 42
 
-    it("CriarReceita → /pacientes/:id?aba=documentos&tipo=Receita", () => {
+    it("CriarReceita → /pacientes/:id/prontuario?aba=receitas (aba de criação, não listagem)", () => {
         const rota = rotaParaAcao(pacienteId, "CriarReceita")
-        expect(rota).toContain("/pacientes/42")
-        expect(rota).toContain("Receita")
+        expect(rota).toBe("/pacientes/42/prontuario?aba=receitas")
+    })
+
+    it("CriarAtestado → /pacientes/:id/prontuario?aba=atestado", () => {
+        const rota = rotaParaAcao(pacienteId, "CriarAtestado")
+        expect(rota).toBe("/pacientes/42/prontuario?aba=atestado")
+    })
+
+    it("PedirExame → /pacientes/:id/prontuario?aba=pedidos-exame", () => {
+        const rota = rotaParaAcao(pacienteId, "PedirExame")
+        expect(rota).toBe("/pacientes/42/prontuario?aba=pedidos-exame")
     })
 
     it("AgendarRetorno → /agenda?pacienteId=:id", () => {

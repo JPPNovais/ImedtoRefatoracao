@@ -62,7 +62,22 @@ const modeloConsultaAtual = ref<number | null>(null)
 const carregando = ref(true)
 const erro       = ref<string | null>(null)
 
-const abaAtiva = ref<AbaProntuario>("consulta")
+// Valor inicial lido do query param ?aba= para que links diretos do widget caiam
+// na aba certa (bug 1 — CA60/CA195). Valores aceitos correspondem a AbaProntuario.
+const ABA_VALIDAS = new Set<AbaProntuario>(["consulta", "anteriores", "receitas", "atestado", "pedidos-exame"])
+function abaDoQuery(): AbaProntuario {
+    const v = route.query.aba
+    const s = Array.isArray(v) ? v[0] : v
+    return (s && ABA_VALIDAS.has(s as AbaProntuario)) ? (s as AbaProntuario) : "consulta"
+}
+const abaAtiva = ref<AbaProntuario>(abaDoQuery())
+
+// Atualiza abaAtiva quando o query param muda sem desmontar a view (navegação
+// interna, ex.: widget navega da aba receitas para atestado).
+watch(() => route.query.aba, () => {
+    const nova = abaDoQuery()
+    if (nova !== abaAtiva.value) abaAtiva.value = nova
+})
 
 // Total de evoluções — vem do endpoint paginado ao abrir "Consultas anteriores"
 // (ou do contagem-evolucoes na carga inicial), em vez de pront.evolucoes.length

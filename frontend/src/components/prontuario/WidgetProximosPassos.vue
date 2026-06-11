@@ -88,7 +88,7 @@ async function expandir() {
 
 // ── Indicador de ação concluída ───────────────────────────────────────────────
 function estaConcluida(acao: string) {
-    return !store.abertas.some(p => p.acao === acao)
+    return store.estaConcluidaAcao(acao as Parameters<typeof store.estaConcluidaAcao>[0])
 }
 
 function temRota(acao: string) {

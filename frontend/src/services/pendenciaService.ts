@@ -43,11 +43,11 @@ export function rotaParaAcao(
 ): string | null {
     switch (acao) {
         case "CriarReceita":
-            return `/pacientes/${pacienteId}?aba=documentos&tipo=Receita`
+            return `/pacientes/${pacienteId}/prontuario?aba=receitas`
         case "CriarAtestado":
-            return `/pacientes/${pacienteId}?aba=documentos&tipo=Atestado`
+            return `/pacientes/${pacienteId}/prontuario?aba=atestado`
         case "PedirExame":
-            return `/pacientes/${pacienteId}?aba=documentos&tipo=PedidoExame`
+            return `/pacientes/${pacienteId}/prontuario?aba=pedidos-exame`
         case "CriarOrcamento":
             // F5/R1: se há evolucaoId, pré-preenche o form via query param (CA97/CA98).
             return evolucaoId

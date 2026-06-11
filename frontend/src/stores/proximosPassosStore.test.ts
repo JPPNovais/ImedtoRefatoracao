@@ -173,13 +173,14 @@ describe("proximosPassosStore", () => {
         expect(store.estado).toBe("concluido")
     })
 
-    it("CA204 — atualizarAbertas NÃO transiciona quando ainda há aberta", async () => {
+    it("CA204 — atualizarAbertas NÃO transiciona quando ainda há aberta na mesma evolução", async () => {
         const store = useProximosPassosStore()
         mockListar().mockResolvedValue([
             { id: 1, evolucaoId: 5, acao: "CriarReceita", status: "Pendente", criadoEm: "" },
         ])
         await store.iniciar({
             pacienteId: 42,
+            evolucaoId: 5,
             acoesMarcadas: ["CriarReceita", "AgendarRetorno"],
         })
 
@@ -255,7 +256,7 @@ describe("proximosPassosStore", () => {
             { id: 1, evolucaoId: 5, acao: "CriarReceita", status: "Pendente", criadoEm: "" },
         ])
         const store = useProximosPassosStore()
-        await store.iniciar({ pacienteId: 42, acoesMarcadas: ["CriarReceita"] })
+        await store.iniciar({ pacienteId: 42, evolucaoId: 5, acoesMarcadas: ["CriarReceita"] })
         store.minimizar()
 
         expect(store.estado).toBe("minimizado")
@@ -268,7 +269,7 @@ describe("proximosPassosStore", () => {
             { id: 1, evolucaoId: 5, acao: "CriarReceita", status: "Pendente", criadoEm: "" },
         ])
         const store = useProximosPassosStore()
-        await store.iniciar({ pacienteId: 42, acoesMarcadas: ["CriarReceita"] })
+        await store.iniciar({ pacienteId: 42, evolucaoId: 5, acoesMarcadas: ["CriarReceita"] })
         store.minimizar()
         store.expandir()
 
@@ -290,13 +291,42 @@ describe("proximosPassosStore", () => {
         expect(store.temAberta).toBe(false)
     })
 
-    it("temAberta é true quando há ao menos uma ação marcada ainda aberta", async () => {
+    it("temAberta é true quando há ao menos uma ação marcada ainda aberta na mesma evolução", async () => {
         mockListar().mockResolvedValue([
             { id: 1, evolucaoId: 5, acao: "CriarReceita", status: "Pendente", criadoEm: "" },
         ])
         const store = useProximosPassosStore()
-        await store.iniciar({ pacienteId: 42, acoesMarcadas: ["CriarReceita"] })
+        await store.iniciar({ pacienteId: 42, evolucaoId: 5, acoesMarcadas: ["CriarReceita"] })
 
         expect(store.temAberta).toBe(true)
+    })
+
+    // Regressão QA — pendência de evolução diferente não mascara conclusão ──────
+    it("REGRESSÃO — concluidas=1 quando CriarReceita aberta pertence à evolucaoId 56, não à 57", async () => {
+        // Cenário exato prescrito pelo QA:
+        //   acoesMarcadas=["CriarReceita"], evolucaoId=57,
+        //   abertas=[{acao:"CriarReceita", evolucaoId:56}]
+        //   → esperado: concluidas === 1 (a ação está concluída na evolução correta)
+        mockListar().mockResolvedValue([
+            { id: 10, evolucaoId: 56, acao: "CriarReceita", status: "Pendente", criadoEm: "" },
+        ])
+        const store = useProximosPassosStore()
+        await store.iniciar({ pacienteId: 42, evolucaoId: 57, acoesMarcadas: ["CriarReceita"] })
+
+        expect(store.concluidas).toBe(1)
+        expect(store.temAberta).toBe(false)
+        expect(store.estaConcluidaAcao("CriarReceita")).toBe(true)
+    })
+
+    it("REGRESSÃO — concluidas=0 quando CriarReceita aberta pertence à mesma evolucaoId 57", async () => {
+        mockListar().mockResolvedValue([
+            { id: 10, evolucaoId: 57, acao: "CriarReceita", status: "Pendente", criadoEm: "" },
+        ])
+        const store = useProximosPassosStore()
+        await store.iniciar({ pacienteId: 42, evolucaoId: 57, acoesMarcadas: ["CriarReceita"] })
+
+        expect(store.concluidas).toBe(0)
+        expect(store.temAberta).toBe(true)
+        expect(store.estaConcluidaAcao("CriarReceita")).toBe(false)
     })
 })

@@ -50,14 +50,24 @@ export const useProximosPassosStore = defineStore("proximosPassos", () => {
 
     const total = computed(() => acoesMarcadas.value.length)
 
-    const concluidas = computed(() => {
-        const abertasAcoes = new Set(abertas.value.map(p => p.acao))
-        return acoesMarcadas.value.filter(a => !abertasAcoes.has(a)).length
-    })
+    /**
+     * Retorna true se uma ação específica NÃO tem pendência aberta na evolucaoId atual.
+     * Filtra por evolucaoId para evitar que pendência de outra evolução (mesmo acao)
+     * mascare a conclusão da evolução corrente.
+     */
+    function estaConcluidaAcao(acao: AcaoPendencia): boolean {
+        return !abertas.value.some(
+            p => p.acao === acao && p.evolucaoId === evolucaoId.value,
+        )
+    }
 
-    /** True quando há ≥1 pendência ainda aberta (conforme último fetch). */
+    const concluidas = computed(() =>
+        acoesMarcadas.value.filter(a => estaConcluidaAcao(a)).length,
+    )
+
+    /** True quando há ≥1 pendência ainda aberta na evolucaoId atual (conforme último fetch). */
     const temAberta = computed(() =>
-        abertas.value.some(p => acoesMarcadas.value.includes(p.acao))
+        acoesMarcadas.value.some(a => !estaConcluidaAcao(a)),
     )
 
     // ── Persistência ─────────────────────────────────────────────────────────
@@ -183,6 +193,8 @@ export const useProximosPassosStore = defineStore("proximosPassos", () => {
         total,
         concluidas,
         temAberta,
+        // Helpers
+        estaConcluidaAcao,
         // Ações
         iniciar,
         reidratar,

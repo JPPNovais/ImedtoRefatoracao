@@ -18,6 +18,7 @@ import {
 } from "@/services/atestadoService"
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { useAtestadoPdf } from "@/composables/useAtestadoPdf"
+import { useProximosPassosStore } from "@/stores/proximosPassosStore"
 import {
     AppButton, AppEmptyState, AppField, AppInput, AppPagination, AppSelect, AppTextarea,
     AppModal, AppDrawer, AppToast, AppConfirmDialog,
@@ -29,6 +30,7 @@ const props = defineProps<{
 }>()
 
 const { gerarPdf } = useAtestadoPdf()
+const proximosPassos = useProximosPassosStore()
 
 const atestados = ref<Atestado[]>([])
 const total     = ref(0)
@@ -174,6 +176,8 @@ async function emitirAtestado() {
         })
         notificar("Atestado emitido.", "success")
         emissaoAberta.value = false
+        // Notifica o widget "Próximos passos" sobre a conclusão (bug 2 — CA63/CA64).
+        void proximosPassos.atualizarAbertas()
 
         // Carrega o atestado completo (com profissionalNome) e gera PDF.
         const completo = await atestadoService.obter(atestadoId)
