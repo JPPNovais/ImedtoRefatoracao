@@ -8,6 +8,8 @@ export interface PlanoAdminDto {
     gratuito: boolean
     ativo: boolean
     limitesJson: string
+    /** JSON com 8 flags booleanas de feature (receitas, ia, etc.) */
+    featuresJson: string
     criadoEm: string
     atualizadoEm: string | null
 }
@@ -25,6 +27,7 @@ export interface CriarPlanoPayload {
     precoMensalCentavos: number | null
     gratuito: boolean
     limitesJson: string
+    featuresJson: string
     motivo: string
 }
 

@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Imedto.Backend.Application.Admin.Assinaturas;
 using Imedto.Backend.Contracts.Admin.Assinaturas.Commands;
 using Imedto.Backend.Domain.Admin;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Infrastructure.Admin;
 using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.SharedKernel.Domain;
@@ -22,6 +23,7 @@ public class ConcederGratuidadeAdminHandlerTests
     private AppDbContext _db = null!;
     private Mock<IImedtoAssinaturaRepository> _assinaturaRepoMock = null!;
     private Mock<IImedtoPlanoRepository> _planoRepoMock = null!;
+    private Mock<IAssinaturaService> _assinaturaServiceMock = null!;
     private ImedtoAdminAuditWriter _audit = null!;
     private ConcederGratuidadeAdminCommandHandler _handler = null!;
 
@@ -35,6 +37,7 @@ public class ConcederGratuidadeAdminHandlerTests
 
         _assinaturaRepoMock = new Mock<IImedtoAssinaturaRepository>();
         _planoRepoMock = new Mock<IImedtoPlanoRepository>();
+        _assinaturaServiceMock = new Mock<IAssinaturaService>();
 
         var httpMock = new Mock<IHttpContextAccessor>();
         httpMock.Setup(h => h.HttpContext).Returns((HttpContext?)null);
@@ -46,8 +49,6 @@ public class ConcederGratuidadeAdminHandlerTests
 
         // Seed do plano Gratuidade Vitalícia no mock.
         var planoGratuidade = ImedtoPlano.Criar("Gratuidade Vitalícia", null, 0, true, "{}", null);
-        // Recria com o ID fixo via reflexão não é possível direto — mockamos com Id real do plano
-        // mas garantimos que o handler encontra o plano.
         _planoRepoMock.Setup(r => r.ObterPorIdAsync(_idGratuidadeVitalicia, It.IsAny<CancellationToken>()))
             .ReturnsAsync(planoGratuidade);
 
@@ -55,6 +56,7 @@ public class ConcederGratuidadeAdminHandlerTests
             _assinaturaRepoMock.Object,
             _planoRepoMock.Object,
             _audit,
+            _assinaturaServiceMock.Object,
             _db);
     }
 

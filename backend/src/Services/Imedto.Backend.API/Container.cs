@@ -317,6 +317,17 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.EncerrarAssinaturaAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.ListarHistoricoAssinaturasAdminQueryHandler>();
 
+        // F4 — Ações de estado por estabelecimento (liberar/suspender/reativar/trial)
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.LiberarVitalicioAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.LiberarAteDataAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.IniciarTrialAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.SuspenderAssinaturaAdminCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Assinaturas.ReativarAssinaturaAdminCommandHandler>();
+
+        // F4 — Config de trial (singleton query handler; scoped command handler)
+        services.AddSingleton<Imedto.Backend.Application.Admin.ConfigTrial.ObterConfigTrialAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.ConfigTrial.AtualizarConfigTrialAdminCommandHandler>();
+
         // Frente 2 — Configs globais
         services.AddSingleton<Imedto.Backend.Domain.Admin.IConfigGlobalReader,
                               Imedto.Backend.Infrastructure.Admin.ConfigGlobalReader>();

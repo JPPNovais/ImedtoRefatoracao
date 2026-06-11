@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Admin.Assinaturas.Commands;
 using Imedto.Backend.Domain.Admin;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Infrastructure.Admin;
 using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.SharedKernel.Domain;
@@ -9,15 +10,18 @@ namespace Imedto.Backend.Application.Admin.Assinaturas;
 public class EncerrarAssinaturaAdminCommandHandler
 {
     private readonly IImedtoAssinaturaRepository _assinaturaRepo;
+    private readonly IAssinaturaService _assinaturaService;
     private readonly ImedtoAdminAuditWriter _audit;
     private readonly AppDbContext _db;
 
     public EncerrarAssinaturaAdminCommandHandler(
         IImedtoAssinaturaRepository assinaturaRepo,
+        IAssinaturaService assinaturaService,
         ImedtoAdminAuditWriter audit,
         AppDbContext db)
     {
         _assinaturaRepo = assinaturaRepo;
+        _assinaturaService = assinaturaService;
         _audit = audit;
         _db = db;
     }
@@ -35,6 +39,9 @@ public class EncerrarAssinaturaAdminCommandHandler
 
         _assinaturaRepo.Atualizar(assinatura);
         await _db.SaveChangesAsync(ct);
+
+        // CA32: invalida cache para que enforcement veja a assinatura encerrada imediatamente.
+        _assinaturaService.InvalidarCache(assinatura.EstabelecimentoId);
 
         await _audit.RegistrarAsync(
             AcoesAuditAdmin.EncerrarAssinatura,

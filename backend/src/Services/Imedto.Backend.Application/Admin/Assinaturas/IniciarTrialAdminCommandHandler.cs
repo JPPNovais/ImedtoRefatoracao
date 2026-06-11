@@ -7,18 +7,15 @@ using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Application.Admin.Assinaturas;
 
-public class ConcederGratuidadeAdminCommandHandler
+public class IniciarTrialAdminCommandHandler
 {
-    /// <summary>ID fixo do plano Gratuidade Vitalicia seedado.</summary>
-    private static readonly Guid _idGratuidadeVitalicia = new("00000000-0000-0000-0000-000000000001");
-
     private readonly IImedtoAssinaturaRepository _assinaturaRepo;
     private readonly IImedtoPlanoRepository _planoRepo;
     private readonly ImedtoAdminAuditWriter _audit;
     private readonly IAssinaturaService _assinaturaService;
     private readonly AppDbContext _db;
 
-    public ConcederGratuidadeAdminCommandHandler(
+    public IniciarTrialAdminCommandHandler(
         IImedtoAssinaturaRepository assinaturaRepo,
         IImedtoPlanoRepository planoRepo,
         ImedtoAdminAuditWriter audit,
@@ -32,18 +29,22 @@ public class ConcederGratuidadeAdminCommandHandler
         _db = db;
     }
 
-    public async Task Handle(ConcederGratuidadeAdminCommand cmd, CancellationToken ct = default)
+    public async Task Handle(IniciarTrialAdminCommand cmd, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(cmd.Motivo) || cmd.Motivo.Trim().Length < 10)
-            throw new BusinessException("Motivo é obrigatório para concessão de gratuidade (mínimo 10 caracteres).");
+        if (string.IsNullOrWhiteSpace(cmd.Motivo))
+            throw new BusinessException("Motivo e obrigatorio.");
 
-        if (string.IsNullOrWhiteSpace(cmd.GratuidadeMotivo) || cmd.GratuidadeMotivo.Trim().Length < 10)
-            throw new BusinessException("Motivo é obrigatório para concessão de gratuidade (mínimo 10 caracteres).");
+        if (cmd.Dias <= 0)
+            throw new BusinessException("Duracao do trial deve ser maior que zero.");
 
-        var planoGratuidade = await _planoRepo.ObterPorIdAsync(_idGratuidadeVitalicia, ct)
-            ?? throw new BusinessException("Plano Gratuidade Vitalicia não encontrado. Verifique o seed.");
+        var plano = await _planoRepo.ObterPorIdAsync(cmd.PlanoId, ct)
+            ?? throw new BusinessException("Plano de trial nao encontrado.");
 
-        // Fecha a vigente antes de criar a nova (mesma transação).
+        if (!plano.Ativo)
+            throw new BusinessException("Nao e possivel iniciar trial com um plano inativo.");
+
+        var expiraEm = DateTimeOffset.UtcNow.AddDays(cmd.Dias);
+
         var vigente = await _assinaturaRepo.ObterVigenteDoEstabelecimentoAsync(cmd.EstabelecimentoId, ct);
         if (vigente is not null)
         {
@@ -51,27 +52,27 @@ public class ConcederGratuidadeAdminCommandHandler
             _assinaturaRepo.Atualizar(vigente);
         }
 
-        // Cria nova assinatura de gratuidade: motivo = gratuidade_motivo (armazenado no campo Motivo da linha).
         var nova = ImedtoAssinatura.Criar(
             cmd.EstabelecimentoId,
-            _idGratuidadeVitalicia,
-            gratuita: true,
-            motivo: cmd.GratuidadeMotivo.Trim(),
-            criadaPorAdminId: cmd.AdminId);
+            cmd.PlanoId,
+            gratuita: false,
+            motivo: cmd.Motivo,
+            criadaPorAdminId: cmd.AdminId,
+            expiraEm: expiraEm);
 
         _assinaturaRepo.Adicionar(nova);
         await _db.SaveChangesAsync(ct);
 
-        // CA32: invalida cache para efeito imediato
         _assinaturaService.InvalidarCache(cmd.EstabelecimentoId);
 
         await _audit.RegistrarAsync(
-            AcoesAuditAdmin.ConcederGratuidade,
+            AcoesAuditAdmin.AlterarAssinatura,
             cmd.AdminId,
             recursoTipo: "assinatura",
             recursoId: nova.Id.ToString(),
             tenantAfetadoId: cmd.EstabelecimentoId,
             motivo: cmd.Motivo,
+            payloadJson: $"{{\"acao\":\"iniciar_trial\",\"dias\":{cmd.Dias},\"plano\":\"{plano.Nome}\",\"expira_em\":\"{expiraEm:O}\"}}",
             ct: ct);
     }
 }

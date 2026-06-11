@@ -41,6 +41,7 @@ public class ImedtoPlanoQueryRepository
                 p.gratuito       AS Gratuito,
                 p.ativo          AS Ativo,
                 p.limites_json::text AS LimitesJson,
+                p.features_json::text AS FeaturesJson,
                 p.criado_em      AS CriadoEm,
                 p.atualizado_em  AS AtualizadoEm
             {sqlBase}
@@ -75,6 +76,7 @@ public class ImedtoPlanoQueryRepository
                 p.gratuito       AS Gratuito,
                 p.ativo          AS Ativo,
                 p.limites_json::text AS LimitesJson,
+                p.features_json::text AS FeaturesJson,
                 p.criado_em      AS CriadoEm,
                 p.atualizado_em  AS AtualizadoEm
             FROM imedto_planos p

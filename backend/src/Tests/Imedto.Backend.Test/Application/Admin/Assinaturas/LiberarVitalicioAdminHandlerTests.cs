@@ -14,17 +14,17 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Test.Application.Admin.Assinaturas;
 
 [TestFixture]
-public class TrocarPlanoAdminHandlerTests
+public class LiberarVitalicioAdminHandlerTests
 {
     private static readonly Guid _adminId = Guid.NewGuid();
-    private const long _eid = 1L;
+    private const long _eid = 10L;
 
     private AppDbContext _db = null!;
     private Mock<IImedtoAssinaturaRepository> _assinaturaRepoMock = null!;
     private Mock<IImedtoPlanoRepository> _planoRepoMock = null!;
     private Mock<IAssinaturaService> _assinaturaServiceMock = null!;
     private ImedtoAdminAuditWriter _audit = null!;
-    private TrocarPlanoAdminCommandHandler _handler = null!;
+    private LiberarVitalicioAdminCommandHandler _handler = null!;
 
     [SetUp]
     public void Setup()
@@ -46,7 +46,7 @@ public class TrocarPlanoAdminHandlerTests
             httpMock.Object,
             NullLogger<ImedtoAdminAuditWriter>.Instance);
 
-        _handler = new TrocarPlanoAdminCommandHandler(
+        _handler = new LiberarVitalicioAdminCommandHandler(
             _assinaturaRepoMock.Object,
             _planoRepoMock.Object,
             _audit,
@@ -60,8 +60,7 @@ public class TrocarPlanoAdminHandlerTests
     [Test]
     public async Task Handle_MotivoVazio_LancaBusinessException()
     {
-        var cmd = new TrocarPlanoAdminCommand(_eid, Guid.NewGuid(), DateTimeOffset.UtcNow, null, "", _adminId);
-
+        var cmd = new LiberarVitalicioAdminCommand(_eid, Guid.NewGuid(), "", _adminId);
         Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(cmd));
         await Task.CompletedTask;
     }
@@ -73,8 +72,7 @@ public class TrocarPlanoAdminHandlerTests
         _planoRepoMock.Setup(r => r.ObterPorIdAsync(planoId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((ImedtoPlano?)null);
 
-        var cmd = new TrocarPlanoAdminCommand(_eid, planoId, DateTimeOffset.UtcNow, null, "motivo", _adminId);
-
+        var cmd = new LiberarVitalicioAdminCommand(_eid, planoId, "motivo", _adminId);
         Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(cmd));
         await Task.CompletedTask;
     }
@@ -87,44 +85,38 @@ public class TrocarPlanoAdminHandlerTests
         _planoRepoMock.Setup(r => r.ObterPorIdAsync(plano.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plano);
 
-        var cmd = new TrocarPlanoAdminCommand(_eid, plano.Id, DateTimeOffset.UtcNow, null, "motivo", _adminId);
-
-        var ex = Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(cmd));
-        Assert.That(ex!.Message, Does.Contain("inativo"));
-
+        var cmd = new LiberarVitalicioAdminCommand(_eid, plano.Id, "motivo", _adminId);
+        Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(cmd));
         await Task.CompletedTask;
     }
 
     [Test]
-    public async Task Handle_SemAssinaturaVigente_CriaNovaERegistraAudit()
+    public async Task Handle_SemVigente_CriaVitalicioEInvalidaCache()
     {
-        // Sem vigente: nenhum FecharVigencia necessário.
-        var plano = ImedtoPlano.Criar("Plano Pro", null, null, false, "{}", _adminId);
+        var plano = ImedtoPlano.Criar("Plano Vitalicio", null, null, false, "{}", _adminId);
         _planoRepoMock.Setup(r => r.ObterPorIdAsync(plano.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plano);
         _assinaturaRepoMock.Setup(r => r.ObterVigenteDoEstabelecimentoAsync(_eid, It.IsAny<CancellationToken>()))
             .ReturnsAsync((ImedtoAssinatura?)null);
 
-        var cmd = new TrocarPlanoAdminCommand(_eid, plano.Id, DateTimeOffset.UtcNow, null, "troca inicial", _adminId);
-
+        var cmd = new LiberarVitalicioAdminCommand(_eid, plano.Id, "liberando vitalicio", _adminId);
         await _handler.Handle(cmd);
 
-        // Verifica que adicionou nova assinatura e registrou audit.
+        // Deve adicionar nova assinatura sem expiraEm
         _assinaturaRepoMock.Verify(r => r.Adicionar(It.Is<ImedtoAssinatura>(a =>
-            a.EstabelecimentoId == _eid && a.PlanoId == plano.Id && a.Gratuita == false)), Times.Once);
+            a.EstabelecimentoId == _eid && a.PlanoId == plano.Id && a.ExpiraEm == null)), Times.Once);
 
-        var logs = await _db.ImedtoAdminAuditLogs.ToListAsync();
-        Assert.That(logs, Has.Count.EqualTo(1));
-        Assert.That(logs[0].Acao, Is.EqualTo(AcoesAuditAdmin.TrocarPlano));
+        // CA32: cache deve ter sido invalidado
+        _assinaturaServiceMock.Verify(s => s.InvalidarCache(_eid), Times.Once);
     }
 
     [Test]
-    public async Task Handle_ComAssinaturaVigente_FechaAnteriorECriaNovaEmTransacao()
+    public async Task Handle_ComVigente_FechaAnteriorECriaVitalicioEInvalidaCache()
     {
-        var planoAntigo = ImedtoPlano.Criar("Plano Básico", null, null, false, "{}", _adminId);
-        var planoNovo = ImedtoPlano.Criar("Plano Pro", null, null, false, "{}", _adminId);
-
-        var vigente = ImedtoAssinatura.Criar(_eid, planoAntigo.Id, false, null, _adminId);
+        var planoAntigo = ImedtoPlano.Criar("Plano Trial", null, null, false, "{}", _adminId);
+        var planoNovo = ImedtoPlano.Criar("Plano Vitalicio", null, null, false, "{}", _adminId);
+        var vigente = ImedtoAssinatura.Criar(_eid, planoAntigo.Id, false, null, _adminId,
+            expiraEm: DateTimeOffset.UtcNow.AddDays(7));
 
         _planoRepoMock.Setup(r => r.ObterPorIdAsync(planoNovo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(planoNovo);
@@ -133,13 +125,17 @@ public class TrocarPlanoAdminHandlerTests
         _assinaturaRepoMock.Setup(r => r.ObterVigenteDoEstabelecimentoAsync(_eid, It.IsAny<CancellationToken>()))
             .ReturnsAsync(vigente);
 
-        var cmd = new TrocarPlanoAdminCommand(_eid, planoNovo.Id, DateTimeOffset.UtcNow, null, "upgrade", _adminId);
-
+        var cmd = new LiberarVitalicioAdminCommand(_eid, planoNovo.Id, "upgrade para vitalicio", _adminId);
         await _handler.Handle(cmd);
 
-        // Assinatura anterior deve ter sido fechada.
+        // Vigente anterior deve ter sido fechado
         Assert.That(vigente.EstaVigente(), Is.False);
         _assinaturaRepoMock.Verify(r => r.Atualizar(vigente), Times.Once);
-        _assinaturaRepoMock.Verify(r => r.Adicionar(It.IsAny<ImedtoAssinatura>()), Times.Once);
+
+        // Nova vigência criada com expiraEm null (vitalícia)
+        _assinaturaRepoMock.Verify(r => r.Adicionar(It.Is<ImedtoAssinatura>(a =>
+            a.ExpiraEm == null && a.PlanoId == planoNovo.Id)), Times.Once);
+
+        _assinaturaServiceMock.Verify(s => s.InvalidarCache(_eid), Times.Once);
     }
 }

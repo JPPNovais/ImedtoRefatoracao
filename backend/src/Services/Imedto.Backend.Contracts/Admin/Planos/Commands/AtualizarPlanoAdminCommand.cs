@@ -7,5 +7,6 @@ public record AtualizarPlanoAdminCommand(
     int? PrecoMensalCentavos,
     bool Gratuito,
     string LimitesJson,
+    string FeaturesJson,
     string Motivo,
     Guid AdminId);

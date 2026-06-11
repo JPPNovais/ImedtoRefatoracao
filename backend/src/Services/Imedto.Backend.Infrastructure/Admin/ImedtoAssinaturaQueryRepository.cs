@@ -18,7 +18,7 @@ public class ImedtoAssinaturaQueryRepository
         _connectionString = conn.Value;
     }
 
-    public async Task<IReadOnlyList<AssinaturaAdminDto>> ListarHistoricoAsync(
+    public virtual async Task<IReadOnlyList<AssinaturaAdminDto>> ListarHistoricoAsync(
         long estabelecimentoId,
         CancellationToken ct = default)
     {
@@ -31,10 +31,19 @@ public class ImedtoAssinaturaQueryRepository
                 p.gratuito          AS PlanoGratuito,
                 a.iniciada_em       AS IniciadaEm,
                 a.fim_em            AS FimEm,
+                a.expira_em         AS ExpiraEm,
+                a.suspensa_em       AS SuspensaEm,
                 a.gratuita          AS Gratuita,
                 a.motivo            AS Motivo,
                 a.criada_em         AS CriadaEm,
-                (a.fim_em IS NULL)  AS Vigente
+                (a.fim_em IS NULL)  AS Vigente,
+                CASE
+                    WHEN a.fim_em      IS NOT NULL                             THEN 'Encerrada'
+                    WHEN a.suspensa_em IS NOT NULL                             THEN 'Suspensa'
+                    WHEN a.expira_em   IS NOT NULL AND a.expira_em <= NOW()    THEN 'Expirada'
+                    WHEN a.expira_em   IS NULL                                 THEN 'Vitalicia'
+                    ELSE 'Temporaria'
+                END                 AS Estado
             FROM imedto_assinaturas a
             INNER JOIN imedto_planos p ON p.id = a.plano_id
             WHERE a.estabelecimento_id = @EstabelecimentoId

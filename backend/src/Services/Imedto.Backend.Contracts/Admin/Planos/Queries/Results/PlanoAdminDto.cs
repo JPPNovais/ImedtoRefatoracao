@@ -9,6 +9,7 @@ public class PlanoAdminDto
     public bool Gratuito { get; set; }
     public bool Ativo { get; set; }
     public string LimitesJson { get; set; } = "{}";
+    public string FeaturesJson { get; set; } = "{}";
     public DateTimeOffset CriadoEm { get; set; }
     public DateTimeOffset? AtualizadoEm { get; set; }
 }

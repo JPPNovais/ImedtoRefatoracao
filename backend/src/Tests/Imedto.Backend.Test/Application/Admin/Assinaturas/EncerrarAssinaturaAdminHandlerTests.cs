@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Imedto.Backend.Application.Admin.Assinaturas;
 using Imedto.Backend.Contracts.Admin.Assinaturas.Commands;
 using Imedto.Backend.Domain.Admin;
+using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Infrastructure.Admin;
 using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.SharedKernel.Domain;
@@ -19,6 +20,7 @@ public class EncerrarAssinaturaAdminHandlerTests
 
     private AppDbContext _db = null!;
     private Mock<IImedtoAssinaturaRepository> _assinaturaRepoMock = null!;
+    private Mock<IAssinaturaService> _assinaturaServiceMock = null!;
     private ImedtoAdminAuditWriter _audit = null!;
     private EncerrarAssinaturaAdminCommandHandler _handler = null!;
 
@@ -31,6 +33,7 @@ public class EncerrarAssinaturaAdminHandlerTests
         _db = new AppDbContext(options);
 
         _assinaturaRepoMock = new Mock<IImedtoAssinaturaRepository>();
+        _assinaturaServiceMock = new Mock<IAssinaturaService>();
 
         var httpMock = new Mock<IHttpContextAccessor>();
         httpMock.Setup(h => h.HttpContext).Returns((HttpContext?)null);
@@ -40,8 +43,10 @@ public class EncerrarAssinaturaAdminHandlerTests
             httpMock.Object,
             NullLogger<ImedtoAdminAuditWriter>.Instance);
 
+        // Ordem do ctor: (assinaturaRepo, assinaturaService, audit, db)
         _handler = new EncerrarAssinaturaAdminCommandHandler(
             _assinaturaRepoMock.Object,
+            _assinaturaServiceMock.Object,
             _audit,
             _db);
     }
@@ -81,10 +86,11 @@ public class EncerrarAssinaturaAdminHandlerTests
     }
 
     [Test]
-    public async Task Handle_AssinaturaVigente_EncerrraERegistraAudit()
+    public async Task Handle_AssinaturaVigente_EncerraEInvalidaCacheERegistraAudit()
     {
+        const long eid = 5L;
         var planoId = Guid.NewGuid();
-        var assinatura = ImedtoAssinatura.Criar(5, planoId, false, null, _adminId);
+        var assinatura = ImedtoAssinatura.Criar(eid, planoId, false, null, _adminId);
 
         _assinaturaRepoMock.Setup(r => r.ObterPorIdAsync(assinatura.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(assinatura);
@@ -95,6 +101,9 @@ public class EncerrarAssinaturaAdminHandlerTests
 
         Assert.That(assinatura.EstaVigente(), Is.False);
         _assinaturaRepoMock.Verify(r => r.Atualizar(assinatura), Times.Once);
+
+        // CA32
+        _assinaturaServiceMock.Verify(s => s.InvalidarCache(eid), Times.Once);
 
         var logs = await _db.ImedtoAdminAuditLogs.ToListAsync();
         Assert.That(logs, Has.Count.EqualTo(1));

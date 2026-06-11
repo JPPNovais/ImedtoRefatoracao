@@ -21,12 +21,7 @@ export const useAssinaturasStore = defineStore("adminAssinaturas", () => {
 
     async function trocarPlano(
         estabelecimentoId: number,
-        payload: {
-            planoId: string
-            inicio: string
-            fimEm?: string | null
-            motivo: string
-        },
+        payload: { planoId: string; inicio: string; fimEm?: string | null; motivo: string },
     ): Promise<void> {
         await assinaturasService.trocarPlano(estabelecimentoId, payload)
         await carregarHistorico(estabelecimentoId)
@@ -34,11 +29,7 @@ export const useAssinaturasStore = defineStore("adminAssinaturas", () => {
 
     async function concederGratuidade(
         estabelecimentoId: number,
-        payload: {
-            gratuidadeMotivo: string
-            fimEm?: string | null
-            motivo: string
-        },
+        payload: { gratuidadeMotivo: string; fimEm?: string | null; motivo: string },
     ): Promise<void> {
         await assinaturasService.concederGratuidade(estabelecimentoId, payload)
         await carregarHistorico(estabelecimentoId)
@@ -46,6 +37,42 @@ export const useAssinaturasStore = defineStore("adminAssinaturas", () => {
 
     async function encerrar(assinaturaId: string, estabelecimentoId: number, motivo: string): Promise<void> {
         await assinaturasService.encerrar(assinaturaId, motivo)
+        await carregarHistorico(estabelecimentoId)
+    }
+
+    // --- F4: ações de estado ---
+
+    async function liberarVitalicio(
+        estabelecimentoId: number,
+        payload: { planoId: string; motivo: string },
+    ): Promise<void> {
+        await assinaturasService.liberarVitalicio(estabelecimentoId, payload)
+        await carregarHistorico(estabelecimentoId)
+    }
+
+    async function liberarAteData(
+        estabelecimentoId: number,
+        payload: { planoId: string; dataExpiracao: string; motivo: string },
+    ): Promise<void> {
+        await assinaturasService.liberarAteData(estabelecimentoId, payload)
+        await carregarHistorico(estabelecimentoId)
+    }
+
+    async function iniciarTrial(
+        estabelecimentoId: number,
+        payload: { planoId: string; dias: number; motivo: string },
+    ): Promise<void> {
+        await assinaturasService.iniciarTrial(estabelecimentoId, payload)
+        await carregarHistorico(estabelecimentoId)
+    }
+
+    async function suspender(estabelecimentoId: number, motivo: string): Promise<void> {
+        await assinaturasService.suspender(estabelecimentoId, motivo)
+        await carregarHistorico(estabelecimentoId)
+    }
+
+    async function reativar(estabelecimentoId: number, motivo: string): Promise<void> {
+        await assinaturasService.reativar(estabelecimentoId, motivo)
         await carregarHistorico(estabelecimentoId)
     }
 
@@ -66,6 +93,11 @@ export const useAssinaturasStore = defineStore("adminAssinaturas", () => {
         trocarPlano,
         concederGratuidade,
         encerrar,
+        liberarVitalicio,
+        liberarAteData,
+        iniciarTrial,
+        suspender,
+        reativar,
         vigente,
         limpar,
     }

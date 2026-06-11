@@ -36,7 +36,8 @@ public class CriarPlanoAdminCommandHandler
             cmd.PrecoMensalCentavos,
             cmd.Gratuito,
             cmd.LimitesJson,
-            cmd.AdminId);
+            cmd.AdminId,
+            cmd.FeaturesJson);
 
         _planoRepo.Adicionar(plano);
         await _db.SaveChangesAsync(ct);

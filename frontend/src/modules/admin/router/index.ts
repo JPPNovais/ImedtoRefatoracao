@@ -78,6 +78,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                 name: "AdminConfiguracoes",
                 component: () => import("../views/ConfigsView.vue"),
             },
+            {
+                path: "config-trial",
+                name: "AdminConfigTrial",
+                component: () => import("../views/ConfigTrialView.vue"),
+            },
             // Catálogos — Modelos de prontuário
             {
                 path: "catalogos/modelos",

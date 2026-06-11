@@ -22,6 +22,7 @@ const mockPlano = {
     gratuito: false,
     ativo: true,
     limitesJson: "{}",
+    featuresJson: "{}",
     criadoEm: "2026-01-01T00:00:00Z",
     atualizadoEm: null,
 }

@@ -9,7 +9,8 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.API.Controllers.Admin;
 
 /// <summary>
-/// Gerenciamento do catálogo de planos Imedto (admin global).
+/// Gerenciamento do catalogo de planos Imedto (admin global).
+/// F4: form de criacao/edicao passa features_json e limites_json.
 /// </summary>
 [ApiController]
 [Route("api/admin/planos")]
@@ -74,6 +75,7 @@ public class AdminPlanosController : ControllerBase
             request.PrecoMensalCentavos,
             request.Gratuito,
             request.LimitesJson ?? "{}",
+            request.FeaturesJson ?? "{}",
             request.Motivo,
             adminId), ct);
         return NoContent();
@@ -92,6 +94,7 @@ public class AdminPlanosController : ControllerBase
             request.PrecoMensalCentavos,
             request.Gratuito,
             request.LimitesJson ?? "{}",
+            request.FeaturesJson ?? "{}",
             request.Motivo,
             adminId), ct);
         return NoContent();
@@ -100,7 +103,7 @@ public class AdminPlanosController : ControllerBase
     [HttpPost("{id:guid}/ativar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> Ativar(Guid id, [FromBody] MotivoRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Ativar(Guid id, [FromBody] PlanoMotivoRequest request, CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
         await _ativar.Handle(new AtivarPlanoAdminCommand(id, request.Motivo, adminId), ct);
@@ -110,7 +113,7 @@ public class AdminPlanosController : ControllerBase
     [HttpPost("{id:guid}/desativar")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> Desativar(Guid id, [FromBody] MotivoRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Desativar(Guid id, [FromBody] PlanoMotivoRequest request, CancellationToken ct = default)
     {
         var adminId = ObterAdminId();
         await _desativar.Handle(new DesativarPlanoAdminCommand(id, request.Motivo, adminId), ct);
@@ -133,6 +136,7 @@ public record CriarPlanoRequest(
     int? PrecoMensalCentavos,
     bool Gratuito,
     string? LimitesJson,
+    string? FeaturesJson,
     string Motivo);
 
 public record AtualizarPlanoRequest(
@@ -141,4 +145,8 @@ public record AtualizarPlanoRequest(
     int? PrecoMensalCentavos,
     bool Gratuito,
     string? LimitesJson,
+    string? FeaturesJson,
     string Motivo);
+
+/// <summary>Renomeado de MotivoRequest para evitar conflito com o record do AdminAssinaturasController.</summary>
+public record PlanoMotivoRequest(string Motivo);

@@ -21,6 +21,7 @@ const menuItems = [
     { name: "AdminDashboard",       label: "Dashboard",              icon: "fa-solid fa-gauge-high",   to: { name: "AdminDashboard" } },
     { name: "AdminEstabelecimentos", label: "Estabelecimentos",       icon: "fa-solid fa-building",     to: { name: "AdminEstabelecimentos" } },
     { name: "AdminPlanos",           label: "Planos",                 icon: "fa-solid fa-credit-card",  to: { name: "AdminPlanos" } },
+    { name: "AdminConfigTrial",     label: "Config. trial",          icon: "fa-solid fa-flask",        to: { name: "AdminConfigTrial" } },
     { name: "AdminAdmins",           label: "Administradores",        icon: "fa-solid fa-user-shield",  to: { name: "AdminAdminsList" } },
     { name: "AdminConfiguracoes",    label: "Configurações",          icon: "fa-solid fa-gear",         to: { name: "AdminConfiguracoes" } },
     { name: "AdminModelosGlobais",    label: "Modelos de prontuário",  icon: "fa-solid fa-file-medical",   to: { name: "AdminModelosGlobais" } },

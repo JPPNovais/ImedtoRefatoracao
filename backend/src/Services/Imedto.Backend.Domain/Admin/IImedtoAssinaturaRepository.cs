@@ -4,6 +4,7 @@ public interface IImedtoAssinaturaRepository
 {
     Task<ImedtoAssinatura?> ObterVigenteDoEstabelecimentoAsync(long estabelecimentoId, CancellationToken ct = default);
     Task<ImedtoAssinatura?> ObterPorIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<long>> ListarEstabelecimentosComPlanoAtivoAsync(Guid planoId, CancellationToken ct = default);
     void Adicionar(ImedtoAssinatura assinatura);
     void Atualizar(ImedtoAssinatura assinatura);
 }

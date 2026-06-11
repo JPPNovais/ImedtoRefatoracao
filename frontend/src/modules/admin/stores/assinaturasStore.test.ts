@@ -9,6 +9,11 @@ vi.mock("../services/assinaturasService", () => ({
         trocarPlano: vi.fn(),
         concederGratuidade: vi.fn(),
         encerrar: vi.fn(),
+        liberarVitalicio: vi.fn(),
+        liberarAteData: vi.fn(),
+        iniciarTrial: vi.fn(),
+        suspender: vi.fn(),
+        reativar: vi.fn(),
     },
 }))
 
@@ -20,10 +25,13 @@ const mockAssinatura = {
     planoGratuito: false,
     iniciadaEm: "2026-01-01T00:00:00Z",
     fimEm: null,
+    expiraEm: null,
+    suspensaEm: null,
     gratuita: false,
     motivo: null,
     criadaEm: "2026-01-01T00:00:00Z",
     vigente: true,
+    estado: "Vitalicia",
 }
 
 describe("assinaturasStore", () => {
@@ -74,6 +82,39 @@ describe("assinaturasStore", () => {
 
         expect(assinaturasServiceModule.assinaturasService.trocarPlano).toHaveBeenCalledOnce()
         expect(assinaturasServiceModule.assinaturasService.listarHistorico).toHaveBeenCalledWith(1)
+    })
+
+    it("liberarVitalicio — chama service e recarrega historico", async () => {
+        vi.mocked(assinaturasServiceModule.assinaturasService.liberarVitalicio).mockResolvedValueOnce(undefined)
+        vi.mocked(assinaturasServiceModule.assinaturasService.listarHistorico).mockResolvedValueOnce([mockAssinatura])
+
+        const store = useAssinaturasStore()
+        await store.liberarVitalicio(1, { planoId: "cccc-3333", motivo: "parceiro" })
+
+        expect(assinaturasServiceModule.assinaturasService.liberarVitalicio).toHaveBeenCalledOnce()
+    })
+
+    it("suspender — chama service e recarrega historico", async () => {
+        vi.mocked(assinaturasServiceModule.assinaturasService.suspender).mockResolvedValueOnce(undefined)
+        vi.mocked(assinaturasServiceModule.assinaturasService.listarHistorico).mockResolvedValueOnce([
+            { ...mockAssinatura, estado: "Suspensa", suspensaEm: "2026-06-11T00:00:00Z" },
+        ])
+
+        const store = useAssinaturasStore()
+        await store.suspender(1, "inadimplência")
+
+        expect(assinaturasServiceModule.assinaturasService.suspender).toHaveBeenCalledWith(1, "inadimplência")
+        expect(store.historico[0].estado).toBe("Suspensa")
+    })
+
+    it("reativar — chama service e recarrega historico", async () => {
+        vi.mocked(assinaturasServiceModule.assinaturasService.reativar).mockResolvedValueOnce(undefined)
+        vi.mocked(assinaturasServiceModule.assinaturasService.listarHistorico).mockResolvedValueOnce([mockAssinatura])
+
+        const store = useAssinaturasStore()
+        await store.reativar(1, "pagamento regularizado")
+
+        expect(assinaturasServiceModule.assinaturasService.reativar).toHaveBeenCalledWith(1, "pagamento regularizado")
     })
 
     it("limpar — zera historico e erro", async () => {
