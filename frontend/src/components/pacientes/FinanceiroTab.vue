@@ -619,7 +619,7 @@ function origemMeta(origem: string) {
     background: hsl(var(--secondary) / 0.06);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; color: hsl(var(--secondary) / 0.4);
+    font-size: var(--text-2xl); color: hsl(var(--secondary) / 0.4);
     margin-bottom: 4px;
 }
 .fin-restricted b {
@@ -705,7 +705,7 @@ function origemMeta(origem: string) {
     flex-shrink: 0;
     white-space: nowrap;
 }
-.cc-origin i { font-size: 10px; }
+.cc-origin i { font-size: var(--text-2xs); }
 
 .cc-desc { flex: 1; min-width: 140px; }
 .cc-desc b { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); color: hsl(var(--primary-dark)); display: block; }
@@ -734,7 +734,7 @@ function origemMeta(origem: string) {
     background: none; border: none; cursor: pointer;
     color: hsl(var(--secondary) / 0.45);
     padding: 4px; display: flex; align-items: center;
-    font-size: 12px;
+    font-size: var(--text-xs);
     transition: color 150ms;
 }
 .cc-chev:hover { color: hsl(var(--primary)); }
@@ -757,7 +757,7 @@ function origemMeta(origem: string) {
     background: hsl(var(--secondary) / 0.04);
     border-radius: 6px; padding: 8px 12px;
 }
-.cc-convenio-note i { color: hsl(var(--primary) / 0.6); font-size: 13px; }
+.cc-convenio-note i { color: hsl(var(--primary) / 0.6); font-size: var(--text-sm); }
 
 /* Ledger (pagamentos + estornos) */
 .pay-ledger { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
@@ -773,7 +773,7 @@ function origemMeta(origem: string) {
     border: 1px solid hsl(var(--error) / 0.1);
     margin-left: 24px;
 }
-.lr-icon { color: hsl(var(--secondary) / 0.4); font-size: 14px; flex-shrink: 0; }
+.lr-icon { color: hsl(var(--secondary) / 0.4); font-size: var(--text-base); flex-shrink: 0; }
 .ledger-row.refund .lr-icon { color: hsl(var(--error) / 0.6); }
 .lr-info { flex: 1; min-width: 0; }
 .lr-info b { display: block; font-size: var(--text-sm); color: hsl(var(--primary-dark)); font-weight: var(--font-weight-semibold); }

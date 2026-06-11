@@ -371,6 +371,6 @@ const fatiasDonut = computed(() =>
     cursor: pointer;
 }
 .rp-por-paciente-row:hover td { background: hsl(var(--primary) / 0.04); }
-.lucro-pos { color: hsl(var(--success)); font-weight: 600; }
-.lucro-neg { color: hsl(var(--destructive)); font-weight: 600; }
+.lucro-pos { color: hsl(var(--success)); font-weight: var(--font-weight-semibold); }
+.lucro-neg { color: hsl(var(--destructive)); font-weight: var(--font-weight-semibold); }
 </style>

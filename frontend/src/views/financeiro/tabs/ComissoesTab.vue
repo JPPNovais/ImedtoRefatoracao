@@ -197,7 +197,7 @@ function formatarData(s: string) {
     color: hsl(var(--muted-foreground));
 }
 .detalhe-pac { font-weight: var(--font-weight-medium); color: hsl(var(--foreground)); }
-.detalhe-tipo { font-weight: normal; color: hsl(var(--muted-foreground)); }
+.detalhe-tipo { font-weight: var(--font-weight-regular); color: hsl(var(--muted-foreground)); }
 
 .comissao-valor { color: hsl(var(--primary)); font-weight: var(--font-weight-semibold); }
 .total-foot-label { text-align: right; font-weight: var(--font-weight-semibold); padding: 0.6rem 0.75rem; background: hsl(var(--muted)); }

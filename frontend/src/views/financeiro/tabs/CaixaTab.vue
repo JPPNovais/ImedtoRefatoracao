@@ -233,7 +233,7 @@ function formatarData(s: string) {
     text-align: center;
 }
 .estado-icon {
-    font-size: 2.5rem;
+    font-size: var(--text-3xl);
     color: hsl(var(--muted-foreground));
 }
 .estado-desc { color: hsl(var(--muted-foreground)); font-size: var(--text-sm); margin: 0; }
