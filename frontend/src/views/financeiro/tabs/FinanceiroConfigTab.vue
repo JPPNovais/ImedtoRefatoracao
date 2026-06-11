@@ -3,140 +3,190 @@
  * FinanceiroConfigTab — Configurações financeiras embutidas no painel /financeiro.
  *
  * Layout: grid 2-col.
- *  - Card comissão (full-width / cfg-span): funcional, seleciona profissional, percentuais.
+ *  - Card comissão (full-width / cfg-span): lista de profissionais com percentuais + modal de edição.
  *  - Card taxa de cartão: "Em breve" (decisão D4 do briefing 2026-06-11_002).
  *  - Card tabela de preços: "Em breve".
  *
- * Apenas Dono vê o card de comissão (CA178).
+ * Apenas Dono vê o card de comissão (CA178 / briefing 2026-06-11_002).
+ * Redesign: lista + modal — briefing 2026-06-11_004.
  */
 import { ref, onMounted } from "vue"
-import { AppButton, AppField, AppInputDecimal, AppToast } from "@/components/ui"
+import { AppButton, AppField, AppInputDecimal, AppToast, AppModal, AppBadge } from "@/components/ui"
 import { financeiroService, type ConfigComissao } from "@/services/financeiroService"
 import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
 
 const props = defineProps<{ ehDono: boolean }>()
 
-// ─── Config de comissão ────────────────────────────────────────────────────────
-const profissionais = ref<ProfissionalPublico[]>([])
-const profSelecionado = ref<ProfissionalPublico | null>(null)
-const config = ref<ConfigComissao | null>(null)
-const carregandoProf = ref(false)
-const carregandoConfig = ref(false)
+// ─── Tipo para linha da lista ────────────────────────────────────────────────
+interface LinhaComissao {
+    profissional: ProfissionalPublico
+    config: ConfigComissao
+}
+
+// ─── Estado da lista ─────────────────────────────────────────────────────────
+const linhas = ref<LinhaComissao[]>([])
+const percentualPadrao = ref<number>(30)
+const carregando = ref(false)
+const erroCarregar = ref<string | null>(null)
+
+// ─── Estado do modal de edição ───────────────────────────────────────────────
+const modalAberto = ref(false)
+const profEditando = ref<ProfissionalPublico | null>(null)
+// AppInputDecimal emite string; convertemos para Number só no payload (null permanece null)
+const formEdicao = ref<{ percentualConsulta: string | null; percentualProcedimento: string | null }>({
+    percentualConsulta: null,
+    percentualProcedimento: null,
+})
 const salvando = ref(false)
-const formComissao = ref({ percentualConsulta: null as number | null, percentualProcedimento: null as number | null })
-const erroComissao = ref<string | null>(null)
+const erroSalvar = ref<string | null>(null)
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
 const toast = ref<{ mensagem: string; variante: "success" | "error" } | null>(null)
 
-async function carregarProfissionais() {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function ePadrao(linha: LinhaComissao): boolean {
+    // R1: badge PADRÃO quando ambos percentuais iguais ao padrão do sistema
+    const padrao = linha.config.percentualPadrao
+    const consulta = linha.config.percentualConsulta ?? padrao
+    const procedimento = linha.config.percentualProcedimento ?? padrao
+    return consulta === padrao && procedimento === padrao
+}
+
+function formatarPct(valor: number | null, padrao: number): string {
+    return String(valor ?? padrao)
+}
+
+// ─── Carregamento ────────────────────────────────────────────────────────────
+async function carregarTodos() {
     if (!props.ehDono) return
-    carregandoProf.value = true
+    carregando.value = true
+    erroCarregar.value = null
     try {
-        profissionais.value = await vinculoService.listarProfissionaisPublico()
+        const profissionais = await vinculoService.listarProfissionaisPublico()
+        // Opção A: N requisições em paralelo (seguro — paralelismo no front, não na mesma conexão Npgsql)
+        const configs = await Promise.all(
+            profissionais.map(p => financeiroService.obterConfigComissao(p.usuarioId))
+        )
+        linhas.value = profissionais.map((p, i) => ({ profissional: p, config: configs[i] }))
+        if (configs.length > 0) {
+            percentualPadrao.value = configs[0].percentualPadrao
+        }
+    } catch {
+        erroCarregar.value = "Erro ao carregar comissões."
     } finally {
-        carregandoProf.value = false
+        carregando.value = false
     }
 }
 
-async function selecionarProfissional(prof: ProfissionalPublico) {
-    profSelecionado.value = prof
-    carregandoConfig.value = true
-    erroComissao.value = null
-    try {
-        config.value = await financeiroService.obterConfigComissao(prof.usuarioId)
-        formComissao.value = {
-            percentualConsulta: config.value.percentualConsulta,
-            percentualProcedimento: config.value.percentualProcedimento,
-        }
-    } catch {
-        config.value = null
-    } finally {
-        carregandoConfig.value = false
+// ─── Modal de edição ─────────────────────────────────────────────────────────
+function abrirModal(linha: LinhaComissao) {
+    profEditando.value = linha.profissional
+    const padrao = linha.config.percentualPadrao
+    const c = linha.config.percentualConsulta ?? padrao
+    const p = linha.config.percentualProcedimento ?? padrao
+    formEdicao.value = {
+        percentualConsulta: c != null ? String(c) : null,
+        percentualProcedimento: p != null ? String(p) : null,
     }
+    erroSalvar.value = null
+    modalAberto.value = true
+}
+
+function fecharModal() {
+    modalAberto.value = false
+    profEditando.value = null
+    erroSalvar.value = null
 }
 
 async function salvarComissao() {
-    if (!profSelecionado.value) return
-    salvando.value = true; erroComissao.value = null
+    if (!profEditando.value) return
+    salvando.value = true
+    erroSalvar.value = null
     try {
+        const toNum = (v: string | null): number | null =>
+            v === null || v === "" ? null : Number(v)
         await financeiroService.salvarConfigComissao({
-            profissionalUsuarioId: profSelecionado.value.usuarioId,
-            percentualConsulta: formComissao.value.percentualConsulta,
-            percentualProcedimento: formComissao.value.percentualProcedimento,
+            profissionalUsuarioId: profEditando.value.usuarioId,
+            percentualConsulta: toNum(formEdicao.value.percentualConsulta),
+            percentualProcedimento: toNum(formEdicao.value.percentualProcedimento),
         })
+        // Atualiza linha localmente re-buscando config do profissional editado
+        const novaConfig = await financeiroService.obterConfigComissao(profEditando.value.usuarioId)
+        const idx = linhas.value.findIndex(l => l.profissional.usuarioId === profEditando.value!.usuarioId)
+        if (idx !== -1) {
+            linhas.value[idx] = { ...linhas.value[idx], config: novaConfig }
+        }
         toast.value = { mensagem: "Comissão salva.", variante: "success" }
-        config.value = await financeiroService.obterConfigComissao(profSelecionado.value.usuarioId)
+        fecharModal()
     } catch (e: any) {
-        erroComissao.value = e?.response?.data?.mensagem ?? "Erro ao salvar comissão."
+        erroSalvar.value = "Erro ao salvar comissão."
     } finally {
         salvando.value = false
     }
 }
 
-onMounted(carregarProfissionais)
+onMounted(carregarTodos)
 </script>
 
 <template>
     <div class="config-tab">
 
-        <!-- Card comissão (apenas Dono) -->
+        <!-- Card comissão (apenas Dono) — lista + modal (briefing 2026-06-11_004) -->
         <div v-if="ehDono" class="cfg-card cfg-span">
             <div class="cfg-card-h">
                 <div class="cfg-card-title-block">
                     <span class="cfg-ic comissoes"><i class="fa-solid fa-percent" aria-hidden="true" /></span>
                     <div>
                         <b>Comissões por profissional</b>
-                        <p>Defina o percentual de consulta e procedimento por profissional. Padrão: 30%.</p>
+                        <p>Defina o percentual de consulta e procedimento por profissional.</p>
                     </div>
                 </div>
+                <span class="cfg-padrao-tag">Padrão do sistema: {{ percentualPadrao }}%</span>
             </div>
 
-            <div class="cfg-card-body">
-                <!-- Seletor de profissional -->
-                <div class="prof-selector">
-                    <span class="prof-selector-label">Profissional</span>
-                    <div v-if="carregandoProf" class="info">Carregando profissionais...</div>
-                    <div v-else class="prof-list">
+            <div class="cfg-comm-lista">
+                <!-- Estado: carregando -->
+                <p v-if="carregando" class="comm-state-msg">
+                    <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true" />
+                    Carregando comissões...
+                </p>
+
+                <!-- Estado: erro ao carregar -->
+                <p v-else-if="erroCarregar" class="comm-state-msg comm-state-erro">
+                    {{ erroCarregar }}
+                </p>
+
+                <!-- Estado: vazio -->
+                <p v-else-if="linhas.length === 0" class="comm-state-msg">
+                    Nenhum profissional cadastrado neste estabelecimento.
+                </p>
+
+                <!-- Lista de profissionais -->
+                <template v-else>
+                    <div
+                        v-for="linha in linhas"
+                        :key="linha.profissional.usuarioId"
+                        class="comm-row"
+                    >
+                        <span class="comm-name">
+                            <i class="fa-solid fa-user-doctor" aria-hidden="true" />
+                            {{ linha.profissional.nomeCompleto }}
+                        </span>
+                        <span class="comm-vals">
+                            Consulta {{ formatarPct(linha.config.percentualConsulta, linha.config.percentualPadrao) }}%
+                            · Procedimento {{ formatarPct(linha.config.percentualProcedimento, linha.config.percentualPadrao) }}%
+                        </span>
+                        <AppBadge v-if="ePadrao(linha)" variant="muted" label="PADRÃO" />
+                        <span v-else class="comm-badge-placeholder" />
                         <button
-                            v-for="p in profissionais"
-                            :key="p.usuarioId"
-                            class="prof-chip"
-                            :class="{ ativo: profSelecionado?.usuarioId === p.usuarioId }"
-                            @click="selecionarProfissional(p)"
+                            class="btn-icon btn-icon-editar"
+                            title="Editar comissão"
+                            @click="abrirModal(linha)"
                         >
-                            {{ p.nomeCompleto }}
+                            <i class="fa-solid fa-pen" aria-hidden="true" />
                         </button>
                     </div>
-                </div>
-
-                <template v-if="profSelecionado">
-                    <div v-if="carregandoConfig" class="info">Carregando configuração...</div>
-                    <div v-else class="comissao-form">
-                        <AppField label="Percentual — Consultas (%)">
-                            <AppInputDecimal
-                                v-model="formComissao.percentualConsulta"
-                                :min="0"
-                                :max="100"
-                                :placeholder="`Padrão: ${config?.percentualPadrao ?? 30}%`"
-                            />
-                        </AppField>
-                        <AppField label="Percentual — Procedimentos (%)">
-                            <AppInputDecimal
-                                v-model="formComissao.percentualProcedimento"
-                                :min="0"
-                                :max="100"
-                                :placeholder="`Padrão: ${config?.percentualPadrao ?? 30}%`"
-                            />
-                        </AppField>
-                        <p v-if="erroComissao" class="msg-erro">{{ erroComissao }}</p>
-                        <div class="form-acoes">
-                            <AppButton :loading="salvando" @click="salvarComissao">Salvar comissão</AppButton>
-                        </div>
-                    </div>
                 </template>
-                <p v-else class="info sel-hint">
-                    <i class="fa-regular fa-hand-pointer" aria-hidden="true" />
-                    Selecione um profissional acima para configurar.
-                </p>
             </div>
         </div>
 
@@ -186,6 +236,35 @@ onMounted(carregarProfissionais)
         </div>
     </div>
 
+    <!-- Modal de edição de comissão -->
+    <AppModal
+        :aberto="modalAberto"
+        largura="sm"
+        :titulo="profEditando ? `Editar comissão — ${profEditando.nomeCompleto}` : 'Editar comissão'"
+        @fechar="fecharModal"
+    >
+        <AppField label="Percentual — Consultas (%)">
+            <AppInputDecimal
+                v-model="formEdicao.percentualConsulta"
+                :decimals="0"
+                :placeholder="`Padrão: ${percentualPadrao}%`"
+            />
+        </AppField>
+        <AppField label="Percentual — Procedimentos (%)">
+            <AppInputDecimal
+                v-model="formEdicao.percentualProcedimento"
+                :decimals="0"
+                :placeholder="`Padrão: ${percentualPadrao}%`"
+            />
+        </AppField>
+        <p v-if="erroSalvar" class="modal-erro">{{ erroSalvar }}</p>
+
+        <template #rodape>
+            <AppButton variant="secondary" @click="fecharModal">Cancelar</AppButton>
+            <AppButton :loading="salvando" @click="salvarComissao">Salvar</AppButton>
+        </template>
+    </AppModal>
+
     <AppToast v-if="toast" :mensagem="toast.mensagem" :variante="toast.variante" @fechar="toast = null" />
 </template>
 
@@ -216,6 +295,10 @@ onMounted(carregarProfissionais)
 .cfg-card-h {
     padding: 16px 18px;
     border-bottom: 1px solid hsl(var(--secondary) / 0.07);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 .cfg-card-title-block {
     display: flex;
@@ -250,58 +333,82 @@ onMounted(carregarProfissionais)
     line-height: 1.5;
 }
 
-/* Corpo do card comissão */
-.cfg-card-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+/* Tag "Padrão do sistema: X%" no cabeçalho */
+.cfg-padrao-tag {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--secondary) / 0.6);
+    background: hsl(var(--secondary) / 0.06);
+    padding: 4px 11px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
 
-/* Seletor de profissional */
-.prof-selector { display: flex; flex-direction: column; gap: 10px; }
-.prof-selector-label {
+/* Lista de comissão */
+.cfg-comm-lista { padding: 8px; }
+
+.comm-state-msg {
+    padding: 16px 12px;
+    font-size: var(--text-sm);
+    color: hsl(var(--secondary) / 0.6);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.comm-state-erro { color: hsl(var(--destructive)); }
+
+/* Linha de profissional */
+.comm-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 14px;
+    align-items: center;
+    padding: 11px 12px;
+    border-radius: 8px;
+    transition: background 0.1s;
+}
+.comm-row:hover { background: hsl(var(--secondary) / 0.03); }
+
+.comm-name {
     font-size: var(--text-sm);
     font-weight: var(--font-weight-semibold);
     color: var(--c-primary-dark);
-}
-.prof-list { display: flex; gap: 8px; flex-wrap: wrap; }
-.prof-chip {
-    padding: 6px 14px;
-    border: 1px solid hsl(var(--secondary) / 0.15);
-    border-radius: 999px;
-    font-size: var(--text-sm);
-    background: hsl(var(--secondary) / 0.04);
-    cursor: pointer;
-    color: hsl(var(--secondary) / 0.8);
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-    border-style: solid;
-}
-.prof-chip.ativo {
-    background: hsl(var(--primary));
-    border-color: hsl(var(--primary));
-    color: #fff;
-}
-.prof-chip:hover:not(.ativo) {
-    background: hsl(var(--secondary) / 0.08);
-    color: var(--c-primary-dark);
-}
-
-/* Formulário de comissão */
-.comissao-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    max-width: 600px;
-}
-.comissao-form .msg-erro { grid-column: 1 / -1; }
-.form-acoes { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
-@media (max-width: 600px) {
-    .comissao-form { grid-template-columns: 1fr; }
-}
-
-/* Hint de seleção */
-.sel-hint {
     display: inline-flex;
     align-items: center;
     gap: 8px;
 }
-.sel-hint i { color: hsl(var(--secondary) / 0.4); }
+.comm-name i { color: hsl(var(--secondary) / 0.4); }
+
+.comm-vals {
+    font-size: var(--text-sm);
+    color: hsl(var(--secondary) / 0.75);
+    white-space: nowrap;
+}
+
+/* Placeholder para manter alinhamento quando não há badge */
+.comm-badge-placeholder { display: inline-block; width: 56px; }
+
+/* Responsivo: em telas estreitas, percentuais vão abaixo do nome */
+@media (max-width: 600px) {
+    .comm-row {
+        grid-template-columns: 1fr auto auto;
+        grid-template-rows: auto auto;
+    }
+    .comm-name { grid-column: 1; grid-row: 1; }
+    .comm-vals { grid-column: 1; grid-row: 2; font-size: var(--text-xs); }
+    .comm-badge-placeholder,
+    :deep(.count-badge) { grid-column: 2; grid-row: 1; }
+    .btn-icon { grid-column: 3; grid-row: 1; }
+}
+
+/* Erro dentro do modal */
+.modal-erro {
+    font-size: var(--text-sm);
+    color: hsl(var(--destructive));
+    margin: 0;
+}
 
 /* Card Em breve */
 .cfg-soon-body {
@@ -329,7 +436,4 @@ onMounted(carregarProfissionais)
     color: hsl(var(--secondary) / 0.55);
     margin: 0;
 }
-
-.info { color: hsl(var(--secondary) / 0.6); font-size: var(--text-sm); }
-.msg-erro { color: hsl(var(--destructive)); font-size: var(--text-sm); margin: 0; }
 </style>
