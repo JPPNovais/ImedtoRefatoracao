@@ -62,7 +62,7 @@ public class RelatorioQueryRepository
                 tipo                    AS Tipo,
                 COALESCE(SUM(CASE WHEN status = 'Pago'     THEN valor ELSE 0 END), 0) AS TotalPago,
                 COALESCE(SUM(CASE WHEN status = 'Pendente' THEN valor ELSE 0 END), 0) AS TotalPendente,
-                COUNT(*)                AS Quantidade
+                COUNT(*)::int           AS Quantidade
             FROM lancamentos
             WHERE estabelecimento_id = @EstabelecimentoId
               AND status != 'Cancelado'
@@ -89,7 +89,7 @@ public class RelatorioQueryRepository
 
         // Batch único: 1 round-trip ao Postgres em vez de 2.
         const string sqlBatch = """
-            SELECT status AS Status, COUNT(*) AS Quantidade
+            SELECT status AS Status, COUNT(*)::int AS Quantidade
             FROM agendamentos
             WHERE estabelecimento_id = @EstabelecimentoId
               AND (@DataInicio::date IS NULL OR inicio_previsto::date >= @DataInicio::date)
@@ -97,7 +97,7 @@ public class RelatorioQueryRepository
             GROUP BY status
             ORDER BY Quantidade DESC;
 
-            SELECT inicio_previsto::date AS Data, COUNT(*) AS Quantidade
+            SELECT inicio_previsto::date AS Data, COUNT(*)::int AS Quantidade
             FROM agendamentos
             WHERE estabelecimento_id = @EstabelecimentoId
               AND (@DataInicio::date IS NULL OR inicio_previsto::date >= @DataInicio::date)
