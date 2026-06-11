@@ -361,6 +361,7 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
   permanece append-only; evolução antiga com conduta texto livre renderiza sem quebrar.
 - **Riscos**: conclusão automática precisa de gancho confiável em cada ação (evento de domínio por ação);
   idempotência (salvar 2x não duplica pendência); não quebrar render do prontuário nem o `ConteudoJson` histórico.
+- **Status**: implementado — `planejamentos/2026-06-10_012_financeiro-f3b-conduta-pendencias.md` (CA59–CA75). **Addendum de UX** `..._addendum.md` (CA190–CA201): o pós-save vira **widget flutuante** ancorado no canto inferior direito (estilo widget de chat, não-bloqueante) em vez do modal central; corrige o bug do fundo transparente (`var(--card)` → `hsl(var(--card))`). Sem mudança de backend.
 
 ### F4 — Cobrança de procedimento ao marcar como realizado — **M**
 - **Status**: implementado e validado (QA aprovado) — `planejamentos/2026-06-10_013_financeiro-f4-cobranca-procedimento.md` (CA76–CA89) + addendum vínculo produto↔estoque `..._addendum.md` (CA90–CA96, spec gap Tipo B resolvido: `orcamento_catalogo_produto.item_inventario_id` adicionado espelhando `orcamento_catalogo_implante`). Migration `20260611011105` pendente de apply em prod.

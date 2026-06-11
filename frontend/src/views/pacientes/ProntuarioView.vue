@@ -36,7 +36,7 @@ import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTa
 import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
 import PedidoExameTab              from "@/components/prontuario/tabs/PedidoExameTab.vue"
 import { exameFisicoService }      from "@/services/exameFisicoService"
-import ProximosPassosModal        from "@/components/prontuario/ProximosPassosModal.vue"
+import WidgetProximosPassos        from "@/components/prontuario/WidgetProximosPassos.vue"
 import { type AcaoPendencia }     from "@/services/pendenciaService"
 
 const { gerarPdf: gerarPdfProntuario, gerarPdfEvolucao } = useProntuarioPdf()
@@ -75,10 +75,10 @@ function notificar(msg: string, variante: "info" | "success" | "error" = "succes
     toast.value = { msg, variante }
 }
 
-// Modal "Próximos passos" — aberto após salvar evolução com conduta checklist (CA70)
-const proximosPassosAberto = ref(false)
+// Widget "Próximos passos" — aberto após salvar evolução com conduta checklist (CA70/CA190)
+const proximosPassosVisivel = ref(false)
 const proximosPassosAcoes = ref<AcaoPendencia[]>([])
-// F5/R1: id da evolução recém-salva — passado ao modal para CriarOrcamento gerar pré-preenchimento (CA97).
+// F5/R1: id da evolução recém-salva — passado ao widget para CriarOrcamento gerar pré-preenchimento (CA97/CA195).
 const proximosPassosEvolucaoId = ref<number | undefined>(undefined)
 
 // Seções do modelo atualmente selecionado
@@ -246,9 +246,9 @@ async function salvarEvolucao() {
             const acoes = (conduta as { acoesMarcadas?: AcaoPendencia[] }).acoesMarcadas ?? []
             if (acoes.length > 0) {
                 proximosPassosAcoes.value = acoes
-                // F5/R1: salva evolucaoId para pré-preenchimento do form de orçamento (CA97).
+                // F5/R1: salva evolucaoId para pré-preenchimento do form de orçamento (CA97/CA195).
                 proximosPassosEvolucaoId.value = evolucaoId ?? undefined
-                proximosPassosAberto.value = true
+                proximosPassosVisivel.value = true
             }
         }
 
@@ -481,12 +481,14 @@ async function finalizarAtendimento() {
             @fechar="toast = null"
         />
 
-        <ProximosPassosModal
-            :aberto="proximosPassosAberto"
+        <!-- Widget flutuante pós-save com conduta (CA190). Só monta se visível (CA191). -->
+        <WidgetProximosPassos
+            v-if="proximosPassosVisivel"
             :acoes-marcadas="proximosPassosAcoes"
             :paciente-id="pacienteId"
             :evolucao-id="proximosPassosEvolucaoId"
-            @fechar="proximosPassosAberto = false"
+            :rota-atual="route.fullPath"
+            @fechar="proximosPassosVisivel = false"
         />
     </main>
 </template>
