@@ -520,6 +520,7 @@ public static class Container
         services.AddScoped<MarcarProcedimentoRealizadoCommandHandler>(); // F4 — 2026-06-10_013
         services.AddSingleton<ListarPendenciasAbertasQueryHandler>();
         services.AddSingleton<PreviewProcedimentoRealizadoQueryHandler>(); // F4 — leitura pura
+        services.AddSingleton<ObterProcedimentosIndicadosQueryHandler>(); // F5 — pré-preenchimento form de orçamento
         // Handlers de conclusão automática (ouvem eventos existentes — R7-R11)
         services.AddScoped<ConcluirPendenciaAoEmitirReceitaHandler>();
         services.AddScoped<ConcluirPendenciaAoEmitirAtestadoHandler>();
@@ -1289,6 +1290,8 @@ public static class Container
             bus.Register<ListarPendenciasAbertasQuery, IReadOnlyList<PendenciaAbertaDto>, ListarPendenciasAbertasQueryHandler>();
             // F4 — Preview modal MarcarProcedimentoRealizado (briefing 2026-06-10_013).
             bus.Register<PreviewProcedimentoRealizadoQuery, PreviewProcedimentoRealizadoDto, PreviewProcedimentoRealizadoQueryHandler>();
+            // F5 — Pré-preenchimento form de orçamento (briefing 2026-06-10_014).
+            bus.Register<ObterProcedimentosIndicadosQuery, IEnumerable<ProcedimentoIndicadoDto>, ObterProcedimentosIndicadosQueryHandler>();
             // Cobranças F1/F2 (2026-06-10).
             bus.Register<ObterCobrancaDaAgendaQuery, CobrancaDetalheDto?, ObterCobrancaDaAgendaQueryHandlers>();
             bus.Register<ObterValorSugeridoCheckInQuery, ValorSugeridoCheckInDto, ObterValorSugeridoCheckInQueryHandlers>();

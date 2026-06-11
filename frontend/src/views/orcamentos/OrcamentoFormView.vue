@@ -40,6 +40,7 @@ import {
 import { formaPagamentoService, type FormaPagamento } from "@/services/categoriaFinanceiraService"
 import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
 import { pacienteService, type PacienteBuscaRapida } from "@/services/pacienteService"
+import { prontuarioService } from "@/services/prontuarioService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
     AppButton, AppCard,
@@ -65,6 +66,11 @@ const pacienteIdInicial = computed<number | null>(() => {
     const v = route.query.pacienteId
     return v ? Number(v) : null
 })
+// F5/R1: pré-preenchimento de cirurgias via ?evolucaoId= (CA97/CA98).
+const evolucaoIdInicial = computed<number | null>(() => {
+    const v = route.query.evolucaoId
+    return v ? Number(v) : null
+})
 
 // ── Estado do form (criar ou editar — mesmo formato) ────────────────────────
 const orcamentoCarregado = ref<Orcamento | null>(null) // só em modo "editar"
@@ -74,6 +80,8 @@ const erro = ref<string | null>(null)
 
 // Bloqueio de permissão: quando catálogos retornam 422, o form não pode ser usado.
 const bloqueioPermissao = ref(false)
+// F5/R1: aviso não-bloqueante quando pré-preenchimento via evolucaoId falha (CA114).
+const avisoPrefill = ref<string | null>(null)
 // Falhas isoladas de rede por catálogo (não-422): os outros selects ainda funcionam.
 const falhaCatalogos = ref({
     cirurgias: false,
@@ -590,6 +598,30 @@ async function carregar() {
             if (pacienteIdInicial.value) {
                 await preselecionarPaciente(pacienteIdInicial.value)
             }
+            // F5/R1: pré-preenchimento de cirurgias via ?evolucaoId= (CA97/CA98/CA114/CA115).
+            // Requer pacienteIdInicial pois o endpoint é multi-tenant via prontuario.
+            if (evolucaoIdInicial.value && pacienteIdInicial.value) {
+                try {
+                    const procs = await prontuarioService.obterProcedimentosIndicados(
+                        pacienteIdInicial.value,
+                        evolucaoIdInicial.value,
+                    )
+                    // CA99: itens sem catalogoCirurgiaId já foram filtrados pelo backend.
+                    // CA114: lista vazia é válida — form abre com paciente selecionado e cirurgias vazias.
+                    if (procs.length > 0) {
+                        cirurgias.value = procs.map(p => ({
+                            catalogoId: p.catalogoCirurgiaId,
+                            descricao: p.descricao,
+                            quantidade: 1,
+                            duracaoMinutos: 0,
+                            valor: p.valor,
+                        }))
+                    }
+                } catch {
+                    // CA114: falha não-bloqueante — form abre normalmente com aviso.
+                    avisoPrefill.value = "Não foi possível carregar os procedimentos da evolução. Você pode adicioná-los manualmente."
+                }
+            }
         }
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar."
@@ -775,6 +807,12 @@ onMounted(carregar)
             </div>
 
             <div v-if="erro" class="erro-banner" role="alert">{{ erro }}</div>
+
+            <!-- F5/R1: aviso não-bloqueante quando pré-preenchimento de cirurgias falha (CA114). -->
+            <div v-if="avisoPrefill" class="aviso-prefill" role="alert">
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                {{ avisoPrefill }}
+            </div>
 
             <div class="form-grid">
                 <div class="col-principal">
@@ -1259,7 +1297,19 @@ onMounted(carregar)
     border: 1px solid hsl(var(--destructive) / 0.2);
     border-radius: var(--radius);
     color: hsl(var(--destructive));
-    font-size: 0.875rem;
+    font-size: var(--text-sm);
+}
+
+/* F5/R1: aviso não-bloqueante de falha no pré-preenchimento (CA114). */
+.aviso-prefill {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: hsl(var(--warning-hsl, 38 92% 50%) / 0.08);
+    border: 1px solid hsl(var(--warning-hsl, 38 92% 50%) / 0.35);
+    border-radius: var(--radius);
+    color: hsl(var(--warning-hsl, 38 92% 50%));
+    font-size: var(--text-sm);
+    margin-bottom: 0.5rem;
 }
 
 .form-header {

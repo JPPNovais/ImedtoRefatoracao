@@ -86,10 +86,11 @@ public class AppDbContext : DbContext
     public DbSet<CategoriaFinanceira> CategoriasFinanceiras => Set<CategoriaFinanceira>();
     public DbSet<FormaPagamento> FormasPagamento => Set<FormaPagamento>();
 
-    // F1/F2 — Cobranças (contas a receber do paciente)
+    // F1/F2 — Cobranças (contas a receber do paciente); F5 — histórico de valor de cirurgia.
     public DbSet<Cobranca> Cobrancas => Set<Cobranca>();
     public DbSet<Pagamento> Pagamentos => Set<Pagamento>();
     public DbSet<EstornoPagamento> EstornosPagamento => Set<EstornoPagamento>();
+    public DbSet<CobrancaHistoricoValor> CobrancasHistoricoValor => Set<CobrancaHistoricoValor>();
     public DbSet<TabelaPrecoConsulta> TabelasPrecoConsulta => Set<TabelaPrecoConsulta>();
     public DbSet<ConfigTaxaFormaPagamento> ConfigTaxasFormaPagamento => Set<ConfigTaxaFormaPagamento>();
     public DbSet<ConfiguracaoAutomacao> ConfiguracoesAutomacao => Set<ConfiguracaoAutomacao>();

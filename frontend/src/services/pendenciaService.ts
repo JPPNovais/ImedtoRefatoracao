@@ -29,8 +29,18 @@ export const ACAO_LABELS: Record<AcaoPendencia, string> = {
     AgendarRetorno: "Agendar retorno",
 }
 
-/** Rota de destino para cada ação no contexto do paciente. */
-export function rotaParaAcao(pacienteId: number, acao: AcaoPendencia): string | null {
+/**
+ * Rota de destino para cada ação no contexto do paciente.
+ *
+ * F5/R1: CriarOrcamento inclui evolucaoId para pré-preenchimento do form.
+ * Quando evolucaoId é fornecido, navega para /orcamentos/novo?evolucaoId=&pacienteId=.
+ * Quando não há evolucaoId (pendência legado ou sem evolução), navega para a aba de orçamentos.
+ */
+export function rotaParaAcao(
+    pacienteId: number,
+    acao: AcaoPendencia,
+    evolucaoId?: number,
+): string | null {
     switch (acao) {
         case "CriarReceita":
             return `/pacientes/${pacienteId}?aba=documentos&tipo=Receita`
@@ -39,7 +49,10 @@ export function rotaParaAcao(pacienteId: number, acao: AcaoPendencia): string | 
         case "PedirExame":
             return `/pacientes/${pacienteId}?aba=documentos&tipo=PedidoExame`
         case "CriarOrcamento":
-            return `/pacientes/${pacienteId}?aba=orcamentos`
+            // F5/R1: se há evolucaoId, pré-preenche o form via query param (CA97/CA98).
+            return evolucaoId
+                ? `/orcamentos/novo?evolucaoId=${evolucaoId}&pacienteId=${pacienteId}`
+                : `/pacientes/${pacienteId}?aba=orcamentos`
         case "AgendarRetorno":
             return `/agenda?pacienteId=${pacienteId}`
         case "MarcarProcedimentoRealizado":

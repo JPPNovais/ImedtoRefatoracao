@@ -22,6 +22,8 @@ const props = defineProps<{
     aberto: boolean
     acoesMarcadas: AcaoPendencia[]
     pacienteId: number
+    /** F5/R1: id da evolução recém-salva — passado para CriarOrcamento gerar pré-preenchimento (CA97/CA98). */
+    evolucaoId?: number
 }>()
 const emit = defineEmits<{ fechar: [] }>()
 
@@ -32,7 +34,8 @@ const router = useRouter()
 const totalAcoes = computed(() => props.acoesMarcadas.length)
 
 function irParaAcao(acao: AcaoPendencia) {
-    const rota = rotaParaAcao(props.pacienteId, acao)
+    // F5/R1: passa evolucaoId para pré-preenchimento do form de orçamento (CA97/CA98)
+    const rota = rotaParaAcao(props.pacienteId, acao, props.evolucaoId)
     if (rota) {
         emit("fechar")
         router.push(rota)

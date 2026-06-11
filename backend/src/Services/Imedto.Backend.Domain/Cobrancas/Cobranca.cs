@@ -43,6 +43,10 @@ public class Cobranca : Entity
     private readonly List<EstornoPagamento> _estornos = new();
     public virtual IReadOnlyCollection<EstornoPagamento> Estornos => _estornos.AsReadOnly();
 
+    // Histórico de alterações de valor (F5/R8). EF preenche quando a cobrança é carregada com Include.
+    private readonly List<CobrancaHistoricoValor> _historicoValor = new();
+    public virtual IReadOnlyCollection<CobrancaHistoricoValor> HistoricoValor => _historicoValor.AsReadOnly();
+
     protected Cobranca() { }
 
     // ── Factory ─────────────────────────────────────────────────────────────
@@ -130,6 +134,79 @@ public class Cobranca : Entity
             CriadoPorUsuarioId = criadoPorUsuarioId,
             CriadoEm = DateTime.UtcNow
         };
+    }
+
+    /// <summary>
+    /// Cria cobrança de cirurgia na aprovação do orçamento (F5/R5).
+    /// Tipo sempre Particular (D2 herdada da F4). AgendamentoId=null (cirurgia não tem agendamento na cobrança).
+    /// </summary>
+    public static Cobranca CriarParaCirurgia(
+        long estabelecimentoId,
+        long pacienteId,
+        long orcamentoId,
+        decimal valorCobrado,
+        string descricao,
+        Guid criadoPorUsuarioId)
+    {
+        if (estabelecimentoId <= 0)
+            throw new BusinessException("Estabelecimento é obrigatório.");
+        if (pacienteId <= 0)
+            throw new BusinessException("Paciente é obrigatório.");
+        if (orcamentoId <= 0)
+            throw new BusinessException("Orçamento é obrigatório.");
+        if (valorCobrado <= 0)
+            throw new BusinessException("Valor cobrado deve ser maior que zero para cirurgia.");
+        if (criadoPorUsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário criador é obrigatório.");
+
+        return new Cobranca
+        {
+            EstabelecimentoId = estabelecimentoId,
+            PacienteId = pacienteId,
+            Origem = "Cirurgia",
+            OrcamentoId = orcamentoId,
+            AgendamentoId = null,
+            EvolucaoId = null,
+            TipoAtendimento = TipoAtendimento.Particular,
+            ValorCobrado = ArredondamentoMonetario.Arredondar(valorCobrado),
+            Desconto = 0m,
+            Status = StatusCobranca.Aberta,
+            Descricao = string.IsNullOrWhiteSpace(descricao) ? null : descricao.Trim(),
+            CriadoPorUsuarioId = criadoPorUsuarioId,
+            CriadoEm = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Sincroniza o valor cobrado de uma cobrança de cirurgia quando o orçamento é re-aprovado (F5/R8).
+    /// - Se novoTotal == ValorCobrado atual → no-op (sem histórico).
+    /// - Se diferente → valida R9, atualiza ValorCobrado, grava CobrancaHistoricoValor, recalcula status.
+    /// </summary>
+    public virtual void SincronizarValorCobrado(decimal novoTotal, Guid alteradoPorUsuarioId)
+    {
+        novoTotal = ArredondamentoMonetario.Arredondar(novoTotal);
+
+        // No-op: valor não mudou (CA103 — re-aprovação idêntica não gera histórico).
+        if (novoTotal == ValorCobrado) return;
+
+        // R9: bloqueio de redução abaixo do pago líquido.
+        var pagoLiquido = TotalPagoLiquido();
+        if (novoTotal - Desconto < pagoLiquido)
+            throw new BusinessException(
+                $"O novo valor da cirurgia (R$ {novoTotal:N2}) é menor que o total já pago (R$ {pagoLiquido:N2}). " +
+                "Estorne pagamentos antes de reduzir o valor.");
+
+        var historico = CobrancaHistoricoValor.Criar(
+            cobrancaId: Id,
+            estabelecimentoId: EstabelecimentoId,
+            valorAnterior: ValorCobrado,
+            valorNovo: novoTotal,
+            alteradoPorUsuarioId: alteradoPorUsuarioId);
+
+        _historicoValor.Add(historico);
+        ValorCobrado = novoTotal;
+        RecalcularStatus();
+        AtualizadoEm = DateTime.UtcNow;
     }
 
     /// <summary>Adiciona domain event após persistir (Id disponível).</summary>

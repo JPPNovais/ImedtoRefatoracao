@@ -78,6 +78,8 @@ function notificar(msg: string, variante: "info" | "success" | "error" = "succes
 // Modal "Próximos passos" — aberto após salvar evolução com conduta checklist (CA70)
 const proximosPassosAberto = ref(false)
 const proximosPassosAcoes = ref<AcaoPendencia[]>([])
+// F5/R1: id da evolução recém-salva — passado ao modal para CriarOrcamento gerar pré-preenchimento (CA97).
+const proximosPassosEvolucaoId = ref<number | undefined>(undefined)
 
 // Seções do modelo atualmente selecionado
 const secoesConsultaAtual = computed(() => {
@@ -244,6 +246,8 @@ async function salvarEvolucao() {
             const acoes = (conduta as { acoesMarcadas?: AcaoPendencia[] }).acoesMarcadas ?? []
             if (acoes.length > 0) {
                 proximosPassosAcoes.value = acoes
+                // F5/R1: salva evolucaoId para pré-preenchimento do form de orçamento (CA97).
+                proximosPassosEvolucaoId.value = evolucaoId ?? undefined
                 proximosPassosAberto.value = true
             }
         }
@@ -481,6 +485,7 @@ async function finalizarAtendimento() {
             :aberto="proximosPassosAberto"
             :acoes-marcadas="proximosPassosAcoes"
             :paciente-id="pacienteId"
+            :evolucao-id="proximosPassosEvolucaoId"
             @fechar="proximosPassosAberto = false"
         />
     </main>

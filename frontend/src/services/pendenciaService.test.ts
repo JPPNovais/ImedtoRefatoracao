@@ -48,6 +48,29 @@ describe("rotaParaAcao", () => {
     it("MarcarProcedimentoRealizado → null (conclusão manual só pelo painel, CA66)", () => {
         expect(rotaParaAcao(pacienteId, "MarcarProcedimentoRealizado")).toBeNull()
     })
+
+    // F5/R1: CriarOrcamento com e sem evolucaoId (CA97/CA98)
+    it("CriarOrcamento sem evolucaoId → aba de orçamentos do paciente", () => {
+        const rota = rotaParaAcao(pacienteId, "CriarOrcamento")
+        expect(rota).toBe("/pacientes/42?aba=orcamentos")
+    })
+
+    it("CriarOrcamento com evolucaoId → form novo com query params evolucaoId+pacienteId (CA97)", () => {
+        const rota = rotaParaAcao(pacienteId, "CriarOrcamento", 7)
+        expect(rota).toBe("/orcamentos/novo?evolucaoId=7&pacienteId=42")
+    })
+
+    it("CriarOrcamento com evolucaoId preserva ambos os params (CA98 — refresh mantém estado)", () => {
+        const rota = rotaParaAcao(99, "CriarOrcamento", 123)
+        expect(rota).toContain("evolucaoId=123")
+        expect(rota).toContain("pacienteId=99")
+    })
+
+    it("CriarOrcamento com evolucaoId zero é tratado como sem evolucaoId (falsy)", () => {
+        // evolucaoId=0 não é um id válido; o ternário (evolucaoId ?) retorna a rota sem prefill.
+        const rota = rotaParaAcao(pacienteId, "CriarOrcamento", 0)
+        expect(rota).toBe("/pacientes/42?aba=orcamentos")
+    })
 })
 
 // ── pendenciaService ───────────────────────────────────────────────────────────

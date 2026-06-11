@@ -67,14 +67,15 @@ const podeEditar = computed(() => permissoes.pode("prontuario.editar"))
 
 // ── Ações ──────────────────────────────────────────────────────────────────────
 
-function irParaAcao(acao: AcaoPendencia, pendenciaId: number) {
+function irParaAcao(acao: AcaoPendencia, pendenciaId: number, evolucaoId?: number) {
     // MarcarProcedimentoRealizado abre modal próprio em vez de navegar (F4/CA88)
     if (acao === "MarcarProcedimentoRealizado") {
         modalMarcarPendenciaId.value = pendenciaId
         modalMarcarAberto.value = true
         return
     }
-    const rota = rotaParaAcao(props.pacienteId, acao)
+    // F5/R1: CriarOrcamento passa evolucaoId para pré-preenchimento (CA97/CA98)
+    const rota = rotaParaAcao(props.pacienteId, acao, evolucaoId)
     if (rota) router.push(rota)
 }
 
@@ -90,6 +91,7 @@ function aoMarcarConcluido(cobrancaId: number) {
 function temBotaoFazerAgora(acao: AcaoPendencia): boolean {
     // MarcarProcedimentoRealizado tem modal próprio — sempre mostra "Fazer agora"
     if (acao === "MarcarProcedimentoRealizado") return true
+    // CriarOrcamento sempre tem rota (com ou sem evolucaoId)
     return rotaParaAcao(props.pacienteId, acao) !== null
 }
 
@@ -155,7 +157,7 @@ defineExpose({ recarregar: carregar })
                     <button
                         v-if="temBotaoFazerAgora(pend.acao as AcaoPendencia)"
                         class="ppi-ir"
-                        @click="irParaAcao(pend.acao as AcaoPendencia, pend.id)"
+                        @click="irParaAcao(pend.acao as AcaoPendencia, pend.id, pend.evolucaoId)"
                     >
                         Fazer agora
                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24">

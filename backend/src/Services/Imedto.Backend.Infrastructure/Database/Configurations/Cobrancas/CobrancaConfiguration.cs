@@ -48,6 +48,15 @@ public class CobrancaConfiguration : IEntityTypeConfiguration<Cobranca>
             .HasDatabaseName("ux_cobrancas_evolucao_procedimento")
             .HasFilter("origem = 'Procedimento' AND evolucao_id IS NOT NULL");
 
+        // Índice UNIQUE parcial — idempotência F5 (R6/CA104):
+        // garante 1 cobrança de cirurgia por orçamento (defense-in-depth contra race).
+        // Nota: filter com literal string pode exigir migrationBuilder.Sql para criação correta.
+        // O imedto-database executa via SQL idempotente em db/migrations/.
+        builder.HasIndex(c => c.OrcamentoId)
+            .IsUnique()
+            .HasDatabaseName("ux_cobrancas_orcamento_cirurgia")
+            .HasFilter("origem = 'Cirurgia' AND orcamento_id IS NOT NULL");
+
         builder.HasMany(c => c.Pagamentos)
             .WithOne()
             .HasForeignKey(p => p.CobrancaId)

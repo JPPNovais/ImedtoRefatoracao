@@ -220,4 +220,104 @@ public class CobrancaTests
             c.RegistrarPagamento(50m, 1L, 1, 0m, 0m, DateOnly.FromDateTime(DateTime.Today), UsuarioId));
         Assert.That(ex.Message, Does.Contain("cancelada"));
     }
+
+    // ── F5/R5: CriarParaCirurgia — invariantes ───────────────────────────────
+
+    private static Cobranca CriarParaCirurgia(decimal valor = 1500m)
+        => Cobranca.CriarParaCirurgia(EstabId, PacienteId, 50L, valor, "Cirurgia — orçamento #50", UsuarioId);
+
+    [Test]
+    public void CriarParaCirurgia_NasceComOrigem()
+    {
+        var c = CriarParaCirurgia();
+        Assert.That(c.Origem, Is.EqualTo("Cirurgia"));
+        Assert.That(c.TipoAtendimento, Is.EqualTo(TipoAtendimento.Particular));
+        Assert.That(c.Status, Is.EqualTo(StatusCobranca.Aberta));
+        Assert.That(c.AgendamentoId, Is.Null);
+        Assert.That(c.EvolucaoId, Is.Null);
+        Assert.That(c.OrcamentoId, Is.EqualTo(50L));
+    }
+
+    [Test]
+    public void CriarParaCirurgia_OrcamentoZero_Lanca()
+    {
+        var ex = Assert.Throws<BusinessException>(() =>
+            Cobranca.CriarParaCirurgia(EstabId, PacienteId, 0, 1500m, "desc", UsuarioId));
+        Assert.That(ex.Message, Does.Contain("Orçamento"));
+    }
+
+    [Test]
+    public void CriarParaCirurgia_ValorZero_Lanca()
+    {
+        var ex = Assert.Throws<BusinessException>(() =>
+            Cobranca.CriarParaCirurgia(EstabId, PacienteId, 50L, 0m, "desc", UsuarioId));
+        Assert.That(ex.Message, Does.Contain("Valor cobrado"));
+    }
+
+    [Test]
+    public void CriarParaCirurgia_UsuarioVazio_Lanca()
+    {
+        var ex = Assert.Throws<BusinessException>(() =>
+            Cobranca.CriarParaCirurgia(EstabId, PacienteId, 50L, 1500m, "desc", Guid.Empty));
+        Assert.That(ex.Message, Does.Contain("Usuário"));
+    }
+
+    // ── F5/R8: SincronizarValorCobrado ──────────────────────────────────────
+
+    [Test]
+    public void SincronizarValorCobrado_MesmoValor_NoOp()
+    {
+        var c = CriarParaCirurgia(1500m);
+        c.SincronizarValorCobrado(1500m, UsuarioId);
+        Assert.That(c.HistoricoValor.Count, Is.Zero); // nenhum histórico (CA103)
+        Assert.That(c.ValorCobrado, Is.EqualTo(1500m));
+    }
+
+    [Test]
+    public void SincronizarValorCobrado_ValorDiferente_GravaHistorico()
+    {
+        var c = CriarParaCirurgia(1500m);
+        c.SincronizarValorCobrado(2000m, UsuarioId);
+
+        Assert.That(c.ValorCobrado, Is.EqualTo(2000m));
+        Assert.That(c.HistoricoValor.Count, Is.EqualTo(1));
+        var h = c.HistoricoValor.First();
+        Assert.That(h.ValorAnterior, Is.EqualTo(1500m));
+        Assert.That(h.ValorNovo, Is.EqualTo(2000m));
+        Assert.That(h.AlteradoPorUsuarioId, Is.EqualTo(UsuarioId));
+    }
+
+    [Test]
+    public void SincronizarValorCobrado_MultiplasAlteracoes_GravaHistoricoCorreto()
+    {
+        var c = CriarParaCirurgia(1000m);
+        c.SincronizarValorCobrado(1500m, UsuarioId);
+        c.SincronizarValorCobrado(2000m, UsuarioId);
+
+        Assert.That(c.ValorCobrado, Is.EqualTo(2000m));
+        Assert.That(c.HistoricoValor.Count, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void SincronizarValorCobrado_ReducaoAbaixoPagoLiquido_Lanca()
+    {
+        // Cobrança de 1500, com pagamento de 1200. Redução para 1000 < 1200 → R9.
+        var c = CriarParaCirurgia(1500m);
+        c.RegistrarPagamento(1200m, 1L, 1, 0m, 0m, DateOnly.FromDateTime(DateTime.Today), UsuarioId);
+
+        var ex = Assert.Throws<BusinessException>(() =>
+            c.SincronizarValorCobrado(1000m, UsuarioId));
+        Assert.That(ex.Message, Does.Contain("menor que o total já pago"));
+    }
+
+    [Test]
+    public void SincronizarValorCobrado_ReducaoAcimaPagoLiquido_Permite()
+    {
+        // Cobrança de 1500, com pagamento de 800. Redução para 1000 > 800 → permitido.
+        var c = CriarParaCirurgia(1500m);
+        c.RegistrarPagamento(800m, 1L, 1, 0m, 0m, DateOnly.FromDateTime(DateTime.Today), UsuarioId);
+
+        Assert.DoesNotThrow(() => c.SincronizarValorCobrado(1000m, UsuarioId));
+        Assert.That(c.ValorCobrado, Is.EqualTo(1000m));
+    }
 }

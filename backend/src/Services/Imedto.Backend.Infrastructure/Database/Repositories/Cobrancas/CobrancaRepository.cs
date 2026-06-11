@@ -21,6 +21,15 @@ public class CobrancaRepository : ICobrancaRepository
             .Include(c => c.Estornos)
             .FirstOrDefaultAsync(c => c.AgendamentoId == agendamentoId && c.EstabelecimentoId == estabelecimentoId);
 
+    public async Task<Cobranca?> ObterPorOrcamentoOuNulo(long orcamentoId, long estabelecimentoId)
+        => await _db.Cobrancas
+            .Include(c => c.Pagamentos)
+            .Include(c => c.Estornos)
+            .Include(c => c.HistoricoValor)
+            .FirstOrDefaultAsync(c => c.OrcamentoId == orcamentoId
+                                    && c.EstabelecimentoId == estabelecimentoId
+                                    && c.Status != Domain.Cobrancas.StatusCobranca.Cancelada);
+
     public async Task Salvar(Cobranca cobranca)
     {
         if (cobranca.Id == 0)

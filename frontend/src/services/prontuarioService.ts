@@ -190,4 +190,26 @@ export const prontuarioService = {
             `/paciente/${pacienteId}/prontuario/evolucoes/${evolucaoId}/registrar-exportacao`,
         )
     },
+
+    /**
+     * F5/R2 — Retorna snapshot de procedimentos indicados de uma evolução para
+     * pré-preenchimento do form de orçamento (CA97/CA99/CA110/CA114).
+     * Itens sem catalogoCirurgiaId (legado texto-livre) são excluídos pelo backend.
+     * Pode retornar lista vazia (evolução sem procedimentos de catálogo).
+     */
+    async obterProcedimentosIndicados(
+        pacienteId: number,
+        evolucaoId: number,
+    ): Promise<ProcedimentoIndicado[]> {
+        const { data } = await httpClient.get<ProcedimentoIndicado[]>(
+            `/paciente/${pacienteId}/prontuario/evolucoes/${evolucaoId}/procedimentos-indicados`,
+        )
+        return data
+    },
+}
+
+export interface ProcedimentoIndicado {
+    catalogoCirurgiaId: number
+    descricao: string
+    valor: number
 }

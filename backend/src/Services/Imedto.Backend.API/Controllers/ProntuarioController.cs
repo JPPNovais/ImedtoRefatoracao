@@ -154,6 +154,22 @@ public class ProntuarioController : ControllerBase
     }
 
     /// <summary>
+    /// F5/R2 — Retorna snapshot de procedimentos indicados de uma evolução para pré-preenchimento
+    /// do form de orçamento. Multi-tenant: 422 genérico se evolução de outro tenant.
+    /// Itens sem catalogoCirurgiaId (legado texto-livre) são excluídos (CA99).
+    /// Pode retornar lista vazia (evolução sem procedimentos de catálogo — CA114).
+    /// </summary>
+    [HttpGet("evolucoes/{evolucaoId:long}/procedimentos-indicados")]
+    [ProducesResponseType(typeof(IEnumerable<ProcedimentoIndicadoDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ObterProcedimentosIndicados(long pacienteId, long evolucaoId)
+    {
+        var dtos = await _requestBus.Query<ObterProcedimentosIndicadosQuery, IEnumerable<ProcedimentoIndicadoDto>>(
+            new ObterProcedimentosIndicadosQuery(evolucaoId, _tenant.EstabelecimentoId));
+        return Ok(dtos);
+    }
+
+    /// <summary>
     /// Audit LGPD — registra que uma evolução individual foi exportada em PDF.
     /// O front chama este endpoint ANTES de gerar o doc; um 422 aqui impede a geração.
     /// </summary>

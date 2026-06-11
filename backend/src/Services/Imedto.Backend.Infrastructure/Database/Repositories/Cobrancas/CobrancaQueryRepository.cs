@@ -210,24 +210,44 @@ public class CobrancaQueryRepository
             ORDER BY ep.criado_em;
             """;
 
+        // Query 4: histórico de valor de cirurgia das cobranças do paciente (F5/CA106).
+        const string sqlHistoricoValor = """
+            SELECT
+                hv.cobranca_id                              AS CobrancaId,
+                hv.valor_anterior                           AS ValorAnterior,
+                hv.valor_novo                               AS ValorNovo,
+                COALESCE(u.nome_completo, u.email, '')      AS AlteradoPorNome,
+                hv.alterado_em                              AS AlteradoEm
+            FROM cobranca_historico_valor hv
+            JOIN cobrancas c ON c.id = hv.cobranca_id
+            LEFT JOIN usuarios u ON u.id = hv.alterado_por_usuario_id
+            WHERE c.paciente_id = @PacienteId
+              AND c.estabelecimento_id = @EstabelecimentoId
+            ORDER BY hv.alterado_em;
+            """;
+
         var param = new { PacienteId = pacienteId, EstabelecimentoId = estabelecimentoId };
 
-        // Executa as 3 queries em paralelo (3 conexões separadas para simplicidade).
-        var cobrancasTask  = conn.QueryAsync<CobrancaAbaRaw>(sqlCobrancas, param);
-        var pagamentosTask = conn.QueryAsync<PagamentoAbaRaw>(sqlPagamentos, param);
-        var estornosTask   = conn.QueryAsync<EstornoAbaRaw>(sqlEstornos, param);
+        // Executa as 4 queries em paralelo.
+        var cobrancasTask       = conn.QueryAsync<CobrancaAbaRaw>(sqlCobrancas, param);
+        var pagamentosTask      = conn.QueryAsync<PagamentoAbaRaw>(sqlPagamentos, param);
+        var estornosTask        = conn.QueryAsync<EstornoAbaRaw>(sqlEstornos, param);
+        var historicoValorTask  = conn.QueryAsync<HistoricoValorAbaRaw>(sqlHistoricoValor, param);
 
-        await Task.WhenAll(cobrancasTask, pagamentosTask, estornosTask);
+        await Task.WhenAll(cobrancasTask, pagamentosTask, estornosTask, historicoValorTask);
 
-        var cobrancas  = (await cobrancasTask).ToList();
-        var pagamentos = (await pagamentosTask).ToList();
-        var estornos   = (await estornosTask).ToList();
+        var cobrancas      = (await cobrancasTask).ToList();
+        var pagamentos     = (await pagamentosTask).ToList();
+        var estornos       = (await estornosTask).ToList();
+        var historicoValor = (await historicoValorTask).ToList();
 
-        // Índices por cobranca_id
-        var pagamentosPorCobranca = pagamentos.GroupBy(p => p.CobrancaId)
+        // Índices por cobranca_id / pagamento_id
+        var pagamentosPorCobranca    = pagamentos.GroupBy(p => p.CobrancaId)
             .ToDictionary(g => g.Key, g => g.ToList());
-        var estornosPorPagamento  = estornos.GroupBy(e => e.PagamentoId)
+        var estornosPorPagamento     = estornos.GroupBy(e => e.PagamentoId)
             .ToDictionary(g => g.Key, g => g.First());
+        var historicoPorCobranca     = historicoValor.GroupBy(h => h.CobrancaId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         var cobrancasDtos = cobrancas.Select(c =>
         {
@@ -274,7 +294,15 @@ public class CobrancaQueryRepository
                 Status = c.Status,
                 Descricao = c.Descricao,
                 Pagamentos = pagDtos,
-                HistoricoValor = Array.Empty<HistoricoValorAbaDto>(), // F5 popula; F2 exibe se existir — DC4
+                HistoricoValor = historicoPorCobranca.TryGetValue(c.Id, out var hvList)
+                    ? hvList.Select(h => new HistoricoValorAbaDto
+                    {
+                        ValorAnterior   = h.ValorAnterior,
+                        ValorNovo       = h.ValorNovo,
+                        AlteradoPorNome = h.AlteradoPorNome,
+                        AlteradoEm      = h.AlteradoEm,
+                    }).ToList()
+                    : Array.Empty<HistoricoValorAbaDto>(),
             };
         }).ToList();
 
@@ -324,6 +352,15 @@ public class CobrancaQueryRepository
         public string Motivo { get; set; } = string.Empty;
         public string EstornadoPorNome { get; set; } = string.Empty;
         public DateOnly DataEstorno { get; set; }
+    }
+
+    private class HistoricoValorAbaRaw
+    {
+        public long CobrancaId { get; set; }
+        public decimal ValorAnterior { get; set; }
+        public decimal ValorNovo { get; set; }
+        public string AlteradoPorNome { get; set; } = string.Empty;
+        public DateTime AlteradoEm { get; set; }
     }
 
     /// <summary>
