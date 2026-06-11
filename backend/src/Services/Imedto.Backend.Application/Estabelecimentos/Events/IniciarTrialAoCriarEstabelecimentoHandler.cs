@@ -1,74 +1,81 @@
 using Microsoft.Extensions.Logging;
 using Imedto.Backend.Domain.Admin;
-using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Domain.Estabelecimentos.Events;
+using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.SharedKernel.Cqrs;
 
 namespace Imedto.Backend.Application.Estabelecimentos.Events;
 
 /// <summary>
-/// Reage a <see cref="EstabelecimentoCriadoEvent"/> criando uma assinatura em trial atrelada
-/// ao plano "Trial" (semeado pelo <c>SeedPlanosHostedService</c>).
+/// Reage a <see cref="EstabelecimentoCriadoEvent"/> criando uma assinatura de trial na estrutura
+/// nova (<c>imedto_assinaturas</c>) usando a config global editável (<c>imedto_config_trial</c>).
 ///
-/// Duração do trial lida de <c>trial.dias_padrao</c> via <see cref="IConfigGlobalReader"/>
-/// (fallback 14 dias — W2-CA8, W2-CA9). Não é retroativo: lê no momento da criação.
+/// R7 do briefing 2026-06-11_003 (F5):
+/// - trial_habilitado=true  → cria ImedtoAssinatura vigente com expira_em=now+duracao_trial_dias.
+/// - trial_habilitado=false → estabelecimento nasce sem assinatura vigente (estado BLOQUEADO).
 ///
-/// Falha controlada: se o plano "Trial" ainda não foi semeado, faz log e retorna sem trial.
+/// Atomicidade: o handler roda dentro do mesmo DbContext da request (scope da transação do
+/// CriarEstabelecimentoCommandHandler, via MemoryEventBus síncrono). O SaveChanges final
+/// inclui tanto o estabelecimento quanto a assinatura no mesmo commit.
+///
+/// NOTA: NÃO escreve mais na estrutura legada (assinaturas). Ver F6 para descomissionamento
+/// completo do IAssinaturaRepository / ExpirarTrialsJob legado.
 /// </summary>
 public class IniciarTrialAoCriarEstabelecimentoHandler : IEventHandler<EstabelecimentoCriadoEvent>
 {
-    private const string NomePlanoTrial = "Trial";
-    private const int DuracaoTrialDefaultDias = 14;
-
-    private readonly IPlanoRepository _planoRepo;
-    private readonly IAssinaturaRepository _assinaturaRepo;
-    private readonly IConfigGlobalReader _configReader;
+    private readonly IImedtoConfigTrialRepository _configTrialRepo;
+    private readonly IImedtoAssinaturaRepository _assinaturaRepo;
+    private readonly AppDbContext _db;
     private readonly ILogger<IniciarTrialAoCriarEstabelecimentoHandler> _logger;
 
     public IniciarTrialAoCriarEstabelecimentoHandler(
-        IPlanoRepository planoRepo,
-        IAssinaturaRepository assinaturaRepo,
-        IConfigGlobalReader configReader,
+        IImedtoConfigTrialRepository configTrialRepo,
+        IImedtoAssinaturaRepository assinaturaRepo,
+        AppDbContext db,
         ILogger<IniciarTrialAoCriarEstabelecimentoHandler> logger)
     {
-        _planoRepo = planoRepo;
+        _configTrialRepo = configTrialRepo;
         _assinaturaRepo = assinaturaRepo;
-        _configReader = configReader;
+        _db = db;
         _logger = logger;
     }
 
     public async Task Handle(EstabelecimentoCriadoEvent domainEvent)
     {
-        // Idempotência: se já existe assinatura para este estabelecimento, ignora.
-        var existente = await _assinaturaRepo.ObterPorEstabelecimentoOuNulo(domainEvent.EstabelecimentoId);
-        if (existente is not null)
+        var config = await _configTrialRepo.ObterAsync();
+        if (config is null)
         {
-            _logger.LogInformation(
-                "Estabelecimento {EstabelecimentoId} já possui assinatura — pulando inicialização de trial.",
+            // Config ainda não semeada (ambiente de teste ou startup incompleto).
+            _logger.LogWarning(
+                "Config de trial não encontrada — estabelecimento {EstabelecimentoId} nasce sem assinatura vigente.",
                 domainEvent.EstabelecimentoId);
             return;
         }
 
-        var planoTrial = await _planoRepo.ObterPorNomeOuNulo(NomePlanoTrial);
-        if (planoTrial is null)
+        if (!config.TrialHabilitado)
         {
-            _logger.LogWarning(
-                "Plano '{Nome}' não encontrado — trial não foi iniciado para o estabelecimento {EstabelecimentoId}. "
-                + "Verifique se o SeedPlanosHostedService rodou.",
-                NomePlanoTrial, domainEvent.EstabelecimentoId);
+            // R7: trial desligado → nasce bloqueado (sem vigência).
+            _logger.LogInformation(
+                "Trial desabilitado — estabelecimento {EstabelecimentoId} nasce sem assinatura vigente (BLOQUEADO).",
+                domainEvent.EstabelecimentoId);
             return;
         }
 
-        // Lê dias do trial da config global; fallback = 14 (R6: só afeta novos estabelecimentos).
-        var diasTrial = await _configReader.LerInt("trial.dias_padrao", DuracaoTrialDefaultDias);
-        if (diasTrial <= 0) diasTrial = DuracaoTrialDefaultDias;
+        var expiraEm = DateTimeOffset.UtcNow.AddDays(config.DuracaoTrialDias);
 
-        var duracao = TimeSpan.FromDays(diasTrial);
-        var assinatura = Assinatura.IniciarTrial(domainEvent.EstabelecimentoId, planoTrial.Id, duracao);
-        await _assinaturaRepo.Salvar(assinatura);
+        var assinatura = ImedtoAssinatura.Criar(
+            estabelecimentoId: domainEvent.EstabelecimentoId,
+            planoId: config.PlanoTrialId,
+            gratuita: false,
+            motivo: null,
+            criadaPorAdminId: null,
+            expiraEm: expiraEm);
+
+        _assinaturaRepo.Adicionar(assinatura);
+        await _db.SaveChangesAsync();
 
         _logger.LogInformation(
-            "Trial iniciado: Assinatura={AssinaturaId} Estabelecimento={EstabelecimentoId} Dias={Dias} ExpiraEm={ExpiraEm:o}",
-            assinatura.Id, domainEvent.EstabelecimentoId, diasTrial, assinatura.ExpiraEm);
+            "Trial iniciado (nova estrutura): AssinaturaId={AssinaturaId} Estabelecimento={EstabelecimentoId} Dias={Dias} ExpiraEm={ExpiraEm:o}",
+            assinatura.Id, domainEvent.EstabelecimentoId, config.DuracaoTrialDias, expiraEm);
     }
 }
