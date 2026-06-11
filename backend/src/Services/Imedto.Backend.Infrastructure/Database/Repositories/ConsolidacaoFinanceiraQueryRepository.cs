@@ -119,7 +119,7 @@ public class ConsolidacaoFinanceiraQueryRepository
             """;
 
         var sql = $"""
-            SELECT COUNT(*) {sqlBase};
+            SELECT COUNT(*)::int {sqlBase};
 
             SELECT
                 l.id                                                  AS Id,
@@ -283,7 +283,7 @@ public class ConsolidacaoFinanceiraQueryRepository
                 cc.profissional_id                                                      AS ProfissionalUsuarioId,
                 COALESCE(u.nome_completo, u.email, cc.profissional_id::text)            AS Nome,
                 v.especialidade_convidada                                               AS Especialidade,
-                COUNT(*)                                                                AS Atendimentos,
+                COUNT(*)::int                                                            AS Atendimentos,
                 SUM(pp.valor_liquido)                                                   AS Faturamento,
                 COALESCE(cfg.percentual, @PercentualPadrao)                             AS PercentualConfig,
                 ROUND(SUM(pp.valor_liquido) * COALESCE(cfg.percentual, @PercentualPadrao) / 100, 2) AS Comissao,
@@ -332,7 +332,7 @@ public class ConsolidacaoFinanceiraQueryRepository
                 oe.profissional_usuario_id                                      AS ProfissionalUsuarioId,
                 COALESCE(u.nome_completo, u.email, oe.profissional_usuario_id::text) AS Nome,
                 v.especialidade_convidada                                        AS Especialidade,
-                COUNT(*)                                                         AS Atendimentos,
+                COUNT(*)::int                                                     AS Atendimentos,
                 ROUND(SUM(oe.valor * CASE WHEN pc.total_cobrado > 0
                     THEN pc.total_pago / pc.total_cobrado ELSE 1 END), 2)       AS Faturamento,
                 NULL::numeric                                                    AS PercentualConfig,
