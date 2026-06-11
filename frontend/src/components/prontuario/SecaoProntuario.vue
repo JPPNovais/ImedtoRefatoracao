@@ -40,16 +40,17 @@ const valorEstrutura = computed({
     set: atualizar,
 })
 
-// CA73: conduta como checklist se tipo === "conduta_checklist" OU o conteúdo
-// já foi salvo como objeto {acoesMarcadas, observacao}. Legado (string) → read-only textarea.
-const ehCondutaChecklist = computed(() =>
-    props.tipo === "conduta_checklist" ||
-    (props.chave === "conduta" && props.modelValue && typeof props.modelValue === "object" && "acoesMarcadas" in props.modelValue)
-)
-
-// Retrocompat: conduta legada (string) exibida como read-only (CA73).
+// Retrocompat: conduta legada (string não-vazia salva antes da F3B) — read-only sempre (CA73).
+// Avaliado ANTES de ehCondutaChecklist para que evolução antiga não caia no checklist.
 const ehCondutaLegado = computed(() =>
     props.chave === "conduta" && typeof props.modelValue === "string" && props.modelValue.length > 0
+)
+
+// CA73: qualquer seção com chave === "conduta" que não seja legado string é checklist.
+// Cobre: modelo antigo persistido com tipo "texto_longo" + evolução nova (modelValue vazio
+// ou objeto) — o tipo vindo do banco não determina mais o comportamento; a chave sim.
+const ehCondutaChecklist = computed(() =>
+    props.chave === "conduta" || props.tipo === "conduta_checklist"
 )
 
 const valorTexto = computed({
@@ -99,16 +100,10 @@ const valorTexto = computed({
         :read-only="readOnly"
     />
 
-    <!-- Conduta checklist (novo) — tipo conduta_checklist ou objeto {acoesMarcadas} -->
-    <SecaoCondutaChecklist
-        v-else-if="ehCondutaChecklist"
-        v-model="valorEstrutura"
-        :read-only="readOnly"
-    />
-
     <!--
-      Conduta legada (string) — read-only sempre (CA73).
-      Nova edição da evolução usará conduta_checklist; não reescreve registro antigo.
+      Conduta legada (string não-vazia) — read-only sempre (CA73).
+      DEVE vir ANTES do checklist: ehCondutaChecklist cobre toda chave='conduta',
+      então avaliamos legado primeiro para preservar o texto salvo antes da F3B.
     -->
     <AppTextarea
         v-else-if="ehCondutaLegado"
@@ -116,6 +111,14 @@ const valorTexto = computed({
         :rows="4"
         :disabled="true"
         @update:model-value="() => {}"
+    />
+
+    <!-- Conduta checklist — qualquer caso restante com chave='conduta' (modelo antigo
+         ou novo, evolução nova/vazia/objeto). Também cobre tipo conduta_checklist explícito. -->
+    <SecaoCondutaChecklist
+        v-else-if="ehCondutaChecklist"
+        v-model="valorEstrutura"
+        :read-only="readOnly"
     />
 
     <!-- Fallback: texto_longo → textarea, texto → input -->
