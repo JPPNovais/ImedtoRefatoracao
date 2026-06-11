@@ -11,7 +11,9 @@ vi.mock("@/services/termoAceitePublicoService", () => ({
 }))
 
 vi.mock("vue-router", () => ({
-    useRoute: () => ({ params: { token: "tok-valido-123" } }),
+    useRoute:         () => ({ params: { token: "tok-valido-123" } }),
+    createRouter:     vi.fn(() => ({ beforeEach: vi.fn(), push: vi.fn(), currentRoute: { value: {} } })),
+    createWebHistory: vi.fn(() => ({})),
 }))
 
 import { termoAceitePublicoService } from "@/services/termoAceitePublicoService"

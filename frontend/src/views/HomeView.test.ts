@@ -53,8 +53,10 @@ vi.mock("@/stores/authStore",       () => ({ useAuthStore:       vi.fn(() => moc
 vi.mock("@/stores/tenantStore",     () => ({ useTenantStore:     vi.fn(() => mocks.tenant) }))
 vi.mock("@/stores/permissoesStore", () => ({ usePermissoesStore: vi.fn(() => mocks.permissoes) }))
 vi.mock("vue-router", () => ({
-    useRoute:  () => ({ get query() { return mocks.rotaQuery.value } }),
-    useRouter: () => ({ replace: mocks.routerReplace }),
+    useRoute:         () => ({ get query() { return mocks.rotaQuery.value } }),
+    useRouter:        () => ({ replace: mocks.routerReplace }),
+    createRouter:     vi.fn(() => ({ beforeEach: vi.fn(), push: vi.fn(), currentRoute: { value: {} } })),
+    createWebHistory: vi.fn(() => ({})),
 }))
 
 import HomeView from "./HomeView.vue"

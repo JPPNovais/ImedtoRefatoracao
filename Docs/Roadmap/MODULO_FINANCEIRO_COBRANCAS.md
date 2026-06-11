@@ -471,18 +471,15 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
   comissão de mercado com o usuário no briefing.
 
 ### F8 — Recibo de pagamento (PDF interno) — **S**
+- **Status**: **implementado** — `planejamentos/2026-06-10_015_financeiro-f8-recibo-pdf.md` (CA118–CA130); backend 0 erros build/1499 testes verdes (+14 novos); frontend build verde/757 testes verdes (+10 novos); migration pendente com `imedto-database` (`ALTER TABLE pagamentos ADD COLUMN IF NOT EXISTS recibo_emitido_em timestamptz NULL`).
 - **Objetivo**: emitir, após o pagamento, um **recibo em PDF** (documento **interno**, sem valor fiscal) para
   entregar ao paciente. Decisão fechada (§5 q4): SIM, emitir após o pagamento.
-- **IN**: ação "Emitir recibo" sobre um `Pagamento` quitado (no ícone do agendamento e na aba Financeiro do
-  paciente); geração de PDF no servidor reusando o pipeline de PDF já existente (mesma fundação de
-  `usePdfHeader.ts` / PDF oficial de receita); recibo traz estabelecimento, paciente, valor pago, forma,
-  data; opcional flag de audit `recibo_emitido_em` no `Pagamento`.
+- **Decisão de schema (fechada)**: `Pagamento.recibo_emitido_em timestamptz NULL` — gravado **apenas na 1ª emissão** (idempotente; reemissões livres). Migration: `imedto-database` executa `ALTER TABLE pagamentos ADD COLUMN IF NOT EXISTS recibo_emitido_em timestamptz NULL`.
+- **IN**: ação "Emitir recibo" sobre um `Pagamento` quitado — porta 1: `PaymentModal.vue` (quando cobrança está `Paga`); porta 2: linha de pagamento em `FinanceiroTab.vue` (botão oculto se `estornado`). Geração de PDF no servidor com QuestPDF + Nunito, reutilizando `QuestPdfReceitaService.InicializarQuestPdf()` (mesma fundação). Recibo traz: cabeçalho institucional, nome do paciente, valor pago, forma de pagamento, parcelas, data, quem registrou, origem/descrição da cobrança, rótulo "RECIBO — documento sem valor fiscal".
 - **OUT**: NFS-e / qualquer documento fiscal (F9); recibo de cobrança ainda não paga (recibo é de **pagamento**).
 - **Dependências**: F1 (Pagamento existe) e F2 (aba Financeiro). Pode entrar em paralelo após F1/F2.
-- **CAs**: recibo só de pagamento quitado do tenant+paciente; PDF gerado no backend (não no front); sem PII
-  clínica (CID/diagnóstico) no recibo — só dado financeiro/identificação; acesso/emissão auditado; RBAC
-  `financeiro_paciente.*`; multi-tenant.
-- **Riscos**: deixar claro na UX que recibo **não** é nota fiscal (rótulo explícito); reuso fiel do pipeline de PDF.
+- **CAs entregues**: CA118 (botão por porta), CA119 (chama endpoint), CA120 (oculto/422 para estornado), CA121 (não encontrado → genérico), CA122 (download blob no front), CA123 (PDF válido), CA124 (multi-tenant falha-fechada), CA125 (sem PII clínica), CA126 (nome arquivo sem PII), CA127 (audit best-effort), CA128 (flag 1ª emissão idempotente), CA129 (loading/erro no front), CA130 (rótulo sem valor fiscal).
+- **Riscos mitigados**: rótulo explícito "sem valor fiscal" no PDF; reuso fiel do pipeline QuestPDF + Nunito existente.
 
 ### F9 — NFS-e (Nota Fiscal de Serviço Eletrônica via gateway) **[refinar antes]** — **XL**
 - **Objetivo**: emitir **documento fiscal** (NFS-e) a partir de um atendimento pago, via **provedor externo**

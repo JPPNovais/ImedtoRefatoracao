@@ -11,6 +11,9 @@
  * Eventos:
  *   - fechar: fechar sem pagamento
  *   - pago:   cobrança quitada/atualizada (re-renderiza a badge na agenda)
+ *
+ * F8: quando cobrança está Paga e possui pagamentos não estornados, exibe
+ * ação "Emitir recibo" por pagamento (CA118/CA120/CA122/CA129).
  */
 import { ref, computed, watch } from "vue"
 import AppModal from "./AppModal.vue"
@@ -19,6 +22,7 @@ import AppButton from "./AppButton.vue"
 import AppInputDecimal from "./AppInputDecimal.vue"
 import AppSelect from "./AppSelect.vue"
 import type { CobrancaDetalhe, FormaPagamentoItemRequest, RegistrarPagamentosRequest } from "@/services/cobrancaService"
+import { cobrancaService } from "@/services/cobrancaService"
 
 // ── Prop types ────────────────────────────────────────────────────────────────
 
@@ -100,6 +104,31 @@ const podePagar = computed(() =>
     formas.value.length > 0 &&
     formas.value.every(f => f.formaPagamentoId && parseFloat(f.valor) > 0)
 )
+
+// ── F8: Emitir recibo (CA118/CA129) ───────────────────────────────────────────
+// loadingRecibo mapeia pagamentoId → boolean para estado independente por botão
+const loadingRecibo = ref<Record<number, boolean>>({})
+const erroRecibo = ref<string | null>(null)
+
+async function emitirRecibo(pagamentoId: number) {
+    loadingRecibo.value = { ...loadingRecibo.value, [pagamentoId]: true }
+    erroRecibo.value = null
+    try {
+        const blob = await cobrancaService.emitirRecibo(pagamentoId)
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `recibo-${pagamentoId}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    } catch (e: any) {
+        erroRecibo.value = e?.response?.data?.mensagem ?? "Erro ao emitir o recibo."
+    } finally {
+        loadingRecibo.value = { ...loadingRecibo.value, [pagamentoId]: false }
+    }
+}
 
 // ── Helpers de exibição ───────────────────────────────────────────────────────
 
@@ -196,8 +225,31 @@ async function registrar() {
             <span>Esta cobrança já está quitada.</span>
         </div>
 
-        <!-- Formulário de novo pagamento -->
-        <template v-else-if="cobranca && cobranca.status !== 'Cancelada'">
+        <!-- F8: ações de recibo por pagamento (CA118/CA120/CA122) -->
+        <!-- Exibido quando cobrança quitada e há pagamentos no histórico -->
+        <div v-if="cobranca?.status === 'Paga' && cobranca.pagamentos.length > 0" class="payment-recibo-section">
+            <h3 class="payment-section-title">Recibo</h3>
+            <div v-for="p in cobranca.pagamentos" :key="p.id" class="payment-recibo-row">
+                <span class="payment-recibo-info">
+                    {{ p.formaPagamentoNome }} · {{ fmt(p.valor) }} ·
+                    {{ new Date(p.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR') }}
+                </span>
+                <AppButton
+                    variant="secondary"
+                    size="sm"
+                    icon="fa-solid fa-file-pdf"
+                    :loading="!!loadingRecibo[p.id]"
+                    :disabled="!!loadingRecibo[p.id]"
+                    @click="emitirRecibo(p.id)"
+                >
+                    Emitir recibo
+                </AppButton>
+            </div>
+            <p v-if="erroRecibo" class="payment-erro">{{ erroRecibo }}</p>
+        </div>
+
+        <!-- Formulário de novo pagamento (CA5: apenas para cobranças não quitadas) -->
+        <template v-else-if="cobranca && cobranca.status !== 'Cancelada' && cobranca.status !== 'Paga'">
             <h3 class="payment-section-title">Novo pagamento</h3>
 
             <!-- Desconto (apenas se usuário tem permissão) -->
@@ -463,5 +515,27 @@ async function registrar() {
     white-space: nowrap;
     margin-top: var(--spacing-1);
     display: block;
+}
+
+/* F8: seção de recibo */
+.payment-recibo-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.payment-recibo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+    background: hsl(var(--muted));
+    border-radius: var(--radius-sm);
+}
+
+.payment-recibo-info {
+    font-size: var(--text-sm);
+    color: hsl(var(--foreground));
 }
 </style>

@@ -20,6 +20,11 @@ public class Pagamento : Entity
     /// <summary>FK para o Lancamento gerado atomicamente (INV-3). Nulo até VincularLancamento() ser chamado antes do commit.</summary>
     public virtual long? LancamentoId { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
+    /// <summary>
+    /// Timestamp da primeira emissão de recibo (F8/CA128). Null = recibo nunca emitido.
+    /// Idempotente: reemissões não sobrescrevem o timestamp original.
+    /// </summary>
+    public virtual DateTime? ReciboEmitidoEm { get; protected set; }
 
     // Para uso do EF Core e do Cobranca.RegistrarPagamento.
     protected Pagamento() { }
@@ -57,5 +62,23 @@ public class Pagamento : Entity
         if (lancamentoId <= 0)
             throw new InvalidOperationException("LancamentoId inválido.");
         LancamentoId = lancamentoId;
+    }
+
+    /// <summary>
+    /// Valida que o pagamento pode gerar recibo e grava a flag na 1ª emissão (F8/CA120/CA128).
+    /// - Pagamento estornado → lança <see cref="BusinessException"/> (CA120).
+    /// - Idempotente: reemissões não sobrescrevem <see cref="ReciboEmitidoEm"/> (CA128).
+    /// O caller (handler) persiste o aggregate após a chamada.
+    /// </summary>
+    /// <param name="estornos">Lista de estornos já carregados do aggregate pai.</param>
+    public void RegistrarEmissaoRecibo(IEnumerable<EstornoPagamento> estornos)
+    {
+        // CA120: pagamento estornado bloqueia
+        if (estornos.Any(e => e.PagamentoId == Id))
+            throw new BusinessException("Pagamento estornado não pode gerar recibo.");
+
+        // CA128: grava apenas na 1ª emissão
+        if (ReciboEmitidoEm is null)
+            ReciboEmitidoEm = DateTime.UtcNow;
     }
 }

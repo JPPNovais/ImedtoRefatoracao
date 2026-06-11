@@ -8,6 +8,21 @@ import { describe, it, expect, vi } from "vitest"
 import { mount } from "@vue/test-utils"
 import type { CobrancaDetalhe } from "@/services/cobrancaService"
 
+// Stub de dependências transitivas: PaymentModal importa cobrancaService → httpClient → router.
+// O mock de vue-router precisa exportar createRouter/createWebHistory para que router/index.ts
+// (carregado transitivamente) não quebre ao ser instanciado no ambiente de testes.
+vi.mock("@/services/cobrancaService", () => ({
+    cobrancaService: {
+        registrarPagamentos: vi.fn(),
+        emitirRecibo:        vi.fn(),
+    },
+}))
+
+vi.mock("vue-router", () => ({
+    createRouter:     vi.fn(() => ({ beforeEach: vi.fn(), push: vi.fn(), currentRoute: { value: {} } })),
+    createWebHistory: vi.fn(() => ({})),
+}))
+
 // Stub dos componentes DS importados diretamente no PaymentModal
 vi.mock("./AppModal.vue",        () => ({ default: { props: ["aberto", "largura", "titulo"], emits: ["fechar"], template: `<div><slot /><div data-rodape><slot name="rodape" /></div></div>` } }))
 vi.mock("./AppField.vue",        () => ({ default: { props: ["label"], template: `<div><span>{{ label }}</span><slot /></div>` } }))

@@ -154,6 +154,29 @@ async function onPago(payload: RegistrarPagamentosRequest) {
     }
 }
 
+// ── Emitir recibo (F8/CA118/CA122) ─────────────────────────────────────────
+
+const loadingRecibo = ref<Record<number, boolean>>({})
+
+async function emitirRecibo(pagamentoId: number) {
+    loadingRecibo.value = { ...loadingRecibo.value, [pagamentoId]: true }
+    try {
+        const blob = await cobrancaService.emitirRecibo(pagamentoId)
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `recibo-${pagamentoId}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+    } catch (e: any) {
+        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao emitir o recibo.", "error")
+    } finally {
+        loadingRecibo.value = { ...loadingRecibo.value, [pagamentoId]: false }
+    }
+}
+
 // ── EstornoModal ────────────────────────────────────────────────────────────
 
 interface EstornoAlvo {
@@ -393,9 +416,20 @@ function origemMeta(origem: string) {
                                         </div>
                                         <div class="lr-amount">{{ fmtMoeda(pagamento.valor) }}</div>
                                         <div class="lr-acts">
-                                            <!-- Pode estornar apenas se não estornado e tem permissão -->
-                                            <template v-if="!pagamento.estornado && podeRegistrar()">
+                                            <!-- Ações para pagamento não estornado -->
+                                            <template v-if="!pagamento.estornado">
+                                                <!-- F8/CA118: emitir recibo (CA120: oculto se estornado) -->
                                                 <button
+                                                    class="btn-icon btn-icon-ver"
+                                                    title="Emitir recibo"
+                                                    :disabled="!!loadingRecibo[pagamento.id]"
+                                                    @click="emitirRecibo(pagamento.id)"
+                                                >
+                                                    <i :class="loadingRecibo[pagamento.id] ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-file-pdf'"></i>
+                                                </button>
+                                                <!-- Pode estornar apenas se tem permissão -->
+                                                <button
+                                                    v-if="podeRegistrar()"
                                                     class="btn-icon btn-icon-excluir"
                                                     title="Estornar pagamento"
                                                     @click="abrirEstorno(cobranca, pagamento)"

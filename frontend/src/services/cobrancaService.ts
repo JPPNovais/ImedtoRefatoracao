@@ -192,4 +192,17 @@ export const cobrancaService = {
     async estornarPagamento(cobrancaId: number, pagamentoId: number, motivo: string): Promise<void> {
         await httpClient.post(`/cobrancas/${cobrancaId}/pagamentos/${pagamentoId}/estorno`, { motivo })
     },
+
+    /**
+     * F8/CA118: gera e baixa o PDF do recibo de um pagamento quitado.
+     * Retorna o Blob para download no front. Lança erro se pagamento estornado (CA120) ou
+     * não encontrado (CA121).
+     */
+    async emitirRecibo(pagamentoId: number): Promise<Blob> {
+        const { data } = await httpClient.get<Blob>(
+            `/cobrancas/pagamentos/${pagamentoId}/recibo`,
+            { responseType: "blob" },
+        )
+        return data
+    },
 }

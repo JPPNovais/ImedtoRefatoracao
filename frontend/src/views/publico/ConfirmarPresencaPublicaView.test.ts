@@ -10,7 +10,9 @@ vi.mock("@/services/agendamentoConfirmacaoPublicaService", () => ({
 }))
 
 vi.mock("vue-router", () => ({
-    useRoute: () => ({ params: { token: "token-valido-abc123" } }),
+    useRoute:         () => ({ params: { token: "token-valido-abc123" } }),
+    createRouter:     vi.fn(() => ({ beforeEach: vi.fn(), push: vi.fn(), currentRoute: { value: {} } })),
+    createWebHistory: vi.fn(() => ({})),
 }))
 
 import { agendamentoConfirmacaoPublicaService } from "@/services/agendamentoConfirmacaoPublicaService"

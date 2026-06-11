@@ -130,6 +130,33 @@ public class CobrancaController : ControllerBase
         return NoContent();
     }
 
+    // ── Recibo de pagamento (F8) ──────────────────────────────────────────
+
+    /// <summary>
+    /// Gera o PDF do recibo de um pagamento quitado (F8/CA118).
+    /// - CA120: pagamento estornado → 422.
+    /// - CA121: pagamento inexistente ou de outro tenant → 422 genérico "Não encontrado".
+    /// - CA123: RBAC financeiro_paciente.ver.
+    /// - CA124: multi-tenant falha-fechada (estabelecimento_id do tenant).
+    /// - CA125: nome do arquivo sem PII.
+    /// </summary>
+    [HttpGet("pagamentos/{pagamentoId:long}/recibo")]
+    [RequiresAcao("financeiro_paciente", "ver")]
+    public async Task<ActionResult> EmitirRecibo(long pagamentoId)
+    {
+        var pdfBytes = await _query.Query<EmitirReciboPagamentoQuery, byte[]>(
+            new EmitirReciboPagamentoQuery
+            {
+                PagamentoId = pagamentoId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                UsuarioId = _tenant.UsuarioId,
+            });
+
+        // CA125: nome de arquivo sem PII do paciente
+        Response.Headers.Append("Content-Disposition", $"attachment; filename=\"recibo-{pagamentoId}.pdf\"");
+        return File(pdfBytes, "application/pdf");
+    }
+
     // ── Valor sugerido (check-in) ──────────────────────────────────────────
 
     [HttpGet("valor-sugerido")]

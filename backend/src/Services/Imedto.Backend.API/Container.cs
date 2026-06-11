@@ -189,6 +189,7 @@ using Imedto.Backend.Contracts.Cobrancas.Queries.Results;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Infrastructure.Database.Repositories.Cobrancas;
+using Imedto.Backend.Infrastructure.Cobrancas;
 using Imedto.Backend.Domain.AssinaturaDigital;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
@@ -949,6 +950,9 @@ public static class Container
         services.AddSingleton<ListarConfigTaxaFormaPagamentoQueryHandlers>();
         // F2: scoped — injeta IPacienteAcessoLogService (scoped, LGPD audit)
         services.AddScoped<ObterFinanceiroAbaQueryHandler>();
+        // F8: recibo de pagamento — scoped (persiste recibo_emitido_em via ICobrancaRepository)
+        services.AddScoped<IReciboPagamentoPdfService, QuestPdfReciboPagamentoService>();
+        services.AddScoped<EmitirReciboPagamentoQueryHandler>();
     }
 
     private static void RegistrarBuses(IServiceCollection services)
@@ -1298,6 +1302,8 @@ public static class Container
             bus.Register<ListarTabelaPrecoConsultaQuery, IEnumerable<TabelaPrecoConsultaDto>, ListarTabelaPrecoConsultaQueryHandlers>();
             bus.Register<ListarConfigTaxaFormaPagamentoQuery, IEnumerable<ConfigTaxaFormaPagamentoDto>, ListarConfigTaxaFormaPagamentoQueryHandlers>();
             bus.Register<ObterFinanceiroAbaQuery, FinanceiroAbaDto, ObterFinanceiroAbaQueryHandler>();
+            // F8: recibo de pagamento
+            bus.Register<EmitirReciboPagamentoQuery, byte[], EmitirReciboPagamentoQueryHandler>();
             return bus;
         });
 

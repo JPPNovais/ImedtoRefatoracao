@@ -22,6 +22,8 @@ public class PagamentoConfiguration : IEntityTypeConfiguration<Pagamento>
         builder.Property(p => p.RegistradoPorUsuarioId).HasColumnName("registrado_por_usuario_id").IsRequired();
         builder.Property(p => p.LancamentoId).HasColumnName("lancamento_id").IsRequired(false);
         builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
+        // F8/CA128: flag da 1ª emissão de recibo. Coluna adicionada via ALTER TABLE pelo imedto-database.
+        builder.Property(p => p.ReciboEmitidoEm).HasColumnName("recibo_emitido_em").IsRequired(false);
 
         builder.Ignore(p => p.DomainEvents);
 
