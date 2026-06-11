@@ -12,12 +12,26 @@ export interface LinhaRelatorio {
     quantidade?: number
 }
 
+// F7/CA178 — custo/lucro por paciente no relatório financeiro.
+export interface CustoLucroPaciente {
+    pacienteId: number
+    pacienteNome: string
+    cobrado: number
+    pago: number
+    desconto: number
+    taxa: number
+    custo: number
+    lucro: number
+}
+
 export interface RelatorioFinanceiro {
     totalReceitas: number
     totalDespesas: number
     saldo: number
     breakdown: LinhaRelatorio[]
     agrupadoPor: AgruparPorFinanceiro
+    /** F7/CA178 — presente apenas quando incluirPorPaciente=true */
+    porPaciente?: CustoLucroPaciente[]
 }
 
 export interface KpiOperacional {
@@ -73,6 +87,8 @@ export interface FiltroBase {
 
 export interface FiltroFinanceiro extends FiltroBase {
     agruparPor?: AgruparPorFinanceiro
+    /** F7/CA178 — solicita seção porPaciente no retorno */
+    incluirPorPaciente?: boolean
 }
 
 export interface FiltroOperacional extends FiltroBase {

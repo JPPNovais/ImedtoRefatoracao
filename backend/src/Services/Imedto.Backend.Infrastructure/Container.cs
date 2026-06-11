@@ -124,6 +124,13 @@ public static class InfrastructureExtensions
         // Financeiro
         services.AddScoped<Domain.Financeiro.ILancamentoRepository, Database.Repositories.LancamentoRepository>();
 
+        // F7 — Caixa diário + Config comissão (write repos, scoped)
+        services.AddScoped<Domain.Financeiro.ICaixaDiarioRepository, Database.Repositories.CaixaDiarioRepository>();
+        services.AddScoped<Domain.Financeiro.IConfigComissaoProfissionalRepository, Database.Repositories.ConfigComissaoProfissionalRepository>();
+
+        // F7 — Consolidação Financeira (Dapper read-only, singleton)
+        services.AddSingleton<Database.Repositories.ConsolidacaoFinanceiraQueryRepository>();
+
         // F3B — Pendências de atendimento (briefing 2026-06-10_012): repositório de escrita (EF scoped).
         services.AddScoped<Domain.Prontuarios.Pendencias.IPendenciaAtendimentoRepository,
                            Database.Repositories.PendenciaAtendimentoRepository>();

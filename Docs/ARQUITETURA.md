@@ -548,6 +548,29 @@ Seção `convenios` adicionada ao grupo **"Faturamento"** (renomeado de "Finance
 #### "Em breve" (Coparticipação / Conciliação / Glosas)
 Cards visuais com selo "Em breve" nas abas de configuração e na aba Convênios do paciente. **Sem schema** — não há tabelas de coparticipação, conciliação nem glosas nesta fase.
 
+### Consolidação F7: caixa diário + comissões + custo/lucro + redesign do `/financeiro` (briefing 2026-06-11_001)
+
+Fase final do épico. Substitui a `FinanceiroView.vue` temporária por uma tela de **4 abas** (Visão geral/Extrato · Caixa diário · Comissões · Configurações) lendo de `Lancamento` (base inalterada). **Toda agregação no backend** (Dapper `SUM`/`GROUP BY`) — nenhuma coleção bruta somada no front; lazy por aba (consulta só na aba clicada).
+
+#### Caixa diário (`CaixaDiario`)
+- Aggregate **por estabelecimento + data** (índice UNIQUE `(estabelecimento_id, data)`). Estados: NãoAberto (sem registro) → Aberto → Fechado; reabrir volta a Aberto. Campos: `aberto_por/em`, `fechado_por/em`, `reaberto_por/em?`, `observacao?`, `status`.
+- **Resumo do dia lido on-the-fly** de `Lancamento` `Status=Pago` com `DataPagamento = data`, agrupado por forma de pagamento + estornos (negativos do dia) + total líquido. O caixa **não materializa valores** — fechar só congela o status/selo, nunca os números (evita divergência). Lançamento retroativo em dia fechado **não é bloqueado** (caixa é ritual de conferência, não trava operação).
+- **RBAC**: abrir/fechar exige **`financeiro.fechar`** (ação **já existente** no `CatalogoPermissoes.cs`, área `financeiro` = `{ver, lancar, fechar}` — Dono a tem via AdminPadrao; **nenhuma ação nova**). **Reabrir** exige ser **Dono** (mais restrito) + audit (`reaberto_por/em`).
+- **Isolamento multi-tenant absoluto**: caixa do estabelecimento A jamais visível em B, mesmo para o mesmo usuário multi-vínculo — contexto = estabelecimento ativo (claim de tenant), repositório falha-fechada, 404 genérico cross-tenant.
+
+#### Comissões (`ConfigComissaoProfissional`)
+- Config por `(estabelecimento_id, profissional_usuario_id, tipo∈{Consulta,Procedimento})` → `percentual` (só percentual; sem `valor_fixo`). **Default de sistema 30%** quando sem config (fallback no cálculo, não persistido). UI de edição na **Equipe** (`ProfissionalDetalhesModal.vue`, aba Perfil); editar é do **Dono**.
+- **Cálculo regime caixa** (sobre pagamentos **recebidos** no período, coerente com o extrato): consulta/procedimento = `valor_recebido × percentual`; **cirurgia usa `OrcamentoEquipe`** (valor absoluto por profissional, **não** % config) **rateado** pela proporção `recebido_no_periodo / valor_cobrado`. Arredondamento via `ArredondamentoMonetario`.
+- **Comissão é visão/relatório — NÃO gera `Lancamento`** de despesa (anti-escopo). O repasse efetivo, se desejado, é lançamento avulso manual.
+
+#### Custo/lucro por paciente (Relatórios)
+- A aba Financeiro de `RelatorioFinanceiroTab.vue`/`RelatorioFinanceiroQuery` ganha visão **aditiva** por paciente (cobrado · pago · desconto · taxa · custo · lucro) — KPIs/breakdown atuais inalterados (retrocompat).
+- **Custo de insumo** via `movimentacoes_estoque.cobranca_id` (**coluna nova** nullable, FK fraca `ON DELETE SET NULL`) que a baixa automática F4/F5 passa a gravar — joina `movimentação → cobrança → paciente` (não parse de observação). Movimentação manual = `cobranca_id NULL`.
+- **LGPD**: relatório **agregado não audita**; **drill-down por paciente específico** no frontend navega para `/pacientes/{id}` (rota existente) — o audit via `IPacienteAcessoLogService.RegistrarAsync(..., Leitura)` ocorre no handler de `ObterPacienteQuery` (best-effort, padrão F2). Export CSV reusa `useRelatorioCsv` (`exportarPorPaciente` adicionado a `useRelatorioCsv.ts`).
+
+#### Config sem duplicação
+A aba "Configurações" do `/financeiro` **renderiza `FinanceiroConfigView.vue` inline** (tabela de preços + taxa de cartão da F1 — não recria formulários) + bloco "Comissões" (default informativo + link para a Equipe). As rotas `/configuracoes/financeiro` (`?secao=financeiro`), `/financeiro/categorias` e `/financeiro/formas-pagamento` permanecem **inalteradas**.
+
 ---
 
 ## Conexão Postgres (RDS)

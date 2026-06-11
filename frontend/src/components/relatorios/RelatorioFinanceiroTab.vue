@@ -1,17 +1,32 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AppCard, AppEmptyState } from '@/components/ui'
+import { AppCard, AppEmptyState, AppButton } from '@/components/ui'
 import RelatorioKpiCard from './RelatorioKpiCard.vue'
 import RelatorioLineChart from './RelatorioLineChart.vue'
 import RelatorioDonutChart from './RelatorioDonutChart.vue'
 import type { RelatorioFinanceiro } from '@/services/relatorioService'
+import { useRelatorioCsv } from '@/composables/useRelatorioCsv'
 
 const props = defineProps<{
     dados: RelatorioFinanceiro | null
     carregando: boolean
     erro: string | null
     comparar?: boolean
+    periodo?: { dataInicio: string; dataFim: string }
 }>()
+
+const emit = defineEmits<{
+    /** F7/CA181 — emitido quando usuário clica para ver detalhe de um paciente. */
+    (e: 'drill-down-paciente', pacienteId: number): void
+}>()
+
+const { exportarPorPaciente } = useRelatorioCsv()
+
+function exportarCsvPorPaciente() {
+    if (props.dados?.porPaciente && props.periodo) {
+        exportarPorPaciente(props.dados.porPaciente, props.periodo)
+    }
+}
 
 function moeda(n: number) {
     return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -178,6 +193,63 @@ const fatiasDonut = computed(() =>
                     </table>
                 </div>
             </AppCard>
+
+            <!-- F7/CA178-CA182 — Custo/lucro por paciente (aditivo — presente quando porPaciente fornecido) -->
+            <AppCard v-if="dados.porPaciente && dados.porPaciente.length > 0">
+                <template #header>
+                    <div class="rp-cabecalho-por-paciente">
+                        <div class="ds-card-title rp-cabecalho">
+                            <i class="fa-solid fa-user-injured" aria-hidden="true"></i>
+                            Custo / lucro por paciente
+                        </div>
+                        <!-- CA182 — export CSV reusado -->
+                        <AppButton
+                            v-if="periodo"
+                            size="sm"
+                            variant="secondary"
+                            icon="fa-solid fa-file-csv"
+                            @click="exportarCsvPorPaciente"
+                        >
+                            Exportar
+                        </AppButton>
+                    </div>
+                </template>
+                <div class="rp-tabela-wrapper">
+                    <table class="rp-tabela">
+                        <thead>
+                            <tr>
+                                <th>Paciente</th>
+                                <th class="r">Cobrado</th>
+                                <th class="r">Pago</th>
+                                <th class="r">Desconto</th>
+                                <th class="r">Taxa</th>
+                                <th class="r">Custo</th>
+                                <th class="r">Lucro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- CA181: drill-down emite evento para o pai auditar -->
+                            <tr
+                                v-for="p in dados.porPaciente"
+                                :key="p.pacienteId"
+                                class="rp-por-paciente-row"
+                                @click="emit('drill-down-paciente', p.pacienteId)"
+                                :title="`Ver detalhe de ${p.pacienteNome}`"
+                            >
+                                <td class="td-nome">{{ p.pacienteNome }}</td>
+                                <td class="r">{{ moeda(p.cobrado) }}</td>
+                                <td class="r">{{ moeda(p.pago) }}</td>
+                                <td class="r td-muted">{{ moeda(p.desconto) }}</td>
+                                <td class="r td-muted">{{ moeda(p.taxa) }}</td>
+                                <td class="r td-muted">{{ moeda(p.custo) }}</td>
+                                <td class="r" :class="p.lucro >= 0 ? 'lucro-pos' : 'lucro-neg'">
+                                    {{ moeda(p.lucro) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </AppCard>
         </template>
     </div>
 </template>
@@ -286,4 +358,19 @@ const fatiasDonut = computed(() =>
     border-bottom: none;
     padding-top: 12px;
 }
+
+/* F7/CA178 — Por paciente */
+.rp-cabecalho-por-paciente {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.rp-por-paciente-row {
+    cursor: pointer;
+}
+.rp-por-paciente-row:hover td { background: hsl(var(--primary) / 0.04); }
+.lucro-pos { color: hsl(var(--success)); font-weight: 600; }
+.lucro-neg { color: hsl(var(--destructive)); font-weight: 600; }
 </style>

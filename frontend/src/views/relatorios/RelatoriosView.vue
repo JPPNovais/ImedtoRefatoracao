@@ -98,6 +98,7 @@ async function carregarFinanceiro() {
             dataInicio: filtroAtual.value.dataInicio || undefined,
             dataFim:    filtroAtual.value.dataFim    || undefined,
             agruparPor: 'categoria',
+            incluirPorPaciente: true,
         })
     } catch (e: any) {
         erroFin.value = e?.response?.data?.mensagem ?? 'Erro ao carregar relatório financeiro.'
@@ -287,6 +288,8 @@ onMounted(() => {
                 :carregando="carregandoFin"
                 :erro="erroFin"
                 :comparar="comparar"
+                :periodo="filtroAtual"
+                @drill-down-paciente="(id) => router.push(`/pacientes/${id}`)"
             />
 
             <RelatorioAgendaTab

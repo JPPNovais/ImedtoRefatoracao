@@ -969,6 +969,19 @@ public static class Container
         services.AddScoped<IReciboPagamentoPdfService, QuestPdfReciboPagamentoService>();
         services.AddScoped<EmitirReciboPagamentoQueryHandler>();
 
+        // F7 — Consolidação Financeira (2026-06-11_001)
+        // Write handlers (scoped — EF Core)
+        services.AddScoped<AbrirCaixaDiarioCommandHandler>();
+        services.AddScoped<FecharCaixaDiarioCommandHandler>();
+        services.AddScoped<ReabrirCaixaDiarioCommandHandler>();
+        services.AddScoped<SalvarComissaoProfissionalCommandHandler>();
+        // Query handlers (singleton — Dapper read-only via ConsolidacaoFinanceiraQueryRepository)
+        services.AddSingleton<ObterKpisFinanceiroQueryHandler>();
+        services.AddSingleton<ListarExtratoQueryHandler>();
+        services.AddSingleton<ObterCaixaDiarioQueryHandler>();
+        services.AddSingleton<ObterComissoesPeriodoQueryHandler>();
+        services.AddSingleton<ObterConfigComissaoQueryHandler>();
+
         // F6 — Convênios: estrutura base (briefing 2026-06-10_016)
         // Repositórios de escrita registrados em Infrastructure/Container.cs (junto com o CheckInHandler)
         services.AddSingleton<ConvenioQueryRepository>();
@@ -1205,6 +1218,11 @@ public static class Container
             bus.Register<AtualizarPacienteConvenioCommand, AtualizarPacienteConvenioCommandHandler>();
             bus.Register<ExcluirPacienteConvenioCommand, ExcluirPacienteConvenioCommandHandler>();
             bus.Register<RegistrarGuiaCobrancaCommand, RegistrarGuiaCobrancaCommandHandler>();
+            // F7 — Caixa diário + Comissões (2026-06-11_001)
+            bus.Register<AbrirCaixaDiarioCommand, AbrirCaixaDiarioCommandHandler>();
+            bus.Register<FecharCaixaDiarioCommand, FecharCaixaDiarioCommandHandler>();
+            bus.Register<ReabrirCaixaDiarioCommand, ReabrirCaixaDiarioCommandHandler>();
+            bus.Register<SalvarComissaoProfissionalCommand, SalvarComissaoProfissionalCommandHandler>();
             return bus;
         });
 
@@ -1357,6 +1375,12 @@ public static class Container
             bus.Register<ObterConvenioQuery, ConvenioDetalheDto?, ObterConvenioQueryHandler>();
             bus.Register<ListarPacienteConveniosQuery, IReadOnlyList<PacienteConvenioDto>, ListarPacienteConveniosQueryHandler>();
             bus.Register<ObterCarteirinhaAtivaCheckInQuery, IReadOnlyList<CarteirinhaCheckInDto>, ObterCarteirinhaAtivaCheckInQueryHandler>();
+            // F7 — Extrato/KPIs/Caixa/Comissões (2026-06-11_001)
+            bus.Register<ObterKpisFinanceiroQuery, KpisFinanceiroDto, ObterKpisFinanceiroQueryHandler>();
+            bus.Register<ListarExtratoQuery, PaginaLancamentosExtratoDto, ListarExtratoQueryHandler>();
+            bus.Register<ObterCaixaDiarioQuery, CaixaDiarioDto?, ObterCaixaDiarioQueryHandler>();
+            bus.Register<ObterComissoesPeriodoQuery, ComissaoPeriodoDto, ObterComissoesPeriodoQueryHandler>();
+            bus.Register<ObterConfigComissaoQuery, ConfigComissaoDto, ObterConfigComissaoQueryHandler>();
             return bus;
         });
 

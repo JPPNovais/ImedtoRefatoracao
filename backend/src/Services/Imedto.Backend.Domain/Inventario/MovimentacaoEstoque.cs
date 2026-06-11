@@ -19,6 +19,11 @@ public class MovimentacaoEstoque : Entity, ISoftDeletable
     /// <summary>Total monetário da movimentação = <see cref="Quantidade"/> × <see cref="CustoUnitario"/>.</summary>
     public virtual decimal CustoTotal { get; protected set; }
     public virtual string? Observacao { get; protected set; }
+    /// <summary>
+    /// F7/R21 — vínculo da baixa automática à cobrança que a originou.
+    /// Nulo para movimentações manuais. Gravado pelo handler de F4/F5.
+    /// </summary>
+    public virtual long? CobrancaId { get; protected set; }
     public virtual Guid CriadoPorUsuarioId { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
 
@@ -37,7 +42,8 @@ public class MovimentacaoEstoque : Entity, ISoftDeletable
         decimal quantidadeApos,
         Guid criadoPorUsuarioId,
         decimal custoUnitario,
-        string? observacao)
+        string? observacao,
+        long? cobrancaId = null)
     {
         return new MovimentacaoEstoque
         {
@@ -51,6 +57,7 @@ public class MovimentacaoEstoque : Entity, ISoftDeletable
             CustoTotal = quantidade * custoUnitario,
             CriadoPorUsuarioId = criadoPorUsuarioId,
             Observacao = string.IsNullOrWhiteSpace(observacao) ? null : observacao.Trim(),
+            CobrancaId = cobrancaId,
             CriadoEm = DateTime.UtcNow
         };
     }

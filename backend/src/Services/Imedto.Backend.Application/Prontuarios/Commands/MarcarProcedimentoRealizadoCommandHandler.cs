@@ -125,8 +125,9 @@ public class MarcarProcedimentoRealizadoCommandHandler : ICommandHandler<MarcarP
                     ?? throw new BusinessException("Não encontrado.");
 
                 // RegistrarSaida lança BusinessException se estoque insuficiente (R8/CA78 → rollback total via UoW).
+                // F7/R21: cobrancaId gravado para rastreabilidade de custo por paciente (sem parse de observação).
                 var observacao = $"Baixa automática — procedimento realizado, cobrança #{cobranca.Id}";
-                var mov = item.RegistrarSaida(prod.Quantidade, command.UsuarioId, observacao);
+                var mov = item.RegistrarSaida(prod.Quantidade, command.UsuarioId, observacao, cobranca.Id);
                 await _movRepo.Salvar(mov);
             }
         }

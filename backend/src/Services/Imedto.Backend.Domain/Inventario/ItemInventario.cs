@@ -153,7 +153,11 @@ public class ItemInventario : Entity
     /// Dispara <see cref="EstoqueAbaixoMinimoEvent"/> se necessário.
     /// Retorna a movimentação criada para ser salva separadamente.
     /// </summary>
-    public virtual MovimentacaoEstoque RegistrarSaida(decimal quantidade, Guid usuarioId, string? observacao)
+    /// <param name="cobrancaId">
+    /// F7/R21 — ID da cobrança que originou esta saída automática.
+    /// Nulo para movimentações manuais.
+    /// </param>
+    public virtual MovimentacaoEstoque RegistrarSaida(decimal quantidade, Guid usuarioId, string? observacao, long? cobrancaId = null)
     {
         if (!Ativo)
             throw new BusinessException("Não é possível movimentar um item inativo.");
@@ -174,7 +178,7 @@ public class ItemInventario : Entity
             AddDomainEvent(new EstoqueAbaixoMinimoEvent(Id, EstabelecimentoId, Nome, QuantidadeAtual, QuantidadeMinima));
 
         return MovimentacaoEstoque.Criar(Id, EstabelecimentoId,
-            TipoMovimentacaoEstoque.Saida, quantidade, anterior, QuantidadeAtual, usuarioId, custoUnitarioSnapshot, observacao);
+            TipoMovimentacaoEstoque.Saida, quantidade, anterior, QuantidadeAtual, usuarioId, custoUnitarioSnapshot, observacao, cobrancaId);
     }
 
     /// <summary>

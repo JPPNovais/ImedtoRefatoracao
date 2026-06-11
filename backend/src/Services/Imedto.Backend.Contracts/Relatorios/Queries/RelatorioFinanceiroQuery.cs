@@ -15,4 +15,6 @@ public class RelatorioFinanceiroQuery : IQuery<RelatorioFinanceiroDto>
     public DateOnly DataInicio { get; set; }
     public DateOnly DataFim { get; set; }
     public string AgruparPor { get; set; } = "dia";
+    /// <summary>F7/R20 — quando true, inclui a visão por paciente (custo/lucro). Default false para retrocompatibilidade.</summary>
+    public bool IncluirPorPaciente { get; set; } = false;
 }

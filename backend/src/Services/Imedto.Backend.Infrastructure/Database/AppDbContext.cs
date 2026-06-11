@@ -164,6 +164,10 @@ public class AppDbContext : DbContext
     // F3B — Pendências de atendimento (briefing 2026-06-10_012).
     public DbSet<PendenciaAtendimento> PendenciasAtendimento => Set<PendenciaAtendimento>();
 
+    // F7 — Caixa diário + Config de comissão (briefing 2026-06-11_001).
+    public DbSet<CaixaDiario> CaixasDiario => Set<CaixaDiario>();
+    public DbSet<ConfigComissaoProfissional> ConfigsComissaoProfissional => Set<ConfigComissaoProfissional>();
+
     // F6 — Convênios (briefing 2026-06-10_016).
     public DbSet<Convenio> Convenios => Set<Convenio>();
     public DbSet<ConvenioPlano> ConvenioPlanos => Set<ConvenioPlano>();

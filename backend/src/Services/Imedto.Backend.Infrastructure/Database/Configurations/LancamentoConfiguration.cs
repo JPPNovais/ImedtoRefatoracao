@@ -39,6 +39,14 @@ public class LancamentoConfiguration : IEntityTypeConfiguration<Lancamento>
         // F1: índice em cobranca_id para join na query da cobrança sem N+1 (briefing §10)
         builder.HasIndex(l => l.CobrancaId)
             .HasDatabaseName("ix_lancamentos_cobranca_id");
+        // F7: agregações de KPI/extrato/caixa filtram por (estabelecimento_id, data_pagamento) — ObterKpis/ListarExtrato/ObterCaixaDiario.
+        builder.HasIndex(l => new { l.EstabelecimentoId, l.DataPagamento })
+            .HasDatabaseName("ix_lancamentos_estab_data_pagamento");
+        // F7: índice parcial para agregação do caixa (status='Pago') — uso frequente nos KPIs de caixa.
+        // Nota: HasFilter com valor string é emitido corretamente pelo Npgsql como expressão SQL.
+        builder.HasIndex(l => new { l.EstabelecimentoId, l.DataPagamento })
+            .HasDatabaseName("ix_lancamentos_estab_data_pagamento_pago")
+            .HasFilter("status = 'Pago'");
 
         builder.HasOne<Domain.Estabelecimentos.Estabelecimento>()
             .WithMany()

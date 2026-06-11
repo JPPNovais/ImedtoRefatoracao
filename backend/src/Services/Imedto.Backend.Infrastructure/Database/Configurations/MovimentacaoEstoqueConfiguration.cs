@@ -22,6 +22,8 @@ public class MovimentacaoEstoqueConfiguration : IEntityTypeConfiguration<Movimen
         builder.Property(m => m.CustoUnitario).HasColumnName("custo_unitario").HasPrecision(18, 4).IsRequired();
         builder.Property(m => m.CustoTotal).HasColumnName("custo_total").HasPrecision(18, 4).IsRequired();
         builder.Property(m => m.Observacao).HasColumnName("observacao").HasMaxLength(500);
+        // F7/R21 — vínculo da baixa automática à cobrança (nullable; null = movimentação manual).
+        builder.Property(m => m.CobrancaId).HasColumnName("cobranca_id");
         builder.Property(m => m.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
         builder.Property(m => m.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(m => m.DeletadoEm).HasColumnName("deletado_em");
@@ -31,6 +33,9 @@ public class MovimentacaoEstoqueConfiguration : IEntityTypeConfiguration<Movimen
             .HasDatabaseName("ix_movimentacao_item_data");
         builder.HasIndex(m => new { m.EstabelecimentoId, m.CriadoEm })
             .HasDatabaseName("ix_movimentacao_estab_data");
+        // F7/R21 — índice em cobranca_id para join de custo por paciente no relatório.
+        builder.HasIndex(m => m.CobrancaId)
+            .HasDatabaseName("ix_movimentacao_cobranca_id");
 
         builder.HasOne<ItemInventario>()
             .WithMany()

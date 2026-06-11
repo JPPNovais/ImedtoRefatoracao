@@ -12,4 +12,26 @@ public class RelatorioFinanceiroDto
     public decimal TotalDespesas { get; set; }
     public decimal Saldo { get; set; }
     public IList<RowSummary> Breakdown { get; set; } = new List<RowSummary>();
+
+    /// <summary>
+    /// F7/R20 — Visão por paciente (custo/lucro). Null quando não solicitada.
+    /// Adicionado de forma aditiva — clientes existentes ignoram o campo (R25).
+    /// </summary>
+    public IList<CustoLucroPacienteDto>? PorPaciente { get; set; }
+}
+
+/// <summary>
+/// Custo/lucro por paciente (F7/R20 — R22 audita o drill-down, não a listagem).
+/// LGPD: nome do paciente no DTO minimizado (só id + nome).
+/// </summary>
+public class CustoLucroPacienteDto
+{
+    public long PacienteId { get; set; }
+    public string PacienteNome { get; set; } = string.Empty;
+    public decimal Cobrado { get; set; }
+    public decimal Pago { get; set; }
+    public decimal Desconto { get; set; }
+    public decimal Taxa { get; set; }
+    public decimal Custo { get; set; }
+    public decimal Lucro { get; set; }  // = Pago − Custo
 }

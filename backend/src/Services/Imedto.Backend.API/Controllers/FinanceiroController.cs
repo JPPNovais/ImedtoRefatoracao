@@ -7,6 +7,7 @@ using Imedto.Backend.Contracts.Financeiro.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Filters;
 using Imedto.Backend.SharedKernel.Tenancy;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -230,6 +231,154 @@ public class FinanceiroController : ControllerBase
         });
         return NoContent();
     }
+
+    // ─────────────────────────── F7 — KPIs / Extrato ───────────────────────────
+
+    [HttpGet("kpis")]
+    [RequiresAcao("financeiro.ver")]
+    public async Task<ActionResult<KpisFinanceiroDto>> ObterKpis(
+        [FromQuery] DateOnly dataInicio,
+        [FromQuery] DateOnly dataFim)
+    {
+        var result = await _query.Query<ObterKpisFinanceiroQuery, KpisFinanceiroDto>(
+            new ObterKpisFinanceiroQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                DataInicio = dataInicio,
+                DataFim = dataFim
+            });
+        return Ok(result);
+    }
+
+    [HttpGet("extrato")]
+    [RequiresAcao("financeiro.ver")]
+    public async Task<ActionResult<PaginaLancamentosExtratoDto>> ListarExtrato(
+        [FromQuery] DateOnly dataInicio,
+        [FromQuery] DateOnly dataFim,
+        [FromQuery] string? tipo,
+        [FromQuery] string? categoria,
+        [FromQuery] string? formaPagamento,
+        [FromQuery] string? origem,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 20)
+    {
+        var result = await _query.Query<ListarExtratoQuery, PaginaLancamentosExtratoDto>(
+            new ListarExtratoQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                DataInicio = dataInicio,
+                DataFim = dataFim,
+                Tipo = tipo,
+                Categoria = categoria,
+                FormaPagamento = formaPagamento,
+                Origem = origem,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
+            });
+        return Ok(result);
+    }
+
+    // ─────────────────────────── F7 — Caixa Diário ─────────────────────────────
+
+    [HttpGet("caixa")]
+    [RequiresAcao("financeiro.ver")]
+    public async Task<ActionResult<CaixaDiarioDto?>> ObterCaixa([FromQuery] DateOnly? data)
+    {
+        var result = await _query.Query<ObterCaixaDiarioQuery, CaixaDiarioDto?>(
+            new ObterCaixaDiarioQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Data = data ?? DateOnly.FromDateTime(DateTime.Today)
+            });
+        return Ok(result);
+    }
+
+    [HttpPost("caixa/abrir")]
+    [RequiresAcao("financeiro.fechar")]
+    public async Task<ActionResult> AbrirCaixa([FromBody] AbrirCaixaDiarioDto dto)
+    {
+        await _cmd.Send(new AbrirCaixaDiarioCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Data = dto.Data ?? DateOnly.FromDateTime(DateTime.Today),
+            UsuarioId = _tenant.UsuarioId
+        });
+        return NoContent();
+    }
+
+    [HttpPost("caixa/fechar")]
+    [RequiresAcao("financeiro.fechar")]
+    public async Task<ActionResult> FecharCaixa([FromBody] FecharCaixaDiarioDto dto)
+    {
+        await _cmd.Send(new FecharCaixaDiarioCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Data = dto.Data ?? DateOnly.FromDateTime(DateTime.Today),
+            UsuarioId = _tenant.UsuarioId,
+            Observacao = dto.Observacao
+        });
+        return NoContent();
+    }
+
+    [HttpPost("caixa/reabrir")]
+    [RequiresAcao("financeiro.fechar")]
+    public async Task<ActionResult> ReabrirCaixa([FromBody] ReabrirCaixaDiarioDto dto)
+    {
+        await _cmd.Send(new ReabrirCaixaDiarioCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Data = dto.Data ?? DateOnly.FromDateTime(DateTime.Today),
+            UsuarioId = _tenant.UsuarioId,
+            EhDono = _tenant.EhDono
+        });
+        return NoContent();
+    }
+
+    // ─────────────────────────── F7 — Comissões ────────────────────────────────
+
+    [HttpGet("comissoes")]
+    [RequiresAcao("financeiro.ver")]
+    public async Task<ActionResult<ComissaoPeriodoDto>> ObterComissoes(
+        [FromQuery] DateOnly dataInicio,
+        [FromQuery] DateOnly dataFim)
+    {
+        var result = await _query.Query<ObterComissoesPeriodoQuery, ComissaoPeriodoDto>(
+            new ObterComissoesPeriodoQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                DataInicio = dataInicio,
+                DataFim = dataFim
+            });
+        return Ok(result);
+    }
+
+    [HttpGet("comissoes/config/{profissionalUsuarioId:guid}")]
+    [RequiresAcao("financeiro.ver")]
+    public async Task<ActionResult<ConfigComissaoDto>> ObterConfigComissao(Guid profissionalUsuarioId)
+    {
+        var result = await _query.Query<ObterConfigComissaoQuery, ConfigComissaoDto>(
+            new ObterConfigComissaoQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                ProfissionalUsuarioId = profissionalUsuarioId
+            });
+        return Ok(result);
+    }
+
+    [HttpPost("comissoes/config")]
+    [RequiresAcao("financeiro.fechar")]
+    public async Task<ActionResult> SalvarConfigComissao([FromBody] SalvarConfigComissaoProfissionalDto dto)
+    {
+        await _cmd.Send(new SalvarComissaoProfissionalCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            ProfissionalUsuarioId = dto.ProfissionalUsuarioId,
+            PercentualConsulta = dto.PercentualConsulta,
+            PercentualProcedimento = dto.PercentualProcedimento,
+            EhDono = _tenant.EhDono
+        });
+        return NoContent();
+    }
 }
 
 public record CriarLancamentoDto(
@@ -252,3 +401,14 @@ public record CriarCategoriaFinanceiraDto(string Nome, string Tipo);
 public record AtualizarCategoriaFinanceiraDto(string Nome, string Tipo);
 public record CriarFormaPagamentoDto(string Nome);
 public record AtualizarFormaPagamentoDto(string Nome);
+
+// F7 — Caixa Diário
+public record AbrirCaixaDiarioDto(DateOnly? Data);
+public record FecharCaixaDiarioDto(DateOnly? Data, string? Observacao);
+public record ReabrirCaixaDiarioDto(DateOnly? Data);
+
+// F7 — Comissão
+public record SalvarConfigComissaoProfissionalDto(
+    Guid ProfissionalUsuarioId,
+    decimal? PercentualConsulta,
+    decimal? PercentualProcedimento);

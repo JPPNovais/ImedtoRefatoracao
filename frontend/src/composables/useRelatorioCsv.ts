@@ -20,6 +20,7 @@ import type {
     RelatorioOperacional,
     RelatorioPessoas,
     RelatorioOrcamentos,
+    CustoLucroPaciente,
 } from "@/services/relatorioService"
 
 export function useRelatorioCsv() {
@@ -241,11 +242,41 @@ export function useRelatorioCsv() {
         )
     }
 
+    /**
+     * F7/CA182 — Exporta a seção "Por paciente" do relatório financeiro.
+     * Colunas: Paciente; Cobrado (R$); Pago (R$); Desconto (R$); Taxa (R$); Custo (R$); Lucro (R$).
+     * LGPD: apenas nome + valores financeiros — sem PII adicional.
+     */
+    function exportarPorPaciente(
+        linhasTab: CustoLucroPaciente[],
+        periodo: { dataInicio: string; dataFim: string },
+    ): void {
+        const linhas: string[][] = [
+            ...cabecalhoPeriodo(periodo.dataInicio, periodo.dataFim),
+            ["Paciente", "Cobrado (R$)", "Pago (R$)", "Desconto (R$)", "Taxa (R$)", "Custo (R$)", "Lucro (R$)"],
+            ...linhasTab.map(p => [
+                p.pacienteNome,
+                formatarDecimal(p.cobrado),
+                formatarDecimal(p.pago),
+                formatarDecimal(p.desconto),
+                formatarDecimal(p.taxa),
+                formatarDecimal(p.custo),
+                formatarDecimal(p.lucro),
+            ]),
+        ]
+
+        baixarCsv(
+            construirCsv(linhas),
+            nomeArquivoCsv("custo-lucro-por-paciente", periodo.dataInicio, periodo.dataFim),
+        )
+    }
+
     return {
         exportarFinanceiro,
         exportarAgenda,
         exportarPessoas,
         exportarOrcamentos,
         exportarVisaoGeral,
+        exportarPorPaciente,
     }
 }

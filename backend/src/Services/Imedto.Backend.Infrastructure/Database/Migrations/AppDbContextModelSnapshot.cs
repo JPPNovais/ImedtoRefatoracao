@@ -2397,6 +2397,75 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("estabelecimentos", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.CaixaDiario", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AbertoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("aberto_em");
+
+                    b.Property<Guid>("AbertoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aberto_por_usuario_id");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<DateOnly>("Data")
+                        .HasColumnType("date")
+                        .HasColumnName("data");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<DateTime?>("FechadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("fechado_em");
+
+                    b.Property<Guid?>("FechadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("fechado_por_usuario_id");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("observacao");
+
+                    b.Property<DateTime?>("ReabertoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reaberto_em");
+
+                    b.Property<Guid?>("ReabertoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reaberto_por_usuario_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "Data")
+                        .IsUnique()
+                        .HasDatabaseName("uq_caixa_diario_estab_data");
+
+                    b.ToTable("caixa_diario", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.CategoriaFinanceira", b =>
                 {
                     b.Property<long>("Id")
@@ -2448,6 +2517,51 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_categoria_financeira_estab_tipo_ativo");
 
                     b.ToTable("categorias_financeiras", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.ConfigComissaoProfissional", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<decimal>("Percentual")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("percentual");
+
+                    b.Property<Guid>("ProfissionalUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("profissional_usuario_id");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tipo");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "ProfissionalUsuarioId", "Tipo")
+                        .IsUnique()
+                        .HasDatabaseName("uq_config_comissao_estab_prof_tipo");
+
+                    b.ToTable("config_comissao_profissional", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.FormaPagamento", b =>
@@ -2577,6 +2691,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_lancamentos_cobranca_id");
 
                     b.HasIndex("OrcamentoId");
+
+                    b.HasIndex("EstabelecimentoId", "DataPagamento")
+                        .HasDatabaseName("ix_lancamentos_estab_data_pagamento_pago")
+                        .HasFilter("status = 'Pago'");
 
                     b.HasIndex("EstabelecimentoId", "Tipo")
                         .HasDatabaseName("ix_lancamento_estab_tipo");
@@ -3112,6 +3230,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("CobrancaId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cobranca_id");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("criado_em");
@@ -3173,6 +3295,9 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnName("tipo");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CobrancaId")
+                        .HasDatabaseName("ix_movimentacao_cobranca_id");
 
                     b.HasIndex("EstabelecimentoId", "CriadoEm")
                         .HasDatabaseName("ix_movimentacao_estab_data");
@@ -6855,6 +6980,16 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasConstraintName("fk_convenio_planos_estabelecimento");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.CaixaDiario", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_caixa_diario_estabelecimento");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.CategoriaFinanceira", b =>
                 {
                     b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
@@ -6863,6 +6998,16 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_categoria_financeira_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.ConfigComissaoProfissional", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_config_comissao_estabelecimento");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.FormaPagamento", b =>

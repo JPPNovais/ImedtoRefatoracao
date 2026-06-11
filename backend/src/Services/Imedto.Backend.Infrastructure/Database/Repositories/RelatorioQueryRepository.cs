@@ -1,6 +1,7 @@
 using Dapper;
 using Imedto.Backend.Contracts.Relatorios;
 using Imedto.Backend.Contracts.Relatorios.Queries.Results;
+using Imedto.Backend.Infrastructure.Database.Repositories;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -33,8 +34,15 @@ public class RelatorioQueryRepository
     private const int TopMovimentacoesLimite = 10;
 
     private readonly string _connStr;
+    private readonly ConsolidacaoFinanceiraQueryRepository _consolidacao;
 
-    public RelatorioQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
+    public RelatorioQueryRepository(
+        AppReadConnectionString conn,
+        ConsolidacaoFinanceiraQueryRepository consolidacao)
+    {
+        _connStr = conn.Value;
+        _consolidacao = consolidacao;
+    }
 
     // -------------------------------------------------------------------------
     // Handlers legados (mantidos para retrocompatibilidade — Wave de frontend
@@ -127,7 +135,8 @@ public class RelatorioQueryRepository
         long estabelecimentoId,
         DateOnly dataInicio,
         DateOnly dataFim,
-        string agruparPor)
+        string agruparPor,
+        bool incluirPorPaciente = false)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
@@ -159,12 +168,17 @@ public class RelatorioQueryRepository
             _ => await BreakdownTemporal(conn, p, agruparPor) // dia/semana/mes
         };
 
+        IList<CustoLucroPacienteDto>? porPaciente = null;
+        if (incluirPorPaciente)
+            porPaciente = await _consolidacao.ObterCustoLucroPorPaciente(estabelecimentoId, dataInicio, dataFim);
+
         return new RelatorioFinanceiroDto
         {
             TotalReceitas = resumo.TotalReceitas,
             TotalDespesas = resumo.TotalDespesas,
             Saldo = resumo.TotalReceitas - resumo.TotalDespesas,
-            Breakdown = breakdown
+            Breakdown = breakdown,
+            PorPaciente = porPaciente
         };
     }
 

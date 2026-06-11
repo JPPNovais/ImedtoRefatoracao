@@ -70,7 +70,8 @@ public class RelatorioController : ControllerBase
     public async Task<ActionResult<RelatorioFinanceiroDto>> Financeiro(
         [FromQuery] DateOnly dataInicio,
         [FromQuery] DateOnly dataFim,
-        [FromQuery] string agruparPor = "dia")
+        [FromQuery] string agruparPor = "dia",
+        [FromQuery] bool incluirPorPaciente = false)
     {
         var result = await _query.Query<RelatorioFinanceiroQuery, RelatorioFinanceiroDto>(
             new RelatorioFinanceiroQuery
@@ -78,7 +79,8 @@ public class RelatorioController : ControllerBase
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 DataInicio = dataInicio,
                 DataFim = dataFim,
-                AgruparPor = agruparPor
+                AgruparPor = agruparPor,
+                IncluirPorPaciente = incluirPorPaciente
             });
         return Ok(result);
     }

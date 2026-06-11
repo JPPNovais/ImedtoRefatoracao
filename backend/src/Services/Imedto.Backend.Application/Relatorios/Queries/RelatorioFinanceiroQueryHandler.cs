@@ -29,6 +29,6 @@ public class RelatorioFinanceiroQueryHandler : IRequestHandler<RelatorioFinancei
         if (!AgrupamentosValidos.Contains(agrupamento))
             throw new BusinessException("Agrupamento inválido. Use: dia, semana, mes, categoria ou forma_pagamento.");
 
-        return _repo.RelatorioFinanceiro(query.EstabelecimentoId, query.DataInicio, query.DataFim, agrupamento);
+        return _repo.RelatorioFinanceiro(query.EstabelecimentoId, query.DataInicio, query.DataFim, agrupamento, query.IncluirPorPaciente);
     }
 }
