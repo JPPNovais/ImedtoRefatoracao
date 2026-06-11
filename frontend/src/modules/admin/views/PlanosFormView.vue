@@ -165,7 +165,7 @@ async function salvar() {
         } else {
             await store.criar(payload)
         }
-        router.push({ name: "AdminPlanosList" })
+        router.push({ name: "AdminPlanos" })
     } catch (err: unknown) {
         const msg = (err as { response?: { data?: { mensagem?: string } } })?.response?.data?.mensagem
         erroGeral.value = msg ?? "Não foi possível salvar o plano."
