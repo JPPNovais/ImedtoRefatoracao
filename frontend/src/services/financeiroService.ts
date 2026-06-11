@@ -123,6 +123,14 @@ export interface ConfigComissao {
     percentualPadrao: number
 }
 
+export interface ConfigComissaoProfissionalLista {
+    profissionalUsuarioId: string
+    nome: string
+    percentualConsulta: number | null
+    percentualProcedimento: number | null
+    percentualPadrao: number
+}
+
 export const financeiroService = {
     async listar(params?: {
         tipo?: string
@@ -234,5 +242,22 @@ export const financeiroService = {
         percentualProcedimento?: number | null
     }): Promise<void> {
         await httpClient.post("/financeiro/comissoes/config", payload)
+    },
+
+    // ─── F7 redesign — Export de extrato (briefing 2026-06-11_002) ───────────────
+
+    async exportarExtrato(params: {
+        dataInicio: string
+        dataFim: string
+        tipo?: string
+        categoria?: string
+        formaPagamento?: string
+        origem?: string
+    }): Promise<Blob> {
+        const { data } = await httpClient.get<Blob>("/financeiro/extrato/export", {
+            params,
+            responseType: "blob"
+        })
+        return data
     },
 }

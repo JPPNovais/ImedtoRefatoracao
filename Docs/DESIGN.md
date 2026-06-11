@@ -184,6 +184,31 @@ Typeahead de texto livre com sugestões do pool de variáveis. Localização: [`
 - `SecaoHistoriaFamiliar.vue`: campo `parentesco` de parentes (tipo RelacaoFamiliar).
 - As listas são carregadas uma vez no `onMounted` da seção via `variavelPoolService.listar(tipo)`.
 
+### `AppKpiCard` (briefing 2026-06-11_002)
+
+Card de KPI com borda superior colorida e chip de ícone. Localização: [`frontend/src/components/ui/AppKpiCard.vue`](../frontend/src/components/ui/AppKpiCard.vue).
+
+**Props:**
+- `label: string` — rótulo descritivo da métrica (ex.: "Recebido").
+- `valor: string | number` — valor formatado exibido em destaque.
+- `icone?: string` — classe Font Awesome do ícone (ex.: `"fa-solid fa-arrow-down-long"`).
+- `variante?: "success" | "warning" | "error" | "primary" | "muted"` — determina cor da borda superior e do chip.
+- `sub?: string` — linha secundária opcional abaixo do valor.
+
+**Variantes de cor:** mapeiam para tokens HSL: `success` → `hsl(var(--success))`, `warning` → `hsl(var(--warning))`, `error` → `hsl(var(--destructive))`, `primary` → `hsl(var(--primary))`, `muted` → cinza.
+
+**Uso canônico:**
+```vue
+<AppKpiCard
+  label="Recebido"
+  :valor="moeda(kpis.recebido)"
+  icone="fa-solid fa-arrow-down-long"
+  variante="success"
+/>
+```
+
+**Estilo:** `.kpi-card` e variantes de borda (`.kpi--*`) estão declarados em `scoped` do componente. CSS do DS não é carregado automaticamente pelo frontend — qualquer estilo global deve ir em `frontend/src/assets/main.css`.
+
 ## Widget global de tarefas pendentes — `WidgetProximosPassos` (addendum 2, F3B)
 
 `WidgetProximosPassos` é um **widget global persistente** montado uma única vez em `AppLayout.vue`. Fica visível em todas as rotas autenticadas enquanto houver pendências do último atendimento na sessão.

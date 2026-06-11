@@ -250,6 +250,78 @@ public class FinanceiroController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("extrato/export")]
+    [RequiresAcao("financeiro.ver")]
+    public async Task<IActionResult> ExportarExtrato(
+        [FromQuery] DateOnly dataInicio,
+        [FromQuery] DateOnly dataFim,
+        [FromQuery] string? tipo,
+        [FromQuery] string? categoria,
+        [FromQuery] string? formaPagamento,
+        [FromQuery] string? origem)
+    {
+        var result = await _query.Query<ExportarExtratoQuery, ExportarExtratoResultDto>(
+            new ExportarExtratoQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                UsuarioId = _tenant.UsuarioId,
+                DataInicio = dataInicio,
+                DataFim = dataFim,
+                Tipo = tipo,
+                Categoria = categoria,
+                FormaPagamento = formaPagamento,
+                Origem = origem
+            });
+
+        var csv = GerarCsv(result.Itens);
+        var nomeArquivo = $"extrato-financeiro-{dataFim:yyyy-MM-dd}.csv";
+        return File(csv, "text/csv; charset=utf-8", nomeArquivo);
+    }
+
+    // Gera CSV UTF-8 com BOM, separador ";", decimal vírgula (D2/padrão Excel pt-BR).
+    // PII minimizado: apenas campos exibidos na tela (R9).
+    private static byte[] GerarCsv(IReadOnlyList<LancamentoExtratoDto> itens)
+    {
+        var sb = new System.Text.StringBuilder();
+        // Cabeçalho
+        sb.AppendLine("Data;Descrição;Paciente;Categoria;Forma de Pagamento;Valor;Status");
+
+        foreach (var l in itens)
+        {
+            var data = l.DataPagamento.HasValue
+                ? l.DataPagamento.Value.ToString("dd/MM/yyyy")
+                : (l.DataVencimento != default ? l.DataVencimento.ToString("dd/MM/yyyy") : "");
+
+            var valor = l.Valor.ToString("F2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
+
+            sb.AppendLine(string.Join(";", new[]
+            {
+                data,
+                EscapeCsvField(l.Descricao),
+                EscapeCsvField(l.PacienteNome ?? ""),
+                EscapeCsvField(l.Categoria),
+                EscapeCsvField(l.FormaPagamento ?? ""),
+                valor,
+                EscapeCsvField(l.Status)
+            }));
+        }
+
+        // UTF-8 com BOM para Excel pt-BR abrir corretamente.
+        var bom = System.Text.Encoding.UTF8.GetPreamble();
+        var body = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var result = new byte[bom.Length + body.Length];
+        bom.CopyTo(result, 0);
+        body.CopyTo(result, bom.Length);
+        return result;
+    }
+
+    private static string EscapeCsvField(string value)
+    {
+        if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return value;
+    }
+
     [HttpGet("extrato")]
     [RequiresAcao("financeiro.ver")]
     public async Task<ActionResult<PaginaLancamentosExtratoDto>> ListarExtrato(

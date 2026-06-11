@@ -171,6 +171,9 @@ public class AppDbContext : DbContext
     public DbSet<CaixaDiario> CaixasDiario => Set<CaixaDiario>();
     public DbSet<ConfigComissaoProfissional> ConfigsComissaoProfissional => Set<ConfigComissaoProfissional>();
 
+    // CA10 — Audit LGPD de export do extrato financeiro (briefing 2026-06-11_002).
+    public DbSet<FinanceiroExportLog> FinanceiroExportLogs => Set<FinanceiroExportLog>();
+
     // F6 — Convênios (briefing 2026-06-10_016).
     public DbSet<Convenio> Convenios => Set<Convenio>();
     public DbSet<ConvenioPlano> ConvenioPlanos => Set<ConvenioPlano>();

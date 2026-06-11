@@ -419,6 +419,113 @@ public class ConsolidacaoFinanceiraQueryRepository
         decimal ComissaoAtendimento);
 
     // ────────────────────────────────────────────────────────────────────────────
+    // Export de extrato sem paginação (R7/R8/CA5/CA6/CA10)
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Retorna todas as linhas do extrato do período + filtros (sem paginação).
+    /// Reutiliza o predicado WHERE de ListarExtrato — não duplica lógica de filtro.
+    /// Multi-tenant: WHERE l.estabelecimento_id = @EstabelecimentoId (R8, falha-fechada).
+    /// </summary>
+    public virtual async Task<List<LancamentoExtratoDto>> ExportarExtrato(
+        long estabelecimentoId,
+        DateOnly dataInicio,
+        DateOnly dataFim,
+        string? tipo,
+        string? categoria,
+        string? formaPagamento,
+        string? origem)
+    {
+        await using var conn = new NpgsqlConnection(_connStr);
+
+        // Mesmo predicado FROM+WHERE da ListarExtrato — sem LIMIT/OFFSET.
+        const string sqlBase = """
+            FROM lancamentos l
+            LEFT JOIN cobrancas c ON c.id = l.cobranca_id
+            LEFT JOIN pacientes pac ON pac.id = c.paciente_id
+            LEFT JOIN pagamentos pg ON pg.id = l.pagamento_id
+            LEFT JOIN formas_pagamento fp ON fp.id = pg.forma_pagamento_id
+            JOIN usuarios u ON u.id = l.criado_por_usuario_id
+            WHERE l.estabelecimento_id = @EstabelecimentoId
+              AND l.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+              AND (@Tipo::text          IS NULL OR l.tipo      = @Tipo)
+              AND (@Categoria::text     IS NULL OR l.categoria = @Categoria)
+              AND (@FormaPagamento::text IS NULL OR fp.nome    = @FormaPagamento)
+              AND (@Origem::text         IS NULL OR c.tipo_atendimento::text = @Origem)
+            """;
+
+        var sql = $"""
+            SELECT
+                l.id                                                  AS Id,
+                l.tipo                                                AS Tipo,
+                l.descricao                                           AS Descricao,
+                l.valor                                               AS Valor,
+                l.data_pagamento                                      AS DataPagamento,
+                l.data_vencimento                                     AS DataVencimento,
+                l.status                                              AS Status,
+                l.categoria                                           AS Categoria,
+                fp.nome                                               AS FormaPagamento,
+                c.tipo_atendimento::text                              AS Origem,
+                l.cobranca_id                                         AS CobrancaId,
+                CASE WHEN l.cobranca_id IS NOT NULL THEN pac.id       END AS PacienteId,
+                CASE WHEN l.cobranca_id IS NOT NULL THEN pac.nome_completo END AS PacienteNome,
+                COALESCE(u.nome_completo, u.email)                    AS CriadoPorNome
+            {sqlBase}
+            ORDER BY COALESCE(l.data_pagamento, l.data_vencimento) DESC, l.id DESC
+            """;
+
+        var p = new
+        {
+            EstabelecimentoId = estabelecimentoId,
+            DataInicio = dataInicio.ToDateTime(TimeOnly.MinValue),
+            DataFim = dataFim.ToDateTime(TimeOnly.MinValue),
+            Tipo = tipo,
+            Categoria = categoria,
+            FormaPagamento = formaPagamento,
+            Origem = origem
+        };
+
+        return (await conn.QueryAsync<LancamentoExtratoDto>(sql, p)).ToList();
+    }
+
+    /// <summary>
+    /// Audit LGPD best-effort do export (CA10/R9).
+    /// Sem PII: apenas contagem, período e identidade do usuário.
+    /// Falha é engolida — não bloqueia o export.
+    /// </summary>
+    public virtual async Task GravarExportAuditAsync(
+        Guid usuarioId,
+        long estabelecimentoId,
+        DateOnly dataInicio,
+        DateOnly dataFim,
+        int totalLinhas)
+    {
+        try
+        {
+            await using var conn = new NpgsqlConnection(_connStr);
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO financeiro_export_log
+                    (usuario_id, estabelecimento_id, acao, periodo_inicio, periodo_fim, total_linhas, ocorrido_em)
+                VALUES
+                    (@UsuarioId, @EstabelecimentoId, 'ExportarExtrato', @DataInicio, @DataFim, @TotalLinhas, now())
+                """,
+                new
+                {
+                    UsuarioId = usuarioId,
+                    EstabelecimentoId = estabelecimentoId,
+                    DataInicio = dataInicio.ToDateTime(TimeOnly.MinValue),
+                    DataFim = dataFim.ToDateTime(TimeOnly.MinValue),
+                    TotalLinhas = totalLinhas
+                });
+        }
+        catch
+        {
+            // Best-effort: falha de audit não bloqueia o export.
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
     // Config de comissão por profissional (R16)
     // ────────────────────────────────────────────────────────────────────────────
 

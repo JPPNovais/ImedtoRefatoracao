@@ -602,7 +602,19 @@ Fase final do épico. Substitui a `FinanceiroView.vue` temporária por uma tela 
 - **LGPD**: relatório **agregado não audita**; **drill-down por paciente específico** no frontend navega para `/pacientes/{id}` (rota existente) — o audit via `IPacienteAcessoLogService.RegistrarAsync(..., Leitura)` ocorre no handler de `ObterPacienteQuery` (best-effort, padrão F2). Export CSV reusa `useRelatorioCsv` (`exportarPorPaciente` adicionado a `useRelatorioCsv.ts`).
 
 #### Config sem duplicação
-A aba "Configurações" do `/financeiro` **renderiza `FinanceiroConfigView.vue` inline** (tabela de preços + taxa de cartão da F1 — não recria formulários) + bloco "Comissões" (default informativo + link para a Equipe). As rotas `/configuracoes/financeiro` (`?secao=financeiro`), `/financeiro/categorias` e `/financeiro/formas-pagamento` permanecem **inalteradas**.
+A aba "Configurações" do `/financeiro` tem grid 2-col via `FinanceiroConfigTab.vue`: card de comissões funcional (full-width, só para Dono) + dois cards "Em breve" (Taxa de cartão, Tabela de preços — decisão D4 do briefing 2026-06-11_002). As rotas `/financeiro/categorias` e `/financeiro/formas-pagamento` permanecem **inalteradas**.
+
+#### Export de extrato (`ExportarExtratoQuery`) — briefing 2026-06-11_002
+
+Query singleton `ExportarExtratoQuery → ExportarExtratoQueryHandler` → `ConsolidacaoFinanceiraQueryRepository.ExportarExtrato(...)` (Dapper, reutiliza WHERE da `ListarExtrato`, sem paginação). Retorna `ExportarExtratoResultDto { IReadOnlyList<LancamentoExtratoDto> Itens, int TotalLinhas, DateOnly DataInicio, DateOnly DataFim }`.
+
+**Endpoint:** `GET /financeiro/extrato/export` (antes de `GET /financeiro/extrato` na rota).
+
+**CSV:** UTF-8 com BOM, separador `;`, decimal vírgula (Excel pt-BR). Gerado no controller via `GerarCsv(itens)`.
+
+**Audit best-effort:** `ConsolidacaoFinanceiraQueryRepository.GravarExportAuditAsync(...)` faz INSERT em `financeiro_export_log` — captura toda exceção silenciosamente (não bloqueia o fluxo). A tabela precisa ser criada pelo `imedto-database` (migration pendente).
+
+**Pattern de teste:** `FakeConsolidacaoRepo : ConsolidacaoFinanceiraQueryRepository` sobrescreve os métodos `virtual` (`ExportarExtrato`, `GravarExportAuditAsync`) — sem interface, isolamento por herança.
 
 ---
 

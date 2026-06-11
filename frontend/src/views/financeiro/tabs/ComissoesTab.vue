@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
-import { financeiroService, type ComissaoPeriodo, type ComissaoProfissional } from "@/services/financeiroService"
-import { AppDatePicker, AppButton } from "@/components/ui"
+import { financeiroService, type ComissaoPeriodo } from "@/services/financeiroService"
+import { AppButton, AppFilterPills, AppDatePicker } from "@/components/ui"
 
-const props = defineProps<{ ehDono: boolean }>()
+defineProps<{ ehDono: boolean }>()
 
 function hojeStr() { return new Date().toISOString().split("T")[0] }
 function inicioMes() {
@@ -11,13 +11,40 @@ function inicioMes() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`
 }
 
+// ─── Período ──────────────────────────────────────────────────────────────────
+type Chip = "mes" | "trimestre" | "personalizado"
+const chipAtivo = ref<Chip>("mes")
+
+const chipsMes: { valor: Chip; label: string }[] = [
+    { valor: "mes",         label: "Este mês"    },
+    { valor: "trimestre",   label: "Trimestre"   },
+    { valor: "personalizado", label: "Personalizado" },
+]
+
+function aplicarChip(c: Chip) {
+    chipAtivo.value = c
+    const hoje = new Date()
+    const y = hoje.getFullYear()
+    const m = String(hoje.getMonth() + 1).padStart(2, "0")
+    if (c === "mes") {
+        dataInicio.value = `${y}-${m}-01`
+        dataFim.value = hojeStr()
+    } else if (c === "trimestre") {
+        const mesNum = hoje.getMonth()
+        const inicioTri = new Date(y, Math.floor(mesNum / 3) * 3, 1)
+        dataInicio.value = inicioTri.toISOString().split("T")[0]
+        dataFim.value = hojeStr()
+    }
+    if (c !== "personalizado") carregar()
+}
+
 const dataInicio = ref(inicioMes())
 const dataFim = ref(hojeStr())
+
+// ─── Dados ────────────────────────────────────────────────────────────────────
 const periodo = ref<ComissaoPeriodo | null>(null)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
-
-// Linhas expansíveis (CA172).
 const expandido = ref<Set<string>>(new Set())
 
 function toggleExpand(id: string) {
@@ -42,177 +69,339 @@ async function carregar() {
 
 onMounted(carregar)
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function moeda(n: number) {
     return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 }
 function pct(n: number | null) {
-    if (n === null) return "30% (padrão)"
-    return `${n.toFixed(2)}%`
+    if (n === null) return "30%"
+    return `${n % 1 === 0 ? n : n.toFixed(1)}%`
 }
 function formatarData(s: string) {
     const [y, m, d] = s.split("T")[0].split("-")
     return `${d}/${m}/${y}`
 }
+function iniciais(nome: string) {
+    return nome.split(" ").slice(0, 2).map(p => p[0].toUpperCase()).join("")
+}
+// Cor do avatar baseado no nome (determinístico)
+const AVATAR_COLORS = [
+    "hsl(211 91% 60%)",
+    "hsl(271 91% 65%)",
+    "hsl(142 71% 45%)",
+    "hsl(28 90% 55%)",
+    "hsl(335 80% 60%)",
+    "hsl(190 80% 45%)",
+]
+function corAvatar(nome: string): string {
+    let hash = 0
+    for (let i = 0; i < nome.length; i++) hash = (hash * 31 + nome.charCodeAt(i)) >>> 0
+    return AVATAR_COLORS[hash % AVATAR_COLORS.length]
+}
 </script>
 
 <template>
     <div class="comissoes-tab">
-        <div class="periodo-row">
-            <AppDatePicker v-model="dataInicio" aria-label="Data início" />
-            <span class="sep">até</span>
-            <AppDatePicker v-model="dataFim" aria-label="Data fim" />
-            <AppButton @click="carregar" :loading="carregando" icon="fa-solid fa-sync">Atualizar</AppButton>
+        <!-- Barra de período -->
+        <div class="periodo-bar">
+            <AppFilterPills
+                v-model="chipAtivo"
+                :opcoes="chipsMes"
+                @update:modelValue="aplicarChip($event as Chip)"
+            />
+            <template v-if="chipAtivo === 'personalizado'">
+                <AppDatePicker v-model="dataInicio" aria-label="Data início" />
+                <span class="sep">até</span>
+                <AppDatePicker v-model="dataFim" aria-label="Data fim" />
+                <AppButton
+                    icon="fa-solid fa-sync"
+                    :loading="carregando"
+                    @click="carregar"
+                >
+                    Aplicar
+                </AppButton>
+            </template>
         </div>
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
-        <p v-if="carregando" class="info">Carregando...</p>
+        <div v-if="carregando" class="info">Carregando...</div>
 
-        <div v-if="!carregando && periodo" class="comissoes-content">
-            <!-- Total a repassar -->
-            <div class="total-repassar">
-                <span class="tr-label">Total a repassar no período</span>
-                <span class="tr-valor">{{ moeda(periodo.totalARepassar) }}</span>
+        <template v-if="!carregando && periodo">
+            <!-- Total a repassar pill -->
+            <div class="cm-total-bar">
+                <span class="cm-total-label">Total a repassar no período</span>
+                <span class="cm-total-val">{{ moeda(periodo.totalARepassar) }}</span>
             </div>
 
-            <p v-if="periodo.profissionais.length === 0" class="vazio">
-                Nenhuma comissão calculada no período.
-            </p>
+            <div v-if="periodo.profissionais.length === 0" class="cm-empty">
+                <i class="fa-solid fa-percent" aria-hidden="true" />
+                <b>Nenhuma comissão no período</b>
+                <p>Não há atendimentos faturados com comissão configurada neste intervalo.</p>
+            </div>
 
-            <!-- Tabela expansível por profissional (CA172) -->
-            <table v-else class="comissoes-table">
-                <thead>
-                    <tr>
-                        <th style="width: 32px;" />
-                        <th>Profissional</th>
-                        <th>Especialidade</th>
-                        <th class="col-num">Atendimentos</th>
-                        <th class="col-num">Faturamento</th>
-                        <th class="col-num">Percentual</th>
-                        <th class="col-num">Comissão</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template v-for="p in periodo.profissionais" :key="p.profissionalUsuarioId">
-                        <!-- Linha do profissional -->
-                        <tr class="prof-row" @click="toggleExpand(p.profissionalUsuarioId)">
-                            <td>
-                                <button
-                                    class="expand-btn"
-                                    :aria-label="expandido.has(p.profissionalUsuarioId) ? 'Recolher' : 'Expandir'"
-                                    :aria-expanded="expandido.has(p.profissionalUsuarioId)"
-                                >
-                                    <i :class="expandido.has(p.profissionalUsuarioId)
-                                        ? 'fa-solid fa-chevron-up'
-                                        : 'fa-solid fa-chevron-down'" />
-                                </button>
-                            </td>
-                            <td class="prof-nome">{{ p.nome }}</td>
-                            <td>{{ p.especialidade ?? "—" }}</td>
-                            <td class="col-num">{{ p.atendimentos }}</td>
-                            <td class="col-num">{{ moeda(p.faturamento) }}</td>
-                            <td class="col-num">{{ pct(p.percentualConfig) }}</td>
-                            <td class="col-num comissao-valor">{{ moeda(p.comissao) }}</td>
-                        </tr>
-                        <!-- Detalhe por atendimento -->
-                        <template v-if="expandido.has(p.profissionalUsuarioId)">
-                            <tr
-                                v-for="(a, i) in p.atendimentos_Detalhes"
-                                :key="i"
-                                class="detalhe-row"
-                            >
-                                <td />
-                                <td colspan="2" class="detalhe-pac">
-                                    {{ a.pacienteNome ?? "—" }}
-                                    <span class="detalhe-tipo">· {{ a.tipoAtendimento }}</span>
-                                </td>
-                                <td class="col-num">{{ formatarData(a.data) }}</td>
-                                <td class="col-num">{{ moeda(a.faturamento) }}</td>
-                                <td class="col-num">
-                                    {{ a.tipoBase === 'orcamento_equipe' ? 'Valor fixo' : pct(p.percentualConfig) }}
-                                </td>
-                                <td class="col-num comissao-valor">{{ moeda(a.comissao) }}</td>
-                            </tr>
-                        </template>
-                    </template>
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="6" class="total-foot-label">Total</td>
-                        <td class="col-num comissao-valor total-foot-valor">
-                            {{ moeda(periodo.totalARepassar) }}
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+            <div v-else class="cm-cards">
+                <div
+                    v-for="p in periodo.profissionais"
+                    :key="p.profissionalUsuarioId"
+                    class="cm-card"
+                    :class="{ 'is-open': expandido.has(p.profissionalUsuarioId) }"
+                >
+                    <!-- Cabeçalho do profissional -->
+                    <button
+                        class="cm-header"
+                        :aria-expanded="expandido.has(p.profissionalUsuarioId)"
+                        @click="toggleExpand(p.profissionalUsuarioId)"
+                    >
+                        <!-- Avatar -->
+                        <span
+                            class="cm-av"
+                            :style="{ background: corAvatar(p.nome) }"
+                            aria-hidden="true"
+                        >{{ iniciais(p.nome) }}</span>
+
+                        <!-- Info -->
+                        <div class="cm-info">
+                            <b>{{ p.nome }}</b>
+                            <span>{{ p.especialidade ?? "Sem especialidade" }}</span>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="cm-stats">
+                            <div class="cm-stat">
+                                <span>{{ p.atendimentos }}</span>
+                                <label>atend.</label>
+                            </div>
+                            <div class="cm-stat">
+                                <span>{{ moeda(p.faturamento) }}</span>
+                                <label>faturado</label>
+                            </div>
+                            <div class="cm-stat">
+                                <span class="cm-base" :class="p.percentualConfig === null ? 'is-padrao' : ''">
+                                    {{ pct(p.percentualConfig) }}
+                                    <i v-if="p.percentualConfig === null" class="fa-solid fa-info-circle" :title="'Percentual padrão do estabelecimento'" />
+                                </span>
+                                <label>percentual</label>
+                            </div>
+                        </div>
+
+                        <!-- Total repasse -->
+                        <span class="cm-repasse-pill">{{ moeda(p.comissao) }}</span>
+
+                        <!-- Chevron -->
+                        <i
+                            class="cm-chevron fa-solid"
+                            :class="expandido.has(p.profissionalUsuarioId) ? 'fa-chevron-up' : 'fa-chevron-down'"
+                            aria-hidden="true"
+                        />
+                    </button>
+
+                    <!-- Detalhe por atendimento -->
+                    <div v-if="expandido.has(p.profissionalUsuarioId)" class="cm-detail">
+                        <div class="cm-detail-head">
+                            <span>Data</span>
+                            <span>Paciente</span>
+                            <span>Tipo</span>
+                            <span class="ta-r">Faturado</span>
+                            <span class="ta-r">Comissão</span>
+                        </div>
+                        <div
+                            v-for="(a, i) in p.atendimentos_Detalhes"
+                            :key="i"
+                            class="cm-detail-row"
+                        >
+                            <span class="cm-d-date">{{ formatarData(a.data) }}</span>
+                            <span class="cm-d-pac">{{ a.pacienteNome ?? "—" }}</span>
+                            <span class="cm-d-tipo">{{ a.tipoAtendimento }}</span>
+                            <span class="ta-r">{{ moeda(a.faturamento) }}</span>
+                            <span class="ta-r cm-d-val">{{ moeda(a.comissao) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
     </div>
 </template>
 
 <style scoped>
-.comissoes-tab { display: flex; flex-direction: column; gap: 1.25rem; }
+.comissoes-tab { display: flex; flex-direction: column; gap: 1rem; }
 
-.periodo-row {
+/* Barra de período */
+.periodo-bar {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 10px;
     flex-wrap: wrap;
 }
-.sep { color: hsl(var(--muted-foreground)); font-size: var(--text-sm); }
+.sep { font-size: var(--text-sm); color: hsl(var(--secondary) / 0.55); }
 
-.total-repassar {
+/* Total bar */
+.cm-total-bar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 8px;
-    padding: 0.85rem 1.25rem;
+    justify-content: space-between;
+    background: hsl(var(--primary) / 0.05);
+    border: 1px solid hsl(var(--primary) / 0.15);
+    border-radius: 12px;
+    padding: 14px 20px;
 }
-.tr-label { font-size: var(--text-sm); color: hsl(var(--muted-foreground)); font-weight: var(--font-weight-medium); }
-.tr-valor  { font-size: var(--text-xl); font-weight: var(--font-weight-bold); color: hsl(var(--primary)); }
-
-.comissoes-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-.comissoes-table th {
-    background: hsl(var(--muted));
-    text-align: left;
-    padding: 0.45rem 0.75rem;
-    border-bottom: 2px solid hsl(var(--border));
-    font-weight: var(--font-weight-semibold);
-}
-.col-num { text-align: right; }
-
-.prof-row {
-    cursor: pointer;
-    background: hsl(var(--background));
-}
-.prof-row:hover { background: hsl(var(--muted) / 0.4); }
-.prof-row td { padding: 0.6rem 0.75rem; border-bottom: 1px solid hsl(var(--border)); font-weight: var(--font-weight-medium); }
-.prof-nome { font-weight: var(--font-weight-semibold); }
-
-.detalhe-row td {
-    padding: 0.4rem 0.75rem;
-    border-bottom: 1px solid hsl(var(--border));
-    background: hsl(var(--muted) / 0.3);
-    font-size: var(--text-xs);
-    color: hsl(var(--muted-foreground));
-}
-.detalhe-pac { font-weight: var(--font-weight-medium); color: hsl(var(--foreground)); }
-.detalhe-tipo { font-weight: var(--font-weight-regular); color: hsl(var(--muted-foreground)); }
-
-.comissao-valor { color: hsl(var(--primary)); font-weight: var(--font-weight-semibold); }
-.total-foot-label { text-align: right; font-weight: var(--font-weight-semibold); padding: 0.6rem 0.75rem; background: hsl(var(--muted)); }
-.total-foot-valor { padding: 0.6rem 0.75rem; background: hsl(var(--muted)); font-size: var(--text-base); }
-
-.expand-btn {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    color: hsl(var(--muted-foreground));
+.cm-total-label {
     font-size: var(--text-sm);
-    padding: 0.15rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--c-primary-dark);
 }
-.expand-btn:hover { color: hsl(var(--foreground)); }
+.cm-total-val {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-extrabold);
+    color: hsl(var(--primary));
+}
 
-.info, .vazio { color: hsl(var(--muted-foreground)); font-size: var(--text-sm); }
+/* Empty */
+.cm-empty {
+    text-align: center;
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--secondary) / 0.1);
+    border-radius: 12px;
+}
+.cm-empty i { font-size: var(--text-3xl); color: hsl(var(--secondary) / 0.3); }
+.cm-empty b  { font-size: var(--text-md); color: var(--c-primary-dark); }
+.cm-empty p  { font-size: var(--text-sm); color: hsl(var(--secondary) / 0.55); margin: 0; max-width: 360px; }
+
+/* Cards */
+.cm-cards { display: flex; flex-direction: column; gap: 10px; }
+
+.cm-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--secondary) / 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.15s;
+}
+.cm-card.is-open { box-shadow: 0 2px 12px hsl(var(--primary) / 0.08); }
+
+.cm-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+.cm-header:hover { background: hsl(var(--secondary) / 0.03); }
+
+/* Avatar com iniciais */
+.cm-av {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+
+/* Info (nome + especialidade) */
+.cm-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 160px;
+    flex: 1;
+}
+.cm-info b {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--c-primary-dark);
+}
+.cm-info span { font-size: var(--text-xs); color: hsl(var(--secondary) / 0.6); }
+
+/* Stats */
+.cm-stats {
+    display: flex;
+    gap: 24px;
+    flex-shrink: 0;
+}
+.cm-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+}
+.cm-stat span {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--c-primary-dark);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.cm-stat label {
+    font-size: var(--text-xs);
+    color: hsl(var(--secondary) / 0.55);
+}
+.cm-base { color: var(--c-primary-dark); }
+.cm-base.is-padrao { color: hsl(28 90% 45%); }
+.cm-base i { font-size: var(--text-xs); cursor: default; }
+
+/* Pill total repasse */
+.cm-repasse-pill {
+    flex-shrink: 0;
+    background: hsl(var(--primary) / 0.08);
+    color: hsl(var(--primary));
+    border: 1px solid hsl(var(--primary) / 0.2);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+/* Chevron */
+.cm-chevron {
+    flex-shrink: 0;
+    color: hsl(var(--secondary) / 0.5);
+    font-size: var(--text-sm);
+}
+
+/* Detalhe */
+.cm-detail {
+    border-top: 1px solid hsl(var(--secondary) / 0.08);
+    padding: 0 18px 14px;
+}
+.cm-detail-head {
+    display: grid;
+    grid-template-columns: 90px 1fr 130px 130px 110px;
+    padding: 8px 0 6px;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.06);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--secondary) / 0.55);
+}
+.cm-detail-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 130px 130px 110px;
+    padding: 8px 0;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.04);
+    font-size: var(--text-sm);
+    color: hsl(var(--secondary) / 0.8);
+}
+.cm-detail-row:last-child { border-bottom: none; }
+.cm-d-date  { color: hsl(var(--secondary) / 0.6); }
+.cm-d-pac   { font-weight: var(--font-weight-medium); color: var(--c-primary-dark); }
+.cm-d-tipo  { color: hsl(var(--secondary) / 0.7); }
+.cm-d-val   { font-weight: var(--font-weight-semibold); color: hsl(var(--primary)); }
+.ta-r { text-align: right; }
+
+.info { color: hsl(var(--secondary) / 0.6); font-size: var(--text-sm); }
 .msg-erro { color: hsl(var(--destructive)); font-size: var(--text-sm); margin: 0; }
 </style>

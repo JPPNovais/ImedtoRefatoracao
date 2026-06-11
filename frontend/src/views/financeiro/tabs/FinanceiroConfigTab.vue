@@ -1,21 +1,22 @@
 <script setup lang="ts">
 /**
- * FinanceiroConfigTab — Configurações financeiras embutidas no painel /financeiro (CA183).
+ * FinanceiroConfigTab — Configurações financeiras embutidas no painel /financeiro.
  *
- * Reutiliza FinanceiroConfigView (preços de consulta + taxa de cartão) sem duplicação.
- * Adiciona seção de config de comissão (percentual por tipo) visível apenas para Dono.
+ * Layout: grid 2-col.
+ *  - Card comissão (full-width / cfg-span): funcional, seleciona profissional, percentuais.
+ *  - Card taxa de cartão: "Em breve" (decisão D4 do briefing 2026-06-11_002).
+ *  - Card tabela de preços: "Em breve".
  *
- * Links rápidos para /financeiro/categorias e /financeiro/formas-pagamento (CA184).
+ * Apenas Dono vê o card de comissão (CA178).
  */
 import { ref, onMounted } from "vue"
-import FinanceiroConfigView from "../FinanceiroConfigView.vue"
 import { AppButton, AppField, AppInputDecimal, AppToast } from "@/components/ui"
 import { financeiroService, type ConfigComissao } from "@/services/financeiroService"
 import { vinculoService, type ProfissionalPublico } from "@/services/vinculoService"
 
 const props = defineProps<{ ehDono: boolean }>()
 
-// ─── Profissionais + config de comissão ───────────────────────────────────────
+// ─── Config de comissão ────────────────────────────────────────────────────────
 const profissionais = ref<ProfissionalPublico[]>([])
 const profSelecionado = ref<ProfissionalPublico | null>(null)
 const config = ref<ConfigComissao | null>(null)
@@ -63,7 +64,6 @@ async function salvarComissao() {
             percentualProcedimento: formComissao.value.percentualProcedimento,
         })
         toast.value = { mensagem: "Comissão salva.", variante: "success" }
-        // Recarregar config.
         config.value = await financeiroService.obterConfigComissao(profSelecionado.value.usuarioId)
     } catch (e: any) {
         erroComissao.value = e?.response?.data?.mensagem ?? "Erro ao salvar comissão."
@@ -77,133 +77,259 @@ onMounted(carregarProfissionais)
 
 <template>
     <div class="config-tab">
-        <!-- Configurações de cobrança (reuso completo — CA183) -->
-        <FinanceiroConfigView />
 
-        <!-- Configurações de comissão (apenas Dono) -->
-        <section v-if="ehDono" class="comissao-config-section">
-            <h2 class="ds-section-title">Comissões por profissional</h2>
-            <p class="descricao-secao">
-                Defina o percentual de consulta e procedimento por profissional.
-                Se não configurado, o padrão de 30% é aplicado.
-            </p>
-
-            <div class="prof-selector">
-                <label class="prof-selector-label">Profissional</label>
-                <div class="prof-list">
-                    <button
-                        v-for="p in profissionais"
-                        :key="p.usuarioId"
-                        class="prof-chip"
-                        :class="{ ativo: profSelecionado?.usuarioId === p.usuarioId }"
-                        @click="selecionarProfissional(p)"
-                    >
-                        {{ p.nomeCompleto }}
-                    </button>
-                </div>
-            </div>
-
-            <template v-if="profSelecionado">
-                <p v-if="carregandoConfig" class="info">Carregando...</p>
-                <div v-else class="comissao-form">
-                    <AppField label="Percentual — Consultas (%)">
-                        <AppInputDecimal
-                            v-model="formComissao.percentualConsulta"
-                            :min="0"
-                            :max="100"
-                            :placeholder="`Padrão: ${config?.percentualPadrao ?? 30}%`"
-                        />
-                    </AppField>
-                    <AppField label="Percentual — Procedimentos (%)">
-                        <AppInputDecimal
-                            v-model="formComissao.percentualProcedimento"
-                            :min="0"
-                            :max="100"
-                            :placeholder="`Padrão: ${config?.percentualPadrao ?? 30}%`"
-                        />
-                    </AppField>
-                    <p v-if="erroComissao" class="msg-erro">{{ erroComissao }}</p>
-                    <div class="form-acoes">
-                        <AppButton :loading="salvando" @click="salvarComissao">Salvar comissão</AppButton>
+        <!-- Card comissão (apenas Dono) -->
+        <div v-if="ehDono" class="cfg-card cfg-span">
+            <div class="cfg-card-h">
+                <div class="cfg-card-title-block">
+                    <span class="cfg-ic comissoes"><i class="fa-solid fa-percent" aria-hidden="true" /></span>
+                    <div>
+                        <b>Comissões por profissional</b>
+                        <p>Defina o percentual de consulta e procedimento por profissional. Padrão: 30%.</p>
                     </div>
                 </div>
-            </template>
-            <p v-else class="info">Selecione um profissional para configurar a comissão.</p>
-        </section>
-
-        <!-- Links para rotas filhas (CA184) -->
-        <section class="links-config">
-            <h2 class="ds-section-title">Outras configurações</h2>
-            <div class="links-list">
-                <a href="/financeiro/categorias" class="config-link">
-                    <i class="fa-solid fa-tags" />
-                    Categorias financeiras
-                </a>
-                <a href="/financeiro/formas-pagamento" class="config-link">
-                    <i class="fa-solid fa-credit-card" />
-                    Formas de pagamento
-                </a>
             </div>
-        </section>
+
+            <div class="cfg-card-body">
+                <!-- Seletor de profissional -->
+                <div class="prof-selector">
+                    <span class="prof-selector-label">Profissional</span>
+                    <div v-if="carregandoProf" class="info">Carregando profissionais...</div>
+                    <div v-else class="prof-list">
+                        <button
+                            v-for="p in profissionais"
+                            :key="p.usuarioId"
+                            class="prof-chip"
+                            :class="{ ativo: profSelecionado?.usuarioId === p.usuarioId }"
+                            @click="selecionarProfissional(p)"
+                        >
+                            {{ p.nomeCompleto }}
+                        </button>
+                    </div>
+                </div>
+
+                <template v-if="profSelecionado">
+                    <div v-if="carregandoConfig" class="info">Carregando configuração...</div>
+                    <div v-else class="comissao-form">
+                        <AppField label="Percentual — Consultas (%)">
+                            <AppInputDecimal
+                                v-model="formComissao.percentualConsulta"
+                                :min="0"
+                                :max="100"
+                                :placeholder="`Padrão: ${config?.percentualPadrao ?? 30}%`"
+                            />
+                        </AppField>
+                        <AppField label="Percentual — Procedimentos (%)">
+                            <AppInputDecimal
+                                v-model="formComissao.percentualProcedimento"
+                                :min="0"
+                                :max="100"
+                                :placeholder="`Padrão: ${config?.percentualPadrao ?? 30}%`"
+                            />
+                        </AppField>
+                        <p v-if="erroComissao" class="msg-erro">{{ erroComissao }}</p>
+                        <div class="form-acoes">
+                            <AppButton :loading="salvando" @click="salvarComissao">Salvar comissão</AppButton>
+                        </div>
+                    </div>
+                </template>
+                <p v-else class="info sel-hint">
+                    <i class="fa-regular fa-hand-pointer" aria-hidden="true" />
+                    Selecione um profissional acima para configurar.
+                </p>
+            </div>
+        </div>
+
+        <!-- Grid 2-col para cards Em breve -->
+        <div class="cfg-grid">
+
+            <!-- Taxa de cartão — Em breve (D4) -->
+            <div class="cfg-card cfg-soon">
+                <div class="cfg-card-h">
+                    <div class="cfg-card-title-block">
+                        <span class="cfg-ic taxa"><i class="fa-solid fa-credit-card" aria-hidden="true" /></span>
+                        <div>
+                            <b>Taxa de cartão</b>
+                            <p>Registre taxas de adquirente para desconto automático no faturamento líquido.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="cfg-soon-body">
+                    <span class="soon-pill">
+                        <i class="fa-solid fa-clock" aria-hidden="true" />
+                        Em breve
+                    </span>
+                    <p>Esta funcionalidade estará disponível em breve.</p>
+                </div>
+            </div>
+
+            <!-- Tabela de preços — Em breve (D4) -->
+            <div class="cfg-card cfg-soon">
+                <div class="cfg-card-h">
+                    <div class="cfg-card-title-block">
+                        <span class="cfg-ic precos"><i class="fa-solid fa-tag" aria-hidden="true" /></span>
+                        <div>
+                            <b>Tabela de preços</b>
+                            <p>Gerencie os preços padrão por procedimento e plano de saúde.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="cfg-soon-body">
+                    <span class="soon-pill">
+                        <i class="fa-solid fa-clock" aria-hidden="true" />
+                        Em breve
+                    </span>
+                    <p>Esta funcionalidade estará disponível em breve.</p>
+                </div>
+            </div>
+
+        </div>
     </div>
 
     <AppToast v-if="toast" :mensagem="toast.mensagem" :variante="toast.variante" @fechar="toast = null" />
 </template>
 
 <style scoped>
-.config-tab { display: flex; flex-direction: column; gap: 2rem; }
+.config-tab { display: flex; flex-direction: column; gap: 16px; }
 
-.comissao-config-section {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 10px;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+/* Grid 2-col */
+.cfg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
 }
-.descricao-secao { font-size: var(--text-sm); color: hsl(var(--muted-foreground)); margin: 0; }
+@media (max-width: 800px) {
+    .cfg-grid { grid-template-columns: 1fr; }
+}
 
-.prof-selector-label { font-size: var(--text-sm); font-weight: var(--font-weight-medium); margin-bottom: 0.5rem; display: block; }
-.prof-list { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+/* Card base */
+.cfg-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--secondary) / 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+/* Full-width: span das 2 colunas */
+.cfg-span { grid-column: 1 / -1; }
+
+/* Cabeçalho do card */
+.cfg-card-h {
+    padding: 16px 18px;
+    border-bottom: 1px solid hsl(var(--secondary) / 0.07);
+}
+.cfg-card-title-block {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+}
+.cfg-ic {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-base);
+}
+.cfg-ic.comissoes { background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); }
+.cfg-ic.taxa       { background: hsl(var(--warning) / 0.12); color: hsl(28 90% 45%); }
+.cfg-ic.precos     { background: hsl(142 71% 45% / 0.1); color: hsl(142 71% 35%); }
+
+.cfg-card-title-block > div > b {
+    display: block;
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-bold);
+    color: var(--c-primary-dark);
+    margin-bottom: 2px;
+}
+.cfg-card-title-block > div > p {
+    font-size: var(--text-xs);
+    color: hsl(var(--secondary) / 0.6);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Corpo do card comissão */
+.cfg-card-body { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+
+/* Seletor de profissional */
+.prof-selector { display: flex; flex-direction: column; gap: 10px; }
+.prof-selector-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--c-primary-dark);
+}
+.prof-list { display: flex; gap: 8px; flex-wrap: wrap; }
 .prof-chip {
-    padding: 0.3rem 0.85rem;
-    border: 1px solid hsl(var(--border));
+    padding: 6px 14px;
+    border: 1px solid hsl(var(--secondary) / 0.15);
     border-radius: 999px;
     font-size: var(--text-sm);
-    background: hsl(var(--background));
+    background: hsl(var(--secondary) / 0.04);
     cursor: pointer;
-    color: hsl(var(--foreground));
-    transition: background 0.15s, border-color 0.15s;
+    color: hsl(var(--secondary) / 0.8);
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    border-style: solid;
 }
 .prof-chip.ativo {
     background: hsl(var(--primary));
     border-color: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
+    color: #fff;
 }
-.prof-chip:hover:not(.ativo) { background: hsl(var(--muted)); }
+.prof-chip:hover:not(.ativo) {
+    background: hsl(var(--secondary) / 0.08);
+    color: var(--c-primary-dark);
+}
 
-.comissao-form { display: flex; flex-direction: column; gap: 0.75rem; max-width: 480px; }
-.form-acoes { display: flex; justify-content: flex-end; }
+/* Formulário de comissão */
+.comissao-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 600px;
+}
+.comissao-form .msg-erro { grid-column: 1 / -1; }
+.form-acoes { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+@media (max-width: 600px) {
+    .comissao-form { grid-template-columns: 1fr; }
+}
 
-.links-config { display: flex; flex-direction: column; gap: 0.75rem; }
-.links-list { display: flex; gap: 1rem; flex-wrap: wrap; }
-.config-link {
-    display: flex;
+/* Hint de seleção */
+.sel-hint {
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.65rem 1.1rem;
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 8px;
-    text-decoration: none;
-    color: hsl(var(--foreground));
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
-    transition: background 0.15s;
+    gap: 8px;
 }
-.config-link:hover { background: hsl(var(--muted)); }
+.sel-hint i { color: hsl(var(--secondary) / 0.4); }
 
-.info { color: hsl(var(--muted-foreground)); font-size: var(--text-sm); }
+/* Card Em breve */
+.cfg-soon-body {
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+}
+.soon-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    background: hsl(var(--secondary) / 0.06);
+    border: 1px solid hsl(var(--secondary) / 0.12);
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--secondary) / 0.6);
+}
+.cfg-soon-body > p {
+    font-size: var(--text-sm);
+    color: hsl(var(--secondary) / 0.55);
+    margin: 0;
+}
+
+.info { color: hsl(var(--secondary) / 0.6); font-size: var(--text-sm); }
 .msg-erro { color: hsl(var(--destructive)); font-size: var(--text-sm); margin: 0; }
 </style>
