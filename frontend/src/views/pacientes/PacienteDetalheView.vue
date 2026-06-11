@@ -19,6 +19,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { documentoService, type DocumentoResumo, type TipoDocumento } from "@/services/documentoService"
 import FinanceiroTab from "@/components/pacientes/FinanceiroTab.vue"
+import PainelPendencias from "@/components/prontuario/PainelPendencias.vue"
 import { acessoService, type AcessoResumo } from "@/services/acessoService"
 import { useAcessosPdf } from "@/composables/useAcessosPdf"
 import { useReceitaPdf } from "@/composables/useReceitaPdf"
@@ -668,6 +669,13 @@ function orcStatusClass(s: string): string {
 
             <!-- Conteúdo das abas -->
             <div class="pd-content">
+                <!-- Painel persistente de pendências — visível na aba Resumo quando há pendências abertas (CA74) -->
+                <PainelPendencias
+                    v-if="aba === 'resumo'"
+                    :paciente-id="pacienteId"
+                    class="pd-pendencias-painel"
+                />
+
                 <!-- Resumo -->
                 <section v-if="aba === 'resumo'" class="resumo-grid">
                     <div class="pd-card">
@@ -1274,6 +1282,11 @@ function orcStatusClass(s: string): string {
     display: inline-flex; align-items: center; gap: 8px;
 }
 .pd-card-head h3 i { color: hsl(var(--primary)); font-size: 13px; }
+
+/* Painel de pendências — margem inferior quando visível */
+.pd-pendencias-painel {
+    margin-bottom: 16px;
+}
 
 /* Resumo */
 .resumo-grid {

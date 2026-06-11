@@ -282,6 +282,34 @@ A seção `procedimentos-indicados` do `ConteudoJson` deixou de ser texto livre 
 - **Legado (texto livre):** `{ descricao, observacao }` sem `catalogoCirurgiaId` — evoluções antigas coexistem e renderizam read-only sem conversão.
 
 Premissas: (1) a referência ao catálogo é guardada **como dado no JSON, não como FK relacional** — preserva a imutabilidade append-only da evolução mesmo que o item do catálogo seja editado/removido depois; o render nunca re-resolve o valor pelo `catalogoCirurgiaId` (sempre snapshot). (2) Leitura/criação do catálogo reusa `orcamentoCatalogoService.listarProcedimentos`/`criarProcedimento` (endpoint `api/orcamentos/configuracoes/procedimentos`), já filtrado por tenant e sob o gate `[FeatureGate(OrcamentoCompleto)]` + `[RequiresAcao("orcamento","configurar")]` + `[RequiresPapel(Dono,Recepcionista)]` — sem endpoint paralelo. (3) Sem migration (campo é `jsonb`). `catalogoCirurgiaId` é contrato consumido por F4 (cobrança de procedimento) e F5 (orçamento pré-preenchido).
+
+#### Seção `conduta` como checklist → pendências do atendimento (briefing 2026-06-10_012 — Financeiro F3B)
+
+A seção `conduta` do `ConteudoJson` passou de texto livre para **checklist de 6 ações fixas** (`tipo: "conduta_checklist"`) com campo de observação livre. Cada ação marcada gera uma `PendenciaAtendimento` no mesmo fluxo de salvamento da evolução.
+
+**Entidade `PendenciaAtendimento`** (`pendencias_atendimento`):
+- Campos: `estabelecimento_id`, `paciente_id`, `evolucao_id`, `agendamento_id` (null se evolução sem consulta), `acao` (`AcaoPendencia` enum: CriarReceita, CriarAtestado, PedirExame, CriarOrcamento, MarcarProcedimentoRealizado, AgendarRetorno), `status` (Pendente/Concluida), `referencia_id` (id da entidade que concluiu automaticamente), `concluida_em`, `criado_por_usuario_id`, `criado_em`, `atualizado_em`.
+- UNIQUE `(evolucao_id, acao)` — idempotência total; índice `(estabelecimento_id, paciente_id, status)` — listagem eficiente.
+
+**Criação — padrão falha-suave:** `PendenciaExtratorEvolucao` (injetado em `RegistrarEvolucaoCommandHandler` após `PoolExtratorEvolucao`) lê `conteudoJson["conduta"]["acoesMarcadas"]`, verifica `ExistePorEvolucaoEAcao` antes de inserir (idempotência dupla: UNIQUE + cheque em memória), nunca lança exceção ao chamador — falha silenciosa via try/catch.
+
+**Conclusão automática — fan-out de eventos:** 5 `IEventHandler` scoped escutam eventos existentes:
+| Evento | Handler | Ação concluída |
+|---|---|---|
+| `ReceitaEmitidaEvent` | `ConcluirPendenciaAoEmitirReceitaHandler` | CriarReceita |
+| `AtestadoEmitidoEvent` | `ConcluirPendenciaAoEmitirAtestadoHandler` | CriarAtestado |
+| `PedidoExameEmitidoEvent` | `ConcluirPendenciaAoEmitirPedidoExameHandler` | PedirExame |
+| `OrcamentoCriadoEvent` | `ConcluirPendenciaAoCriarOrcamentoHandler` | CriarOrcamento |
+| `AgendamentoCriadoEvent` | `ConcluirPendenciaAoCriarAgendamentoHandler` | AgendarRetorno (só se `InicioPrevisto > UtcNow`) |
+
+Cada handler chama `ObterAbertaMaisRecentePorAcao` (busca a pendência mais recente do par estab+paciente+ação em status Pendente) → `ConcluirPorGatilho(referenciaId)` → `Salvar`. No-op se não encontrar. Fan-out no bus: event bus já suporta múltiplos handlers para o mesmo evento.
+
+**Conclusão manual:** `POST /api/paciente/{id}/pendencias/{pendenciaId}/concluir` (RBAC: `prontuario.editar`). `ConcluirManualmente()` seta `ReferenciaId=null` (distingue do automático). UI exige confirmação inline.
+
+**Retrocompat da seção:** evolução com `conduta` como string simples renderiza read-only sem checkboxes (CA73) — o dispatcher `SecaoProntuario.vue` detecta via `ehCondutaLegado computed`. Novas evoluções sempre persistem `{ acoesMarcadas, observacao }` com `tipo: "conduta_checklist"`.
+
+**Frontend:** `SecaoCondutaChecklist.vue` (dispatcher) → `ProximosPassosModal.vue` (pós-salvar, abre se ≥1 ação marcada) → `PainelPendencias.vue` (painel persistente na aba Resumo de `PacienteDetalheView.vue`, invisível se sem pendências).
+
 | **Modelo de permissão** | `modelo_permissao_estabelecimento` | `estabelecimento_id=NULL`, `eh_padrao=true` | FK via cópia `(estabelecimento_id=@X, eh_padrao=true)` | **Cópia materializada + propagação** |
 
 ### Dashboard Admin (Wave 6)

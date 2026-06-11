@@ -49,6 +49,7 @@ using Imedto.Backend.Application.Pacientes.Queries;
 using Imedto.Backend.Application.Prontuarios.Commands;
 using Imedto.Backend.Application.Prontuarios.Events;
 using Imedto.Backend.Application.Prontuarios.Queries;
+using Imedto.Backend.Domain.Prontuarios.Pendencias;
 using Imedto.Backend.Application.Receitas.Commands;
 using Imedto.Backend.Application.Receitas.Queries;
 using Imedto.Backend.Application.Atestados.Commands;
@@ -165,7 +166,9 @@ using Imedto.Backend.Domain.Notificacoes.Events;
 using Imedto.Backend.Domain.Receitas;
 using Imedto.Backend.Domain.Receitas.Events;
 using Imedto.Backend.Domain.Atestados;
+using Imedto.Backend.Domain.Atestados.Events;
 using Imedto.Backend.Domain.PedidosExame;
+using Imedto.Backend.Domain.PedidosExame.Events;
 using Imedto.Backend.Domain.Termos;
 using Imedto.Backend.Domain.Termos.Events;
 using Imedto.Backend.Application.Termos.Commands;
@@ -509,6 +512,18 @@ public static class Container
 
         // Prontuários (aggregate + evoluções)
         services.AddScoped<PoolExtratorEvolucao>(); // extração automática de itens do pool ao salvar evolução
+        // F3B — Pendências de atendimento (briefing 2026-06-10_012).
+        // IPendenciaAtendimentoRepository (scoped, EF) registrado em Infrastructure/Container.cs.
+        services.AddSingleton<PendenciaQueryRepository>(); // Dapper singleton — padrão dos outros *QueryRepository
+        services.AddScoped<PendenciaExtratorEvolucao>(); // extração de ações de conduta → pendências
+        services.AddScoped<ConcluirPendenciaManualCommandHandler>();
+        services.AddSingleton<ListarPendenciasAbertasQueryHandler>();
+        // Handlers de conclusão automática (ouvem eventos existentes — R7-R11)
+        services.AddScoped<ConcluirPendenciaAoEmitirReceitaHandler>();
+        services.AddScoped<ConcluirPendenciaAoEmitirAtestadoHandler>();
+        services.AddScoped<ConcluirPendenciaAoEmitirPedidoExameHandler>();
+        services.AddScoped<ConcluirPendenciaAoCriarOrcamentoHandler>();
+        services.AddScoped<ConcluirPendenciaAoCriarAgendamentoHandler>();
         services.AddScoped<IniciarProntuarioCommandHandler>();
         services.AddScoped<RegistrarEvolucaoCommandHandler>();
         services.AddScoped<RegistrarExportacaoProntuarioCommandHandler>();
@@ -1125,6 +1140,8 @@ public static class Container
             bus.Register<DispararAssinaturaCommand, DispararAssinaturaCommandHandler>();
             bus.Register<ProcessarCallbackAssinaturaCommand, ProcessarCallbackAssinaturaCommandHandler>();
             bus.Register<ExpirarAssinaturasPendentesCommand, ExpirarAssinaturasPendentesCommandHandler>();
+            // F3B — Pendências de atendimento (briefing 2026-06-10_012).
+            bus.Register<ConcluirPendenciaManualCommand, ConcluirPendenciaManualCommandHandler>();
             // Cobranças F1/F2 (2026-06-10).
             bus.Register<RegistrarPagamentosCommand, RegistrarPagamentosCommandHandler>();
             bus.Register<EstornarPagamentoCommand, EstornarPagamentoCommandHandler>();
@@ -1264,6 +1281,8 @@ public static class Container
             // Assinatura Digital ICP-Brasil (2026-06-01).
             bus.Register<ObterStatusAssinaturaQuery, StatusAssinaturaDto, ObterStatusAssinaturaQueryHandler>();
             bus.Register<ObterCertificadoVinculadoQuery, CertificadoVinculadoDto?, ObterCertificadoVinculadoQueryHandler>();
+            // F3B — Pendências de atendimento (briefing 2026-06-10_012).
+            bus.Register<ListarPendenciasAbertasQuery, IReadOnlyList<PendenciaAbertaDto>, ListarPendenciasAbertasQueryHandler>();
             // Cobranças F1/F2 (2026-06-10).
             bus.Register<ObterCobrancaDaAgendaQuery, CobrancaDetalheDto?, ObterCobrancaDaAgendaQueryHandlers>();
             bus.Register<ObterValorSugeridoCheckInQuery, ValorSugeridoCheckInDto, ObterValorSugeridoCheckInQueryHandlers>();
@@ -1299,6 +1318,13 @@ public static class Container
             bus.Register<AgendamentoReagendadoEvent, EnviarEmailAgendamentoReagendadoEventHandler>();
             bus.Register<EstoqueAbaixoMinimoEvent, EstoqueAbaixoMinimoEventHandler>();
             bus.Register<OrcamentoCriadoEvent, OrcamentoCriadoEventHandler>();
+            // F3B — Conclusão automática de pendências (R7-R11/CA63-CA65).
+            // Ouve eventos EXISTENTES — nunca derruba o evento principal (fan-out independente).
+            bus.Register<ReceitaEmitidaEvent, ConcluirPendenciaAoEmitirReceitaHandler>();
+            bus.Register<AtestadoEmitidoEvent, ConcluirPendenciaAoEmitirAtestadoHandler>();
+            bus.Register<PedidoExameEmitidoEvent, ConcluirPendenciaAoEmitirPedidoExameHandler>();
+            bus.Register<OrcamentoCriadoEvent, ConcluirPendenciaAoCriarOrcamentoHandler>();
+            bus.Register<AgendamentoCriadoEvent, ConcluirPendenciaAoCriarAgendamentoHandler>();
             bus.Register<OrcamentoAprovadoEvent, OrcamentoAprovadoEventHandler>();
             // Item 3.3.A — confirmação de procedimento → notificação à equipe operacional.
             bus.Register<ProcedimentoConfirmadoEvent, NotificarEquipeAoConfirmarHandler>();

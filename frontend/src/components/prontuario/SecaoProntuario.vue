@@ -12,6 +12,7 @@ import SecaoHistoriaSocial       from "./secoes/SecaoHistoriaSocial.vue"
 import SecaoExameFisico          from "./secoes/SecaoExameFisico.vue"
 import SecaoExamesRealizados     from "./secoes/SecaoExamesRealizados.vue"
 import SecaoProcedimentosIndicados from "./secoes/SecaoProcedimentosIndicados.vue"
+import SecaoCondutaChecklist from "./secoes/SecaoCondutaChecklist.vue"
 
 const props = defineProps<{
     chave: string
@@ -38,6 +39,18 @@ const valorEstrutura = computed({
     },
     set: atualizar,
 })
+
+// CA73: conduta como checklist se tipo === "conduta_checklist" OU o conteúdo
+// já foi salvo como objeto {acoesMarcadas, observacao}. Legado (string) → read-only textarea.
+const ehCondutaChecklist = computed(() =>
+    props.tipo === "conduta_checklist" ||
+    (props.chave === "conduta" && props.modelValue && typeof props.modelValue === "object" && "acoesMarcadas" in props.modelValue)
+)
+
+// Retrocompat: conduta legada (string) exibida como read-only (CA73).
+const ehCondutaLegado = computed(() =>
+    props.chave === "conduta" && typeof props.modelValue === "string" && props.modelValue.length > 0
+)
 
 const valorTexto = computed({
     get() {
@@ -84,6 +97,25 @@ const valorTexto = computed({
         v-else-if="chave === 'procedimentos-indicados'"
         v-model="valorEstrutura"
         :read-only="readOnly"
+    />
+
+    <!-- Conduta checklist (novo) — tipo conduta_checklist ou objeto {acoesMarcadas} -->
+    <SecaoCondutaChecklist
+        v-else-if="ehCondutaChecklist"
+        v-model="valorEstrutura"
+        :read-only="readOnly"
+    />
+
+    <!--
+      Conduta legada (string) — read-only sempre (CA73).
+      Nova edição da evolução usará conduta_checklist; não reescreve registro antigo.
+    -->
+    <AppTextarea
+        v-else-if="ehCondutaLegado"
+        :model-value="valorTexto"
+        :rows="4"
+        :disabled="true"
+        @update:model-value="() => {}"
     />
 
     <!-- Fallback: texto_longo → textarea, texto → input -->

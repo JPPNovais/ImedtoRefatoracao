@@ -2,6 +2,7 @@ using Imedto.Backend.Application.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Prontuarios;
+using Imedto.Backend.Domain.Prontuarios.Pendencias;
 using Imedto.Backend.Infrastructure.Database;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -76,14 +77,21 @@ public class ProntuarioIntegrationTests : IntegrationTestBase
             new ProntuarioAcessoLogService(ctx),
             new Mock<IEventBus>().Object);
 
-    private RegistrarEvolucaoCommandHandler RegistrarSut(AppDbContext ctx) =>
-        new(new ProntuarioRepository(ctx),
+    private RegistrarEvolucaoCommandHandler RegistrarSut(AppDbContext ctx)
+    {
+        var pendenciaRepoMock = new Mock<IPendenciaAtendimentoRepository>();
+        pendenciaRepoMock.Setup(r => r.ExistePorEvolucaoEAcao(It.IsAny<long>(), It.IsAny<AcaoPendencia>()))
+                         .ReturnsAsync(false);
+        return new(
+            new ProntuarioRepository(ctx),
             new ProntuarioEvolucaoRepository(ctx),
             new PacienteRepository(ctx),
             new ModeloDeProntuarioRepository(ctx),
             new ProntuarioAcessoLogService(ctx),
             new Mock<IEventBus>().Object,
-            new PoolExtratorEvolucao(new ProntuarioVariavelPoolRepository(ctx)));
+            new PoolExtratorEvolucao(new ProntuarioVariavelPoolRepository(ctx)),
+            new PendenciaExtratorEvolucao(pendenciaRepoMock.Object));
+    }
 
     private RegistrarExportacaoProntuarioCommandHandler ExportarProntSut(AppDbContext ctx) =>
         new(new PacienteRepository(ctx),

@@ -128,12 +128,14 @@ export const prontuarioService = {
         pacienteId: number,
         conteudo: Record<string, unknown>,
         modeloDeProntuarioId?: number,
+        agendamentoId?: number | null,
     ): Promise<{ evolucaoId: number }> {
         const { data } = await httpClient.post<{ evolucaoId: number }>(
             `/paciente/${pacienteId}/prontuario/evolucoes`,
             {
                 conteudoJson: JSON.stringify(conteudo),
                 modeloDeProntuarioId: modeloDeProntuarioId ?? null,
+                agendamentoId: agendamentoId ?? null,
             },
         )
         return data

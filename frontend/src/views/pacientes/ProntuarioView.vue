@@ -36,6 +36,8 @@ import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTa
 import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
 import PedidoExameTab              from "@/components/prontuario/tabs/PedidoExameTab.vue"
 import { exameFisicoService }      from "@/services/exameFisicoService"
+import ProximosPassosModal        from "@/components/prontuario/ProximosPassosModal.vue"
+import { type AcaoPendencia }     from "@/services/pendenciaService"
 
 const { gerarPdf: gerarPdfProntuario, gerarPdfEvolucao } = useProntuarioPdf()
 
@@ -72,6 +74,10 @@ const toast = ref<{ msg: string, variante: "info" | "success" | "error" } | null
 function notificar(msg: string, variante: "info" | "success" | "error" = "success") {
     toast.value = { msg, variante }
 }
+
+// Modal "Próximos passos" — aberto após salvar evolução com conduta checklist (CA70)
+const proximosPassosAberto = ref(false)
+const proximosPassosAcoes = ref<AcaoPendencia[]>([])
 
 // Seções do modelo atualmente selecionado
 const secoesConsultaAtual = computed(() => {
@@ -201,7 +207,7 @@ async function salvarEvolucao() {
             : undefined
 
         const { evolucaoId } = await prontuarioService.registrarEvolucao(
-            pacienteId.value, conteudoNaoVazio, modeloOverride,
+            pacienteId.value, conteudoNaoVazio, modeloOverride, eventoId.value,
         )
 
         // Se o usuário marcou regiões anatômicas no mapa corporal dentro da
@@ -228,6 +234,17 @@ async function salvarEvolucao() {
             } catch (e: any) {
                 // Evolução foi salva mas regiões falharam — não regredir o salvar.
                 notificar(e?.response?.data?.mensagem ?? "Evolução salva, mas regiões anatômicas falharam.", "info")
+            }
+        }
+
+        // Extrai ações marcadas da conduta para abrir modal "Próximos passos" (CA70).
+        // Só abre se houver ≥1 ação marcada.
+        const conduta = conteudoNaoVazio["conduta"]
+        if (conduta && typeof conduta === "object" && "acoesMarcadas" in conduta) {
+            const acoes = (conduta as { acoesMarcadas?: AcaoPendencia[] }).acoesMarcadas ?? []
+            if (acoes.length > 0) {
+                proximosPassosAcoes.value = acoes
+                proximosPassosAberto.value = true
             }
         }
 
@@ -458,6 +475,13 @@ async function finalizarAtendimento() {
             :mensagem="toast.msg"
             :variante="toast.variante"
             @fechar="toast = null"
+        />
+
+        <ProximosPassosModal
+            :aberto="proximosPassosAberto"
+            :acoes-marcadas="proximosPassosAcoes"
+            :paciente-id="pacienteId"
+            @fechar="proximosPassosAberto = false"
         />
     </main>
 </template>

@@ -15,6 +15,7 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
     private readonly IProntuarioAcessoLogService _acessoLog;
     private readonly IEventBus _eventBus;
     private readonly PoolExtratorEvolucao _poolExtrator;
+    private readonly PendenciaExtratorEvolucao _pendenciaExtrator;
 
     public RegistrarEvolucaoCommandHandler(
         IProntuarioRepository prontuarioRepo,
@@ -23,7 +24,8 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         IModeloDeProntuarioRepository modeloRepo,
         IProntuarioAcessoLogService acessoLog,
         IEventBus eventBus,
-        PoolExtratorEvolucao poolExtrator)
+        PoolExtratorEvolucao poolExtrator,
+        PendenciaExtratorEvolucao pendenciaExtrator)
     {
         _prontuarioRepo = prontuarioRepo;
         _evolucaoRepo = evolucaoRepo;
@@ -32,6 +34,7 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         _acessoLog = acessoLog;
         _eventBus = eventBus;
         _poolExtrator = poolExtrator;
+        _pendenciaExtrator = pendenciaExtrator;
     }
 
     public async Task Handle(RegistrarEvolucaoCommand command)
@@ -79,6 +82,17 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         // Transacional com o salvamento (CA16): falha-suave — nunca interrompe a evolução.
         // CA6: não exige permissão ModelosProntuario (qualquer profissional com acesso ao prontuário).
         await _poolExtrator.ExtrairECriar(command.EstabelecimentoId, command.ConteudoJson);
+
+        // Extrai ações de conduta marcadas e cria pendências de atendimento (F3B).
+        // Falha-suave (CA75/R2): nunca interrompe a evolução.
+        // Idempotente (CA62/R3): verifica existência antes de criar.
+        await _pendenciaExtrator.ExtrairECriar(
+            command.EstabelecimentoId,
+            command.PacienteId,
+            evolucao.Id,
+            command.AgendamentoId,
+            command.AutorUsuarioId,
+            command.ConteudoJson);
 
         foreach (var evt in evolucao.DomainEvents)
             await _eventBus.Publish(evt);

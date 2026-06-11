@@ -13,6 +13,11 @@ public class RegistrarEvolucaoCommand : ICommand
     public Guid AutorUsuarioId { get; set; }
     public string ConteudoJson { get; set; }
     /// <summary>
+    /// Agendamento associado à evolução, se houver. Vinculado às pendências criadas (F3B).
+    /// </summary>
+    public long? AgendamentoId { get; set; }
+
+    /// <summary>
     /// Substitui o modelo do prontuário apenas para esta evolução.
     /// Deve ser nulo (usa modelo do prontuário) ou um modelo ativo acessível pelo estabelecimento.
     /// </summary>

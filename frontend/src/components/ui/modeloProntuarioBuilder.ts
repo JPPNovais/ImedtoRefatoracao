@@ -7,7 +7,7 @@ import type { SecaoModelo } from "@/services/prontuarioService"
 export interface SecaoBuilderItem {
     key: string
     label: string
-    tipo: "texto" | "texto_longo"
+    tipo: "texto" | "texto_longo" | "conduta_checklist"
     info: string
 }
 
@@ -28,7 +28,7 @@ export const SECOES_MODELO_PRONTUARIO: SecaoBuilderItem[] = [
     { key: "fotos-paciente",           label: "Fotos do paciente",                  tipo: "texto_longo", info: "Registro fotográfico do paciente (pré e pós-operatório)." },
     { key: "anexos",                   label: "Anexos",                             tipo: "texto_longo", info: "Documentos e arquivos complementares ao prontuário." },
     { key: "cid10",                    label: "CID-10",                             tipo: "texto",       info: "Classificação Internacional de Doenças para codificação do diagnóstico." },
-    { key: "conduta",                  label: "Conduta",                            tipo: "texto_longo", info: "Plano terapêutico definido pelo profissional." },
+    { key: "conduta",                  label: "Conduta",                            tipo: "conduta_checklist", info: "Plano terapêutico: checklist de ações com observação livre." },
 ]
 
 const CHAVES_CONHECIDAS = new Set(SECOES_MODELO_PRONTUARIO.map(s => s.key))

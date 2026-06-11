@@ -3,6 +3,7 @@ using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Domain.Prontuarios.Events;
+using Imedto.Backend.Domain.Prontuarios.Pendencias;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
@@ -21,6 +22,7 @@ public class RegistrarEvolucaoCommandHandlerTests
     private Mock<IProntuarioAcessoLogService> _acessoLog;
     private Mock<IEventBus> _eventBus;
     private Mock<IProntuarioVariavelPoolRepository> _poolRepo;
+    private Mock<IPendenciaAtendimentoRepository> _pendenciaRepo;
     private RegistrarEvolucaoCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -43,10 +45,16 @@ public class RegistrarEvolucaoCommandHandlerTests
                  .ReturnsAsync(new List<ProntuarioVariavelPool>());
         _poolRepo.Setup(r => r.Salvar(It.IsAny<ProntuarioVariavelPool>()))
                  .Returns(Task.CompletedTask);
+        _pendenciaRepo = new Mock<IPendenciaAtendimentoRepository>();
+        _pendenciaRepo.Setup(r => r.ExistePorEvolucaoEAcao(It.IsAny<long>(), It.IsAny<AcaoPendencia>()))
+                      .ReturnsAsync(false);
+        _pendenciaRepo.Setup(r => r.Salvar(It.IsAny<PendenciaAtendimento>()))
+                      .Returns(Task.CompletedTask);
         _sut = new RegistrarEvolucaoCommandHandler(
             _prontuarioRepo.Object, _evolucaoRepo.Object, _pacienteRepo.Object,
             _modeloRepo.Object, _acessoLog.Object, _eventBus.Object,
-            new PoolExtratorEvolucao(_poolRepo.Object));
+            new PoolExtratorEvolucao(_poolRepo.Object),
+            new PendenciaExtratorEvolucao(_pendenciaRepo.Object));
     }
 
     private static Paciente PacienteAtivo() =>

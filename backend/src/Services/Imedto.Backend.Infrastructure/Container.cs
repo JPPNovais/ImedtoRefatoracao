@@ -124,6 +124,10 @@ public static class InfrastructureExtensions
         // Financeiro
         services.AddScoped<Domain.Financeiro.ILancamentoRepository, Database.Repositories.LancamentoRepository>();
 
+        // F3B — Pendências de atendimento (briefing 2026-06-10_012): repositório de escrita (EF scoped).
+        services.AddScoped<Domain.Prontuarios.Pendencias.IPendenciaAtendimentoRepository,
+                           Database.Repositories.PendenciaAtendimentoRepository>();
+
         // Cobranças F1/F2 — repositórios de escrita (EF scoped)
         services.AddScoped<Domain.Cobrancas.ICobrancaRepository, Database.Repositories.Cobrancas.CobrancaRepository>();
         services.AddScoped<Domain.Cobrancas.ITabelaPrecoConsultaRepository, Database.Repositories.Cobrancas.TabelaPrecoConsultaRepository>();
