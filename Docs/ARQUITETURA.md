@@ -230,8 +230,19 @@ Interface em `Application.Admin.Assinaturas`. Nenhum adapter concreto existe —
 
 **Fases de entrega:** F1 (schema + porta) → F2 (backfill seguro) → F3 (enforcement) → F4 (admin UI) → F5 (trial automático na nova) → **F6 (legada read-only — CONCLUÍDA)**. Drop físico das tabelas `assinaturas`/`planos` é fase autônoma posterior (sem data definida).
 
+**Endpoint `GET /api/minha-assinatura` — gap do épico fechado (hotfix 2026-06-11):**
+
+`ObterMinhaAssinaturaQueryHandlers` agora lê `imedto_assinaturas + imedto_planos` via `MinhaAssinaturaQueryRepository` (Dapper). O estado derivado (status no vocabulário do front: `Ativa`/`Trial`/`Suspensa`/`Expirada`) usa a mesma lógica de `ImedtoAssinatura.ObterEstado()`:
+- `expira_em IS NULL` e `suspensa_em IS NULL` → **"Ativa"** (vitalício, não bloqueado).
+- `expira_em` no futuro e `suspensa_em IS NULL` → **"Trial"** (não bloqueado, `diasRestantes` preenchido).
+- `suspensa_em` preenchido → **"Suspensa"** (bloqueado).
+- `expira_em` no passado → **"Expirada"** (bloqueado).
+- Sem vigência (`fim_em IS NULL` não encontrado) → retorna `null` → 404 (bloqueado).
+
+Paridade garantida: liberado no enforcement (`EstaAtiva()`) ⟺ não-bloqueado no front (`isBlocked = status in {Expirada, Suspensa, Cancelada}`).
+
 **Código legado remanescente (intencionalmente mantido):**
-- `Domain.Assinaturas.{Assinatura, Plano, StatusAssinatura}` + EF configs + `AppDbContext.Assinaturas/Planos`: necessários para o endpoint legado `GET /api/minha-assinatura` (lê da tabela `assinaturas` via `AssinaturaQueryRepository`), que o frontend do usuário ainda consome. Serão removidos junto com o drop físico das tabelas.
+- `Domain.Assinaturas.{Assinatura, Plano, StatusAssinatura}` + EF configs + `AppDbContext.Assinaturas/Planos` + `AssinaturaQueryRepository`: não mais consumidos pelo endpoint `GET /api/minha-assinatura`. `AssinaturaQueryRepository` permanece registrado como singleton mas não injetado em nenhum handler ativo. Serão removidos junto com o drop físico das tabelas. `GET /api/planos` ainda lê a tabela legada `planos` via `PlanoQueryRepository` (catálogo do usuário — drop em fase posterior).
 - `Domain.Assinaturas.Features`: constantes de chave de feature compartilhadas com o enforcement novo — não é legado.
 
 ### Catálogos Globais (live-link via `EhPadraoSistema=true` — Wave 4)

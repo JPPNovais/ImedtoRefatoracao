@@ -443,10 +443,13 @@ public static class Container
         // Assinaturas — gating de feature (fonte única: imedto_assinaturas/imedto_planos, F6).
         // IPlanoRepository e IAssinaturaRepository removidos (escrita legada descontinuada em F6).
         services.AddScoped<IAssinaturaService, AssinaturaService>();
-        // PlanoQueryRepository e AssinaturaQueryRepository: leitura legada mantida para o endpoint
-        // GET /api/minha-assinatura e GET /api/planos consumidos pelo front do usuário (drop posterior).
+        // PlanoQueryRepository: leitura legada mantida apenas para GET /api/planos (catálogo legado).
+        // AssinaturaQueryRepository: mantido como singleton mas não mais injetado no handler principal
+        // — pode ainda ser referenciado em testes; drop será avaliado junto com o endpoint /planos.
         services.AddSingleton<PlanoQueryRepository>();
         services.AddSingleton<AssinaturaQueryRepository>();
+        // MinhaAssinaturaQueryRepository: fonte nova para GET /api/minha-assinatura (hotfix épico 003).
+        services.AddSingleton<MinhaAssinaturaQueryRepository>();
         services.AddSingleton<ListarPlanosQueryHandlers>();
         services.AddSingleton<ObterMinhaAssinaturaQueryHandlers>();
 
