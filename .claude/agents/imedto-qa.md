@@ -78,17 +78,18 @@ Espera tudo verde. Falha → devolva com log relevante.
 
 ### Etapa 4 — Subir ambiente local
 
-```bash
-# Backend (terminal 1)
-cd backend/src
-ASPNETCORE_ENVIRONMENT=Development dotnet run --project Services/Imedto.Backend.API --no-launch-profile
+**Use o `./dev.sh` da raiz do repo** — ele sobe túnel SSH para o Postgres da EC2 + backend (`:5050`) + frontend (`:3000`) e reinicia instâncias antigas sozinho:
 
-# Frontend (terminal 2)
-cd frontend
-npm run dev
+```bash
+./dev.sh > /tmp/imedto/devsh.log 2>&1 &   # background; logs em /tmp/imedto/
+# aguarde: curl -s http://localhost:3000/ e http://localhost:5050/health responderem 200
 ```
 
-Confirme `/swagger` responde e `http://localhost:3000` carrega. Se schema novo: confirme que migration foi aplicada localmente (psql contra dev RDS via túnel SSH, ou banco local).
+Se o backend morrer no boot, leia `/tmp/imedto/backend.log` — a validação de DI do ambiente Development pega erros de lifetime (ex.: singleton consumindo scoped) que produção mascara. Isso é BUG e deve ser corrigido, não contornado.
+
+Se schema novo: a migration precisa estar aplicada no banco (o túnel aponta para o banco da EC2 — o MESMO de produção; cuidado com dados reais, use o estabelecimento de teste).
+
+**Login de teste**: credenciais em `.claude/qa-credentials.local.json` (gitignored — email/senha/estabelecimento). Se o arquivo não existir, peça ao usuário; nunca commite credenciais.
 
 ### Etapa 5 — Validar cada CA via chrome-devtools MCP
 

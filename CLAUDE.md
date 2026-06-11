@@ -160,6 +160,7 @@ USUÁRIO → imedto-business-analyst → planejamentos/YYYY-MM-DD_NNN_titulo.md 
 ### Regras dos Pipelines
 
 - **OBRIGATÓRIO: Validar ANTES de commitar** — apenas o `imedto-qa` commita. Dev e DB nunca empurram. Quality gate único.
+- **OBRIGATÓRIO: Validação local no browser ANTES do push** — o QA sobe o ambiente com `./dev.sh` (túnel SSH + backend :5050 + front :3000) e valida os CAs no navegador via chrome-devtools MCP (login de teste em `.claude/qa-credentials.local.json`, gitignored). Suíte verde NÃO basta: bug de SQL/Dapper, lifetime de DI e CSS de runtime só aparecem com o app rodando. Nada sobe para produção sem esse smoke test.
 - **Briefing antes de código** — demanda crua sempre passa pelo BA. Trivialidades (ajuste de padding, fix de typo isolado) ficam fora da pipeline e podem ir direto pelo orquestrador.
 - **Briefing é imutável** — mudou? Cria addendum (`*-addendum.md`). Nunca edita o original.
 - **CA é Dado/Quando/Então** — sem CA testável, briefing é inválido. Multi-tenant + RBAC + LGPD + estados + performance são CAs obrigatórios.
