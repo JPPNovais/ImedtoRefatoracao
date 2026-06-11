@@ -235,6 +235,12 @@ async function sincronizarNotificacoes() {
                 >
                     <i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i>Trocar estabelecimento
                 </button>
+                <button type="button" class="pop-item" @click="() => { fechar(); router.push({ name: 'Novidades' }) }">
+                    <i class="fa-solid fa-sparkles" aria-hidden="true"></i>Novidades
+                </button>
+                <button type="button" class="pop-item" @click="() => { fechar(); router.push({ name: 'Status' }) }">
+                    <i class="fa-solid fa-signal" aria-hidden="true"></i>Status do sistema
+                </button>
 
                 <div class="pop-tema">
                     <span class="pop-tema-label">Tema</span>
@@ -286,26 +292,6 @@ async function sincronizarNotificacoes() {
                 <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
                 <span class="lbl">Ajuda</span>
             </a>
-
-            <router-link
-                :to="{ name: 'Novidades' }"
-                class="foot-item"
-                :class="{ 'is-expanded': expanded }"
-                :title="!expanded ? 'Novidades' : ''"
-            >
-                <i class="fa-solid fa-sparkles" aria-hidden="true"></i>
-                <span class="lbl">Novidades</span>
-            </router-link>
-
-            <router-link
-                :to="{ name: 'Status' }"
-                class="foot-item"
-                :class="{ 'is-expanded': expanded }"
-                :title="!expanded ? 'Status do sistema' : ''"
-            >
-                <i class="fa-solid fa-signal" aria-hidden="true"></i>
-                <span class="lbl">Status do sistema</span>
-            </router-link>
         </template>
     </AppSidebar>
 

@@ -34,7 +34,11 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const pinned = ref(false)
+
+// Persiste a preferência fixo/recolhido entre sessões (chave única compartilhada
+// entre a plataforma principal e o admin).
+const STORAGE_KEY = "imedto.sidebar.pinned"
+const pinned = ref(localStorage.getItem(STORAGE_KEY) === "true")
 const hovered = ref(false)
 
 const expanded = computed(() => pinned.value || hovered.value)
@@ -52,6 +56,7 @@ function isActive(item: SidebarItem) {
 }
 
 watch(pinned, (v) => {
+    localStorage.setItem(STORAGE_KEY, String(v))
     document.body.classList.toggle("has-pinned-sidebar", v)
     props.onPinnedChange?.(v)
 })
