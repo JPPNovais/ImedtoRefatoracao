@@ -74,4 +74,48 @@ public class PendenciaAtendimentoController : ControllerBase
         });
         return NoContent();
     }
+
+    /// <summary>
+    /// Preview do modal MarcarProcedimentoRealizado (CA88/CA89).
+    /// Retorna procedimentos indicados, valor total e produtos a baixar do estoque.
+    /// Requer prontuario.editar (D9/CA82). Leitura pura — sem persistência.
+    /// </summary>
+    [HttpGet("{pendenciaId:long}/preview-procedimento")]
+    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono, TenantPapel.Recepcionista)]
+    [RequiresAcao("prontuario.editar")]
+    [ProducesResponseType(typeof(PreviewProcedimentoRealizadoDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> PreviewProcedimento(long pacienteId, long pendenciaId)
+    {
+        var resultado = await _requestBus.Query<PreviewProcedimentoRealizadoQuery, PreviewProcedimentoRealizadoDto>(
+            new PreviewProcedimentoRealizadoQuery
+            {
+                PendenciaId = pendenciaId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+            });
+        return Ok(resultado);
+    }
+
+    /// <summary>
+    /// Marca procedimento como realizado: cria Cobrança, baixa estoque, conclui pendência (CA76–CA86).
+    /// Atômico — se qualquer passo falhar, tudo é revertido (D3/CA76).
+    /// Idempotente — pendência já concluída retorna 204 sem erro (D4/CA77).
+    /// Requer prontuario.editar (D9/CA82).
+    /// </summary>
+    [HttpPost("{pendenciaId:long}/marcar-procedimento-realizado")]
+    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono, TenantPapel.Recepcionista)]
+    [RequiresAcao("prontuario.editar")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> MarcarProcedimentoRealizado(long pacienteId, long pendenciaId)
+    {
+        var cmd = new MarcarProcedimentoRealizadoCommand
+        {
+            PendenciaId = pendenciaId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            UsuarioId = _tenant.UsuarioId,
+        };
+        await _commandBus.Send(cmd);
+        return Ok(new { cobrancaId = cmd.CobrancaIdGerada });
+    }
 }

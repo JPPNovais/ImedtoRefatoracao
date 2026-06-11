@@ -1,5 +1,6 @@
 using Imedto.Backend.Application.Orcamentos.Catalogos;
 using Imedto.Backend.Contracts.Orcamentos.Catalogos.Commands;
+using Imedto.Backend.Domain.Inventario;
 using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using Imedto.Backend.SharedKernel.Domain;
 using Moq;
@@ -12,11 +13,14 @@ public class CatalogoProdutoCommandHandlerTests
 {
     private const long EstabA = 1;
 
+    private static (Mock<ICatalogoProdutoRepository> repo, Mock<IItemInventarioRepository> inv) CriarMocks()
+        => (new Mock<ICatalogoProdutoRepository>(), new Mock<IItemInventarioRepository>());
+
     [Test]
     public void Criar_TipoVazio_LancaBusinessExceptionDeObrigatoriedade()
     {
-        var repo = new Mock<ICatalogoProdutoRepository>();
-        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object);
+        var (repo, inv) = CriarMocks();
+        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object, inv.Object);
 
         var ex = Assert.ThrowsAsync<BusinessException>(async () =>
             await sut.Handle(new CriarCatalogoProdutoCommand
@@ -33,8 +37,8 @@ public class CatalogoProdutoCommandHandlerTests
     [Test]
     public void Criar_TipoNulo_LancaBusinessExceptionDeObrigatoriedade()
     {
-        var repo = new Mock<ICatalogoProdutoRepository>();
-        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object);
+        var (repo, inv) = CriarMocks();
+        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object, inv.Object);
 
         var ex = Assert.ThrowsAsync<BusinessException>(async () =>
             await sut.Handle(new CriarCatalogoProdutoCommand
@@ -51,8 +55,8 @@ public class CatalogoProdutoCommandHandlerTests
     [Test]
     public void Criar_TipoInvalido_LancaBusinessExceptionDeInvalido()
     {
-        var repo = new Mock<ICatalogoProdutoRepository>();
-        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object);
+        var (repo, inv) = CriarMocks();
+        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object, inv.Object);
 
         var ex = Assert.ThrowsAsync<BusinessException>(async () =>
             await sut.Handle(new CriarCatalogoProdutoCommand
@@ -69,8 +73,8 @@ public class CatalogoProdutoCommandHandlerTests
     [Test]
     public async Task Criar_TipoValido_PersisteEntidade()
     {
-        var repo = new Mock<ICatalogoProdutoRepository>();
-        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object);
+        var (repo, inv) = CriarMocks();
+        var sut = new CriarCatalogoProdutoCommandHandler(repo.Object, inv.Object);
 
         await sut.Handle(new CriarCatalogoProdutoCommand
         {
@@ -89,12 +93,12 @@ public class CatalogoProdutoCommandHandlerTests
     [Test]
     public void Atualizar_TipoVazio_LancaBusinessExceptionDeObrigatoriedade()
     {
-        var repo = new Mock<ICatalogoProdutoRepository>();
+        var (repo, inv) = CriarMocks();
         var existente = CatalogoProduto.Criar(EstabA, "Prótese", null, null, false,
             TipoOrcamentoProduto.OPME, null, null, null, null);
         repo.Setup(r => r.ObterPorIdOuNulo(10, EstabA)).ReturnsAsync(existente);
 
-        var sut = new AtualizarCatalogoProdutoCommandHandler(repo.Object);
+        var sut = new AtualizarCatalogoProdutoCommandHandler(repo.Object, inv.Object);
 
         var ex = Assert.ThrowsAsync<BusinessException>(async () =>
             await sut.Handle(new AtualizarCatalogoProdutoCommand

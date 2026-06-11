@@ -17,6 +17,7 @@ public class CobrancaConfiguration : IEntityTypeConfiguration<Cobranca>
         builder.Property(c => c.Origem).HasColumnName("origem").HasMaxLength(50).IsRequired();
         builder.Property(c => c.AgendamentoId).HasColumnName("agendamento_id");
         builder.Property(c => c.OrcamentoId).HasColumnName("orcamento_id");
+        builder.Property(c => c.EvolucaoId).HasColumnName("evolucao_id");
         builder.Property(c => c.TipoAtendimento).HasColumnName("tipo_atendimento").HasMaxLength(20).IsRequired()
             .HasConversion<string>();
         builder.Property(c => c.ConvenioId).HasColumnName("convenio_id");
@@ -32,13 +33,20 @@ public class CobrancaConfiguration : IEntityTypeConfiguration<Cobranca>
 
         builder.Ignore(c => c.DomainEvents);
 
-        // Índices sugeridos pelo briefing §10
+        // Índices operacionais
         builder.HasIndex(c => new { c.EstabelecimentoId, c.PacienteId })
             .HasDatabaseName("ix_cobrancas_estab_paciente");
         builder.HasIndex(c => new { c.EstabelecimentoId, c.Status })
             .HasDatabaseName("ix_cobrancas_estab_status");
         builder.HasIndex(c => c.AgendamentoId)
             .HasDatabaseName("ix_cobrancas_agendamento_id");
+
+        // Índice UNIQUE parcial — idempotência F4 (R7/CA77/CA78):
+        // garante 1 cobrança de procedimento por evolução (defense-in-depth contra race).
+        builder.HasIndex(c => c.EvolucaoId)
+            .IsUnique()
+            .HasDatabaseName("ux_cobrancas_evolucao_procedimento")
+            .HasFilter("origem = 'Procedimento' AND evolucao_id IS NOT NULL");
 
         builder.HasMany(c => c.Pagamentos)
             .WithOne()

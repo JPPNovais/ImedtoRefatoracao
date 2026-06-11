@@ -96,14 +96,16 @@ describe("PainelPendencias", () => {
         expect(wrapper.find(".ppi-ir").exists()).toBe(true)
     })
 
-    it("pendência sem rota (MarcarProcedimento) só exibe botão 'Concluir' (CA66)", async () => {
+    it("pendência MarcarProcedimentoRealizado exibe 'Fazer agora' (abre modal F4) e não exibe 'Concluir' manual", async () => {
         vi.mocked(pendenciaService.listarAbertas).mockResolvedValueOnce([
             pendenciaAberta(1, "MarcarProcedimentoRealizado"),
         ])
         const wrapper = mount(PainelPendencias, { props: { pacienteId: 1 } })
         await flushPromises()
-        expect(wrapper.find(".ppi-ir").exists()).toBe(false)
-        expect(wrapper.find(".ppi-concluir").exists()).toBe(true)
+        // F4: MarcarProcedimentoRealizado tem modal próprio — "Fazer agora" sempre aparece (CA88)
+        expect(wrapper.find(".ppi-ir").exists()).toBe(true)
+        // "Concluir" manual NÃO aparece para MarcarProcedimentoRealizado (CA88)
+        expect(wrapper.find(".ppi-concluir").exists()).toBe(false)
     })
 
     it("exibe confirmação ao clicar em 'Concluir' (CA68)", async () => {

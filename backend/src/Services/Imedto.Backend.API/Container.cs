@@ -517,7 +517,9 @@ public static class Container
         services.AddSingleton<PendenciaQueryRepository>(); // Dapper singleton — padrão dos outros *QueryRepository
         services.AddScoped<PendenciaExtratorEvolucao>(); // extração de ações de conduta → pendências
         services.AddScoped<ConcluirPendenciaManualCommandHandler>();
+        services.AddScoped<MarcarProcedimentoRealizadoCommandHandler>(); // F4 — 2026-06-10_013
         services.AddSingleton<ListarPendenciasAbertasQueryHandler>();
+        services.AddSingleton<PreviewProcedimentoRealizadoQueryHandler>(); // F4 — leitura pura
         // Handlers de conclusão automática (ouvem eventos existentes — R7-R11)
         services.AddScoped<ConcluirPendenciaAoEmitirReceitaHandler>();
         services.AddScoped<ConcluirPendenciaAoEmitirAtestadoHandler>();
@@ -1142,6 +1144,8 @@ public static class Container
             bus.Register<ExpirarAssinaturasPendentesCommand, ExpirarAssinaturasPendentesCommandHandler>();
             // F3B — Pendências de atendimento (briefing 2026-06-10_012).
             bus.Register<ConcluirPendenciaManualCommand, ConcluirPendenciaManualCommandHandler>();
+            // F4 — Marcar procedimento realizado (briefing 2026-06-10_013).
+            bus.Register<MarcarProcedimentoRealizadoCommand, MarcarProcedimentoRealizadoCommandHandler>();
             // Cobranças F1/F2 (2026-06-10).
             bus.Register<RegistrarPagamentosCommand, RegistrarPagamentosCommandHandler>();
             bus.Register<EstornarPagamentoCommand, EstornarPagamentoCommandHandler>();
@@ -1283,6 +1287,8 @@ public static class Container
             bus.Register<ObterCertificadoVinculadoQuery, CertificadoVinculadoDto?, ObterCertificadoVinculadoQueryHandler>();
             // F3B — Pendências de atendimento (briefing 2026-06-10_012).
             bus.Register<ListarPendenciasAbertasQuery, IReadOnlyList<PendenciaAbertaDto>, ListarPendenciasAbertasQueryHandler>();
+            // F4 — Preview modal MarcarProcedimentoRealizado (briefing 2026-06-10_013).
+            bus.Register<PreviewProcedimentoRealizadoQuery, PreviewProcedimentoRealizadoDto, PreviewProcedimentoRealizadoQueryHandler>();
             // Cobranças F1/F2 (2026-06-10).
             bus.Register<ObterCobrancaDaAgendaQuery, CobrancaDetalheDto?, ObterCobrancaDaAgendaQueryHandlers>();
             bus.Register<ObterValorSugeridoCheckInQuery, ValorSugeridoCheckInDto, ObterValorSugeridoCheckInQueryHandlers>();

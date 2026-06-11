@@ -151,6 +151,8 @@ public class CatalogoProdutoConfiguration : IEntityTypeConfiguration<CatalogoPro
         b.HasKey(x => x.Id);
         b.Property(x => x.Id).HasColumnName("id").UseIdentityByDefaultColumn();
         b.Property(x => x.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
+        // Vínculo opcional com item de inventário (F4/addendum — espelha orcamento_catalogo_implante).
+        b.Property(x => x.ItemInventarioId).HasColumnName("item_inventario_id");
         b.Property(x => x.Nome).HasColumnName("nome").HasMaxLength(200).IsRequired();
         b.Property(x => x.Descricao).HasColumnName("descricao").HasMaxLength(500);
         b.Property(x => x.ValorReferencia).HasColumnName("valor_referencia").HasPrecision(12, 2);
@@ -172,6 +174,12 @@ public class CatalogoProdutoConfiguration : IEntityTypeConfiguration<CatalogoPro
             .WithMany().HasForeignKey(x => x.EstabelecimentoId)
             .OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("fk_catalogo_produto_estabelecimento");
+
+        // FK fraca para itens_inventario com SetNull — espelha fk_catalogo_implante_item_inventario.
+        b.HasOne<Domain.Inventario.ItemInventario>()
+            .WithMany().HasForeignKey(x => x.ItemInventarioId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_catalogo_produto_item_inventario");
     }
 }
 

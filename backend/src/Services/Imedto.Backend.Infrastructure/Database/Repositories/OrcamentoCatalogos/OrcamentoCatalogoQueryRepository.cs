@@ -100,16 +100,18 @@ public class OrcamentoCatalogoQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
         const string sql = """
-            SELECT id AS Id, estabelecimento_id AS EstabelecimentoId,
-                   nome AS Nome, descricao AS Descricao,
-                   valor_referencia AS ValorReferencia, uso_unico AS UsoUnico,
-                   tipo AS Tipo, marca AS Marca, unidade AS Unidade,
-                   fornecedor_nome AS FornecedorNome, codigo_sku AS CodigoSku,
-                   ativo AS Ativo, criada_em AS CriadaEm, atualizada_em AS AtualizadaEm
-            FROM orcamento_catalogo_produto
-            WHERE estabelecimento_id = @EstabelecimentoId
-              AND (@Ativos::boolean IS NULL OR ativo = @Ativos::boolean)
-            ORDER BY nome
+            SELECT p.id AS Id, p.estabelecimento_id AS EstabelecimentoId,
+                   p.item_inventario_id AS ItemInventarioId, i.nome AS ItemInventarioNome,
+                   p.nome AS Nome, p.descricao AS Descricao,
+                   p.valor_referencia AS ValorReferencia, p.uso_unico AS UsoUnico,
+                   p.tipo AS Tipo, p.marca AS Marca, p.unidade AS Unidade,
+                   p.fornecedor_nome AS FornecedorNome, p.codigo_sku AS CodigoSku,
+                   p.ativo AS Ativo, p.criada_em AS CriadaEm, p.atualizada_em AS AtualizadaEm
+            FROM orcamento_catalogo_produto p
+            LEFT JOIN itens_inventario i ON i.id = p.item_inventario_id
+            WHERE p.estabelecimento_id = @EstabelecimentoId
+              AND (@Ativos::boolean IS NULL OR p.ativo = @Ativos::boolean)
+            ORDER BY p.nome
             """;
         return await conn.QueryAsync<CatalogoProdutoDto>(sql, new { EstabelecimentoId = estabelecimentoId, Ativos = ativos });
     }

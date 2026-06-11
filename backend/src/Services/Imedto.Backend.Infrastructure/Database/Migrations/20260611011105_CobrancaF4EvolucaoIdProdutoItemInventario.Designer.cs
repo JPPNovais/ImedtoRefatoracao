@@ -3,6 +3,7 @@ using System;
 using Imedto.Backend.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Imedto.Backend.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260611011105_CobrancaF4EvolucaoIdProdutoItemInventario")]
+    partial class CobrancaF4EvolucaoIdProdutoItemInventario
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1873,9 +1876,6 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.HasIndex("EstabelecimentoId", "Status")
                         .HasDatabaseName("ix_cobrancas_estab_status");
 
-                    // Índice UNIQUE parcial — idempotência F4 (R7/CA77/CA78).
-                    // Criado via Sql() na migration; registrado aqui para que próximas migrations
-                    // saibam que o índice já existe no banco.
                     b.HasIndex("EvolucaoId")
                         .IsUnique()
                         .HasDatabaseName("ux_cobrancas_evolucao_procedimento")

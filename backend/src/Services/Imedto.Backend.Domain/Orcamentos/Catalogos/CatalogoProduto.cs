@@ -5,6 +5,11 @@ namespace Imedto.Backend.Domain.Orcamentos.Catalogos;
 public class CatalogoProduto : Entity
 {
     public virtual long EstabelecimentoId { get; protected set; }
+    /// <summary>
+    /// Vínculo opcional com item de inventário para baixa automática (F4/addendum).
+    /// Espelha o padrão de <see cref="CatalogoImplante.ItemInventarioId"/>.
+    /// </summary>
+    public virtual long? ItemInventarioId { get; protected set; }
     public virtual string Nome { get; protected set; } = string.Empty;
     public virtual string? Descricao { get; protected set; }
     public virtual decimal? ValorReferencia { get; protected set; }
@@ -24,12 +29,14 @@ public class CatalogoProduto : Entity
         decimal? valorReferencia, bool usoUnico,
         TipoOrcamentoProduto tipo = TipoOrcamentoProduto.Outros,
         string? marca = null, string? unidade = null,
-        string? fornecedorNome = null, string? codigoSku = null)
+        string? fornecedorNome = null, string? codigoSku = null,
+        long? itemInventarioId = null)
     {
         Validar(estabelecimentoId, nome, valorReferencia, marca, unidade, fornecedorNome, codigoSku);
         return new CatalogoProduto
         {
             EstabelecimentoId = estabelecimentoId,
+            ItemInventarioId = itemInventarioId,
             Nome = nome.Trim(),
             Descricao = N(descricao),
             ValorReferencia = valorReferencia,
@@ -47,9 +54,11 @@ public class CatalogoProduto : Entity
     public virtual void Atualizar(string nome, string? descricao, decimal? valorReferencia,
         bool usoUnico, TipoOrcamentoProduto tipo = TipoOrcamentoProduto.Outros,
         string? marca = null, string? unidade = null,
-        string? fornecedorNome = null, string? codigoSku = null)
+        string? fornecedorNome = null, string? codigoSku = null,
+        long? itemInventarioId = null)
     {
         Validar(EstabelecimentoId, nome, valorReferencia, marca, unidade, fornecedorNome, codigoSku);
+        ItemInventarioId = itemInventarioId;
         Nome = nome.Trim();
         Descricao = N(descricao);
         ValorReferencia = valorReferencia;

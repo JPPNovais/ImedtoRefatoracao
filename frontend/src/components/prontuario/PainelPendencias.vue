@@ -21,6 +21,7 @@ import {
     type PendenciaAberta,
 } from "@/services/pendenciaService"
 import { usePermissoesStore } from "@/stores/permissoesStore"
+import MarcarProcedimentoRealizadoModal from "./MarcarProcedimentoRealizadoModal.vue"
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,10 @@ const pendencias = ref<PendenciaAberta[]>([])
 const carregando = ref(false)
 const confirmandoId = ref<number | null>(null) // pendenciaId aguardando confirmação
 const concluindoId = ref<number | null>(null)  // pendenciaId em curso (spinner)
+
+// ── Modal MarcarProcedimentoRealizado (F4/CA88) ───────────────────────────────
+const modalMarcarAberto = ref(false)
+const modalMarcarPendenciaId = ref<number | null>(null)
 
 // ── Dados ──────────────────────────────────────────────────────────────────────
 
@@ -62,12 +67,29 @@ const podeEditar = computed(() => permissoes.pode("prontuario.editar"))
 
 // ── Ações ──────────────────────────────────────────────────────────────────────
 
-function irParaAcao(acao: AcaoPendencia) {
+function irParaAcao(acao: AcaoPendencia, pendenciaId: number) {
+    // MarcarProcedimentoRealizado abre modal próprio em vez de navegar (F4/CA88)
+    if (acao === "MarcarProcedimentoRealizado") {
+        modalMarcarPendenciaId.value = pendenciaId
+        modalMarcarAberto.value = true
+        return
+    }
     const rota = rotaParaAcao(props.pacienteId, acao)
     if (rota) router.push(rota)
 }
 
-function temRota(acao: AcaoPendencia): boolean {
+function aoMarcarConcluido(cobrancaId: number) {
+    modalMarcarAberto.value = false
+    // Remove da lista local a pendência que foi concluída pelo modal
+    if (modalMarcarPendenciaId.value !== null) {
+        pendencias.value = pendencias.value.filter(p => p.id !== modalMarcarPendenciaId.value)
+        modalMarcarPendenciaId.value = null
+    }
+}
+
+function temBotaoFazerAgora(acao: AcaoPendencia): boolean {
+    // MarcarProcedimentoRealizado tem modal próprio — sempre mostra "Fazer agora"
+    if (acao === "MarcarProcedimentoRealizado") return true
     return rotaParaAcao(props.pacienteId, acao) !== null
 }
 
@@ -131,18 +153,19 @@ defineExpose({ recarregar: carregar })
                 <!-- Ações normais -->
                 <template v-else>
                     <button
-                        v-if="temRota(pend.acao as AcaoPendencia)"
+                        v-if="temBotaoFazerAgora(pend.acao as AcaoPendencia)"
                         class="ppi-ir"
-                        @click="irParaAcao(pend.acao as AcaoPendencia)"
+                        @click="irParaAcao(pend.acao as AcaoPendencia, pend.id)"
                     >
                         Fazer agora
                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24">
                             <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </button>
-                    <!-- CA70: botão Concluir só visível com prontuario.editar -->
+                    <!-- CA70: botão Concluir só visível com prontuario.editar.
+                         MarcarProcedimentoRealizado usa modal próprio (F4) — não mostra "Concluir" manual. -->
                     <button
-                        v-if="podeEditar"
+                        v-if="podeEditar && pend.acao !== 'MarcarProcedimentoRealizado'"
                         class="ppi-concluir"
                         :disabled="concluindoId === pend.id"
                         @click="solicitarConclusao(pend.id)"
@@ -153,6 +176,16 @@ defineExpose({ recarregar: carregar })
             </li>
         </ul>
     </div>
+
+    <!-- Modal F4: confirmação de procedimento realizado (CA88) -->
+    <MarcarProcedimentoRealizadoModal
+        v-if="modalMarcarPendenciaId !== null"
+        :aberto="modalMarcarAberto"
+        :paciente-id="pacienteId"
+        :pendencia-id="modalMarcarPendenciaId"
+        @fechar="modalMarcarAberto = false"
+        @concluido="aoMarcarConcluido"
+    />
 </template>
 
 <style scoped>

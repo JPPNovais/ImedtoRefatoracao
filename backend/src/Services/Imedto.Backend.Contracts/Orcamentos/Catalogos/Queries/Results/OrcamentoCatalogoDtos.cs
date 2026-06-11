@@ -74,6 +74,10 @@ public class CatalogoProdutoDto
 {
     public long Id { get; set; }
     public long EstabelecimentoId { get; set; }
+    /// <summary>Vínculo opcional com item de inventário (F4/addendum).</summary>
+    public long? ItemInventarioId { get; set; }
+    /// <summary>Nome snapshot do item de inventário vinculado (null se sem vínculo).</summary>
+    public string? ItemInventarioNome { get; set; }
     public string Nome { get; set; } = string.Empty;
     public string? Descricao { get; set; }
     public decimal? ValorReferencia { get; set; }

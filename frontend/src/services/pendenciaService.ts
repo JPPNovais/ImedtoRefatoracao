@@ -43,8 +43,37 @@ export function rotaParaAcao(pacienteId: number, acao: AcaoPendencia): string | 
         case "AgendarRetorno":
             return `/agenda?pacienteId=${pacienteId}`
         case "MarcarProcedimentoRealizado":
-            return null // só conclusão manual pelo painel nesta fase (CA66)
+            return null // abre modal de confirmação (F4/CA88) — tratado pelo componente
     }
+}
+
+// ── Preview modal MarcarProcedimentoRealizado (F4/CA88) ──────────────────────
+
+export interface ProcedimentoPreviewItem {
+    catalogoCirurgiaId: number
+    descricao: string
+    valor: number
+    observacao: string | null
+}
+
+export interface ProdutoPreviewItem {
+    produtoId: number
+    produtoNome: string
+    quantidade: number
+    itemInventarioId: number | null
+    itemInventarioNome: string | null
+    /** True quando produto não tem item de estoque vinculado — sinalizar no modal (CA94). */
+    semVinculo: boolean
+}
+
+export interface PreviewProcedimentoRealizado {
+    pendenciaId: number
+    evolucaoId: number
+    procedimentos: ProcedimentoPreviewItem[]
+    valorTotal: number
+    produtosABaixar: ProdutoPreviewItem[]
+    /** True se ao menos 1 produto não tem item de estoque vinculado. */
+    temProdutoSemVinculo: boolean
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -59,5 +88,27 @@ export const pendenciaService = {
     /** Conclui manualmente uma pendência pelo painel (CA67). */
     async concluirManual(pacienteId: number, pendenciaId: number): Promise<void> {
         await httpClient.post(`/api/paciente/${pacienteId}/pendencias/${pendenciaId}/concluir`)
+    },
+
+    /** Carrega o preview para o modal MarcarProcedimentoRealizado (CA88). Leitura pura. */
+    async previewProcedimentoRealizado(
+        pacienteId: number,
+        pendenciaId: number,
+    ): Promise<PreviewProcedimentoRealizado> {
+        const resp = await httpClient.get<PreviewProcedimentoRealizado>(
+            `/api/paciente/${pacienteId}/pendencias/${pendenciaId}/preview-procedimento`,
+        )
+        return resp.data
+    },
+
+    /** Confirma a marcação do procedimento como realizado: cria cobrança + baixa estoque. */
+    async marcarProcedimentoRealizado(
+        pacienteId: number,
+        pendenciaId: number,
+    ): Promise<{ cobrancaId: number }> {
+        const resp = await httpClient.post<{ cobrancaId: number }>(
+            `/api/paciente/${pacienteId}/pendencias/${pendenciaId}/marcar-procedimento-realizado`,
+        )
+        return resp.data
     },
 }

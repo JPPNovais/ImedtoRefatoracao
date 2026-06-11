@@ -18,6 +18,11 @@ public class Cobranca : Entity
     public virtual long? AgendamentoId { get; protected set; }
     /// <summary>Reservado para F5 (orçamento de cirurgia).</summary>
     public virtual long? OrcamentoId { get; protected set; }
+    /// <summary>
+    /// Id da evolução de origem — preenchido para cobrança de procedimento (F4).
+    /// Junto com o índice UNIQUE parcial garante idempotência: 1 cobrança de procedimento por evolução.
+    /// </summary>
+    public virtual long? EvolucaoId { get; protected set; }
     public virtual TipoAtendimento TipoAtendimento { get; protected set; }
     /// <summary>Reservado para F6 (convênio real). Na F1, nunca preenchido.</summary>
     public virtual long? ConvenioId { get; protected set; }
@@ -84,6 +89,47 @@ public class Cobranca : Entity
         };
 
         return cobranca;
+    }
+
+    /// <summary>
+    /// Cria cobrança de procedimento ao marcar realizado (F4/R3).
+    /// Tipo sempre Particular nesta fase (D2). EvolucaoId sinaliza origem e garante idempotência via índice parcial.
+    /// </summary>
+    public static Cobranca CriarParaProcedimento(
+        long estabelecimentoId,
+        long pacienteId,
+        long evolucaoId,
+        long? agendamentoId,
+        decimal valorCobrado,
+        string descricao,
+        Guid criadoPorUsuarioId)
+    {
+        if (estabelecimentoId <= 0)
+            throw new BusinessException("Estabelecimento é obrigatório.");
+        if (pacienteId <= 0)
+            throw new BusinessException("Paciente é obrigatório.");
+        if (evolucaoId <= 0)
+            throw new BusinessException("Evolução é obrigatória.");
+        if (valorCobrado <= 0)
+            throw new BusinessException("Valor cobrado deve ser maior que zero para procedimento realizado.");
+        if (criadoPorUsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário criador é obrigatório.");
+
+        return new Cobranca
+        {
+            EstabelecimentoId = estabelecimentoId,
+            PacienteId = pacienteId,
+            Origem = "Procedimento",
+            AgendamentoId = agendamentoId,
+            EvolucaoId = evolucaoId,
+            TipoAtendimento = TipoAtendimento.Particular,
+            ValorCobrado = ArredondamentoMonetario.Arredondar(valorCobrado),
+            Desconto = 0m,
+            Status = StatusCobranca.Aberta,
+            Descricao = string.IsNullOrWhiteSpace(descricao) ? null : descricao.Trim(),
+            CriadoPorUsuarioId = criadoPorUsuarioId,
+            CriadoEm = DateTime.UtcNow
+        };
     }
 
     /// <summary>Adiciona domain event após persistir (Id disponível).</summary>

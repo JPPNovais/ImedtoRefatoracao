@@ -151,6 +151,8 @@ public class RemoverConfiguracaoPagamentoCommand : ICommand
 public class CriarCatalogoProdutoCommand : ICommand
 {
     public long EstabelecimentoId { get; set; }
+    /// <summary>Vínculo opcional com item de inventário (F4/addendum). Null = sem vínculo.</summary>
+    public long? ItemInventarioId { get; set; }
     public string Nome { get; set; } = string.Empty;
     public string? Descricao { get; set; }
     public decimal? ValorReferencia { get; set; }
@@ -167,6 +169,8 @@ public class AtualizarCatalogoProdutoCommand : ICommand
 {
     public long Id { get; set; }
     public long EstabelecimentoId { get; set; }
+    /// <summary>Vínculo opcional com item de inventário (F4/addendum). Null = sem vínculo.</summary>
+    public long? ItemInventarioId { get; set; }
     public string Nome { get; set; } = string.Empty;
     public string? Descricao { get; set; }
     public decimal? ValorReferencia { get; set; }

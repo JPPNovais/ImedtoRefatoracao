@@ -16,6 +16,7 @@ import {
     type CatalogoProdutoPayload,
     type TipoOrcamentoProduto,
 } from "@/services/orcamentoCatalogoService"
+import { inventarioService, type ItemInventario } from "@/services/inventarioService"
 
 const emit = defineEmits<{ (e: "contagem", v: number): void }>()
 
@@ -30,10 +31,18 @@ const tamanho = ref(20)
 
 const drawerAberto = ref(false)
 const idEditando = ref<number | null>(null)
-const form = ref<CatalogoProdutoPayload>({
+const form = ref<CatalogoProdutoPayload & { itemInventarioIdStr: string }>({
     nome: "", descricao: null, valorReferencia: null, usoUnico: false,
     tipo: "Outros", marca: null, unidade: "un", fornecedorNome: null, codigoSku: null,
+    itemInventarioId: null, itemInventarioIdStr: "",
 })
+
+// ── Inventário (addendum F4/CA90–CA92) ────────────────────────────────────────
+const itensInventario = ref<ItemInventario[]>([])
+const opcoesInventario = computed(() => [
+    { value: "", label: "Sem item de inventário" },
+    ...itensInventario.value.map(i => ({ value: String(i.id), label: `${i.codigo} — ${i.nome}` })),
+])
 
 // Toast e confirmação (substituem window.alert/confirm).
 const toast = ref<{ mensagem: string, variante: "info" | "success" | "error" } | null>(null)
@@ -81,7 +90,15 @@ const ticketMedio = computed(() => {
 async function carregar() {
     carregando.value = true
     try {
-        lista.value = await orcamentoCatalogoService.listarProdutos()
+        // Carrega produtos sempre; itens de inventário só na primeira vez (lista não muda com frequência)
+        const promises: [Promise<CatalogoProduto[]>, Promise<void>] = [
+            orcamentoCatalogoService.listarProdutos(),
+            itensInventario.value.length === 0
+                ? inventarioService.listarItens({ apenasAtivos: true, tamanho: 500 }).then(r => { itensInventario.value = r.itens })
+                : Promise.resolve(),
+        ]
+        const [produtos] = await Promise.all(promises)
+        lista.value = produtos
         emit("contagem", lista.value.length)
     } finally {
         carregando.value = false
@@ -97,6 +114,7 @@ function novo() {
     form.value = {
         nome: "", descricao: null, valorReferencia: null, usoUnico: false,
         tipo: "Outros", marca: null, unidade: "un", fornecedorNome: null, codigoSku: null,
+        itemInventarioId: null, itemInventarioIdStr: "",
     }
     drawerAberto.value = true
 }
@@ -108,18 +126,25 @@ function editar(item: CatalogoProduto) {
         valorReferencia: item.valorReferencia, usoUnico: item.usoUnico,
         tipo: item.tipo, marca: item.marca, unidade: item.unidade,
         fornecedorNome: item.fornecedorNome, codigoSku: item.codigoSku,
+        itemInventarioId: item.itemInventarioId,
+        itemInventarioIdStr: item.itemInventarioId ? String(item.itemInventarioId) : "",
     }
     drawerAberto.value = true
 }
 
 async function salvar() {
     if (!form.value.nome.trim()) { notificar("Nome é obrigatório.", "error"); return }
+    const itemId = form.value.itemInventarioIdStr ? Number(form.value.itemInventarioIdStr) : null
+    const payload: CatalogoProdutoPayload = {
+        ...form.value,
+        itemInventarioId: itemId,
+    }
     try {
         if (idEditando.value === null) {
-            await orcamentoCatalogoService.criarProduto(form.value)
+            await orcamentoCatalogoService.criarProduto(payload)
             notificar("Produto criado.", "success")
         } else {
-            await orcamentoCatalogoService.atualizarProduto(idEditando.value, form.value)
+            await orcamentoCatalogoService.atualizarProduto(idEditando.value, payload)
             notificar("Produto atualizado.", "success")
         }
         drawerAberto.value = false
@@ -265,6 +290,10 @@ async function executarRemocao() {
             </AppField>
             <AppField>
                 <AppCheckbox v-model="form.usoUnico" label="Uso único (cobrado uma vez por orçamento, mesmo se aparecer em múltiplos procedimentos)" />
+            </AppField>
+            <!-- F4/addendum CA90-CA92: vínculo com item de estoque para baixa automática -->
+            <AppField label="Item de estoque vinculado">
+                <AppSelect v-model="form.itemInventarioIdStr" :options="opcoesInventario" />
             </AppField>
 
             <template #rodape>

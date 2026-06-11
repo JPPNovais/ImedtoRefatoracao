@@ -186,6 +186,9 @@ export interface CatalogoProduto {
     ativo: boolean
     criadaEm: string
     atualizadaEm: string | null
+    /** Vínculo opcional com item de inventário para baixa automática (F4/addendum). */
+    itemInventarioId: number | null
+    itemInventarioNome: string | null
 }
 
 export interface CatalogoProdutoPayload {
@@ -198,6 +201,8 @@ export interface CatalogoProdutoPayload {
     unidade?: string | null
     fornecedorNome?: string | null
     codigoSku?: string | null
+    /** Vínculo com item de inventário para baixa automática (F4/addendum). */
+    itemInventarioId?: number | null
 }
 
 export interface CatalogoCirurgiaProdutoVinculo {

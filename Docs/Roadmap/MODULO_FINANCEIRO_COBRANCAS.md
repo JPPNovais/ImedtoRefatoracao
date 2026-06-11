@@ -363,6 +363,7 @@ estoque; marcar "criar orçamento" é a entrada da cirurgia (F5).
   idempotência (salvar 2x não duplica pendência); não quebrar render do prontuário nem o `ConteudoJson` histórico.
 
 ### F4 — Cobrança de procedimento ao marcar como realizado — **M**
+- **Status**: implementado e validado (QA aprovado) — `planejamentos/2026-06-10_013_financeiro-f4-cobranca-procedimento.md` (CA76–CA89) + addendum vínculo produto↔estoque `..._addendum.md` (CA90–CA96, spec gap Tipo B resolvido: `orcamento_catalogo_produto.item_inventario_id` adicionado espelhando `orcamento_catalogo_implante`). Migration `20260611011105` pendente de apply em prod.
 - **Objetivo**: gerar `Cobranca` origem=Procedimento quando o procedimento é marcado como realizado, com valor
   do catálogo, **e disparar a baixa automática de estoque** (decisão fechada).
 - **IN**: gatilho = item "marcar procedimento realizado" do checklist de conduta (F3B); valor do catálogo;

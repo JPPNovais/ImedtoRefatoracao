@@ -261,13 +261,22 @@ public class RemoverConfiguracaoPagamentoCommandHandler : ICommandHandler<Remove
 public class CriarCatalogoProdutoCommandHandler : ICommandHandler<CriarCatalogoProdutoCommand>
 {
     private readonly ICatalogoProdutoRepository _repo;
-    public CriarCatalogoProdutoCommandHandler(ICatalogoProdutoRepository repo) => _repo = repo;
+    private readonly IItemInventarioRepository _inv;
+
+    public CriarCatalogoProdutoCommandHandler(ICatalogoProdutoRepository repo, IItemInventarioRepository inv)
+    { _repo = repo; _inv = inv; }
 
     public async Task Handle(CriarCatalogoProdutoCommand cmd)
     {
+        // Valida vínculo com item de inventário (R15/CA92): item deve ser do mesmo tenant.
+        if (cmd.ItemInventarioId is { } invId)
+            _ = await _inv.ObterPorIdOuNulo(invId, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Não encontrado.");
+
         var tipo = ParseTipoProduto(cmd.Tipo);
         var entity = CatalogoProduto.Criar(cmd.EstabelecimentoId, cmd.Nome, cmd.Descricao,
-            cmd.ValorReferencia, cmd.UsoUnico, tipo, cmd.Marca, cmd.Unidade, cmd.FornecedorNome, cmd.CodigoSku);
+            cmd.ValorReferencia, cmd.UsoUnico, tipo, cmd.Marca, cmd.Unidade, cmd.FornecedorNome, cmd.CodigoSku,
+            cmd.ItemInventarioId);
         await _repo.Salvar(entity);
         cmd.IdCriado = entity.Id;
     }
@@ -285,15 +294,24 @@ public class CriarCatalogoProdutoCommandHandler : ICommandHandler<CriarCatalogoP
 public class AtualizarCatalogoProdutoCommandHandler : ICommandHandler<AtualizarCatalogoProdutoCommand>
 {
     private readonly ICatalogoProdutoRepository _repo;
-    public AtualizarCatalogoProdutoCommandHandler(ICatalogoProdutoRepository repo) => _repo = repo;
+    private readonly IItemInventarioRepository _inv;
+
+    public AtualizarCatalogoProdutoCommandHandler(ICatalogoProdutoRepository repo, IItemInventarioRepository inv)
+    { _repo = repo; _inv = inv; }
 
     public async Task Handle(AtualizarCatalogoProdutoCommand cmd)
     {
         var entity = await _repo.ObterPorIdOuNulo(cmd.Id, cmd.EstabelecimentoId)
             ?? throw new BusinessException("Produto não encontrado.");
+
+        // Valida vínculo com item de inventário (R15/CA92): item deve ser do mesmo tenant.
+        if (cmd.ItemInventarioId is { } invId)
+            _ = await _inv.ObterPorIdOuNulo(invId, cmd.EstabelecimentoId)
+                ?? throw new BusinessException("Não encontrado.");
+
         var tipo = CriarCatalogoProdutoCommandHandler.ParseTipoProduto(cmd.Tipo);
         entity.Atualizar(cmd.Nome, cmd.Descricao, cmd.ValorReferencia, cmd.UsoUnico,
-            tipo, cmd.Marca, cmd.Unidade, cmd.FornecedorNome, cmd.CodigoSku);
+            tipo, cmd.Marca, cmd.Unidade, cmd.FornecedorNome, cmd.CodigoSku, cmd.ItemInventarioId);
         await _repo.Salvar(entity);
     }
 }

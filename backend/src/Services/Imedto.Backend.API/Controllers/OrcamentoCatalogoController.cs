@@ -275,7 +275,8 @@ public class OrcamentoCatalogoController : ControllerBase
             EstabelecimentoId = _tenant.EstabelecimentoId, Nome = dto.Nome, Descricao = dto.Descricao,
             ValorReferencia = dto.ValorReferencia, UsoUnico = dto.UsoUnico,
             Tipo = dto.Tipo, Marca = dto.Marca, Unidade = dto.Unidade,
-            FornecedorNome = dto.FornecedorNome, CodigoSku = dto.CodigoSku
+            FornecedorNome = dto.FornecedorNome, CodigoSku = dto.CodigoSku,
+            ItemInventarioId = dto.ItemInventarioId
         };
         await _cmd.Send(cmd);
         return Ok(new { id = cmd.IdCriado });
@@ -290,7 +291,8 @@ public class OrcamentoCatalogoController : ControllerBase
             Id = id, EstabelecimentoId = _tenant.EstabelecimentoId,
             Nome = dto.Nome, Descricao = dto.Descricao, ValorReferencia = dto.ValorReferencia, UsoUnico = dto.UsoUnico,
             Tipo = dto.Tipo, Marca = dto.Marca, Unidade = dto.Unidade,
-            FornecedorNome = dto.FornecedorNome, CodigoSku = dto.CodigoSku
+            FornecedorNome = dto.FornecedorNome, CodigoSku = dto.CodigoSku,
+            ItemInventarioId = dto.ItemInventarioId
         });
         return NoContent();
     }
@@ -522,7 +524,8 @@ public record CriarImplanteDto(long? ItemInventarioId, string Descricao, decimal
 public record CriarConfigPagamentoDto(long FormaPagamentoId, decimal AcrescimoPercentual, decimal EntradaPercentualPadrao, decimal TaxaParcela, int ParcelasMaximas);
 public record AtualizarConfigPagamentoDto(decimal AcrescimoPercentual, decimal EntradaPercentualPadrao, decimal TaxaParcela, int ParcelasMaximas);
 public record CriarProdutoDto(string Nome, string? Descricao, decimal? ValorReferencia, bool UsoUnico,
-    string? Tipo = null, string? Marca = null, string? Unidade = null, string? FornecedorNome = null, string? CodigoSku = null);
+    string? Tipo = null, string? Marca = null, string? Unidade = null, string? FornecedorNome = null, string? CodigoSku = null,
+    long? ItemInventarioId = null);
 public record VincularProdutoDto(long ProdutoId, decimal QuantidadePadrao, bool Obrigatorio, bool? Incluido = null);
 public record AtualizarVinculoProdutoDto(decimal QuantidadePadrao, bool Obrigatorio, bool? Incluido = null);
 public record CriarTeamRoleDto(string Papel, Guid? ProfissionalUsuarioId, string? NomePadrao,
