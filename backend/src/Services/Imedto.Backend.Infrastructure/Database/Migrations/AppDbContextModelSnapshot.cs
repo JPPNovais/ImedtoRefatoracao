@@ -1831,6 +1831,20 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("evolucao_id");
 
+                    b.Property<DateOnly?>("GuiaAutorizadaEm")
+                        .HasColumnType("date")
+                        .HasColumnName("guia_autorizada_em");
+
+                    b.Property<string>("GuiaNumero")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("guia_numero");
+
+                    b.Property<string>("GuiaSenha")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("guia_senha");
+
                     b.Property<long?>("OrcamentoId")
                         .HasColumnType("bigint")
                         .HasColumnName("orcamento_id");
@@ -1866,6 +1880,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
                     b.HasIndex("AgendamentoId")
                         .HasDatabaseName("ix_cobrancas_agendamento_id");
+
+                    b.HasIndex("ConvenioId")
+                        .HasDatabaseName("ix_cobrancas_convenio_id")
+                        .HasFilter("convenio_id IS NOT NULL");
 
                     b.HasIndex("EvolucaoId")
                         .IsUnique()
@@ -2156,6 +2174,93 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_tabela_preco_consulta_estab_profissional");
 
                     b.ToTable("tabela_preco_consulta", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Convenios.Convenio", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.Property<string>("RegistroAns")
+                        .HasColumnType("text")
+                        .HasColumnName("registro_ans");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "Ativo")
+                        .HasDatabaseName("ix_convenios_estab_ativo");
+
+                    b.ToTable("convenios", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Convenios.ConvenioPlano", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<long>("ConvenioId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("convenio_id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nome");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId")
+                        .HasDatabaseName("ix_convenio_planos_estabelecimento_id");
+
+                    b.HasIndex("ConvenioId", "Ativo")
+                        .HasDatabaseName("ix_convenio_planos_convenio_ativo");
+
+                    b.ToTable("convenio_planos", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", b =>
@@ -4511,6 +4616,68 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("orcamento_implantes", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.PacienteConvenios.PacienteConvenio", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Ativo")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("ativo");
+
+                    b.Property<DateTime?>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<long>("ConvenioId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("convenio_id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("NumeroCarteirinha")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("numero_carteirinha");
+
+                    b.Property<long>("PacienteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("paciente_id");
+
+                    b.Property<long?>("PlanoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("plano_id");
+
+                    b.Property<DateOnly?>("Validade")
+                        .HasColumnType("date")
+                        .HasColumnName("validade");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConvenioId")
+                        .HasDatabaseName("ix_paciente_convenios_convenio_id");
+
+                    b.HasIndex("EstabelecimentoId")
+                        .HasDatabaseName("ix_paciente_convenios_estabelecimento_id");
+
+                    b.HasIndex("PacienteId", "EstabelecimentoId", "Ativo")
+                        .HasDatabaseName("ix_paciente_convenios_paciente_estab_ativo");
+
+                    b.ToTable("paciente_convenios", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Pacientes.Paciente", b =>
                 {
                     b.Property<long>("Id")
@@ -6576,6 +6743,12 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
             modelBuilder.Entity("Imedto.Backend.Domain.Cobrancas.Cobranca", b =>
                 {
+                    b.HasOne("Imedto.Backend.Domain.Convenios.Convenio", null)
+                        .WithMany()
+                        .HasForeignKey("ConvenioId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_cobrancas_convenio");
+
                     b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
                         .WithMany()
                         .HasForeignKey("EstabelecimentoId")
@@ -6653,6 +6826,33 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_tabela_preco_consulta_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Convenios.Convenio", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_convenios_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Convenios.ConvenioPlano", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Convenios.Convenio", null)
+                        .WithMany("Planos")
+                        .HasForeignKey("ConvenioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_convenio_planos_convenio");
+
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_convenio_planos_estabelecimento");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.CategoriaFinanceira", b =>
@@ -7103,6 +7303,30 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasConstraintName("fk_orcamento_implante_orcamento");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.PacienteConvenios.PacienteConvenio", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Convenios.Convenio", null)
+                        .WithMany()
+                        .HasForeignKey("ConvenioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_paciente_convenios_convenio");
+
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_paciente_convenios_estabelecimento");
+
+                    b.HasOne("Imedto.Backend.Domain.Pacientes.Paciente", null)
+                        .WithMany()
+                        .HasForeignKey("PacienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_paciente_convenios_paciente");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Prontuarios.Pendencias.PendenciaAtendimento", b =>
                 {
                     b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
@@ -7199,6 +7423,11 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.Navigation("HistoricoValor");
 
                     b.Navigation("Pagamentos");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Convenios.Convenio", b =>
+                {
+                    b.Navigation("Planos");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Orcamentos.Catalogos.OrcamentoAnestesista", b =>

@@ -15,4 +15,6 @@ public class RegistrarCheckInAgendamentoCommand : ICommand
     public string TipoAtendimento { get; set; } = "Particular";
     /// <summary>Valor cobrado do paciente (R2). Ignorado para Convênio (R12).</summary>
     public decimal ValorCobrado { get; set; }
+    /// <summary>F6/R7: id do convênio selecionado. Opcional mesmo em Convênio (recepção pode não ter à mão).</summary>
+    public long? ConvenioId { get; set; }
 }

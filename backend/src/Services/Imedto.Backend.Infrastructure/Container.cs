@@ -130,6 +130,10 @@ public static class InfrastructureExtensions
 
         // Cobranças F1/F2 — repositórios de escrita (EF scoped)
         services.AddScoped<Domain.Cobrancas.ICobrancaRepository, Database.Repositories.Cobrancas.CobrancaRepository>();
+        // F6 — Convênios (repositórios de escrita EF — registrados aqui para que o CheckIn handler funcione)
+        // Nota: query repositories singleton registrados em API/Container.cs junto com handlers
+        services.AddScoped<Domain.Convenios.IConvenioRepository, Database.Repositories.Convenios.ConvenioRepository>();
+        services.AddScoped<Domain.PacienteConvenios.IPacienteConvenioRepository, Database.Repositories.Convenios.PacienteConvenioRepository>();
         services.AddScoped<Domain.Cobrancas.ITabelaPrecoConsultaRepository, Database.Repositories.Cobrancas.TabelaPrecoConsultaRepository>();
         services.AddScoped<Domain.Cobrancas.IConfigTaxaFormaPagamentoRepository, Database.Repositories.Cobrancas.ConfigTaxaFormaPagamentoRepository>();
         services.AddScoped<Domain.Cobrancas.IEstornoPagamentoRepository, Database.Repositories.Cobrancas.EstornoPagamentoRepository>();

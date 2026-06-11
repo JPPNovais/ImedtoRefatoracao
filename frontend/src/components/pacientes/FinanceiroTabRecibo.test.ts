@@ -60,6 +60,8 @@ function dadosComPagamento(pagamentoId = 10, estornado = false): FinanceiroAba {
             id: 1,
             origem: "Consulta",
             tipoAtendimento: "Particular",
+            convenioId: null,
+            convenioNome: null,
             valorCobrado: 200,
             desconto: 0,
             totalLiquido: 200,
@@ -67,6 +69,9 @@ function dadosComPagamento(pagamentoId = 10, estornado = false): FinanceiroAba {
             saldo: estornado ? 200 : 0,
             status: estornado ? "Aberta" : "Paga",
             descricao: "Consulta retorno",
+            guiaNumero: null,
+            guiaSenha: null,
+            guiaAutorizadaEm: null,
             pagamentos: [{
                 id: pagamentoId,
                 valor: 200,

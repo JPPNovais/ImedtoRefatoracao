@@ -524,6 +524,30 @@ Introduz contas a receber do paciente (`cobrado ≠ pago`). **Não confundir** c
 - **Badge na agenda**: estado de pagamento vem **agregado na query da agenda** (join por `agendamento_id`) — nunca request por linha (anti-N+1). Cobrança de cirurgia (`agendamento_id=null`) não aparece no badge (F5).
 - **Permissões novas** `financeiro_paciente.ver`/`financeiro_paciente.registrar` (catálogo) — separadas de `financeiro.*` (clínica agregada). Aprovação de orçamento de cirurgia reusa `orcamento.aprovar` (F5 — sem permissão nova).
 
+### Convênio: estrutura base (briefing 2026-06-10_016 — F6)
+
+#### Aggregates
+- **`Convenio`** (aggregate root) — operadora de convênio do estabelecimento: `estabelecimento_id` (tenant), `nome`, `registro_ans?`, `ativo`. Possui `ConvenioPlano` (filhos 1:N via root): `convenio_id`, `estabelecimento_id` (denormalizado para filtro multi-tenant direto), `nome`, `ativo`.
+- **`PacienteConvenio`** (carteirinha — aggregate próprio) — associação paciente↔convênio por estabelecimento: `paciente_id`, `estabelecimento_id`, `convenio_id` (FK → convênios do mesmo tenant), `plano_id?`, `numero_carteirinha`, `validade?`, `ativo`. Paciente pode ter N carteirinhas (convênios diferentes); `plano_id`, se informado, deve pertencer ao `convenio_id` (validado no handler). `numero_carteirinha` é **dado pessoal** — DTO minimizado, sem PII em log.
+
+#### Soft-delete (inativar > excluir)
+`Convenio`/`ConvenioPlano` usam `ativo=false` como ação de remoção preferida — preserva a integridade de cobranças e carteirinhas que referenciam o id. Convênio inativo some dos selects de novas seleções mas continua legível no histórico. Exclusão física permitida apenas se sem uso (sem carteirinha nem cobrança no tenant); caso contrário 422 "Convênio em uso — inative em vez de excluir."
+
+#### Populamento de `cobrancas.convenio_id` no check-in
+`Cobranca.CriarParaConsulta` ganhou parâmetro `convenioId` opcional. Quando o check-in confirma `tipo=Convenio`, passa o id do convênio selecionado (pode ser `null` — convênio é opcional no check-in). O handler valida que o `convenio_id` aponta para um convênio **ativo do mesmo estabelecimento** (404 genérico se inválido ou de tenant alheio). `valor_cobrado=0` e bloqueio de pagamento/estorno de balcão permanecem inalterados (R9/INV da F1).
+
+#### Guia / Autorização
+`Cobranca.RegistrarGuia(numero, senha?, autorizadaEm?)` grava os campos `guia_numero`/`guia_senha`/`guia_autorizada_em` (3 colunas adicionadas na tabela `cobrancas` pela F6). Estado é **derivado** no DTO: "pendente" se `guia_numero` é null/vazio; "preenchida" se presente. Só válido para cobrança `tipo=Convenio` — 422 "Guia só disponível para cobranças de convênio." para Particular. RBAC: `financeiro_paciente.registrar` (mesmo gate do registro de pagamento).
+
+#### Alerta de validade vencida (R6)
+Calculado exclusivamente no **front** a partir do campo `validade` (`string | null` ISO date) via helper `estaVencida(validade)` em `convenioService.ts`. O backend nunca expõe campo derivado `validadeVencida` — minimização de DTO. O alerta é **informativo** (não bloqueia check-in, cadastro nem faturamento).
+
+#### Navegação em Configurações
+Seção `convenios` adicionada ao grupo **"Faturamento"** (renomeado de "Financeiro") do master-detail de `EstabelecimentoView.vue`. Visibilidade: `convenios.ver`. Deep-link `?secao=convenios`. Conteúdo: `ConveniosConfigView.vue` carregado via `defineAsyncComponent` (padrão dos outros painéis lazy). A seção `financeiro` (`id`) e seu deep-link permanecem inalterados.
+
+#### "Em breve" (Coparticipação / Conciliação / Glosas)
+Cards visuais com selo "Em breve" nas abas de configuração e na aba Convênios do paciente. **Sem schema** — não há tabelas de coparticipação, conciliação nem glosas nesta fase.
+
 ---
 
 ## Conexão Postgres (RDS)

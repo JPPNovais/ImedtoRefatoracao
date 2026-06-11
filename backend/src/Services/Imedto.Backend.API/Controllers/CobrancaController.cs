@@ -241,6 +241,26 @@ public class CobrancaController : ControllerBase
         });
         return NoContent();
     }
+
+    /// <summary>
+    /// Registra ou edita guia/autorização na cobrança convênio (F6/R10/R13).
+    /// RBAC: financeiro_paciente.registrar. Rejeita Particular (domain lança 422).
+    /// </summary>
+    [HttpPost("{id:long}/guia")]
+    [RequiresAcao("financeiro_paciente", "registrar")]
+    public async Task<ActionResult> RegistrarGuia(long id, [FromBody] RegistrarGuiaDto dto)
+    {
+        await _cmd.Send(new RegistrarGuiaCobrancaCommand
+        {
+            CobrancaId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            UsuarioSolicitanteId = _tenant.UsuarioId,
+            GuiaNumero = dto.GuiaNumero,
+            GuiaSenha = dto.GuiaSenha,
+            GuiaAutorizadaEm = dto.GuiaAutorizadaEm,
+        });
+        return NoContent();
+    }
 }
 
 // ── DTOs de request ────────────────────────────────────────────────────────────
@@ -268,3 +288,5 @@ public record SalvarConfigTaxaFormaPagamentoDto(
     long FormaPagamentoId,
     decimal TaxaPercentual,
     bool Ativo = true);
+
+public record RegistrarGuiaDto(string GuiaNumero, string? GuiaSenha, DateOnly? GuiaAutorizadaEm);

@@ -35,6 +35,7 @@ const PainelIa              = defineAsyncComponent(() => import("@/views/configu
 const PainelAssinatura      = defineAsyncComponent(() => import("@/views/assinatura/MinhaAssinaturaView.vue"))
 const PainelTermos          = defineAsyncComponent(() => import("@/components/termos/TermosPainelEmbutido.vue"))
 const PainelFinanceiro      = defineAsyncComponent(() => import("@/views/financeiro/FinanceiroConfigView.vue"))
+const PainelConvenios       = defineAsyncComponent(() => import("@/views/estabelecimento/ConveniosConfigView.vue"))
 
 // ─── Stores e router ──────────────────────────────────────────────────────────
 const route   = useRoute()
@@ -48,6 +49,7 @@ const podeVerTermos    = computed(() => permissoes.pode("termos.gerenciar_modelo
 const podeVerIa        = computed(() => permissoes.podeExtra("config_estabelecimento"))
 const podeVerModelos   = computed(() => permissoes.podeExtra("modelos_prontuario"))
 const podeVerAutomacoes= computed(() => permissoes.podeExtra("automacao_config"))
+const podeVerConvenios = computed(() => permissoes.pode("convenios.ver") || permissoes.ehDono)
 const podeEditar       = ref(false)
 
 // ─── Definição dos grupos e seções ────────────────────────────────────────────
@@ -55,7 +57,7 @@ type SecaoId =
     | "dados" | "funcionamento" | "unidades" | "reparticoes"
     | "modelos-prontuario" | "termos" | "variaveis"
     | "automacoes" | "ia" | "assinatura" | "seguranca"
-    | "financeiro"
+    | "financeiro" | "convenios"
 
 interface SecaoItem {
     id: SecaoId
@@ -98,9 +100,10 @@ const GRUPOS_NAV: GrupoNav[] = [
         ],
     },
     {
-        label: "Financeiro",
+        label: "Faturamento",
         secoes: [
             { id: "financeiro", label: "Financeiro", icone: "fa-solid fa-hand-holding-dollar", visivel: true },
+            { id: "convenios",  label: "Convênios",  icone: "fa-solid fa-handshake",           visivel: podeVerConvenios },
         ],
     },
 ]
@@ -126,7 +129,7 @@ const TODAS_SECOES: SecaoId[] = [
     "dados", "funcionamento", "unidades", "reparticoes",
     "modelos-prontuario", "termos", "variaveis",
     "automacoes", "ia", "assinatura", "seguranca",
-    "financeiro",
+    "financeiro", "convenios",
 ]
 
 function secaoValida(s: string | null | undefined): s is SecaoId {
@@ -139,6 +142,7 @@ function secaoPermitida(id: SecaoId): boolean {
         case "ia":                 return podeVerIa.value
         case "modelos-prontuario": return podeVerModelos.value
         case "automacoes":         return podeVerAutomacoes.value
+        case "convenios":          return podeVerConvenios.value
         default:                   return true
     }
 }
@@ -585,6 +589,11 @@ onMounted(async () => {
                 <!-- ── Financeiro — tabela de preços + taxa (lazy) ────────── -->
                 <section v-else-if="secaoAtiva === 'financeiro'" class="painel-secao">
                     <PainelFinanceiro />
+                </section>
+
+                <!-- ── Convênios — CRUD de convênios e planos (lazy) ─────── -->
+                <section v-else-if="secaoAtiva === 'convenios'" class="painel-secao">
+                    <PainelConvenios />
                 </section>
 
                 <!-- ── Segurança — 2FA do Dono ────────────────────────────── -->

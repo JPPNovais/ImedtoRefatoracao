@@ -78,6 +78,8 @@ const dadosMock: FinanceiroAba = {
             id: 1,
             origem: "Consulta",
             tipoAtendimento: "Particular",
+            convenioId: null,
+            convenioNome: null,
             valorCobrado: 500,
             desconto: 0,
             totalLiquido: 500,
@@ -85,6 +87,9 @@ const dadosMock: FinanceiroAba = {
             saldo: 300,
             status: "ParcialmentePaga",
             descricao: "Consulta retorno",
+            guiaNumero: null,
+            guiaSenha: null,
+            guiaAutorizadaEm: null,
             pagamentos: [
                 {
                     id: 10,

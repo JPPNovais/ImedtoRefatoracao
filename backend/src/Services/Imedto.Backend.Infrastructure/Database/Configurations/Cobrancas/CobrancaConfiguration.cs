@@ -30,6 +30,10 @@ public class CobrancaConfiguration : IEntityTypeConfiguration<Cobranca>
         builder.Property(c => c.CriadoPorUsuarioId).HasColumnName("criado_por_usuario_id").IsRequired();
         builder.Property(c => c.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(c => c.AtualizadoEm).HasColumnName("atualizado_em");
+        // F6/R10: guia de autorização — apenas cobrança convênio
+        builder.Property(c => c.GuiaNumero).HasColumnName("guia_numero").HasMaxLength(100);
+        builder.Property(c => c.GuiaSenha).HasColumnName("guia_senha").HasMaxLength(100);
+        builder.Property(c => c.GuiaAutorizadaEm).HasColumnName("guia_autorizada_em");
 
         builder.Ignore(c => c.DomainEvents);
 
@@ -56,6 +60,20 @@ public class CobrancaConfiguration : IEntityTypeConfiguration<Cobranca>
             .IsUnique()
             .HasDatabaseName("ux_cobrancas_orcamento_cirurgia")
             .HasFilter("origem = 'Cirurgia' AND orcamento_id IS NOT NULL");
+
+        // F6: índice parcial em convenio_id (suporte a JOIN e checagem de uso em R3).
+        // WHERE IS NOT NULL: a coluna existe desde F1 mas é preenchida na F6; evita inchaço.
+        // CONCURRENTLY não cabe aqui (tabela com dados em produção); para tabela nova o índice simples é ok.
+        builder.HasIndex(c => c.ConvenioId)
+            .HasDatabaseName("ix_cobrancas_convenio_id")
+            .HasFilter("convenio_id IS NOT NULL");
+
+        // F6: FK fraca convenio_id → convenios (ON DELETE SET NULL — histórico intacto ao inativar/excluir convênio).
+        builder.HasOne<Domain.Convenios.Convenio>()
+            .WithMany()
+            .HasForeignKey(c => c.ConvenioId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_cobrancas_convenio");
 
         builder.HasMany(c => c.Pagamentos)
             .WithOne()

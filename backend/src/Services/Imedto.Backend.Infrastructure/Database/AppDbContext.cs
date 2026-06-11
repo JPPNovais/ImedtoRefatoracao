@@ -11,6 +11,8 @@ using Imedto.Backend.Domain.Catalogo;
 using Imedto.Backend.Domain.Cirurgias;
 using Imedto.Backend.Domain.Estabelecimentos;
 using Imedto.Backend.Domain.Cobrancas;
+using Imedto.Backend.Domain.Convenios;
+using Imedto.Backend.Domain.PacienteConvenios;
 using Imedto.Backend.Domain.Financeiro;
 using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
@@ -161,6 +163,11 @@ public class AppDbContext : DbContext
 
     // F3B — Pendências de atendimento (briefing 2026-06-10_012).
     public DbSet<PendenciaAtendimento> PendenciasAtendimento => Set<PendenciaAtendimento>();
+
+    // F6 — Convênios (briefing 2026-06-10_016).
+    public DbSet<Convenio> Convenios => Set<Convenio>();
+    public DbSet<ConvenioPlano> ConvenioPlanos => Set<ConvenioPlano>();
+    public DbSet<PacienteConvenio> PacienteConvenios => Set<PacienteConvenio>();
 
     // Assinatura Digital ICP-Brasil (2026-06-01).
     public DbSet<AssinaturaCertificado> AssinaturaCertificados => Set<AssinaturaCertificado>();

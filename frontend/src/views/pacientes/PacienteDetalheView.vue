@@ -19,6 +19,7 @@ import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { documentoService, type DocumentoResumo, type TipoDocumento } from "@/services/documentoService"
 import FinanceiroTab from "@/components/pacientes/FinanceiroTab.vue"
+import ConveniosTab from "@/components/pacientes/ConveniosTab.vue"
 import PainelPendencias from "@/components/prontuario/PainelPendencias.vue"
 import { acessoService, type AcessoResumo } from "@/services/acessoService"
 import { useAcessosPdf } from "@/composables/useAcessosPdf"
@@ -1105,10 +1106,9 @@ function orcStatusClass(s: string): string {
                 </section>
 
                 <section v-else-if="aba === 'convenios'">
-                    <AppEmptyState
-                        icone="🛡️"
-                        titulo="Convênios e autorizações"
-                        descricao="Histórico de autorizações de plano de saúde e glosas serão exibidos aqui em breve."
+                    <ConveniosTab
+                        :paciente-id="pacienteId"
+                        :ativa="aba === 'convenios'"
                     />
                 </section>
 

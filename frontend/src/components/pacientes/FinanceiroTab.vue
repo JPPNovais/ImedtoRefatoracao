@@ -15,12 +15,15 @@
 import { ref, watch } from "vue"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import AppButton from "@/components/ui/AppButton.vue"
+import AppModal from "@/components/ui/AppModal.vue"
+import AppField from "@/components/ui/AppField.vue"
 import PaymentModal from "@/components/ui/PaymentModal.vue"
 import EstornoModal from "@/components/ui/EstornoModal.vue"
 import { cobrancaService, type FinanceiroAba, type CobrancaAba, type PagamentoAba, type RegistrarPagamentosRequest } from "@/services/cobrancaService"
 import type { CobrancaDetalhe } from "@/services/cobrancaService"
 import { formaPagamentoService } from "@/services/categoriaFinanceiraService"
 import { usePermissoesStore } from "@/stores/permissoesStore"
+import { convenioService } from "@/services/convenioService"
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -210,6 +213,49 @@ async function onConfirmarEstorno(motivo: string) {
     }
 }
 
+// ── Modal de guia/autorização (F6/R10/R13) ─────────────────────────────────
+
+const cobrancaGuia = ref<CobrancaAba | null>(null)
+const modalGuiaAberto = ref(false)
+const formGuia = ref({ guiaNumero: "", guiaSenha: "", guiaAutorizadaEm: "" })
+const salvandoGuia = ref(false)
+const erroGuia = ref<string | null>(null)
+
+function abrirModalGuia(c: CobrancaAba) {
+    cobrancaGuia.value = c
+    formGuia.value = {
+        guiaNumero: c.guiaNumero ?? "",
+        guiaSenha: c.guiaSenha ?? "",
+        guiaAutorizadaEm: c.guiaAutorizadaEm ?? "",
+    }
+    erroGuia.value = null
+    modalGuiaAberto.value = true
+}
+
+async function salvarGuia() {
+    if (!cobrancaGuia.value) return
+    if (!formGuia.value.guiaNumero.trim()) {
+        erroGuia.value = "Número da guia é obrigatório."
+        return
+    }
+    salvandoGuia.value = true
+    erroGuia.value = null
+    try {
+        await convenioService.registrarGuia(cobrancaGuia.value.id, {
+            guiaNumero: formGuia.value.guiaNumero.trim(),
+            guiaSenha: formGuia.value.guiaSenha.trim() || null,
+            guiaAutorizadaEm: formGuia.value.guiaAutorizadaEm || null,
+        })
+        modalGuiaAberto.value = false
+        emit("notificar", "Guia registrada com sucesso.")
+        await carregar()
+    } catch (e: any) {
+        erroGuia.value = e?.response?.data?.detail ?? "Erro ao registrar guia."
+    } finally {
+        salvandoGuia.value = false
+    }
+}
+
 // ── Helpers visuais ─────────────────────────────────────────────────────────
 
 function fmtMoeda(n: number): string {
@@ -382,12 +428,36 @@ function origemMeta(origem: string) {
                             </div>
                         </div>
 
-                        <!-- Convênio: sem pagamento de balcão -->
+                        <!-- Convênio: guia de autorização (F6/R10) -->
                         <div v-if="cobranca.tipoAtendimento === 'Convenio'" class="cc-block">
                             <div class="cc-convenio-note">
                                 <i class="fa-solid fa-shield-halved"></i>
-                                Faturada ao convênio — sem pagamento de balcão.
+                                <span>
+                                    Faturada ao convênio{{ cobranca.convenioNome ? ` — ${cobranca.convenioNome}` : '' }}.
+                                </span>
                             </div>
+                            <!-- Estado da guia -->
+                            <div v-if="cobranca.guiaNumero" class="cc-guia-preenchida">
+                                <i class="fa-solid fa-check-circle"></i>
+                                Guia: <strong>{{ cobranca.guiaNumero }}</strong>
+                                <template v-if="cobranca.guiaAutorizadaEm">
+                                    · Autorizada em {{ cobranca.guiaAutorizadaEm }}
+                                </template>
+                            </div>
+                            <div v-else class="cc-guia-pendente">
+                                <i class="fa-solid fa-clock"></i>
+                                Guia pendente — preencha após a autorização do convênio.
+                            </div>
+                            <AppButton
+                                v-if="podeRegistrar()"
+                                variante="secundario"
+                                tamanho="sm"
+                                icone="fa-solid fa-file-medical"
+                                class="btn-guia"
+                                @click="abrirModalGuia(cobranca)"
+                            >
+                                {{ cobranca.guiaNumero ? 'Atualizar guia' : 'Registrar guia' }}
+                            </AppButton>
                         </div>
 
                         <!-- Pagamentos e estornos (CA27) -->
@@ -491,6 +561,49 @@ function origemMeta(origem: string) {
         @fechar="estornoAlvo = null"
         @confirmar="onConfirmarEstorno"
     />
+
+    <!-- Modal de guia/autorização (F6/R10/R13) -->
+    <AppModal
+        :aberto="modalGuiaAberto"
+        largura="sm"
+        @fechar="modalGuiaAberto = false"
+    >
+        <template #titulo>
+            <h2>{{ cobrancaGuia?.guiaNumero ? 'Atualizar guia' : 'Registrar guia' }}</h2>
+        </template>
+        <div class="guia-form">
+            <AppField label="Número da guia" required>
+                <input
+                    v-model="formGuia.guiaNumero"
+                    class="form-input"
+                    placeholder="Nº da guia emitida pelo convênio"
+                    maxlength="100"
+                />
+            </AppField>
+            <AppField label="Senha de autorização (opcional)">
+                <input
+                    v-model="formGuia.guiaSenha"
+                    class="form-input"
+                    placeholder="Senha do convênio"
+                    maxlength="100"
+                />
+            </AppField>
+            <AppField label="Data de autorização (opcional)">
+                <input
+                    v-model="formGuia.guiaAutorizadaEm"
+                    class="form-input"
+                    type="date"
+                />
+            </AppField>
+            <p v-if="erroGuia" class="msg-erro-inline">{{ erroGuia }}</p>
+        </div>
+        <template #rodape>
+            <AppButton variante="ghost" @click="modalGuiaAberto = false">Cancelar</AppButton>
+            <AppButton variante="primario" :executando="salvandoGuia" @click="salvarGuia">
+                Salvar guia
+            </AppButton>
+        </template>
+    </AppModal>
 </template>
 
 <style scoped>
@@ -714,6 +827,30 @@ function origemMeta(origem: string) {
     border: 1px solid hsl(var(--error) / 0.2);
     border-radius: 8px; padding: 10px 14px;
     font-size: var(--text-sm); margin: 24px 0;
+}
+
+/* Guia de autorização (F6) */
+.cc-guia-preenchida {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    color: var(--color-success, hsl(142 71% 45%));
+    margin-top: 6px;
+}
+.cc-guia-pendente {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    margin-top: 6px;
+}
+.btn-guia { margin-top: 8px; }
+.guia-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 @media (max-width: 900px) {

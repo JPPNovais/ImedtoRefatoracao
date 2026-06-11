@@ -187,6 +187,8 @@ public class AgendamentoController : ControllerBase
             UsuarioSolicitanteId = _tenant.UsuarioId,
             TipoAtendimento = dto?.TipoAtendimento ?? "Particular",
             ValorCobrado = dto?.ValorCobrado ?? 0m,
+            // F6/R7: convenioId opcional (recepção pode não ter à mão — CA144)
+            ConvenioId = dto?.ConvenioId,
         });
         return NoContent();
     }
@@ -287,6 +289,6 @@ public record AtualizarAgendamentoDto(
 
 public record CancelarAgendamentoDto(string Motivo);
 
-public record RegistrarCheckInDto(long? SalaId, string TipoAtendimento = "Particular", decimal ValorCobrado = 0m);
+public record RegistrarCheckInDto(long? SalaId, string TipoAtendimento = "Particular", decimal ValorCobrado = 0m, long? ConvenioId = null);
 
 public record AlocarSalaDto(long? SalaId);

@@ -24,9 +24,16 @@ public class Cobranca : Entity
     /// </summary>
     public virtual long? EvolucaoId { get; protected set; }
     public virtual TipoAtendimento TipoAtendimento { get; protected set; }
-    /// <summary>Reservado para F6 (convênio real). Na F1, nunca preenchido.</summary>
+    /// <summary>Preenchido pela F6 quando tipo=Convenio. Null para Particular.</summary>
     public virtual long? ConvenioId { get; protected set; }
     public virtual decimal ValorCobrado { get; protected set; }
+    // ── Guia de autorização (F6/R10) — apenas para tipo=Convenio ─────────────
+    /// <summary>Nº da guia emitida pelo convênio. Null = guia pendente.</summary>
+    public virtual string? GuiaNumero { get; protected set; }
+    /// <summary>Senha de autorização do convênio. Opcional.</summary>
+    public virtual string? GuiaSenha { get; protected set; }
+    /// <summary>Data em que a guia foi autorizada. Opcional.</summary>
+    public virtual DateOnly? GuiaAutorizadaEm { get; protected set; }
     public virtual decimal Desconto { get; protected set; }
     public virtual StatusCobranca Status { get; protected set; }
     public virtual string? Descricao { get; protected set; }
@@ -52,7 +59,8 @@ public class Cobranca : Entity
     // ── Factory ─────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Cria cobrança a partir de uma consulta particular no check-in (R1/INV-6).
+    /// Cria cobrança a partir de uma consulta no check-in (R1/INV-6).
+    /// F6: aceita convenioId opcional quando tipoAtendimento=Convenio.
     /// </summary>
     public static Cobranca CriarParaConsulta(
         long estabelecimentoId,
@@ -61,7 +69,8 @@ public class Cobranca : Entity
         TipoAtendimento tipoAtendimento,
         decimal valorCobrado,
         string descricao,
-        Guid criadoPorUsuarioId)
+        Guid criadoPorUsuarioId,
+        long? convenioId = null)
     {
         // INV-6: tenant + paciente obrigatórios
         if (estabelecimentoId <= 0)
@@ -82,6 +91,8 @@ public class Cobranca : Entity
             Origem = "Consulta",
             AgendamentoId = agendamentoId,
             TipoAtendimento = tipoAtendimento,
+            // F6/R7: grava convenioId quando convênio; Particular nunca tem convenioId
+            ConvenioId = tipoAtendimento == TipoAtendimento.Convenio ? convenioId : null,
             ValorCobrado = tipoAtendimento == TipoAtendimento.Particular
                 ? ArredondamentoMonetario.Arredondar(valorCobrado)
                 : 0m,
@@ -366,6 +377,28 @@ public class Cobranca : Entity
             : totalLiquido < liquido
                 ? StatusCobranca.ParcialmentePaga
                 : StatusCobranca.Paga;
+    }
+
+    // ── Guia (F6/R10) ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registra ou edita os dados de guia/autorização da cobrança convênio (F6/R10).
+    /// Rejeita cobrança Particular (guia só faz sentido em convênio).
+    /// Estado derivado: preenchida se GuiaNumero presente.
+    /// </summary>
+    public virtual void RegistrarGuia(string guiaNumero, string? guiaSenha, DateOnly? guiaAutorizadaEm)
+    {
+        // R10: guia só em convênio
+        if (TipoAtendimento != TipoAtendimento.Convenio)
+            throw new BusinessException("Guia de autorização disponível apenas para cobranças de convênio.");
+
+        if (string.IsNullOrWhiteSpace(guiaNumero))
+            throw new BusinessException("Número da guia é obrigatório.");
+
+        GuiaNumero = guiaNumero.Trim();
+        GuiaSenha = string.IsNullOrWhiteSpace(guiaSenha) ? null : guiaSenha.Trim();
+        GuiaAutorizadaEm = guiaAutorizadaEm;
+        AtualizadoEm = DateTime.UtcNow;
     }
 
     public virtual void Cancelar()

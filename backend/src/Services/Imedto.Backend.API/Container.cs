@@ -183,9 +183,22 @@ using Imedto.Backend.Contracts.AssinaturaDigital.Commands;
 using Imedto.Backend.Contracts.AssinaturaDigital.Queries;
 using Imedto.Backend.Application.Cobrancas.Commands;
 using Imedto.Backend.Application.Cobrancas.Queries;
+using Imedto.Backend.Application.Convenios.Commands;
+using Imedto.Backend.Application.Convenios.Queries;
+using Imedto.Backend.Application.PacienteConvenios.Commands;
+using Imedto.Backend.Application.PacienteConvenios.Queries;
 using Imedto.Backend.Contracts.Cobrancas.Commands;
 using Imedto.Backend.Contracts.Cobrancas.Queries;
 using Imedto.Backend.Contracts.Cobrancas.Queries.Results;
+using Imedto.Backend.Contracts.Convenios.Commands;
+using Imedto.Backend.Contracts.Convenios.Queries;
+using Imedto.Backend.Contracts.Convenios.Queries.Results;
+using Imedto.Backend.Contracts.PacienteConvenios.Commands;
+using Imedto.Backend.Contracts.PacienteConvenios.Queries;
+using Imedto.Backend.Contracts.PacienteConvenios.Queries.Results;
+using Imedto.Backend.Domain.Convenios;
+using Imedto.Backend.Domain.PacienteConvenios;
+using Imedto.Backend.Infrastructure.Database.Repositories.Convenios;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Cobrancas;
 using Imedto.Backend.Infrastructure.Database.Repositories.Cobrancas;
@@ -943,6 +956,8 @@ public static class Container
         services.AddScoped<SalvarTabelaPrecoConsultaCommandHandler>();
         services.AddScoped<InativarTabelaPrecoConsultaCommandHandler>();
         services.AddScoped<SalvarConfigTaxaFormaPagamentoCommandHandler>();
+        // F6: guia de autorização
+        services.AddScoped<RegistrarGuiaCobrancaCommandHandler>();
         // Query handlers singleton (leitura Dapper) — exceto ObterFinanceiroAba que audita acesso (scoped)
         services.AddSingleton<ObterCobrancaDaAgendaQueryHandlers>();
         services.AddSingleton<ObterValorSugeridoCheckInQueryHandlers>();
@@ -953,6 +968,28 @@ public static class Container
         // F8: recibo de pagamento — scoped (persiste recibo_emitido_em via ICobrancaRepository)
         services.AddScoped<IReciboPagamentoPdfService, QuestPdfReciboPagamentoService>();
         services.AddScoped<EmitirReciboPagamentoQueryHandler>();
+
+        // F6 — Convênios: estrutura base (briefing 2026-06-10_016)
+        // Repositórios de escrita registrados em Infrastructure/Container.cs (junto com o CheckInHandler)
+        services.AddSingleton<ConvenioQueryRepository>();
+        services.AddSingleton<PacienteConvenioQueryRepository>();
+        // Comandos convênio (scoped — EF)
+        services.AddScoped<CriarConvenioCommandHandler>();
+        services.AddScoped<AtualizarConvenioCommandHandler>();
+        services.AddScoped<ExcluirConvenioCommandHandler>();
+        services.AddScoped<AdicionarPlanoConvenioCommandHandler>();
+        services.AddScoped<AtualizarPlanoConvenioCommandHandler>();
+        services.AddScoped<InativarPlanoConvenioCommandHandler>();
+        // Queries convênio (singleton — Dapper)
+        services.AddSingleton<ListarConveniosQueryHandler>();
+        services.AddSingleton<ObterConvenioQueryHandler>();
+        // Comandos carteirinha (scoped — EF)
+        services.AddScoped<CriarPacienteConvenioCommandHandler>();
+        services.AddScoped<AtualizarPacienteConvenioCommandHandler>();
+        services.AddScoped<ExcluirPacienteConvenioCommandHandler>();
+        // Queries carteirinha (scoped: LGPD audit; singleton: check-in sem audit)
+        services.AddScoped<ListarPacienteConveniosQueryHandler>();
+        services.AddSingleton<ObterCarteirinhaAtivaCheckInQueryHandler>();
     }
 
     private static void RegistrarBuses(IServiceCollection services)
@@ -1157,6 +1194,17 @@ public static class Container
             bus.Register<SalvarTabelaPrecoConsultaCommand, SalvarTabelaPrecoConsultaCommandHandler>();
             bus.Register<InativarTabelaPrecoConsultaCommand, InativarTabelaPrecoConsultaCommandHandler>();
             bus.Register<SalvarConfigTaxaFormaPagamentoCommand, SalvarConfigTaxaFormaPagamentoCommandHandler>();
+            // F6 — Convênios: estrutura base (2026-06-10_016)
+            bus.Register<CriarConvenioCommand, CriarConvenioCommandHandler>();
+            bus.Register<AtualizarConvenioCommand, AtualizarConvenioCommandHandler>();
+            bus.Register<ExcluirConvenioCommand, ExcluirConvenioCommandHandler>();
+            bus.Register<AdicionarPlanoConvenioCommand, AdicionarPlanoConvenioCommandHandler>();
+            bus.Register<AtualizarPlanoConvenioCommand, AtualizarPlanoConvenioCommandHandler>();
+            bus.Register<InativarPlanoConvenioCommand, InativarPlanoConvenioCommandHandler>();
+            bus.Register<CriarPacienteConvenioCommand, CriarPacienteConvenioCommandHandler>();
+            bus.Register<AtualizarPacienteConvenioCommand, AtualizarPacienteConvenioCommandHandler>();
+            bus.Register<ExcluirPacienteConvenioCommand, ExcluirPacienteConvenioCommandHandler>();
+            bus.Register<RegistrarGuiaCobrancaCommand, RegistrarGuiaCobrancaCommandHandler>();
             return bus;
         });
 
@@ -1304,6 +1352,11 @@ public static class Container
             bus.Register<ObterFinanceiroAbaQuery, FinanceiroAbaDto, ObterFinanceiroAbaQueryHandler>();
             // F8: recibo de pagamento
             bus.Register<EmitirReciboPagamentoQuery, byte[], EmitirReciboPagamentoQueryHandler>();
+            // F6 — Convênios: estrutura base (2026-06-10_016)
+            bus.Register<ListarConveniosQuery, IReadOnlyList<ConvenioListadoDto>, ListarConveniosQueryHandler>();
+            bus.Register<ObterConvenioQuery, ConvenioDetalheDto?, ObterConvenioQueryHandler>();
+            bus.Register<ListarPacienteConveniosQuery, IReadOnlyList<PacienteConvenioDto>, ListarPacienteConveniosQueryHandler>();
+            bus.Register<ObterCarteirinhaAtivaCheckInQuery, IReadOnlyList<CarteirinhaCheckInDto>, ObterCarteirinhaAtivaCheckInQueryHandler>();
             return bus;
         });
 

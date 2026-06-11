@@ -19,6 +19,7 @@ import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { cobrancaService } from "@/services/cobrancaService"
+import { convenioService, estaVencida, type ConvenioSelect, type CarteirinhaCheckIn } from "@/services/convenioService"
 
 const tenant = useTenantStore()
 
@@ -57,6 +58,36 @@ const OPCOES_TIPO: Array<{ valor: "Particular" | "Convenio"; label: string }> = 
     { valor: "Particular", label: "Particular" },
     { valor: "Convenio",   label: "Convênio" },
 ]
+
+// ── Convênio no check-in (F6/R7-R8) ─────────────────────────────────────────
+const conveniosAtivos = ref<ConvenioSelect[]>([])
+const carteirinhasCheckIn = ref<CarteirinhaCheckIn[]>([])
+const convenioIdSel = ref<number | null>(null)
+
+async function carregarDadosConvenio() {
+    if (!props.agendamento?.pacienteId) return
+    try {
+        const [convs, cartas] = await Promise.all([
+            convenioService.listarAtivos(),
+            convenioService.listarCarteirinhasCheckIn(props.agendamento.pacienteId),
+        ])
+        conveniosAtivos.value = convs
+        carteirinhasCheckIn.value = cartas
+        // R8: pré-seleciona pelo convênio da carteirinha ativa do paciente
+        if (cartas.length === 1) {
+            convenioIdSel.value = cartas[0].convenioId
+        }
+    } catch {
+        // Não crítico — check-in funciona sem pré-seleção de convênio.
+    }
+}
+
+// Reset quando muda tipo
+watch(tipoAtendimento, (t) => {
+    if (t === "Convenio" && conveniosAtivos.value.length === 0) {
+        void carregarDadosConvenio()
+    }
+})
 
 async function garantirSalas() {
     if (salasCarregadas.value) return
@@ -108,6 +139,9 @@ watch(() => props.aberto, async (aberto) => {
         tipoAtendimento.value = "Particular"
         valorCobrado.value = ""
         semTabelaPreco.value = false
+        convenioIdSel.value = null
+        conveniosAtivos.value = []
+        carteirinhasCheckIn.value = []
         return
     }
     if (!props.agendamento) return
@@ -183,6 +217,7 @@ async function confirmarCheckIn() {
             {
                 tipoAtendimento: tipoAtendimento.value,
                 valorCobrado: tipoAtendimento.value === "Convenio" ? 0 : (parseFloat(valorCobrado.value) || 0),
+                convenioId: tipoAtendimento.value === "Convenio" ? convenioIdSel.value : null,
             },
         )
         emit("checkin-realizado")
@@ -313,10 +348,47 @@ function fechar() {
                         Configure a tabela de preços em Configurações &rsaquo; Financeiro.
                     </p>
                 </template>
-                <p v-else class="atend-hint atend-hint--info">
-                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                    Cobrança de convênio será tratada na aba financeiro.
-                </p>
+                <template v-else>
+                    <!-- F6/R7-R8: select de convênio + pré-seleção pela carteirinha ativa (CA143) -->
+                    <AppField label="Convênio">
+                        <select
+                            v-model.number="convenioIdSel"
+                            class="form-input"
+                        >
+                            <option :value="null">— Sem convênio —</option>
+                            <option v-for="c in conveniosAtivos" :key="c.id" :value="c.id">{{ c.nome }}</option>
+                        </select>
+                    </AppField>
+                    <!-- Alerta de carteirinha vencida (CA141 — R6: calculado no front, não bloqueia) -->
+                    <p
+                        v-if="convenioIdSel && carteirinhasCheckIn.find(c => c.convenioId === convenioIdSel)"
+                        class="atend-hint atend-hint--info"
+                    >
+                        <i class="fa-solid fa-id-card" aria-hidden="true"></i>
+                        Nº {{ carteirinhasCheckIn.find(c => c.convenioId === convenioIdSel)!.numeroCarteirinha }}
+                        <template v-if="carteirinhasCheckIn.find(c => c.convenioId === convenioIdSel)!.validade">
+                            — válida até {{
+                                (() => {
+                                    const v = carteirinhasCheckIn.find(c => c.convenioId === convenioIdSel)!.validade!
+                                    const [a, m, d] = v.split("-")
+                                    return `${d}/${m}/${a}`
+                                })()
+                            }}
+                        </template>
+                    </p>
+                    <p
+                        v-if="convenioIdSel && estaVencida(carteirinhasCheckIn.find(c => c.convenioId === convenioIdSel)?.validade ?? null)"
+                        class="atend-hint atend-hint--danger"
+                        role="alert"
+                    >
+                        <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                        Carteirinha vencida — verifique a renovação com o paciente.
+                    </p>
+                    <p class="atend-hint atend-hint--info">
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                        Cobrança de convênio será tratada na aba financeiro.
+                    </p>
+                </template>
             </div>
         </div>
 
@@ -538,6 +610,10 @@ function fechar() {
 }
 .atend-hint--info {
     color: hsl(var(--primary));
+}
+.atend-hint--danger {
+    color: hsl(var(--destructive));
+    font-weight: var(--font-weight-medium);
 }
 
 .secao-sala { display: flex; flex-direction: column; gap: 8px; }

@@ -2,6 +2,7 @@ using Imedto.Backend.Application.Agendamentos.Commands;
 using Imedto.Backend.Contracts.Agendamentos.Commands;
 using Imedto.Backend.Domain.Agendamentos;
 using Imedto.Backend.Domain.Cobrancas;
+using Imedto.Backend.Domain.Convenios;
 using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.SharedKernel.Domain;
 using Imedto.Backend.Test.Helpers;
@@ -17,6 +18,7 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
     private Mock<ISalaRepository> _salaRepo;
     private Mock<IAgendamentoSalaAuditRepository> _auditRepo;
     private Mock<ICobrancaRepository> _cobrancaRepo;
+    private Mock<IConvenioRepository> _convenioRepo;
     private RegistrarCheckInAgendamentoCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -29,8 +31,9 @@ public class RegistrarCheckInAgendamentoCommandHandlerTests
         _salaRepo = new Mock<ISalaRepository>();
         _auditRepo = new Mock<IAgendamentoSalaAuditRepository>();
         _cobrancaRepo = new Mock<ICobrancaRepository>();
+        _convenioRepo = new Mock<IConvenioRepository>();
         _sut = new RegistrarCheckInAgendamentoCommandHandler(
-            _agendaRepo.Object, _salaRepo.Object, _auditRepo.Object, _cobrancaRepo.Object);
+            _agendaRepo.Object, _salaRepo.Object, _auditRepo.Object, _cobrancaRepo.Object, _convenioRepo.Object);
     }
 
     private static Agendamento CriarAgendamento(long estabId = EstabelecimentoId)

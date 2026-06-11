@@ -98,6 +98,8 @@ export interface CobrancaAba {
     id: number
     origem: string
     tipoAtendimento: TipoAtendimento
+    convenioId: number | null
+    convenioNome: string | null
     valorCobrado: number
     desconto: number
     totalLiquido: number
@@ -105,6 +107,10 @@ export interface CobrancaAba {
     saldo: number
     status: StatusCobranca
     descricao: string | null
+    /** F6/R10: guia de autorização. Null = guia pendente. */
+    guiaNumero: string | null
+    guiaSenha: string | null
+    guiaAutorizadaEm: string | null
     pagamentos: PagamentoAba[]
     historicoValor: HistoricoValorAba[]
 }

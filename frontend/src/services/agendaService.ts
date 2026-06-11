@@ -129,7 +129,7 @@ export const agendaService = {
     async registrarCheckIn(
         id: number,
         salaId?: number | null,
-        cobranca?: { tipoAtendimento: "Particular" | "Convenio"; valorCobrado: number },
+        cobranca?: { tipoAtendimento: "Particular" | "Convenio"; valorCobrado: number; convenioId?: number | null },
     ): Promise<void> {
         const body = {
             ...(salaId !== undefined ? { salaId } : {}),

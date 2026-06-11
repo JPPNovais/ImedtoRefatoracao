@@ -158,17 +158,23 @@ public class CobrancaQueryRepository
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // Query 1: cobranças do paciente
+        // Query 1: cobranças do paciente (inclui convenio e guia — F6)
         const string sqlCobrancas = """
             SELECT
                 c.id                AS Id,
                 c.origem            AS Origem,
                 c.tipo_atendimento  AS TipoAtendimento,
+                c.convenio_id       AS ConvenioId,
+                conv.nome           AS ConvenioNome,
                 c.valor_cobrado     AS ValorCobrado,
                 c.desconto          AS Desconto,
                 c.status            AS Status,
-                c.descricao         AS Descricao
+                c.descricao         AS Descricao,
+                c.guia_numero       AS GuiaNumero,
+                c.guia_senha        AS GuiaSenha,
+                c.guia_autorizada_em AS GuiaAutorizadaEm
             FROM cobrancas c
+            LEFT JOIN convenios conv ON conv.id = c.convenio_id
             WHERE c.paciente_id = @PacienteId
               AND c.estabelecimento_id = @EstabelecimentoId
             ORDER BY c.criado_em DESC;
@@ -286,6 +292,8 @@ public class CobrancaQueryRepository
                 Id = c.Id,
                 Origem = c.Origem,
                 TipoAtendimento = c.TipoAtendimento,
+                ConvenioId = c.ConvenioId,
+                ConvenioNome = c.ConvenioNome,
                 ValorCobrado = c.ValorCobrado,
                 Desconto = c.Desconto,
                 TotalLiquido = totalLiquido,
@@ -293,6 +301,9 @@ public class CobrancaQueryRepository
                 Saldo = saldo,
                 Status = c.Status,
                 Descricao = c.Descricao,
+                GuiaNumero = c.GuiaNumero,
+                GuiaSenha = c.GuiaSenha,
+                GuiaAutorizadaEm = c.GuiaAutorizadaEm,
                 Pagamentos = pagDtos,
                 HistoricoValor = historicoPorCobranca.TryGetValue(c.Id, out var hvList)
                     ? hvList.Select(h => new HistoricoValorAbaDto
@@ -326,10 +337,15 @@ public class CobrancaQueryRepository
         public long Id { get; set; }
         public string Origem { get; set; } = string.Empty;
         public string TipoAtendimento { get; set; } = string.Empty;
+        public long? ConvenioId { get; set; }
+        public string? ConvenioNome { get; set; }
         public decimal ValorCobrado { get; set; }
         public decimal Desconto { get; set; }
         public string Status { get; set; } = string.Empty;
         public string? Descricao { get; set; }
+        public string? GuiaNumero { get; set; }
+        public string? GuiaSenha { get; set; }
+        public DateOnly? GuiaAutorizadaEm { get; set; }
     }
 
     private class PagamentoAbaRaw

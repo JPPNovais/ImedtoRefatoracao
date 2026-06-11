@@ -21,6 +21,9 @@ public class CobrancaAbaDto
     public long Id { get; set; }
     public string Origem { get; set; } = string.Empty;
     public string TipoAtendimento { get; set; } = string.Empty;
+    // F6: convênio associado (null para Particular)
+    public long? ConvenioId { get; set; }
+    public string? ConvenioNome { get; set; }
     public decimal ValorCobrado { get; set; }
     public decimal Desconto { get; set; }
     public decimal TotalLiquido { get; set; }
@@ -28,6 +31,10 @@ public class CobrancaAbaDto
     public decimal Saldo { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Descricao { get; set; }
+    // F6/R10: guia de autorização — null = guia pendente
+    public string? GuiaNumero { get; set; }
+    public string? GuiaSenha { get; set; }
+    public DateOnly? GuiaAutorizadaEm { get; set; }
 
     // Expansão: pagamentos, estornos, histórico de valor (cirurgia — F5 popula; F2 exibe se existir)
     public IEnumerable<PagamentoAbaDto> Pagamentos { get; set; } = Array.Empty<PagamentoAbaDto>();
