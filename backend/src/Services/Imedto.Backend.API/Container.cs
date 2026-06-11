@@ -400,7 +400,8 @@ public static class Container
     private static void RegistrarHandlers(IServiceCollection services)
     {
         // Auth — bootstrap unificado da SPA (usuário + profissional + estabelecimentos).
-        services.AddSingleton<BootstrapMeQueryHandlers>();
+        // Scoped: consome IUsuario2faRepository (scoped) — singleton quebra a validação de DI.
+        services.AddScoped<BootstrapMeQueryHandlers>();
 
         // Onboarding
         services.AddScoped<FinalizarOnboardingCommandHandler>();
@@ -533,7 +534,7 @@ public static class Container
         services.AddScoped<ConcluirPendenciaManualCommandHandler>();
         services.AddScoped<MarcarProcedimentoRealizadoCommandHandler>(); // F4 — 2026-06-10_013
         services.AddSingleton<ListarPendenciasAbertasQueryHandler>();
-        services.AddSingleton<PreviewProcedimentoRealizadoQueryHandler>(); // F4 — leitura pura
+        services.AddScoped<PreviewProcedimentoRealizadoQueryHandler>(); // F4 — consome IPendenciaAtendimentoRepository (scoped)
         services.AddSingleton<ObterProcedimentosIndicadosQueryHandler>(); // F5 — pré-preenchimento form de orçamento
         // Handlers de conclusão automática (ouvem eventos existentes — R7-R11)
         services.AddScoped<ConcluirPendenciaAoEmitirReceitaHandler>();
@@ -981,6 +982,8 @@ public static class Container
         services.AddSingleton<ObterCaixaDiarioQueryHandler>();
         services.AddSingleton<ObterComissoesPeriodoQueryHandler>();
         services.AddSingleton<ObterConfigComissaoQueryHandler>();
+        // F7 redesign — Export de extrato com audit LGPD (briefing 2026-06-11_002)
+        services.AddSingleton<ExportarExtratoQueryHandler>();
 
         // F6 — Convênios: estrutura base (briefing 2026-06-10_016)
         // Repositórios de escrita registrados em Infrastructure/Container.cs (junto com o CheckInHandler)
@@ -1381,6 +1384,8 @@ public static class Container
             bus.Register<ObterCaixaDiarioQuery, CaixaDiarioDto?, ObterCaixaDiarioQueryHandler>();
             bus.Register<ObterComissoesPeriodoQuery, ComissaoPeriodoDto, ObterComissoesPeriodoQueryHandler>();
             bus.Register<ObterConfigComissaoQuery, ConfigComissaoDto, ObterConfigComissaoQueryHandler>();
+            // F7 redesign — Export de extrato (briefing 2026-06-11_002)
+            bus.Register<ExportarExtratoQuery, ExportarExtratoResultDto, ExportarExtratoQueryHandler>();
             return bus;
         });
 
