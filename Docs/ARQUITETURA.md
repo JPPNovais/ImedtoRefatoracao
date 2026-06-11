@@ -197,9 +197,9 @@ Módulo autocontido em `frontend/src/modules/admin/`. **Zero import cruzado** co
 - CRUD admin em `/api/admin/configs` (GET lista agrupada por seção, PUT atualiza com motivo ≥10 chars + audit).
 - `IniciarTrialAoCriarEstabelecimentoHandler` lê `trial.dias_padrao` via `IConfigGlobalReader` (fallback 14 dias).
 
-### Assinaturas/Planos — Modelo Unificado (briefing 2026-06-11_003, F1–F6)
+### Assinaturas/Planos — Modelo Unificado (briefing 2026-06-11_003, F1–F6 CONCLUÍDAS)
 
-> **Fonte única de verdade**: `imedto_assinaturas` / `imedto_planos` (uuid, `Domain.Admin`). A estrutura legada (`assinaturas`/`planos`, bigint, `Domain.Assinaturas`) está descontinuada — leitura bloqueada após F3, tornada read-only na F6; drop físico é fase posterior.
+> **Fonte única de verdade**: `imedto_assinaturas` / `imedto_planos` (uuid, `Domain.Admin`). A estrutura legada (`assinaturas`/`planos`, bigint, `Domain.Assinaturas`) está **descontinuada e read-only desde F6** (2026-06-11): nenhum código de domínio escreve nela. Drop físico das tabelas é fase posterior. `ExpirarTrialsJob` e `SeedPlanosHostedService` legados foram removidos em F6.
 
 **Estado derivado (nunca enum setável):**
 
@@ -210,13 +210,13 @@ O estado efetivo de um estabelecimento é derivado da assinatura vigente (`fim_e
 - **EXPIRADO**: `expira_em` no passado → BLOQUEADO.
 - **BLOQUEADO**: sem assinatura vigente → BLOQUEADO.
 
-Método de domínio: `ImedtoAssinatura.EstaAtiva()` / `ObterEstado()`. O enforcement (`AssinaturaService` + `[RequiresAssinaturaAtiva]` + `[FeatureGate]`) lê da estrutura nova a partir da F3.
+Método de domínio: `ImedtoAssinatura.EstaAtiva()` / `ObterEstado()`. O enforcement (`AssinaturaService` + `[RequiresAssinaturaAtiva]` + `[FeatureGate]`) lê exclusivamente da estrutura nova.
 
 **Histórico imutável:** mudar plano/estado = INSERT nova linha + `FecharVigencia()` na anterior (exceto suspender/reativar que muta a própria vigência). NUNCA UPDATE in-place do estado.
 
 **Features e limites no plano (`imedto_planos.features_json`):**
 
-8 chaves booleanas: `receitas`, `exame_fisico`, `procedimentos_cirurgicos`, `orcamento_completo`, `ia`, `relatorios_avancados`, `automacoes_ilimitadas`, `anexos_ilimitados`. Limites em `limites_json` (`{"profissionais":N,"pacientes":N}`; ausente/NULL = ilimitado). `[FeatureGate]` e `LimiteAtingidoAsync` passam a consultar o plano vigente da estrutura nova (a partir de F3).
+8 chaves booleanas: `receitas`, `exame_fisico`, `procedimentos_cirurgicos`, `orcamento_completo`, `ia`, `relatorios_avancados`, `automacoes_ilimitadas`, `anexos_ilimitados`. Limites em `limites_json` (`{"profissionais":N,"pacientes":N}`; ausente/NULL = ilimitado). `[FeatureGate]` e `LimiteAtingidoAsync` consultam o plano vigente da estrutura nova. As constantes de chave de feature vivem em `Domain.Assinaturas.Features` (classe compartilhada — não remover).
 
 **Config de trial (`imedto_config_trial` — singleton):**
 
@@ -228,7 +228,11 @@ Entidade `ImedtoConfigTrial` (id fixo `10000000-0000-0000-0000-000000000001`) go
 
 Interface em `Application.Admin.Assinaturas`. Nenhum adapter concreto existe — zero SDK, zero DI obrigatório. Quando o gateway for implementado, o adapter concreto vai em `Infrastructure/` (espelhando `BirdIdAssinaturaProvider`, `ResendEmailProvider`, `S3StorageProvider`). As colunas dormentes em `imedto_assinaturas` (`origem`, `referencia_externa`, `status_cobranca`) foram desenhadas para receber os dados do gateway.
 
-**Fases de entrega:** F1 (schema + porta) → F2 (backfill seguro) → F3 (enforcement) → F4 (admin UI) → F5 (trial automático na nova) → F6 (legada read-only).
+**Fases de entrega:** F1 (schema + porta) → F2 (backfill seguro) → F3 (enforcement) → F4 (admin UI) → F5 (trial automático na nova) → **F6 (legada read-only — CONCLUÍDA)**. Drop físico das tabelas `assinaturas`/`planos` é fase autônoma posterior (sem data definida).
+
+**Código legado remanescente (intencionalmente mantido):**
+- `Domain.Assinaturas.{Assinatura, Plano, StatusAssinatura}` + EF configs + `AppDbContext.Assinaturas/Planos`: necessários para o endpoint legado `GET /api/minha-assinatura` (lê da tabela `assinaturas` via `AssinaturaQueryRepository`), que o frontend do usuário ainda consome. Serão removidos junto com o drop físico das tabelas.
+- `Domain.Assinaturas.Features`: constantes de chave de feature compartilhadas com o enforcement novo — não é legado.
 
 ### Catálogos Globais (live-link via `EhPadraoSistema=true` — Wave 4)
 

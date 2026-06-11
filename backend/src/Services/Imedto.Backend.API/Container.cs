@@ -154,7 +154,6 @@ using Imedto.Backend.Contracts.ModelosPermissao.Queries;
 using Imedto.Backend.Contracts.ModelosPermissao.Queries.Results;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Assinaturas;
-using Imedto.Backend.Infrastructure.Assinaturas.Handlers;
 using Imedto.Backend.Infrastructure.Bus;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.Application.Assinaturas.Queries;
@@ -270,13 +269,11 @@ public static class Container
         services.AddScoped<IJobAgendadoRepository, JobAgendadoRepository>();
         services.AddScoped<IJobHandler, LimparAuditAntigoJob>();
         services.AddScoped<IJobHandler, LimparAuditAdminJob>(); // Wave 7 — retenção audit admin
-        services.AddScoped<IJobHandler, ExpirarTrialsJob>(); // item 2.7
+        // ExpirarTrialsJob removido (F6 — 2026-06-11_003): trials expiram pela estrutura nova (imedto_assinaturas.expira_em).
         services.AddScoped<IJobHandler, LimparCacheIaJob>(); // item 3.8
         services.AddSingleton<JobScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
-
-        // Item 2.7 — Seed do catálogo de planos (roda uma vez na startup, idempotente).
-        services.AddHostedService<SeedPlanosHostedService>();
+        // SeedPlanosHostedService removido (F6 — 2026-06-11_003): seed da estrutura nova é gerido por migrations idempotentes.
 
         return services;
     }
@@ -443,10 +440,11 @@ public static class Container
         services.AddScoped<IniciarTrialAoCriarEstabelecimentoHandler>(); // item 2.7
         services.AddSingleton<EstabelecimentoQueryRepository>();
 
-        // Assinaturas (item 2.7) — Plano, Assinatura, gating de feature.
-        services.AddScoped<IPlanoRepository, PlanoRepository>();
-        services.AddScoped<IAssinaturaRepository, AssinaturaRepository>();
+        // Assinaturas — gating de feature (fonte única: imedto_assinaturas/imedto_planos, F6).
+        // IPlanoRepository e IAssinaturaRepository removidos (escrita legada descontinuada em F6).
         services.AddScoped<IAssinaturaService, AssinaturaService>();
+        // PlanoQueryRepository e AssinaturaQueryRepository: leitura legada mantida para o endpoint
+        // GET /api/minha-assinatura e GET /api/planos consumidos pelo front do usuário (drop posterior).
         services.AddSingleton<PlanoQueryRepository>();
         services.AddSingleton<AssinaturaQueryRepository>();
         services.AddSingleton<ListarPlanosQueryHandlers>();

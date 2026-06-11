@@ -18,8 +18,8 @@ namespace Imedto.Backend.Application.Estabelecimentos.Events;
 /// CriarEstabelecimentoCommandHandler, via MemoryEventBus síncrono). O SaveChanges final
 /// inclui tanto o estabelecimento quanto a assinatura no mesmo commit.
 ///
-/// NOTA: NÃO escreve mais na estrutura legada (assinaturas). Ver F6 para descomissionamento
-/// completo do IAssinaturaRepository / ExpirarTrialsJob legado.
+/// NOTA: NÃO escreve na estrutura legada (assinaturas). F6 (2026-06-11_003) removeu
+/// IAssinaturaRepository e ExpirarTrialsJob — estrutura legada é read-only, drop físico posterior.
 /// </summary>
 public class IniciarTrialAoCriarEstabelecimentoHandler : IEventHandler<EstabelecimentoCriadoEvent>
 {
