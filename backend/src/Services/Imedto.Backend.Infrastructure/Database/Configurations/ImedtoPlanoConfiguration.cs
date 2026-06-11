@@ -20,6 +20,8 @@ public class ImedtoPlanoConfiguration : IEntityTypeConfiguration<ImedtoPlano>
         builder.Property(p => p.Ativo).HasColumnName("ativo").HasDefaultValue(true).IsRequired();
         builder.Property(p => p.LimitesJson).HasColumnName("limites_json").HasColumnType("jsonb")
             .HasDefaultValueSql("'{}'::jsonb").IsRequired();
+        builder.Property(p => p.FeaturesJson).HasColumnName("features_json").HasColumnType("jsonb")
+            .HasDefaultValueSql("'{}'::jsonb").IsRequired();
         builder.Property(p => p.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(p => p.AtualizadoEm).HasColumnName("atualizado_em");
         builder.Property(p => p.CriadoPorAdminId).HasColumnName("criado_por_admin_id");

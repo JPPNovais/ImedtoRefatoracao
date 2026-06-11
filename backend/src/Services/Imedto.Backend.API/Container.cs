@@ -302,6 +302,8 @@ public static class Container
                            Imedto.Backend.Infrastructure.Admin.ImedtoPlanoRepository>();
         services.AddScoped<Imedto.Backend.Domain.Admin.IImedtoAssinaturaRepository,
                            Imedto.Backend.Infrastructure.Admin.ImedtoAssinaturaRepository>();
+        services.AddScoped<Imedto.Backend.Domain.Admin.IImedtoConfigTrialRepository,
+                           Imedto.Backend.Infrastructure.Admin.ImedtoConfigTrialRepository>();
         services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoPlanoQueryRepository>();
         services.AddSingleton<Imedto.Backend.Infrastructure.Admin.ImedtoAssinaturaQueryRepository>();
         services.AddScoped<Imedto.Backend.Application.Admin.Planos.CriarPlanoAdminCommandHandler>();

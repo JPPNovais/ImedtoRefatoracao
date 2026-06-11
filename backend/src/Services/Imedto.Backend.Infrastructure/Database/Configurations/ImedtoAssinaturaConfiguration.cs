@@ -17,6 +17,11 @@ public class ImedtoAssinaturaConfiguration : IEntityTypeConfiguration<ImedtoAssi
         builder.Property(a => a.PlanoId).HasColumnName("plano_id").IsRequired();
         builder.Property(a => a.IniciadaEm).HasColumnName("iniciada_em").IsRequired();
         builder.Property(a => a.FimEm).HasColumnName("fim_em");
+        builder.Property(a => a.ExpiraEm).HasColumnName("expira_em");
+        builder.Property(a => a.SuspensaEm).HasColumnName("suspensa_em");
+        builder.Property(a => a.Origem).HasColumnName("origem").HasDefaultValue("admin_manual").IsRequired();
+        builder.Property(a => a.ReferenciaExterna).HasColumnName("referencia_externa");
+        builder.Property(a => a.StatusCobranca).HasColumnName("status_cobranca").HasDefaultValue("nao_aplicavel").IsRequired();
         builder.Property(a => a.Gratuita).HasColumnName("gratuita").HasDefaultValue(false).IsRequired();
         builder.Property(a => a.Motivo).HasColumnName("motivo");
         builder.Property(a => a.CriadaEm).HasColumnName("criada_em").IsRequired();
@@ -26,6 +31,10 @@ public class ImedtoAssinaturaConfiguration : IEntityTypeConfiguration<ImedtoAssi
         // fim_em IS NULL = vigente. Ordenar por iniciada_em DESC para pegar a mais recente.
         builder.HasIndex(a => new { a.EstabelecimentoId, a.FimEm })
             .HasDatabaseName("ix_imedto_assinaturas_estabelecimento_fim");
+
+        // Índice para varreduras de expiração (job de expirar trials vencidos).
+        builder.HasIndex(a => a.ExpiraEm)
+            .HasDatabaseName("ix_imedto_assinaturas_expira_em");
 
         // Índice em plano_id: "quantos tenants usam o plano X?".
         builder.HasIndex(a => a.PlanoId).HasDatabaseName("ix_imedto_assinaturas_plano");

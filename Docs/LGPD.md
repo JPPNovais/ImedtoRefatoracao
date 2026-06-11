@@ -162,6 +162,25 @@ O recibo de pagamento é um **documento interno** (sem valor fiscal) gerado on-t
 - **Multi-tenant falha-fechada**: query Dapper filtra `estabelecimento_id` via JOIN em `cobrancas`; aggregate `Cobranca` carregado via `ICobrancaRepository.ObterPorIdOuNulo(cobrancaId, estabelecimentoId)` (tenant enforced). Pagamento de outro tenant → "Não encontrado." genérico.
 - **Rótulo "RECIBO — documento sem valor fiscal"**: obrigatório em destaque no PDF para evitar confusão com NFS-e.
 
+## Assinaturas/Planos SaaS — nota LGPD (briefing 2026-06-11_003)
+
+Assinatura de plano, features e limites são **dados operacionais do SaaS** (do estabelecimento como cliente do Imedto), **não** dados de saúde do paciente. Não há nova categoria de PII sensível neste módulo.
+
+- **Mensagens genéricas**: erros do enforcement (`AssinaturaInativa`, `FeatureBloqueada`) e do admin não revelam PII nem tenant alheio — os códigos genéricos atuais são mantidos.
+- **Sem audit de paciente**: mudanças de plano/estado afetam o estabelecimento, não o paciente — sem nova linha em `paciente_acesso_log`.
+- **`referencia_externa` (coluna dormente)**: quando o gateway de pagamento futuro existir, esse campo guardará um ID de gateway — **não é PII de paciente**; é metadado operacional de faturamento do cliente SaaS. Quando o gateway for implementado, a nota de retenção e minimização de dados de cobrança do cliente deverá ser revisada neste documento.
+
+## Export de extrato financeiro — audit best-effort (briefing 2026-06-11_002)
+
+Export `GET /financeiro/extrato/export` retorna CSV com dados financeiros agregados (sem campo clínico, sem CPF, sem dado sensível de paciente além de nome). Regras LGPD:
+
+- **Minimização**: CSV contém data, descrição, categoria, forma de pagamento, valor, status, nome do paciente (texto, sem ID). **Nunca** CPF, diagnóstico, CID, conteúdo de prontuário.
+- **Audit de export (best-effort)**: cada export bem-sucedido registra 1 linha em `financeiro_export_log (id, usuario_id, estabelecimento_id, acao, periodo_inicio, periodo_fim, total_linhas, ocorrido_em)`. O registro é feito por `ConsolidacaoFinanceiraQueryRepository.GravarExportAuditAsync(...)` — captura toda exceção silenciosamente (não bloqueia o download). A tabela precisa ser criada pelo `imedto-database` (migration pendente).
+- **RBAC**: gate `[RequiresAcao("financeiro", "ver")]` — mesmo gate do extrato paginado.
+- **Multi-tenant**: endpoint extrai `estabelecimento_id` do claim (`TenantIdFromClaims`); repositório filtra na query SQL. Sem tenant → `BusinessException("Estabelecimento inválido.")` → 422.
+- **Nome do arquivo**: `extrato-financeiro-{dataFim}.csv` — sem PII no nome.
+- **Encoding**: UTF-8 com BOM (compatibilidade Excel pt-BR). Decimal com vírgula, separador `;`.
+
 ---
 
 ## Checklist multi-tenant — premissa não-negociável

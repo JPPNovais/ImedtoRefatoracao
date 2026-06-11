@@ -197,6 +197,39 @@ Módulo autocontido em `frontend/src/modules/admin/`. **Zero import cruzado** co
 - CRUD admin em `/api/admin/configs` (GET lista agrupada por seção, PUT atualiza com motivo ≥10 chars + audit).
 - `IniciarTrialAoCriarEstabelecimentoHandler` lê `trial.dias_padrao` via `IConfigGlobalReader` (fallback 14 dias).
 
+### Assinaturas/Planos — Modelo Unificado (briefing 2026-06-11_003, F1–F6)
+
+> **Fonte única de verdade**: `imedto_assinaturas` / `imedto_planos` (uuid, `Domain.Admin`). A estrutura legada (`assinaturas`/`planos`, bigint, `Domain.Assinaturas`) está descontinuada — leitura bloqueada após F3, tornada read-only na F6; drop físico é fase posterior.
+
+**Estado derivado (nunca enum setável):**
+
+O estado efetivo de um estabelecimento é derivado da assinatura vigente (`fim_em IS NULL`):
+- **VITALÍCIO**: `expira_em IS NULL` e `suspensa_em IS NULL` → LIBERADO.
+- **TEMPORÁRIO**: `expira_em` no futuro e `suspensa_em IS NULL` → LIBERADO até a data.
+- **SUSPENSÃO**: `suspensa_em` preenchido → BLOQUEADO (reversível via `Reativar()`).
+- **EXPIRADO**: `expira_em` no passado → BLOQUEADO.
+- **BLOQUEADO**: sem assinatura vigente → BLOQUEADO.
+
+Método de domínio: `ImedtoAssinatura.EstaAtiva()` / `ObterEstado()`. O enforcement (`AssinaturaService` + `[RequiresAssinaturaAtiva]` + `[FeatureGate]`) lê da estrutura nova a partir da F3.
+
+**Histórico imutável:** mudar plano/estado = INSERT nova linha + `FecharVigencia()` na anterior (exceto suspender/reativar que muta a própria vigência). NUNCA UPDATE in-place do estado.
+
+**Features e limites no plano (`imedto_planos.features_json`):**
+
+8 chaves booleanas: `receitas`, `exame_fisico`, `procedimentos_cirurgicos`, `orcamento_completo`, `ia`, `relatorios_avancados`, `automacoes_ilimitadas`, `anexos_ilimitados`. Limites em `limites_json` (`{"profissionais":N,"pacientes":N}`; ausente/NULL = ilimitado). `[FeatureGate]` e `LimiteAtingidoAsync` passam a consultar o plano vigente da estrutura nova (a partir de F3).
+
+**Config de trial (`imedto_config_trial` — singleton):**
+
+Entidade `ImedtoConfigTrial` (id fixo `10000000-0000-0000-0000-000000000001`) governa o trial automático na criação de estabelecimento (F5): `plano_trial_id`, `duracao_trial_dias` (default 14), `trial_habilitado` (bool). Quando `trial_habilitado=false`, novo estabelecimento nasce sem assinatura vigente (BLOQUEADO).
+
+**Seed mínimo:** apenas "Gratuidade Vitalícia" (UUID fixo `00000000-0000-0000-0000-000000000001`) com todas as features habilitadas e limites ilimitados. Planos pagos criados pelo dono via CRUD admin.
+
+**Porta de integração futura (`IProvedorAssinaturaExterna` — contrato, sem implementação):**
+
+Interface em `Application.Admin.Assinaturas`. Nenhum adapter concreto existe — zero SDK, zero DI obrigatório. Quando o gateway for implementado, o adapter concreto vai em `Infrastructure/` (espelhando `BirdIdAssinaturaProvider`, `ResendEmailProvider`, `S3StorageProvider`). As colunas dormentes em `imedto_assinaturas` (`origem`, `referencia_externa`, `status_cobranca`) foram desenhadas para receber os dados do gateway.
+
+**Fases de entrega:** F1 (schema + porta) → F2 (backfill seguro) → F3 (enforcement) → F4 (admin UI) → F5 (trial automático na nova) → F6 (legada read-only).
+
 ### Catálogos Globais (live-link via `EhPadraoSistema=true` — Wave 4)
 
 Wave 2 entregou tabelas paralelas (`imedto_modelo_prontuario_global`, `imedto_variavel_pool_global`, `imedto_regiao_anatomica_global`) com modelo de cópia (tenant importa, edita independente). Wave 4 (2026-05-30, briefing `planejamentos/2026-05-30_004_admin-global-wave4-catalogos-livelink.md`) descobriu que o sistema **já tinha live-link nativo** via flag `EhPadraoSistema=true` nas tabelas legado — tabelas paralelas viraram código órfão e foram dropadas.

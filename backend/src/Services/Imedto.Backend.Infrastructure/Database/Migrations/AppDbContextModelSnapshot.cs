@@ -227,6 +227,10 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("estabelecimento_id");
 
+                    b.Property<DateTimeOffset?>("ExpiraEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_em");
+
                     b.Property<DateTimeOffset?>("FimEm")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("fim_em");
@@ -245,13 +249,38 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("text")
                         .HasColumnName("motivo");
 
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("admin_manual")
+                        .HasColumnName("origem");
+
                     b.Property<Guid>("PlanoId")
                         .HasColumnType("uuid")
                         .HasColumnName("plano_id");
 
+                    b.Property<string>("ReferenciaExterna")
+                        .HasColumnType("text")
+                        .HasColumnName("referencia_externa");
+
+                    b.Property<string>("StatusCobranca")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("nao_aplicavel")
+                        .HasColumnName("status_cobranca");
+
+                    b.Property<DateTimeOffset?>("SuspensaEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("suspensa_em");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CriadaPorAdminId");
+
+                    b.HasIndex("ExpiraEm")
+                        .HasDatabaseName("ix_imedto_assinaturas_expira_em");
 
                     b.HasIndex("PlanoId")
                         .HasDatabaseName("ix_imedto_assinaturas_plano");
@@ -306,6 +335,43 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.ToTable("imedto_config", "public");
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoConfigTrial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AtualizadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("atualizado_em");
+
+                    b.Property<Guid?>("AtualizadoPorUsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("atualizado_por_usuario_id");
+
+                    b.Property<int>("DuracaoTrialDias")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(14)
+                        .HasColumnName("duracao_trial_dias");
+
+                    b.Property<Guid>("PlanoTrialId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plano_trial_id");
+
+                    b.Property<bool>("TrialHabilitado")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("trial_habilitado");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanoTrialId");
+
+                    b.ToTable("imedto_config_trial", "public");
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoPlano", b =>
                 {
                     b.Property<Guid>("Id")
@@ -333,6 +399,13 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.Property<string>("DescricaoCurta")
                         .HasColumnType("text")
                         .HasColumnName("descricao_curta");
+
+                    b.Property<string>("FeaturesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("features_json")
+                        .HasDefaultValueSql("'{}'::jsonb");
 
                     b.Property<bool>("Gratuito")
                         .ValueGeneratedOnAdd()
@@ -2562,6 +2635,52 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasDatabaseName("uq_config_comissao_estab_prof_tipo");
 
                     b.ToTable("config_comissao_profissional", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.FinanceiroExportLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Acao")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("acao");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<DateTime>("OcorridoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ocorrido_em");
+
+                    b.Property<DateTime>("PeriodoFim")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("periodo_fim");
+
+                    b.Property<DateTime>("PeriodoInicio")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("periodo_inicio");
+
+                    b.Property<int>("TotalLinhas")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_linhas");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EstabelecimentoId", "OcorridoEm")
+                        .HasDatabaseName("ix_financeiro_export_log_estabelecimento_data");
+
+                    b.ToTable("financeiro_export_log", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.FormaPagamento", b =>
@@ -6692,6 +6811,15 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoConfigTrial", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Admin.ImedtoPlano", null)
+                        .WithMany()
+                        .HasForeignKey("PlanoTrialId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Imedto.Backend.Domain.Admin.ImedtoPlano", b =>
                 {
                     b.HasOne("Imedto.Backend.Domain.Admin.ImedtoAdmin", null)
@@ -7008,6 +7136,16 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_config_comissao_estabelecimento");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.FinanceiroExportLog", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Estabelecimentos.Estabelecimento", null)
+                        .WithMany()
+                        .HasForeignKey("EstabelecimentoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_financeiro_export_log_estabelecimento");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Financeiro.FormaPagamento", b =>

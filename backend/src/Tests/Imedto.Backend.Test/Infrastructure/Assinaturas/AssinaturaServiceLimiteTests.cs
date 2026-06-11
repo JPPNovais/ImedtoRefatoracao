@@ -1,3 +1,4 @@
+using Imedto.Backend.Domain.Admin;
 using Imedto.Backend.Domain.Assinaturas;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Assinaturas;
@@ -13,15 +14,21 @@ namespace Imedto.Backend.Test.Infrastructure.Assinaturas;
 /// ContarProfissionaisAtivos usa Dapper + NpgsqlConnection, então usa connection string inválida
 /// para forçar o caminho onde o limite é nulo (ilimitado) — sem atingir o banco.
 /// Os cenários que chegam à query SQL estão anotados abaixo.
+///
+/// Migrado na F3 (briefing 2026-06-11_003): mocks agora usam IImedtoAssinaturaRepository/
+/// IImedtoPlanoRepository (estrutura nova) em vez das interfaces legadas.
 /// </summary>
 [TestFixture]
 public class AssinaturaServiceLimiteTests : IDisposable
 {
-    private Mock<IAssinaturaRepository> _assinaturaRepo;
-    private Mock<IPlanoRepository> _planoRepo;
+    private Mock<IImedtoAssinaturaRepository> _assinaturaRepo;
+    private Mock<IImedtoPlanoRepository> _planoRepo;
     private MemoryCache _cache;
     private Mock<ILogger<AssinaturaService>> _logger;
     private AssinaturaService _sut;
+
+    private static readonly Guid _planoId = Guid.NewGuid();
+    private static readonly Guid _adminId = Guid.NewGuid();
 
     public void Dispose()
     {
@@ -32,8 +39,8 @@ public class AssinaturaServiceLimiteTests : IDisposable
     [SetUp]
     public void SetUp()
     {
-        _assinaturaRepo = new Mock<IAssinaturaRepository>();
-        _planoRepo = new Mock<IPlanoRepository>();
+        _assinaturaRepo = new Mock<IImedtoAssinaturaRepository>();
+        _planoRepo = new Mock<IImedtoPlanoRepository>();
         _cache = new MemoryCache(new MemoryCacheOptions());
         _logger = new Mock<ILogger<AssinaturaService>>();
 
@@ -51,8 +58,8 @@ public class AssinaturaServiceLimiteTests : IDisposable
     public async Task LimiteAtingidoAsync_SemAssinatura_RetornaTrue()
     {
         _assinaturaRepo
-            .Setup(r => r.ObterPorEstabelecimentoOuNulo(1))
-            .ReturnsAsync((Assinatura?)null);
+            .Setup(r => r.ObterVigenteDoEstabelecimentoAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ImedtoAssinatura?)null);
 
         var resultado = await _sut.LimiteAtingidoAsync(1, "profissionais");
 
@@ -62,13 +69,13 @@ public class AssinaturaServiceLimiteTests : IDisposable
     [Test]
     public async Task LimiteAtingidoAsync_SemPlano_RetornaTrue()
     {
-        var assinatura = Assinatura.IniciarTrial(1, 99, TimeSpan.FromDays(14));
+        var assinatura = ImedtoAssinatura.Criar(1, _planoId, false, null, _adminId);
         _assinaturaRepo
-            .Setup(r => r.ObterPorEstabelecimentoOuNulo(1))
+            .Setup(r => r.ObterVigenteDoEstabelecimentoAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(assinatura);
         _planoRepo
-            .Setup(r => r.ObterPorIdOuNulo(99))
-            .ReturnsAsync((Plano?)null);
+            .Setup(r => r.ObterPorIdAsync(_planoId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ImedtoPlano?)null);
 
         var resultado = await _sut.LimiteAtingidoAsync(1, "profissionais");
 
@@ -78,15 +85,15 @@ public class AssinaturaServiceLimiteTests : IDisposable
     [Test]
     public async Task LimiteAtingidoAsync_PlanoComLimiteProfissionaisNulo_RetornaFalse()
     {
-        // Plano ilimitado (LimiteProfissionais = null) deve retornar false sem consultar o banco.
-        var assinatura = Assinatura.IniciarTrial(1, 10, TimeSpan.FromDays(14));
-        var planoIlimitado = Plano.Criar("Enterprise", 999m, null, null, null); // LimiteProfissionais = null
+        // Plano ilimitado (profissionais ausente no JSON) deve retornar false sem consultar o banco.
+        var assinatura = ImedtoAssinatura.Criar(1, _planoId, false, null, _adminId);
+        var planoIlimitado = ImedtoPlano.Criar("Enterprise", null, null, false, "{}", _adminId);
 
         _assinaturaRepo
-            .Setup(r => r.ObterPorEstabelecimentoOuNulo(1))
+            .Setup(r => r.ObterVigenteDoEstabelecimentoAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(assinatura);
         _planoRepo
-            .Setup(r => r.ObterPorIdOuNulo(10))
+            .Setup(r => r.ObterPorIdAsync(_planoId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(planoIlimitado);
 
         var resultado = await _sut.LimiteAtingidoAsync(1, "profissionais");
@@ -97,14 +104,14 @@ public class AssinaturaServiceLimiteTests : IDisposable
     [Test]
     public async Task LimiteAtingidoAsync_PlanoComLimitePacientesNulo_RetornaFalse()
     {
-        var assinatura = Assinatura.IniciarTrial(1, 10, TimeSpan.FromDays(14));
-        var planoIlimitado = Plano.Criar("Enterprise", 999m, null, null, null);
+        var assinatura = ImedtoAssinatura.Criar(1, _planoId, false, null, _adminId);
+        var planoIlimitado = ImedtoPlano.Criar("Enterprise", null, null, false, "{}", _adminId);
 
         _assinaturaRepo
-            .Setup(r => r.ObterPorEstabelecimentoOuNulo(1))
+            .Setup(r => r.ObterVigenteDoEstabelecimentoAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(assinatura);
         _planoRepo
-            .Setup(r => r.ObterPorIdOuNulo(10))
+            .Setup(r => r.ObterPorIdAsync(_planoId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(planoIlimitado);
 
         var resultado = await _sut.LimiteAtingidoAsync(1, "pacientes");
@@ -124,19 +131,19 @@ public class AssinaturaServiceLimiteTests : IDisposable
     [Test]
     public void LimiteAtingidoAsync_RecursoDesconhecido_LancaArgumentException()
     {
-        var assinatura = Assinatura.IniciarTrial(1, 10, TimeSpan.FromDays(14));
-        var plano = Plano.Criar("Basico", 49m, 2, 50, null);
+        var assinatura = ImedtoAssinatura.Criar(1, _planoId, false, null, _adminId);
+        var plano = ImedtoPlano.Criar("Basico", null, 4900, false, """{"profissionais":2,"pacientes":50}""", _adminId);
 
         _assinaturaRepo
-            .Setup(r => r.ObterPorEstabelecimentoOuNulo(1))
+            .Setup(r => r.ObterVigenteDoEstabelecimentoAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(assinatura);
         _planoRepo
-            .Setup(r => r.ObterPorIdOuNulo(10))
+            .Setup(r => r.ObterPorIdAsync(_planoId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(plano);
 
         var ex = Assert.ThrowsAsync<ArgumentException>(async () =>
             await _sut.LimiteAtingidoAsync(1, "desconhecido"));
 
-        Assert.That(ex.Message, Does.Contain("Recurso desconhecido"));
+        Assert.That(ex!.Message, Does.Contain("Recurso desconhecido"));
     }
 }

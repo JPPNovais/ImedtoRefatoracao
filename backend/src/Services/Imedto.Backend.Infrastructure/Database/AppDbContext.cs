@@ -161,6 +161,9 @@ public class AppDbContext : DbContext
     public DbSet<ImedtoAssinatura> ImedtoAssinaturas => Set<ImedtoAssinatura>();
     public DbSet<ImedtoConfig> ImedtoConfigs => Set<ImedtoConfig>();
 
+    // F1 — Assinaturas unificadas: config global de trial (briefing 2026-06-11_003).
+    public DbSet<ImedtoConfigTrial> ImedtoConfigsTrial => Set<ImedtoConfigTrial>();
+
     // F3B — Pendências de atendimento (briefing 2026-06-10_012).
     public DbSet<PendenciaAtendimento> PendenciasAtendimento => Set<PendenciaAtendimento>();
 
