@@ -94,13 +94,13 @@ export interface PreviewProcedimentoRealizado {
 export const pendenciaService = {
     /** Lista pendências abertas de um paciente. Alimenta o painel persistente (CA74). */
     async listarAbertas(pacienteId: number): Promise<PendenciaAberta[]> {
-        const resp = await httpClient.get<PendenciaAberta[]>(`/api/paciente/${pacienteId}/pendencias`)
+        const resp = await httpClient.get<PendenciaAberta[]>(`/paciente/${pacienteId}/pendencias`)
         return resp.data
     },
 
     /** Conclui manualmente uma pendência pelo painel (CA67). */
     async concluirManual(pacienteId: number, pendenciaId: number): Promise<void> {
-        await httpClient.post(`/api/paciente/${pacienteId}/pendencias/${pendenciaId}/concluir`)
+        await httpClient.post(`/paciente/${pacienteId}/pendencias/${pendenciaId}/concluir`)
     },
 
     /** Carrega o preview para o modal MarcarProcedimentoRealizado (CA88). Leitura pura. */
@@ -109,7 +109,7 @@ export const pendenciaService = {
         pendenciaId: number,
     ): Promise<PreviewProcedimentoRealizado> {
         const resp = await httpClient.get<PreviewProcedimentoRealizado>(
-            `/api/paciente/${pacienteId}/pendencias/${pendenciaId}/preview-procedimento`,
+            `/paciente/${pacienteId}/pendencias/${pendenciaId}/preview-procedimento`,
         )
         return resp.data
     },
@@ -120,7 +120,7 @@ export const pendenciaService = {
         pendenciaId: number,
     ): Promise<{ cobrancaId: number }> {
         const resp = await httpClient.post<{ cobrancaId: number }>(
-            `/api/paciente/${pacienteId}/pendencias/${pendenciaId}/marcar-procedimento-realizado`,
+            `/paciente/${pacienteId}/pendencias/${pendenciaId}/marcar-procedimento-realizado`,
         )
         return resp.data
     },

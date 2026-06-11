@@ -234,18 +234,11 @@ public class CobrancaQueryRepository
 
         var param = new { PacienteId = pacienteId, EstabelecimentoId = estabelecimentoId };
 
-        // Executa as 4 queries em paralelo.
-        var cobrancasTask       = conn.QueryAsync<CobrancaAbaRaw>(sqlCobrancas, param);
-        var pagamentosTask      = conn.QueryAsync<PagamentoAbaRaw>(sqlPagamentos, param);
-        var estornosTask        = conn.QueryAsync<EstornoAbaRaw>(sqlEstornos, param);
-        var historicoValorTask  = conn.QueryAsync<HistoricoValorAbaRaw>(sqlHistoricoValor, param);
-
-        await Task.WhenAll(cobrancasTask, pagamentosTask, estornosTask, historicoValorTask);
-
-        var cobrancas      = (await cobrancasTask).ToList();
-        var pagamentos     = (await pagamentosTask).ToList();
-        var estornos       = (await estornosTask).ToList();
-        var historicoValor = (await historicoValorTask).ToList();
+        // Npgsql não suporta comandos concorrentes na mesma conexão — execução sequencial.
+        var cobrancas      = (await conn.QueryAsync<CobrancaAbaRaw>(sqlCobrancas, param)).ToList();
+        var pagamentos     = (await conn.QueryAsync<PagamentoAbaRaw>(sqlPagamentos, param)).ToList();
+        var estornos       = (await conn.QueryAsync<EstornoAbaRaw>(sqlEstornos, param)).ToList();
+        var historicoValor = (await conn.QueryAsync<HistoricoValorAbaRaw>(sqlHistoricoValor, param)).ToList();
 
         // Índices por cobranca_id / pagamento_id
         var pagamentosPorCobranca    = pagamentos.GroupBy(p => p.CobrancaId)

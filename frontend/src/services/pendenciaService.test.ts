@@ -78,12 +78,21 @@ describe("rotaParaAcao", () => {
 describe("pendenciaService.listarAbertas", () => {
     beforeEach(() => { vi.mocked(httpClient.get).mockReset() })
 
-    it("chama GET /api/paciente/:id/pendencias", async () => {
+    it("chama GET /paciente/:id/pendencias (sem prefixo /api — baseURL já contém /api)", async () => {
         vi.mocked(httpClient.get).mockResolvedValueOnce({ data: [] })
 
         await pendenciaService.listarAbertas(10)
 
-        expect(httpClient.get).toHaveBeenCalledWith("/api/paciente/10/pendencias")
+        expect(httpClient.get).toHaveBeenCalledWith("/paciente/10/pendencias")
+    })
+
+    it("URL não começa com /api (blindagem regressão — bug duplo-prefixo /api/api)", async () => {
+        vi.mocked(httpClient.get).mockResolvedValueOnce({ data: [] })
+
+        await pendenciaService.listarAbertas(10)
+
+        const url = vi.mocked(httpClient.get).mock.calls[0][0] as string
+        expect(url.startsWith("/api")).toBe(false)
     })
 
     it("retorna o array da resposta", async () => {
@@ -101,13 +110,50 @@ describe("pendenciaService.listarAbertas", () => {
 describe("pendenciaService.concluirManual", () => {
     beforeEach(() => { vi.mocked(httpClient.post).mockReset() })
 
-    it("chama POST /api/paciente/:pacienteId/pendencias/:pendenciaId/concluir", async () => {
+    it("chama POST /paciente/:pacienteId/pendencias/:pendenciaId/concluir (sem prefixo /api)", async () => {
         vi.mocked(httpClient.post).mockResolvedValueOnce({ data: undefined })
 
         await pendenciaService.concluirManual(10, 55)
 
         expect(httpClient.post).toHaveBeenCalledWith(
-            "/api/paciente/10/pendencias/55/concluir",
+            "/paciente/10/pendencias/55/concluir",
         )
+    })
+
+    it("URL não começa com /api (blindagem regressão)", async () => {
+        vi.mocked(httpClient.post).mockResolvedValueOnce({ data: undefined })
+
+        await pendenciaService.concluirManual(10, 55)
+
+        const url = vi.mocked(httpClient.post).mock.calls[0][0] as string
+        expect(url.startsWith("/api")).toBe(false)
+    })
+})
+
+describe("pendenciaService.previewProcedimentoRealizado", () => {
+    beforeEach(() => { vi.mocked(httpClient.get).mockReset() })
+
+    it("chama GET /paciente/:id/pendencias/:pendId/preview-procedimento (sem prefixo /api)", async () => {
+        vi.mocked(httpClient.get).mockResolvedValueOnce({ data: {} })
+
+        await pendenciaService.previewProcedimentoRealizado(10, 55)
+
+        const url = vi.mocked(httpClient.get).mock.calls[0][0] as string
+        expect(url).toBe("/paciente/10/pendencias/55/preview-procedimento")
+        expect(url.startsWith("/api")).toBe(false)
+    })
+})
+
+describe("pendenciaService.marcarProcedimentoRealizado", () => {
+    beforeEach(() => { vi.mocked(httpClient.post).mockReset() })
+
+    it("chama POST /paciente/:id/pendencias/:pendId/marcar-procedimento-realizado (sem prefixo /api)", async () => {
+        vi.mocked(httpClient.post).mockResolvedValueOnce({ data: { cobrancaId: 99 } })
+
+        await pendenciaService.marcarProcedimentoRealizado(10, 55)
+
+        const url = vi.mocked(httpClient.post).mock.calls[0][0] as string
+        expect(url).toBe("/paciente/10/pendencias/55/marcar-procedimento-realizado")
+        expect(url.startsWith("/api")).toBe(false)
     })
 })
