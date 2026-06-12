@@ -21,6 +21,7 @@
 
 - Build: `dotnet build Imedto.Backend.sln`
 - Rodar API (dev): `ASPNETCORE_ENVIRONMENT=Development dotnet run --project Services/Imedto.Backend.API --no-launch-profile` (Swagger em `/swagger`)
+  - ⚠️ Rodando a API **fora do `./dev.sh`**, o boot quebra com `UnauthorizedAccessException: Access to the path '/var/imedto' is denied` — esse diretório de chaves do DataProtection só existe na EC2/produção. Corrija apontando a chave para um path local: exporte `DataProtection__KeysPath=/tmp/imedto/dp-keys` (igual ao `dev.sh`) **ou** adicione `"DataProtection": { "KeysPath": "/tmp/imedto/dp-keys" }` ao `appsettings.Development.json` (gitignored — repetir por ambiente local).
 - Testes: `dotnet test Tests/Imedto.Backend.Test`
 - Teste único: `dotnet test Tests/Imedto.Backend.Test --filter "FullyQualifiedName~NomeDoTeste"`
 
