@@ -1283,11 +1283,6 @@ function orcStatusClass(s: string): string {
 }
 .pd-card-head h3 i { color: hsl(var(--primary)); font-size: 13px; }
 
-/* Painel de pendências — margem inferior quando visível */
-.pd-pendencias-painel {
-    margin-bottom: 24px;
-}
-
 /* Resumo */
 .resumo-grid {
     display: grid;

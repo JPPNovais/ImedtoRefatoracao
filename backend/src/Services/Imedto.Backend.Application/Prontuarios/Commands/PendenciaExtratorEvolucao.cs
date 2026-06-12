@@ -41,6 +41,14 @@ public class PendenciaExtratorEvolucao
 
             foreach (var acao in acoes)
             {
+                // MarcarProcedimentoRealizado só vira pendência se a evolução tiver ao menos
+                // 1 procedimento indicado válido (espelha a condição do command handler, que
+                // lança 422 sem procedimentos/valor). Sem isso, marcar o checkbox de conduta sem
+                // preencher "procedimentos-indicados" criaria uma pendência impossível de concluir.
+                if (acao == AcaoPendencia.MarcarProcedimentoRealizado &&
+                    !TemProcedimentosIndicadosValidos(conteudoJson))
+                    continue;
+
                 // Idempotência: se já existe pendência para este par (evolucao, acao), não cria.
                 var jaExiste = await _repo.ExistePorEvolucaoEAcao(evolucaoId, acao);
                 if (jaExiste)
@@ -60,6 +68,42 @@ public class PendenciaExtratorEvolucao
         catch
         {
             // Falha-suave: erro ao criar pendências nunca derruba a evolução (CA75/R2).
+        }
+    }
+
+    /// <summary>
+    /// Verifica se o ConteudoJson tem ao menos 1 procedimento indicado válido (com catalogoCirurgiaId)
+    /// e valor total > 0 — mesma condição que MarcarProcedimentoRealizadoCommandHandler exige para gerar
+    /// cobrança. Mantém o par criação↔conclusão consistente: não cria pendência que o comando recusaria.
+    /// </summary>
+    private static bool TemProcedimentosIndicadosValidos(string conteudoJson)
+    {
+        if (string.IsNullOrWhiteSpace(conteudoJson))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(conteudoJson);
+            if (!doc.RootElement.TryGetProperty("procedimentos-indicados", out var secao))
+                return false;
+            if (!secao.TryGetProperty("procedimentos", out var arr) || arr.ValueKind != JsonValueKind.Array)
+                return false;
+
+            decimal total = 0m;
+            var temItem = false;
+            foreach (var item in arr.EnumerateArray())
+            {
+                if (!item.TryGetProperty("catalogoCirurgiaId", out var idEl) || idEl.ValueKind == JsonValueKind.Null)
+                    continue;
+                temItem = true;
+                if (item.TryGetProperty("valor", out var vEl) && vEl.ValueKind == JsonValueKind.Number)
+                    total += vEl.GetDecimal();
+            }
+            return temItem && total > 0;
+        }
+        catch
+        {
+            return false;
         }
     }
 

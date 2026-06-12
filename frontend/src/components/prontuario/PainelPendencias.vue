@@ -27,6 +27,10 @@ import MarcarProcedimentoRealizadoModal from "./MarcarProcedimentoRealizadoModal
 
 const props = defineProps<{ pacienteId: number }>()
 
+// Template multi-root (painel + modal): sem isto, a classe passada pelo pai
+// (ex.: pd-pendencias-painel para espaçamento) seria descartada pelo Vue.
+defineOptions({ inheritAttrs: false })
+
 const router = useRouter()
 
 // ── Estado ─────────────────────────────────────────────────────────────────────
@@ -120,7 +124,7 @@ defineExpose({ recarregar: carregar })
 </script>
 
 <template>
-    <div v-if="temPendencias" class="painel-pendencias">
+    <div v-if="temPendencias" class="painel-pendencias" v-bind="$attrs">
         <div class="pp-header">
             <span class="pp-icone" aria-hidden="true">
                 <svg width="16" height="16" fill="none" viewBox="0 0 24 24">
@@ -191,6 +195,13 @@ defineExpose({ recarregar: carregar })
 </template>
 
 <style scoped>
+/* Espaçamento opt-in: quando o pai passa class="pd-pendencias-painel".
+   A regra fica AQUI (e não no scoped do pai) porque o atributo scoped do pai
+   não chega ao root do filho via $attrs — só a classe chega. */
+.pd-pendencias-painel {
+    margin-bottom: 24px;
+}
+
 .painel-pendencias {
     background: hsl(var(--warning-hsl, 38 92% 50%) / 0.06);
     border: 1px solid hsl(var(--warning-hsl, 38 92% 50%) / 0.35);

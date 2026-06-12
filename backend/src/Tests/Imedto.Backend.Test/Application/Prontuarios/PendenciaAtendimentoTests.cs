@@ -164,6 +164,40 @@ public class PendenciaAtendimentoTests
         repoMock.Verify(r => r.Salvar(It.IsAny<PendenciaAtendimento>()), Times.Never);
     }
 
+    [Test]
+    public async Task ExtrairECriar_MarcarProcedimento_SemProcedimentosIndicados_NaoCria()
+    {
+        // Guard: marcar o checkbox de conduta sem preencher procedimentos-indicados não
+        // pode gerar uma pendência que o command handler recusaria (422).
+        var repoMock = new Mock<IPendenciaAtendimentoRepository>();
+        repoMock.Setup(r => r.ExistePorEvolucaoEAcao(It.IsAny<long>(), It.IsAny<AcaoPendencia>()))
+                .ReturnsAsync(false);
+        var sut = new PendenciaExtratorEvolucao(repoMock.Object);
+
+        const string json = """{"conduta":{"acoesMarcadas":["MarcarProcedimentoRealizado"]}}""";
+        await sut.ExtrairECriar(EstabId, PacienteId, EvolucaoId, null, _autorId, json);
+
+        repoMock.Verify(r => r.Salvar(It.IsAny<PendenciaAtendimento>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ExtrairECriar_MarcarProcedimento_ComProcedimentosIndicados_Cria()
+    {
+        var repoMock = new Mock<IPendenciaAtendimentoRepository>();
+        repoMock.Setup(r => r.ExistePorEvolucaoEAcao(It.IsAny<long>(), It.IsAny<AcaoPendencia>()))
+                .ReturnsAsync(false);
+        var sut = new PendenciaExtratorEvolucao(repoMock.Object);
+
+        const string json = """
+            {"conduta":{"acoesMarcadas":["MarcarProcedimentoRealizado"]},
+             "procedimentos-indicados":{"procedimentos":[{"catalogoCirurgiaId":7,"descricao":"X","valor":150.0}]}}
+            """;
+        await sut.ExtrairECriar(EstabId, PacienteId, EvolucaoId, null, _autorId, json);
+
+        repoMock.Verify(r => r.Salvar(It.Is<PendenciaAtendimento>(
+            p => p.Acao == AcaoPendencia.MarcarProcedimentoRealizado)), Times.Once);
+    }
+
     // ── Event handlers: conclusão automática ────────────────────────────────────────
 
     [Test]
