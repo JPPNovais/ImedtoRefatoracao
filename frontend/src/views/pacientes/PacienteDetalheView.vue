@@ -1264,7 +1264,7 @@ function orcStatusClass(s: string): string {
 .pd-tab.active .badge { background: hsl(var(--primary) / 0.15); color: hsl(var(--primary)); }
 
 /* Conteúdo das abas */
-.pd-content { padding-bottom: 56px; }
+.pd-content { padding-top: 20px; padding-bottom: 56px; }
 
 /* Cards */
 .pd-card {
@@ -1285,7 +1285,7 @@ function orcStatusClass(s: string): string {
 
 /* Painel de pendências — margem inferior quando visível */
 .pd-pendencias-painel {
-    margin-bottom: 16px;
+    margin-bottom: 24px;
 }
 
 /* Resumo */
