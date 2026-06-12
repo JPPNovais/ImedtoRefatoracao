@@ -71,12 +71,13 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const termoParaAnexar = ref<TermoEmitidoResumo | null>(null)
 
 // ─── Carregamento ──────────────────────────────────────────────────────────
+// Carrega a lista COMPLETA (sem filtro de status). O filtro é client-side
+// (lista pequena, ≤100) — assim as pills e suas contagens nunca dependem da
+// lista filtrada e não somem ao escolher um status sem resultados.
 async function carregar() {
     carregando.value = true
     try {
-        termos.value = await pacienteTermoService.listar(props.paciente.id, {
-            status: filtroStatus.value || undefined,
-        })
+        termos.value = await pacienteTermoService.listar(props.paciente.id)
         carregado.value = true
     } catch (e: any) {
         emit("notificar", e?.response?.data?.mensagem ?? "Erro ao carregar termos.", "error")
@@ -90,12 +91,13 @@ watch(() => props.ativa, (ativa) => {
     if (ativa && !carregado.value) void carregar()
 }, { immediate: true })
 
-// Quando o usuário troca o filtro de status, recarrega.
-watch(filtroStatus, () => {
-    if (props.ativa) void carregar()
-})
-
 // ─── Filtros ───────────────────────────────────────────────────────────────
+const termosFiltrados = computed(() =>
+    filtroStatus.value
+        ? termos.value.filter(t => t.status === filtroStatus.value)
+        : termos.value,
+)
+
 const opcoesStatus = computed(() => {
     const counts = contarPorStatus(termos.value)
     return [
@@ -374,14 +376,14 @@ onMounted(() => {
         <p v-if="carregando" class="msg">Carregando…</p>
 
         <AppEmptyState
-            v-else-if="carregado && termos.length === 0 && filtroStatus === ''"
+            v-else-if="carregado && termos.length === 0"
             icone="📝"
             titulo="Nenhum termo emitido"
             descricao="Emita um termo para registrar o consentimento do paciente (LGPD, cirúrgico, uso de imagem, etc.)."
         />
 
         <AppEmptyState
-            v-else-if="carregado && termos.length === 0"
+            v-else-if="carregado && termosFiltrados.length === 0"
             icone="🔍"
             titulo="Sem resultados nesse filtro"
             descricao="Não há termos com este status para o paciente."
@@ -399,7 +401,7 @@ onMounted(() => {
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="t in termos" :key="t.id">
+                <tr v-for="t in termosFiltrados" :key="t.id">
                     <td>
                         <div class="tt-modelo">
                             <b>{{ t.termoModeloTitulo }}</b>
