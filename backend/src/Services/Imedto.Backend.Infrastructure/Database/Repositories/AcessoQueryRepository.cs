@@ -98,7 +98,7 @@ public class AcessoQueryRepository : IAcessoQueryRepository
             SELECT Quem, Quando, Recurso, Acao FROM (
             {unionSql}
             ) AS acessos
-            ORDER BY acessos."Quando" DESC
+            ORDER BY acessos.quando DESC
             LIMIT @Tamanho OFFSET @Offset
             """;
 
