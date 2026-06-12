@@ -12,9 +12,12 @@ import type { CategoriaTermo } from "./termoModeloService"
  *
  * Multi-tenant: o backend extrai `EstabelecimentoId` do tenant claim — o front
  * não envia esse id. Listagem e detalhe são auditados server-side.
+ *
+ * Briefing 2026-06-12_002: AceiteLink removido. O único fluxo é PdfAnexado.
+ * `anexarPdf` passa a aceitar 1-2 arquivos (JPG/PNG ou PDF).
  */
 
-/** Status persistido no banco (EF salva com PascalCase). */
+/** Status persistido no banco. */
 export type StatusTermoEmitido =
     | "Pendente"
     | "Assinado"
@@ -22,11 +25,8 @@ export type StatusTermoEmitido =
     | "Revogado"
     | "Expirado"
 
-/** Tipo de assinatura persistido (EF salva com PascalCase). */
+/** Tipo de assinatura persistido. AceiteLink é legado (read-only). */
 export type AssinaturaTipoTermo = "PdfAnexado" | "AceiteLink"
-
-/** Payload aceito pelo POST de emissão (kebab/snake — convertido pelo backend). */
-export type AssinaturaTipoEmitir = "pdf_anexado" | "aceite_link"
 
 export interface TermoEmitidoResumo {
     id: number
@@ -42,6 +42,7 @@ export interface TermoEmitidoResumo {
     tokenExpiraEm: string | null
     temPdf: boolean
     criadoEm: string
+    evolucaoId: number | null
     emitidoPorUsuarioId: string
     emitidoPorNome: string | null
 }
@@ -58,35 +59,18 @@ export interface TermoEmitidoDetalhe extends TermoEmitidoResumo {
 
 export interface EmitirTermoPayload {
     modeloId: number
-    assinaturaTipo: AssinaturaTipoEmitir
     /**
-     * Canal de envio do link público — só lido pelo backend quando
-     * `assinaturaTipo = "aceite_link"`:
-     *  - "email" (default): dispara o e-mail "termo aguardando seu aceite".
-     *  - "copia": suprime o e-mail; o front exibe o link pra emissor copiar.
-     * Ignorado em `pdf_anexado`.
-     */
-    canalEnvio?: "email" | "copia"
-    /**
-     * Usuário-profissional que assina o termo — usado pra resolver as variáveis
-     * `{{profissional.*}}` (nome, conselho, especialidade). Quando ausente, o
-     * backend deixa os placeholders em fallback `___________`. O emissor da
-     * requisição (recepção/Dono) NÃO é tratado automaticamente como profissional.
-     * Precisa ser um profissional com vínculo Ativo no estabelecimento atual.
+     * Usuário-profissional cujo nome/conselho/especialidade resolve as variáveis
+     * `{{profissional.*}}` no template. Opcional — quando ausente, fallback é
+     * `___________`. Precisa ser profissional com vínculo Ativo no estabelecimento.
      */
     profissionalUsuarioId?: string | null
+    /** Quando emitido dentro de uma evolução, vincula o termo à evolução (CA-C1). */
+    evolucaoId?: number | null
 }
 
 export interface EmitirTermoResposta {
     termoEmitidoId: number
-    /** Preenchido quando `assinaturaTipo = aceite_link`; null em pdf_anexado. */
-    tokenAceite: string | null
-}
-
-export interface ReenviarLinkResposta {
-    /** Token atualizado/regenerado — useful pra reidratar o link copiado. */
-    tokenAceite: string
-    canal: "email" | "copia"
 }
 
 export const pacienteTermoService = {
@@ -113,8 +97,8 @@ export const pacienteTermoService = {
     },
 
     /**
-     * Emite um termo (snapshot HTML + hash). Header `Idempotency-Key` opcional
-     * evita duplo-clique. O backend retorna 422 se o modelo estiver inativo,
+     * Emite um termo (snapshot HTML + hash). Header `Idempotency-Key` evita
+     * duplo-clique. O backend retorna 422 se o modelo estiver inativo,
      * incompatível com o tenant ou se o paciente não existir.
      */
     async emitir(
@@ -130,12 +114,19 @@ export const pacienteTermoService = {
     },
 
     /**
-     * Anexa o PDF assinado (multipart). Só funciona com status = Pendente
-     * (regra do aggregate). Após anexar, o backend muda status para "Assinado".
+     * Anexa o documento assinado. Aceita:
+     * - 1 PDF (application/pdf)
+     * - 1 ou 2 imagens JPG/PNG (frente e verso opcionais)
+     *
+     * O backend converte imagens em PDF multi-página via QuestPDF.
+     * Só funciona com status = Pendente. Após anexar, status vira "Assinado".
      */
-    async anexarPdf(termoId: number, arquivo: File): Promise<void> {
+    async anexarPdf(termoId: number, arquivos: File | File[]): Promise<void> {
+        const lista = Array.isArray(arquivos) ? arquivos : [arquivos]
         const form = new FormData()
-        form.append("arquivo", arquivo, arquivo.name)
+        for (const arq of lista) {
+            form.append("arquivos", arq, arq.name)
+        }
         await httpClient.post(`/termos/${termoId}/pdf`, form, {
             headers: {
                 "Content-Type": "multipart/form-data",
@@ -163,12 +154,6 @@ export const pacienteTermoService = {
      *
      * Usado apenas quando o termo NÃO tem PDF anexado manualmente (`temPdf = false`).
      * Quando `temPdf = true`, usar `obterUrlPdf` (presigned URL do anexo).
-     *
-     * O endpoint retorna `application/pdf` como blob. O arquivo baixado é
-     * `termo-{id}.pdf` (sem PII — minimização LGPD, CA11).
-     *
-     * Audit LGPD é registrado server-side (ação "termo-pdf-gerado").
-     * Multi-tenant + RBAC (`termos.emitir`) validados no backend.
      */
     async baixarPdfGerado(termoId: number): Promise<void> {
         const response = await httpClient.get(`/termos/${termoId}/pdf-gerado`, {
@@ -184,35 +169,11 @@ export const pacienteTermoService = {
         document.body.removeChild(a)
         setTimeout(() => URL.revokeObjectURL(url), 30_000)
     },
-
-    /**
-     * Fase 4 — reenvia o link público (`aceite_link`) por e-mail ou apenas
-     * devolve o token pra ser exibido/copiado pelo emissor.
-     *
-     * Comportamento por canal:
-     *  - "email" (default): backend envia o e-mail. Cooldown de 5 min entre
-     *    envios — 422 com mensagem amigável se ainda dentro do cooldown.
-     *  - "copia": SEM cooldown — útil pra reabrir o modal "Copiar link" quando
-     *    o emissor fechou a tela após emitir.
-     *
-     * Permissão: `termos.emitir`. Termo precisa estar Pendente.
-     */
-    async reenviarLink(
-        termoId: number,
-        canal: "email" | "copia" = "email",
-    ): Promise<ReenviarLinkResposta> {
-        const { data } = await httpClient.post<ReenviarLinkResposta>(
-            `/termos/${termoId}/reenviar-link`,
-            { canal },
-        )
-        return data
-    },
 }
 
 /**
  * Gera um id curto para o header `Idempotency-Key`. crypto.randomUUID() está
- * disponível em todos os browsers que o app suporta. Fallback simples para
- * ambientes onde não existe.
+ * disponível em todos os browsers que o app suporta.
  */
 function cryptoIdempotencyKey(): string {
     try {

@@ -25,6 +25,8 @@ const props = defineProps<{
     evolucaoSendoBaixada: number | null
     /** Callback do pai que cuida do audit LGPD + geração do PDF do histórico. */
     gerarHistorico: (modo: PdfSaidaModo) => void
+    /** CA-RBAC1/2: passa ao drawer para exibir/ocultar botão de emitir termo. */
+    podeEmitirTermo?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +35,8 @@ const emit = defineEmits<{
     enviarAnexo: []
     gerarPdfEvolucao: [payload: { evolucao: Evolucao, modo: PdfSaidaModo }]
     totalAtualizado: [total: number]
+    /** CA-C4: usuário clicou em "Emitir termo" dentro do drawer de uma evolução. */
+    emitirTermoEvolucao: [evolucaoId: number]
 }>()
 
 // ─── Carregamento server-side ───────────────────────────────────────────────
@@ -184,7 +188,10 @@ function fmtTamanho(bytes: number) {
         <EvolucaoDetalheDrawer
             :evolucao="evolucaoNoDrawer"
             :aberto="evolucaoNoDrawer !== null"
+            :paciente-id="pacienteId"
+            :pode-emitir-termo="podeEmitirTermo"
             @fechar="fecharDrawer"
+            @emitir-termo="(evoId) => { fecharDrawer(); emit('emitirTermoEvolucao', evoId) }"
         />
 
         <!-- Card de Anexos -->

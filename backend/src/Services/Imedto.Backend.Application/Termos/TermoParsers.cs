@@ -38,26 +38,6 @@ internal static class TermoParsers
         _ => throw new ArgumentOutOfRangeException(nameof(c)),
     };
 
-    public static AssinaturaTipo ParseAssinaturaTipo(string s)
-    {
-        if (string.IsNullOrWhiteSpace(s))
-            throw new BusinessException("Tipo de assinatura é obrigatório.");
-
-        return s.Trim().ToLowerInvariant() switch
-        {
-            "pdf_anexado" => AssinaturaTipo.PdfAnexado,
-            "aceite_link" => AssinaturaTipo.AceiteLink,
-            _ => throw new BusinessException("Tipo de assinatura inválido (use 'pdf_anexado' ou 'aceite_link')."),
-        };
-    }
-
-    public static string SerializarAssinaturaTipo(AssinaturaTipo t) => t switch
-    {
-        AssinaturaTipo.PdfAnexado => "pdf_anexado",
-        AssinaturaTipo.AceiteLink => "aceite_link",
-        _ => throw new ArgumentOutOfRangeException(nameof(t)),
-    };
-
     public static string SerializarStatus(StatusTermoEmitido s) => s switch
     {
         StatusTermoEmitido.Pendente => "pendente",

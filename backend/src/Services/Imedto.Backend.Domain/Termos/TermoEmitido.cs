@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Imedto.Backend.Domain.Termos.Events;
 using Imedto.Backend.SharedKernel.Domain;
+// Nota: RandomNumberGenerator removido com a remoção do aceite por link (briefing 2026-06-12_002)
 
 namespace Imedto.Backend.Domain.Termos;
 
@@ -12,12 +13,16 @@ namespace Imedto.Backend.Domain.Termos;
 ///
 /// Estados (<see cref="StatusTermoEmitido"/>):
 /// <list type="bullet">
-///   <item><c>Pendente</c>: emitido, aguarda assinatura (link público ou upload de PDF).</item>
-///   <item><c>Assinado</c>: paciente aceitou (link) ou emissor anexou PDF assinado.</item>
-///   <item><c>Recusado</c>: paciente recusou pelo link.</item>
+///   <item><c>Pendente</c>: emitido, aguarda anexo do documento físico assinado.</item>
+///   <item><c>Assinado</c>: emissor anexou documento físico (foto convertida ou PDF).</item>
+///   <item><c>Recusado</c>: legado — paciente recusou pelo link público (removido). Leitura somente.</item>
 ///   <item><c>Revogado</c>: depois de assinado, foi cancelado pelo estabelecimento.</item>
-///   <item><c>Expirado</c>: link público venceu sem aceite.</item>
+///   <item><c>Expirado</c>: legado — link público venceu sem aceite (removido). Leitura somente.</item>
 /// </list>
+///
+/// Transição válida para termos novos: <c>Pendente → Assinado → Revogado</c>.
+/// Termos legados podem estar em qualquer estado (leitura preservada).
+/// O fluxo de aceite por link público foi removido (briefing 2026-06-12_002).
 /// </summary>
 public class TermoEmitido : Entity
 {
@@ -48,6 +53,12 @@ public class TermoEmitido : Entity
     public virtual Guid? RevogadoPorUsuarioId { get; protected set; }
     public virtual string RevogadoMotivo { get; protected set; }
 
+    /// <summary>
+    /// Quando o termo foi emitido dentro de uma evolução de prontuário, registra o
+    /// vínculo para exibição na timeline da evolução (CA-C2). Nulo para emissões avulsas.
+    /// </summary>
+    public virtual long? EvolucaoId { get; protected set; }
+
     public virtual Guid EmitidoPorUsuarioId { get; protected set; }
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
@@ -61,9 +72,11 @@ public class TermoEmitido : Entity
     /// deve estar com as variáveis ({{paciente.nome}} etc.) substituídas e sanitizado;
     /// o aggregate apenas calcula o hash e fixa o snapshot.
     ///
-    /// Para <see cref="AssinaturaTipo.AceiteLink"/>, o token gerado é retornado em
-    /// <see cref="TokenAceite"/> (32 bytes urlsafe). Vence em
-    /// <paramref name="ttlLinkPublico"/> a partir de agora.
+    /// O tipo de assinatura é sempre <see cref="AssinaturaTipo.PdfAnexado"/> (documento físico).
+    /// O aceite por link foi removido (briefing 2026-06-12_002).
+    ///
+    /// Quando emitido dentro de uma evolução de prontuário, informar <paramref name="evolucaoId"/>
+    /// para vinculação na timeline da evolução.
     /// </summary>
     public static TermoEmitido Emitir(
         long pacienteId,
@@ -72,9 +85,8 @@ public class TermoEmitido : Entity
         int versaoModelo,
         string conteudoResolvidoHtml,
         string conteudoResolvidoTexto,
-        AssinaturaTipo assinaturaTipo,
         Guid emitidoPorUsuarioId,
-        TimeSpan ttlLinkPublico)
+        long? evolucaoId = null)
     {
         if (pacienteId <= 0)
             throw new BusinessException("Paciente é obrigatório.");
@@ -94,16 +106,6 @@ public class TermoEmitido : Entity
         var snapshotHtml = NormalizarHtml(conteudoResolvidoHtml);
         var hash = CalcularHashSha256(snapshotHtml);
 
-        string token = null;
-        DateTime? expira = null;
-        if (assinaturaTipo == AssinaturaTipo.AceiteLink)
-        {
-            if (ttlLinkPublico <= TimeSpan.Zero)
-                throw new BusinessException("Validade do link deve ser positiva.");
-            token = GerarTokenUrlSafe(32);
-            expira = DateTime.UtcNow.Add(ttlLinkPublico);
-        }
-
         return new TermoEmitido
         {
             PacienteId = pacienteId,
@@ -113,10 +115,9 @@ public class TermoEmitido : Entity
             ConteudoSnapshotHtml = snapshotHtml,
             ConteudoSnapshotTexto = conteudoResolvidoTexto.Trim(),
             Status = StatusTermoEmitido.Pendente,
-            AssinaturaTipo = assinaturaTipo,
+            AssinaturaTipo = AssinaturaTipo.PdfAnexado,
             HashIntegridade = hash,
-            TokenAceite = token,
-            TokenExpiraEm = expira,
+            EvolucaoId = evolucaoId,
             EmitidoPorUsuarioId = emitidoPorUsuarioId,
             CriadoEm = DateTime.UtcNow,
         };
@@ -124,15 +125,13 @@ public class TermoEmitido : Entity
 
     /// <summary>
     /// Marca como emitido — anexa <see cref="TermoEmitidoEvent"/>. Chamar depois de
-    /// persistir (Id já resolvido). <paramref name="canalEnvio"/> só faz sentido quando
-    /// <see cref="AssinaturaTipo"/> = <see cref="AssinaturaTipo.AceiteLink"/>:
-    /// "email" dispara envio automático no handler; "copia" suprime o e-mail.
+    /// persistir (Id já resolvido).
     /// </summary>
-    public virtual void MarcarComoEmitido(string canalEnvio = "email")
+    public virtual void MarcarComoEmitido()
     {
         if (Id == 0)
             throw new InvalidOperationException("Termo ainda não foi persistido — Id é 0.");
-        AddDomainEvent(new TermoEmitidoEvent(Id, PacienteId, EstabelecimentoId, TermoModeloId, EmitidoPorUsuarioId, AssinaturaTipo, canalEnvio ?? "email"));
+        AddDomainEvent(new TermoEmitidoEvent(Id, PacienteId, EstabelecimentoId, TermoModeloId, EmitidoPorUsuarioId, AssinaturaTipo));
     }
 
     /// <summary>
@@ -159,72 +158,6 @@ public class TermoEmitido : Entity
         AtualizadoEm = DateTime.UtcNow;
 
         AddDomainEvent(new TermoAssinadoEvent(Id, PacienteId, EstabelecimentoId, AssinaturaTipo, AssinadoEm.Value));
-    }
-
-    /// <summary>
-    /// Registra aceite via link público (Fase 4). Só para
-    /// <see cref="AssinaturaTipo.AceiteLink"/> com token ainda válido.
-    /// </summary>
-    public virtual void RegistrarAceitePublico(string ipOrigem, string userAgent)
-    {
-        if (AssinaturaTipo != AssinaturaTipo.AceiteLink)
-            throw new BusinessException("Este termo não aceita assinatura por link.");
-        if (Status != StatusTermoEmitido.Pendente)
-            throw new BusinessException("Termo não está pendente.");
-        if (TokenExpiraEm is null || TokenExpiraEm < DateTime.UtcNow)
-            throw new BusinessException("Link expirado.");
-
-        Status = StatusTermoEmitido.Assinado;
-        AssinadoEm = DateTime.UtcNow;
-        IpAssinatura = string.IsNullOrWhiteSpace(ipOrigem) ? null : ipOrigem.Trim();
-        UserAgentAssinatura = TruncarUserAgent(userAgent);
-        AtualizadoEm = DateTime.UtcNow;
-
-        AddDomainEvent(new TermoAssinadoEvent(Id, PacienteId, EstabelecimentoId, AssinaturaTipo, AssinadoEm.Value));
-    }
-
-    public virtual void RegistrarRecusaPublica(string ipOrigem, string userAgent)
-    {
-        if (AssinaturaTipo != AssinaturaTipo.AceiteLink)
-            throw new BusinessException("Este termo não aceita recusa por link.");
-        if (Status != StatusTermoEmitido.Pendente)
-            throw new BusinessException("Termo não está pendente.");
-        if (TokenExpiraEm is null || TokenExpiraEm < DateTime.UtcNow)
-            throw new BusinessException("Link expirado.");
-
-        Status = StatusTermoEmitido.Recusado;
-        // Reuso de assinado_em para registrar o "momento da resposta" (aceito ou recusado).
-        // Mantemos o nome da coluna por compat com a Fase 1 — semanticamente, é "respondido_em".
-        AssinadoEm = DateTime.UtcNow;
-        IpAssinatura = string.IsNullOrWhiteSpace(ipOrigem) ? null : ipOrigem.Trim();
-        UserAgentAssinatura = TruncarUserAgent(userAgent);
-        AtualizadoEm = DateTime.UtcNow;
-
-        AddDomainEvent(new TermoRecusadoEvent(Id, PacienteId, EstabelecimentoId, AssinadoEm.Value));
-    }
-
-    /// <summary>
-    /// Marca o instante do último envio de e-mail do link público (cooldown anti-spam).
-    /// Reutiliza <see cref="AtualizadoEm"/> como timestamp do último envio — o fluxo de
-    /// reenviar-link só toca esse campo (não muda status nem snapshot).
-    /// </summary>
-    public virtual void MarcarReenvioLinkEmail()
-    {
-        if (AssinaturaTipo != AssinaturaTipo.AceiteLink)
-            throw new BusinessException("Este termo não usa link de aceite.");
-        if (Status != StatusTermoEmitido.Pendente)
-            throw new BusinessException("Termo não está pendente.");
-        AtualizadoEm = DateTime.UtcNow;
-    }
-
-    public virtual void Expirar()
-    {
-        if (AssinaturaTipo != AssinaturaTipo.AceiteLink) return;
-        if (Status != StatusTermoEmitido.Pendente) return;
-        if (TokenExpiraEm is null || TokenExpiraEm >= DateTime.UtcNow) return;
-
-        Status = StatusTermoEmitido.Expirado;
-        AtualizadoEm = DateTime.UtcNow;
     }
 
     public virtual void Revogar(Guid usuarioId, string motivo)
@@ -264,25 +197,5 @@ public class TermoEmitido : Entity
         var sb = new StringBuilder(hash.Length * 2);
         foreach (var b in hash) sb.Append(b.ToString("x2"));
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// Token URL-safe (RFC 4648 §5 sem padding) de <paramref name="bytes"/> bytes de entropia.
-    /// 32 bytes → 43 chars. Único e impossível de adivinhar.
-    /// </summary>
-    private static string GerarTokenUrlSafe(int bytes)
-    {
-        var buffer = RandomNumberGenerator.GetBytes(bytes);
-        return Convert.ToBase64String(buffer)
-            .Replace('+', '-')
-            .Replace('/', '_')
-            .TrimEnd('=');
-    }
-
-    private static string TruncarUserAgent(string userAgent)
-    {
-        if (string.IsNullOrWhiteSpace(userAgent)) return null;
-        var t = userAgent.Trim();
-        return t.Length > 500 ? t[..500] : t;
     }
 }

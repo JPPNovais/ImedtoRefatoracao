@@ -82,7 +82,7 @@
   "components/relatorios/RelatorioPeriodoFiltro.vue": 9,
   "components/relatorios/RelatorioPessoasTab.vue": 7,
   "components/relatorios/RelatorioVisaoGeral.vue": 11,
-  "components/termos/EmitirTermoModal.vue": 40,
+  "components/termos/EmitirTermoModal.vue": 8,
   "components/termos/PacienteTermosTab.vue": 9,
   "components/termos/TermoEditorTipTap.vue": 8,
   "components/termos/TermoFormEmbutido.vue": 13,
@@ -108,7 +108,6 @@
   "components/ui/EstabelecimentoSeletorModal.vue": 5,
   "components/ui/ModeloProntuarioBuilder.vue": 20,
   "layouts/AppLayout.vue": 25,
-  "modules/admin/components/assinaturas/AssinaturaCard.vue": 11,
   "modules/admin/components/assinaturas/ConcederGratuidadeModal.vue": 2,
   "modules/admin/components/assinaturas/EncerrarAssinaturaModal.vue": 2,
   "modules/admin/components/assinaturas/TrocarPlanoModal.vue": 3,
@@ -129,7 +128,6 @@
   "modules/admin/views/ModelosGlobaisFormView.vue": 4,
   "modules/admin/views/ModelosGlobaisListView.vue": 9,
   "modules/admin/views/PermissoesGlobaisListView.vue": 11,
-  "modules/admin/views/PlanosFormView.vue": 2,
   "modules/admin/views/PlanosListView.vue": 9,
   "modules/admin/views/VariaveisGlobaisFormView.vue": 3,
   "modules/admin/views/VariaveisGlobaisListView.vue": 10,
@@ -169,6 +167,5 @@
   "views/pacientes/ProntuarioView.vue": 5,
   "views/profissionais/MeusConvitesView.vue": 6,
   "views/profissionais/SolicitarVinculoView.vue": 7,
-  "views/publico/AceiteTermoPublicoView.vue": 24,
   "views/publico/ConfirmarPresencaPublicaView.vue": 11
 }

@@ -1,6 +1,7 @@
 using Imedto.Backend.Contracts.Termos.Dtos;
 using Imedto.Backend.Contracts.Termos.Queries;
 using Imedto.Backend.Domain.Pacientes;
+using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Domain.Termos;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -71,6 +72,17 @@ public sealed class ObterTermoEmitidoQueryHandlers : IRequestHandler<ObterTermoE
 
         return dto;
     }
+}
+
+public sealed class ListarTermosDaEvolucaoQueryHandler
+    : IRequestHandler<ListarTermosDaEvolucaoQuery, IReadOnlyList<TermoEmitidoResumoDto>>
+{
+    private readonly ITermoEmitidoQueryRepository _repo;
+
+    public ListarTermosDaEvolucaoQueryHandler(ITermoEmitidoQueryRepository repo) => _repo = repo;
+
+    public async Task<IReadOnlyList<TermoEmitidoResumoDto>> Handle(ListarTermosDaEvolucaoQuery q)
+        => await _repo.ListarDaEvolucao(q.EvolucaoId, q.EstabelecimentoId);
 }
 
 public sealed class ObterUrlPdfTermoQueryHandlers : IRequestHandler<ObterUrlPdfTermoQuery, TermoPdfUrlDto>

@@ -619,6 +619,8 @@ public static class Container
         services.AddScoped<ITermoPdfStorageService, S3TermoPdfStorageService>();
         // Briefing 2026-06-10_002 — PDF probatório gerado no servidor via QuestPDF.
         services.AddScoped<ITermoPdfGeradoService, QuestPdfTermoService>();
+        // Briefing 2026-06-12_002 — conversão imagem→PDF para anexo de documento físico.
+        services.AddSingleton<ITermoImagemParaPdfConverter, QuestPdfImagemConverter>();
         services.AddScoped<CriarModeloTermoCommandHandler>();
         services.AddScoped<AtualizarModeloTermoCommandHandler>();
         services.AddScoped<AlterarAtivoModeloTermoCommandHandler>();
@@ -627,12 +629,6 @@ public static class Container
         services.AddScoped<EmitirTermoCommandHandler>();
         services.AddScoped<AnexarPdfTermoCommandHandler>();
         services.AddScoped<RevogarTermoCommandHandler>();
-        // Fase 4 — aceite público + reenvio de link + notificações por e-mail.
-        services.AddScoped<RegistrarRespostaPublicaTermoCommandHandler>();
-        services.AddScoped<ReenviarLinkTermoCommandHandler>();
-        services.AddScoped<Imedto.Backend.Application.Termos.Events.EnviarEmailTermoLinkEventHandler>();
-        services.AddScoped<Imedto.Backend.Application.Termos.Events.NotificarEmissorTermoAssinadoEventHandler>();
-        services.AddScoped<Imedto.Backend.Application.Termos.Events.NotificarEmissorTermoRecusadoEventHandler>();
         // Query handlers que auditam acesso ou dependem do DbContext via repo são Scoped.
         services.AddSingleton<ListarModelosTermoQueryHandlers>();
         services.AddSingleton<ListarModelosPadraoTermoQueryHandlers>();
@@ -641,8 +637,7 @@ public static class Container
         services.AddScoped<ListarTermosDoPacienteQueryHandlers>();
         services.AddScoped<ObterTermoEmitidoQueryHandlers>();
         services.AddScoped<ObterUrlPdfTermoQueryHandlers>();
-        // Fase 4 — fluxo público anônimo via token.
-        services.AddScoped<ObterTermoPublicoPorTokenQueryHandler>();
+        services.AddScoped<ListarTermosDaEvolucaoQueryHandler>();
 
         // Modelos de Permissão
         services.AddScoped<CriarModeloPermissaoCommandHandler>();
@@ -1203,9 +1198,6 @@ public static class Container
             bus.Register<EmitirTermoCommand, EmitirTermoCommandHandler>();
             bus.Register<AnexarPdfTermoCommand, AnexarPdfTermoCommandHandler>();
             bus.Register<RevogarTermoCommand, RevogarTermoCommandHandler>();
-            // Fase 4 — aceite público anônimo + reenvio de link autenticado.
-            bus.Register<RegistrarRespostaPublicaTermoCommand, RegistrarRespostaPublicaTermoCommandHandler>();
-            bus.Register<ReenviarLinkTermoCommand, ReenviarLinkTermoCommandHandler>();
             // Item 4.3 — LGPD.
             bus.Register<AnonimizarMinhaContaCommand, AnonimizarMinhaContaCommandHandler>();
             // Assinatura Digital ICP-Brasil (2026-06-01).
@@ -1368,8 +1360,8 @@ public static class Container
             bus.Register<ListarTermosDoPacienteQuery, IReadOnlyList<TermoEmitidoResumoDto>, ListarTermosDoPacienteQueryHandlers>();
             bus.Register<ObterTermoEmitidoQuery, TermoEmitidoDetalheDto, ObterTermoEmitidoQueryHandlers>();
             bus.Register<ObterUrlPdfTermoQuery, TermoPdfUrlDto, ObterUrlPdfTermoQueryHandlers>();
+            bus.Register<ListarTermosDaEvolucaoQuery, IReadOnlyList<TermoEmitidoResumoDto>, ListarTermosDaEvolucaoQueryHandler>();
             // Fase 4 — query anônima via token público.
-            bus.Register<ObterTermoPublicoPorTokenQuery, TermoPublicoDto, ObterTermoPublicoPorTokenQueryHandler>();
             // Assinatura Digital ICP-Brasil (2026-06-01).
             bus.Register<ObterStatusAssinaturaQuery, StatusAssinaturaDto, ObterStatusAssinaturaQueryHandler>();
             bus.Register<ObterCertificadoVinculadoQuery, CertificadoVinculadoDto?, ObterCertificadoVinculadoQueryHandler>();
@@ -1452,12 +1444,8 @@ public static class Container
             bus.Register<AgendamentoCriadoEvent, EnfileirarAutomacaoAgendamentoCriadoHandler>();
             bus.Register<OrcamentoAprovadoEvent, EnfileirarAutomacaoOrcamentoAprovadoHandler>();
             bus.Register<LancamentoCriadoEvent, EnfileirarAutomacaoLancamentoCriadoHandler>();
-            // Fase 4 — Termos de consentimento (aceite público).
-            // Emissão com canal=email dispara envio ao paciente.
-            bus.Register<TermoEmitidoEvent, Imedto.Backend.Application.Termos.Events.EnviarEmailTermoLinkEventHandler>();
-            // Paciente assina/recusa → notificar emissor.
-            bus.Register<TermoAssinadoEvent, Imedto.Backend.Application.Termos.Events.NotificarEmissorTermoAssinadoEventHandler>();
-            bus.Register<TermoRecusadoEvent, Imedto.Backend.Application.Termos.Events.NotificarEmissorTermoRecusadoEventHandler>();
+            // Briefing 2026-06-12_002 — Termo físico. AceiteLink removido.
+            // TermoAssinadoEvent não tem handler registrado por ora (notificação é futura feature).
             return bus;
         });
     }

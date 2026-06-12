@@ -1,3 +1,4 @@
+using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Domain.Termos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -35,6 +36,16 @@ public class TermoEmitidoConfiguration : IEntityTypeConfiguration<TermoEmitido>
         builder.Property(t => t.EmitidoPorUsuarioId).HasColumnName("emitido_por_usuario_id").IsRequired();
         builder.Property(t => t.CriadoEm).HasColumnName("criado_em").IsRequired();
         builder.Property(t => t.AtualizadoEm).HasColumnName("atualizado_em");
+        builder.Property(t => t.EvolucaoId).HasColumnName("evolucao_id");
+
+        builder.HasOne<ProntuarioEvolucao>()
+            .WithMany()
+            .HasForeignKey(t => t.EvolucaoId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_termo_emitido_evolucao");
+
+        builder.HasIndex(t => t.EvolucaoId)
+            .HasDatabaseName("ix_termo_emitido_evolucao_id");
 
         builder.HasIndex(t => new { t.PacienteId, t.EstabelecimentoId, t.CriadoEm })
             .IsDescending(false, false, true)

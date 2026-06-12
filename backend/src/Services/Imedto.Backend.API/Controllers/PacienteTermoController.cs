@@ -71,10 +71,9 @@ public class PacienteTermoController : ControllerBase
     }
 
     /// <summary>
-    /// Emite um termo. Body: <c>{ modeloId, assinaturaTipo: "pdf_anexado" | "aceite_link", canalEnvio?: "email" | "copia" }</c>.
-    /// <para><c>canalEnvio</c> só é considerado quando <c>assinaturaTipo = aceite_link</c>:
-    /// "email" (default) dispara o envio automático; "copia" suprime o e-mail e retorna o token
-    /// para o emissor copiar o link.</para>
+    /// Emite um termo de consentimento (documento físico). Body: <c>{ modeloId, profissionalUsuarioId? }</c>.
+    /// O termo é criado com status Pendente. O documento assinado é enviado separadamente via
+    /// <c>POST /api/termos/{id}/pdf</c> (aceita JPG, PNG ou PDF).
     /// Idempotente via header <c>Idempotency-Key</c>.
     /// </summary>
     [HttpPost("api/pacientes/{pacienteId:long}/termos")]
@@ -91,19 +90,18 @@ public class PacienteTermoController : ControllerBase
             EmissorUsuarioId = _tenant.UsuarioId,
             ProfissionalUsuarioId = request.ProfissionalUsuarioId,
             ModeloId = request.ModeloId,
-            AssinaturaTipo = request.AssinaturaTipo,
-            CanalEnvio = string.IsNullOrWhiteSpace(request.CanalEnvio) ? "email" : request.CanalEnvio,
+            EvolucaoId = request.EvolucaoId,
         };
         await _commandBus.Send(cmd);
         return CreatedAtAction(nameof(Obter), new { pacienteId, id = cmd.TermoEmitidoId },
-            new
-            {
-                termoEmitidoId = cmd.TermoEmitidoId,
-                tokenAceite = cmd.TokenAceiteGerado, // null se pdf_anexado
-            });
+            new { termoEmitidoId = cmd.TermoEmitidoId });
     }
 
-    /// <summary>Upload do PDF assinado (multipart). Máximo 10 MB.</summary>
+    /// <summary>
+    /// Upload do documento assinado (multipart). Aceita PDF (application/pdf), JPG (image/jpeg)
+    /// ou PNG (image/png). Máximo 10 MB total. Imagens são convertidas para PDF multi-página
+    /// (frente + verso = 2 páginas) no backend via QuestPDF.
+    /// </summary>
     [HttpPost("api/termos/{id:long}/pdf")]
     [RequiresAcao("termos", "emitir")]
     [Idempotent]
@@ -111,23 +109,37 @@ public class PacienteTermoController : ControllerBase
     [RequestSizeLimit(12 * 1024 * 1024)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> AnexarPdf(long id, [FromForm] IFormFile arquivo)
+    public async Task<IActionResult> AnexarPdf(long id, [FromForm] IFormFileCollection arquivos)
     {
-        if (arquivo is null || arquivo.Length == 0)
+        if (arquivos is null || arquivos.Count == 0)
             return UnprocessableEntity(new { tipo = "ErroDeNegocio", mensagem = "Arquivo vazio." });
 
-        await using var stream = arquivo.OpenReadStream();
         var cmd = new AnexarPdfTermoCommand
         {
             TermoEmitidoId = id,
             EstabelecimentoId = _tenant.EstabelecimentoId,
             SolicitanteUsuarioId = _tenant.UsuarioId,
-            NomeOriginal = arquivo.FileName,
-            MimeType = arquivo.ContentType,
-            TamanhoBytes = arquivo.Length,
-            Conteudo = stream,
         };
-        await _commandBus.Send(cmd);
+
+        // Converte a coleção de IFormFile para lista de streams + mimes
+        var partes = new List<(Stream stream, string mime, long tamanho)>();
+        foreach (var arq in arquivos)
+        {
+            partes.Add((arq.OpenReadStream(), arq.ContentType ?? "", arq.Length));
+        }
+        cmd.Partes = partes;
+        cmd.TamanhoTotalBytes = arquivos.Sum(a => a.Length);
+
+        try
+        {
+            await _commandBus.Send(cmd);
+        }
+        finally
+        {
+            foreach (var (s, _, _) in partes)
+                await s.DisposeAsync();
+        }
+
         return StatusCode(StatusCodes.Status201Created, new
         {
             storagePath = cmd.StoragePath,
@@ -185,39 +197,10 @@ public class PacienteTermoController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// Reenvia o link público (Fase 4). Body: <c>{ canal?: "email" | "copia" }</c>.
-    /// <list type="bullet">
-    ///   <item>"email" (default): envia e-mail ao paciente. Cooldown de 5 min entre envios.</item>
-    ///   <item>"copia": não envia e-mail — só devolve o token pro front exibir/copiar.</item>
-    /// </list>
-    /// </summary>
-    [HttpPost("api/termos/{id:long}/reenviar-link")]
-    [RequiresAcao("termos", "emitir")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> ReenviarLink(long id, [FromBody] ReenviarLinkRequest request)
-    {
-        var cmd = new ReenviarLinkTermoCommand
-        {
-            TermoEmitidoId = id,
-            EstabelecimentoId = _tenant.EstabelecimentoId,
-            SolicitanteUsuarioId = _tenant.UsuarioId,
-            Canal = string.IsNullOrWhiteSpace(request?.Canal) ? "email" : request.Canal,
-        };
-        await _commandBus.Send(cmd);
-        return Ok(new
-        {
-            tokenAceite = cmd.TokenAceite,
-            canal = cmd.Canal,
-        });
-    }
 }
 
 public record EmitirTermoRequest(
     long ModeloId,
-    string AssinaturaTipo,
-    string CanalEnvio = "email",
-    Guid? ProfissionalUsuarioId = null);
+    Guid? ProfissionalUsuarioId = null,
+    long? EvolucaoId = null);
 public record RevogarTermoRequest(string Motivo);
-public record ReenviarLinkRequest(string Canal = "email");

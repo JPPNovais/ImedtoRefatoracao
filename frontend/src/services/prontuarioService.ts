@@ -1,4 +1,5 @@
 import httpClient from "./httpClient"
+import type { TermoEmitidoResumo } from "./pacienteTermoService"
 
 export interface ModeloProntuario {
     id: number
@@ -203,6 +204,21 @@ export const prontuarioService = {
     ): Promise<ProcedimentoIndicado[]> {
         const { data } = await httpClient.get<ProcedimentoIndicado[]>(
             `/paciente/${pacienteId}/prontuario/evolucoes/${evolucaoId}/procedimentos-indicados`,
+        )
+        return data
+    },
+
+    /**
+     * CA-C2 — Lista termos emitidos vinculados a uma evolução (exibição na timeline).
+     * Multi-tenant garantido pelo backend via tenant claim.
+     * Retorna [] quando não há termos vinculados.
+     */
+    async listarTermosDaEvolucao(
+        pacienteId: number,
+        evolucaoId: number,
+    ): Promise<TermoEmitidoResumo[]> {
+        const { data } = await httpClient.get<TermoEmitidoResumo[]>(
+            `/paciente/${pacienteId}/prontuario/evolucoes/${evolucaoId}/termos`,
         )
         return data
     },

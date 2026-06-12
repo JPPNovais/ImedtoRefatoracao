@@ -13,13 +13,6 @@ public sealed class TermoEmitidoRepository : ITermoEmitidoRepository
         _context.TermosEmitidos
             .FirstOrDefaultAsync(t => t.Id == id && t.EstabelecimentoId == estabelecimentoId);
 
-    public Task<TermoEmitido> ObterPorTokenOuNulo(string tokenAceite)
-    {
-        if (string.IsNullOrWhiteSpace(tokenAceite)) return Task.FromResult<TermoEmitido>(null);
-        return _context.TermosEmitidos
-            .FirstOrDefaultAsync(t => t.TokenAceite == tokenAceite && t.AssinaturaTipo == AssinaturaTipo.AceiteLink);
-    }
-
     public async Task Salvar(TermoEmitido termo)
     {
         if (termo.Id == 0)
@@ -31,10 +24,5 @@ public sealed class TermoEmitidoRepository : ITermoEmitidoRepository
         {
             _context.TermosEmitidos.Update(termo);
         }
-    }
-
-    public async Task SalvarAcessoLog(TermoEmitidoAcessoLog log)
-    {
-        await _context.TermosEmitidoAcessoLog.AddAsync(log);
     }
 }

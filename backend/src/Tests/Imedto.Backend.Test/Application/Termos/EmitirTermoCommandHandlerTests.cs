@@ -11,6 +11,12 @@ using NUnit.Framework;
 
 namespace Imedto.Backend.Test.Application.Termos;
 
+/// <summary>
+/// Testes do handler pós briefing 2026-06-12_002:
+/// - AssinaturaTipo fixo (PdfAnexado) — removido da emissão.
+/// - TokenAceiteGerado removido do command.
+/// - EvolucaoId adicionado ao command.
+/// </summary>
 [TestFixture]
 public class EmitirTermoCommandHandlerTests
 {
@@ -48,10 +54,10 @@ public class EmitirTermoCommandHandlerTests
             _texto.Object, _audit.Object, _eventBus.Object);
     }
 
-    private static Paciente PacienteAtivo(string email = "paciente@local")
+    private static Paciente PacienteAtivo()
     {
         var p = Paciente.Cadastrar(EstabId, "Paciente", null, null,
-            GeneroPaciente.NaoInformado, null, email, null, null);
+            GeneroPaciente.NaoInformado, null, "paciente@local", null, null);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, PacienteId);
         return p;
     }
@@ -63,40 +69,16 @@ public class EmitirTermoCommandHandlerTests
         return m;
     }
 
-    private EmitirTermoCommand Cmd(string tipo = "pdf_anexado") => new()
+    private EmitirTermoCommand Cmd(long? evolucaoId = null) => new()
     {
         PacienteId = PacienteId,
         EstabelecimentoId = EstabId,
         EmissorUsuarioId = _emissor,
         ModeloId = ModeloId,
-        AssinaturaTipo = tipo,
+        EvolucaoId = evolucaoId,
     };
 
-    [Test]
-    public async Task Handle_FluxoValido_PersisteSnapshotEPublicaEvento()
-    {
-        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
-        _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("<p>resolvido</p>");
-        _sanitizer.Setup(s => s.Sanitizar("<p>resolvido</p>")).Returns("<p>resolvido</p>");
-        _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("resolvido");
-        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
-            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 7L))
-            .Returns(Task.CompletedTask);
-
-        var cmd = Cmd();
-        await _sut.Handle(cmd);
-
-        Assert.That(cmd.TermoEmitidoId, Is.EqualTo(7L));
-        Assert.That(cmd.TokenAceiteGerado, Is.Null);
-        _eventBus.Verify(b => b.Publish(It.Is<IDomainEvent>(e => e is TermoEmitidoEvent)), Times.Once);
-        _audit.Verify(a => a.RegistrarAsync(EstabId, _emissor, "termo-emitido", "TermoEmitido", 7L,
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Test]
-    public async Task Handle_AssinaturaAceiteLink_GeraTokenEnoCommand()
+    private void SetupPacienteEModelo()
     {
         _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
         _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
@@ -104,15 +86,54 @@ public class EmitirTermoCommandHandlerTests
             .ReturnsAsync("<p>resolvido</p>");
         _sanitizer.Setup(s => s.Sanitizar(It.IsAny<string>())).Returns("<p>resolvido</p>");
         _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("resolvido");
-        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
-            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 8L))
-            .Returns(Task.CompletedTask);
+    }
 
-        var cmd = Cmd("aceite_link");
+    private void SetupSalvar(long id = 7L)
+    {
+        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
+            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, id))
+            .Returns(Task.CompletedTask);
+    }
+
+    // ── Fluxo válido ──────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task Handle_FluxoValido_PersisteSnapshotEPublicaEvento()
+    {
+        SetupPacienteEModelo();
+        SetupSalvar(7L);
+
+        var cmd = Cmd();
         await _sut.Handle(cmd);
 
-        Assert.That(cmd.TokenAceiteGerado, Is.Not.Null.And.Not.Empty);
+        Assert.That(cmd.TermoEmitidoId, Is.EqualTo(7L));
+        _eventBus.Verify(b => b.Publish(It.Is<IDomainEvent>(e => e is TermoEmitidoEvent)), Times.Once);
+        _audit.Verify(a => a.RegistrarAsync(EstabId, _emissor, "termo-emitido", "TermoEmitido", 7L,
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Test]
+    public async Task Handle_ComEvolucaoId_VinculaEvolucaoNoTermo()
+    {
+        SetupPacienteEModelo();
+        SetupSalvar(7L);
+
+        TermoEmitido? capturado = null;
+        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
+            .Callback<TermoEmitido>(t =>
+            {
+                typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 7L);
+                capturado = t;
+            })
+            .Returns(Task.CompletedTask);
+
+        var cmd = Cmd(evolucaoId: 42L);
+        await _sut.Handle(cmd);
+
+        Assert.That(capturado!.EvolucaoId, Is.EqualTo(42L));
+    }
+
+    // ── Erros de negócio ──────────────────────────────────────────────────────
 
     [Test]
     public void Handle_PacienteCrossTenant_LancaMensagemGenerica()
@@ -133,6 +154,8 @@ public class EmitirTermoCommandHandlerTests
         Assert.That(ex!.Message, Is.EqualTo("Modelo de termo não encontrado."));
     }
 
+    // ── Modelo padrão do sistema ───────────────────────────────────────────────
+
     [Test]
     public async Task Handle_ModeloPadraoDoSistema_AceitaEmissaoSemPrecisarClonar()
     {
@@ -146,26 +169,56 @@ public class EmitirTermoCommandHandlerTests
             .ReturnsAsync("<p>x</p>");
         _sanitizer.Setup(s => s.Sanitizar(It.IsAny<string>())).Returns("<p>x</p>");
         _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("x");
-        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
-            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 11L))
-            .Returns(Task.CompletedTask);
+        SetupSalvar(11L);
 
         await _sut.Handle(Cmd());
         _termoRepo.Verify(r => r.Salvar(It.IsAny<TermoEmitido>()), Times.Once);
     }
 
+    // ── Regressão: EvolucaoId não descartado no mapeamento controller→command ──
+
+    /// <summary>
+    /// Regressão do bug identificado pelo QA: EmitirTermoRequest não declarava EvolucaoId,
+    /// então o campo era descartado silenciosamente no controller antes de chegar ao handler.
+    /// Este teste valida que o aggregate persiste o EvolucaoId quando o command o carrega.
+    /// </summary>
     [Test]
-    public async Task Handle_SemProfissionalUsuarioId_NaoTrataEmissorComoProfissional()
+    public async Task Handle_EvolucaoIdNoCommand_ChegaNoAggregateEEhPersistido()
     {
-        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
-        _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync("<p>x</p>");
-        _sanitizer.Setup(s => s.Sanitizar(It.IsAny<string>())).Returns("<p>x</p>");
-        _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("x");
+        SetupPacienteEModelo();
+
+        TermoEmitido? capturado = null;
         _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
-            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 1L))
+            .Callback<TermoEmitido>(t =>
+            {
+                typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 99L);
+                capturado = t;
+            })
             .Returns(Task.CompletedTask);
+
+        // Simula o payload que o controller montaria ao receber EvolucaoId=55 do frontend.
+        var cmd = new EmitirTermoCommand
+        {
+            PacienteId = PacienteId,
+            EstabelecimentoId = EstabId,
+            EmissorUsuarioId = _emissor,
+            ModeloId = ModeloId,
+            EvolucaoId = 55L,
+        };
+        await _sut.Handle(cmd);
+
+        Assert.That(capturado, Is.Not.Null, "Aggregate deve ter sido salvo.");
+        Assert.That(capturado!.EvolucaoId, Is.EqualTo(55L),
+            "EvolucaoId deve chegar ao aggregate sem ser descartado.");
+    }
+
+    // ── Profissional ──────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task Handle_SemProfissionalUsuarioId_NaoValidaVinculo()
+    {
+        SetupPacienteEModelo();
+        SetupSalvar(1L);
 
         ContextoDeVariaveis? capturado = null;
         _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))
@@ -174,8 +227,7 @@ public class EmitirTermoCommandHandlerTests
 
         await _sut.Handle(Cmd());
 
-        Assert.That(capturado!.ProfissionalUsuarioId, Is.Null,
-            "Emissor não pode virar profissional automaticamente — fallback é responsabilidade do resolver.");
+        Assert.That(capturado!.ProfissionalUsuarioId, Is.Null);
         _vinculoRepo.Verify(v => v.PodeAtuarComoProfissional(It.IsAny<Guid>(), It.IsAny<long>()), Times.Never);
     }
 
@@ -183,14 +235,9 @@ public class EmitirTermoCommandHandlerTests
     public async Task Handle_ComProfissionalUsuarioIdValido_ValidaVinculoEPropaga()
     {
         var profissionalId = Guid.NewGuid();
-        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabId)).ReturnsAsync(PacienteAtivo());
-        _modeloRepo.Setup(r => r.ObterPorIdDoEstabelecimentoOuNulo(ModeloId, EstabId)).ReturnsAsync(ModeloAtivo());
+        SetupPacienteEModelo();
         _vinculoRepo.Setup(v => v.PodeAtuarComoProfissional(profissionalId, EstabId)).ReturnsAsync(true);
-        _sanitizer.Setup(s => s.Sanitizar(It.IsAny<string>())).Returns("<p>x</p>");
-        _texto.Setup(t => t.Extrair(It.IsAny<string>())).Returns("x");
-        _termoRepo.Setup(r => r.Salvar(It.IsAny<TermoEmitido>()))
-            .Callback<TermoEmitido>(t => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(t, 2L))
-            .Returns(Task.CompletedTask);
+        SetupSalvar(2L);
 
         ContextoDeVariaveis? capturado = null;
         _resolver.Setup(r => r.ResolverAsync(It.IsAny<string>(), It.IsAny<ContextoDeVariaveis>(), It.IsAny<CancellationToken>()))

@@ -86,16 +86,25 @@ A tabela `prontuario_variaveis_pool` guarda nomes genéricos de itens clínicos 
 - **Dedup canônica é LGPD-segura.** A normalização (trim + lower + sem acento) ocorre em memória antes de criar item; não persiste a forma bruta digitada pelo profissional quando colide com existente.
 - **Sem PII em log.** Nenhum campo livre (que pode conter nome/contexto do paciente) transita por `_logger.*`. `PoolExtratorEvolucao` opera em silêncio — falha-suave sem log de dados da evolução.
 
-## PDF probatório de termo de consentimento — briefing 2026-06-10_002
+## PDF probatório de termo de consentimento — briefing 2026-06-10_002 (atualizado em 2026-06-12_002)
 
-Geração server-side do documento probatório de aceite digital do termo de consentimento.
+Geração server-side do documento probatório do termo de consentimento.
 
-- **Endpoint**: `GET /api/termos/{id}/pdf-gerado` — gera e devolve `application/pdf` com o snapshot da versão aceita + bloco de evidência do aceite. Gate: `[RequiresAcao("termos", "emitir")]`.
-- **Token de aceite**: nunca exposto completo no PDF. O bloco de evidência exibe apenas os **últimos 6 caracteres** (`TokenAceite[^6..]`) e o **hash SHA-256** (`HashIntegridade`). O token completo nunca transita em payload, log ou PDF.
+- **Endpoint**: `GET /api/termos/{id}/pdf-gerado` — gera e devolve `application/pdf` com o snapshot da versão aceita + bloco de evidência. Gate: `[RequiresAcao("termos", "emitir")]`.
+- **Bloco de evidência por estado (briefing 2026-06-12_002)**: termo `Assinado` por **documento físico** (foto/PDF anexado) exibe o **hash do PDF anexado** (`PdfHash`) como evidência de integridade — **sem** token/IP de aceite público. Termo legado `Assinado` por **link** (histórico) preserva a evidência antiga: **últimos 6 caracteres** do token (`TokenAceite[^6..]`) + **hash SHA-256** do conteúdo (`HashIntegridade`). O token completo **nunca** transita em payload, log ou PDF.
 - **Audit**: cada geração bem-sucedida registra 1 linha em `termo_audit_log` via `ITermoAuditLogger` com `{ estabelecimento_id, usuario_id, acao = "termo-pdf-gerado", entidade = "TermoEmitido", entidade_id }`. O audit é **best-effort** — falha não bloqueia o download do PDF.
 - **Minimização — nome do arquivo**: `Content-Disposition` usa `termo-{id}.pdf` — sem nome/CPF/dados do paciente.
-- **Dados degradados graciosamente**: `IpAssinatura`/`UserAgentAssinatura` nulos (termos antigos) são omitidos do bloco de evidência sem quebrar o documento. Todos os campos opcionais fazem null-check antes de renderizar.
+- **Dados degradados graciosamente**: campos opcionais nulos (`IpAssinatura`/`UserAgentAssinatura` de termos antigos) são omitidos do bloco de evidência sem quebrar o documento (null-check antes de renderizar).
 - **Multi-tenant**: query filtra `estabelecimento_id = @EstabelecimentoId`; termo de outro tenant → `BusinessException("Termo não encontrado.")` (mensagem genérica — não vaza existência).
+
+## Termo de consentimento físico-primeiro — remoção do aceite por link (briefing 2026-06-12_002)
+
+O **aceite por link público de termo foi removido** por completo (endpoint anônimo `*/publico/termos/aceite/{token}`, e-mail de link, reenvio, recusa e expiração por link). Implicações LGPD:
+
+- **`termo_emitido_acesso_log` passa a ser tabela legada**: deixa de receber novas escritas (a fonte — visualização/aceite/recusa públicos via token — não existe mais). **Não é dropada** — o histórico de acessos públicos já registrado é dado de auditoria LGPD. O relatório de acessos ao titular (briefing 2026-06-10_007) já a excluía do MVP. Drop é backlog separado.
+- **Anexo de documento físico** (foto JPG/PNG convertida em PDF, ou PDF direto): validação por **magic bytes reais** (não por extensão/MIME declarado — iPhone pode enviar HEIC com extensão `.jpg`; HEIC é rejeitado com 422 orientando converter). Nome do arquivo no S3 é gerado por **GUID** (`termos/est_{id}/{termoId}_{guid}.pdf`) — sem nome/CPF do paciente; o nome de origem do usuário **não** é persistido em coluna nem em log. Hash SHA-256 do PDF resultante registrado como evidência de integridade.
+- **Audit em dois trilhos no anexo pela evolução**: além de `termo_audit_log` (`termo-pdf-anexado`), o anexo feito **dentro da evolução do prontuário** registra 1 linha de **escrita** em `prontuario_acesso_log` via `IProntuarioAcessoLogService.RegistrarAsync(..., TipoAcessoProntuario.Escrita)` — anexar documento ao prontuário é escrita sensível. Ambos best-effort (falha não bloqueia o anexo).
+- **Mensagens genéricas**: todos os 422 de upload (tipo inválido, magic bytes divergentes, HEIC, tamanho) são genéricos, sem PII e sem ecoar o nome do arquivo.
 
 ## Relatório de acessos ao titular (Art. 9º/18) — briefing 2026-06-10_007
 

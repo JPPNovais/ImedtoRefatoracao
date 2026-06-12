@@ -20,7 +20,7 @@ namespace Imedto.Backend.Test.Integration;
 
 /// <summary>
 /// End-to-end Postgres real: cria modelo, lista, emite termo, valida multi-tenant.
-/// Cobre o ciclo principal definido na spec da Fase 1.
+/// Atualizado para briefing 2026-06-12_002 (AceiteLink removido, EvolucaoId adicionado).
 /// </summary>
 [TestFixture]
 public class TermosIntegrationTests : IntegrationTestBase
@@ -124,7 +124,6 @@ public class TermosIntegrationTests : IntegrationTestBase
                 EstabelecimentoId = estabId,
                 EmissorUsuarioId = donoId,
                 ModeloId = modelo.Id,
-                AssinaturaTipo = "pdf_anexado",
             };
             await sut.Handle(cmd);
             await ctx.SaveChangesAsync();
@@ -139,6 +138,7 @@ public class TermosIntegrationTests : IntegrationTestBase
             {
                 Assert.That(t.PacienteId, Is.EqualTo(pacienteId));
                 Assert.That(t.Status, Is.EqualTo(StatusTermoEmitido.Pendente));
+                Assert.That(t.AssinaturaTipo, Is.EqualTo(AssinaturaTipo.PdfAnexado));
                 Assert.That(t.HashIntegridade, Has.Length.EqualTo(64));
                 // Snapshot resolvido — paciente "Paciente Teste" foi substituído.
                 Assert.That(t.ConteudoSnapshotHtml, Does.Contain("Paciente Teste"));
@@ -229,7 +229,6 @@ public class TermosIntegrationTests : IntegrationTestBase
                 EstabelecimentoId = estabA,
                 EmissorUsuarioId = donoA,
                 ModeloId = modeloId,
-                AssinaturaTipo = "pdf_anexado",
             }));
             Assert.That(ex!.Message, Is.EqualTo("Paciente não encontrado."));
         }
@@ -250,8 +249,7 @@ public class TermosIntegrationTests : IntegrationTestBase
             ctx.TermosModelo.Add(modeloB);
             await ctx.SaveChangesAsync();
 
-            var termo = TermoEmitido.Emitir(pacienteB, estabB, modeloB.Id, 1, "<p>x</p>", "x",
-                AssinaturaTipo.PdfAnexado, donoB, TimeSpan.FromDays(7));
+            var termo = TermoEmitido.Emitir(pacienteB, estabB, modeloB.Id, 1, "<p>x</p>", "x", donoB);
             ctx.TermosEmitidos.Add(termo);
             await ctx.SaveChangesAsync();
             // Assinar pra ficar revogável.

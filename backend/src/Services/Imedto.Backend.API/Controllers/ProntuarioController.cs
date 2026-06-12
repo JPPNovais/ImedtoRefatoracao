@@ -4,6 +4,8 @@ using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
+using Imedto.Backend.Contracts.Termos.Dtos;
+using Imedto.Backend.Contracts.Termos.Queries;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Tenancy;
 
@@ -186,6 +188,25 @@ public class ProntuarioController : ControllerBase
             SolicitanteUsuarioId = _tenant.UsuarioId
         });
         return NoContent();
+    }
+
+    /// <summary>
+    /// Lista termos emitidos vinculados a uma evolução específica — exibidos na timeline
+    /// da evolução (CA-C2). Multi-tenant: filtra por estabelecimentoId do tenant claim.
+    /// Retorna lista vazia quando a evolução não tem termos vinculados.
+    /// </summary>
+    [HttpGet("evolucoes/{evolucaoId:long}/termos")]
+    [ProducesResponseType(typeof(IReadOnlyList<TermoEmitidoResumoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarTermosDaEvolucao(long pacienteId, long evolucaoId)
+    {
+        var itens = await _requestBus.Query<ListarTermosDaEvolucaoQuery, IReadOnlyList<TermoEmitidoResumoDto>>(
+            new ListarTermosDaEvolucaoQuery
+            {
+                EvolucaoId = evolucaoId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+            });
+        return Ok(itens);
     }
 }
 

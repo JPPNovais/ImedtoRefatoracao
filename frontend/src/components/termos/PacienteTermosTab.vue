@@ -15,7 +15,6 @@ import { CATEGORIAS_TERMO } from "@/constants/termoVariaveis"
 import EmitirTermoModal from "./EmitirTermoModal.vue"
 import TermoVisualizacaoDrawer from "./TermoVisualizacaoDrawer.vue"
 import { useTermoPdf } from "@/composables/useTermoPdf"
-import { montarUrlAceitePublico } from "@/services/termoAceitePublicoService"
 import type { Paciente } from "@/services/pacienteService"
 
 /**
@@ -169,13 +168,6 @@ const { gerarPdf } = useTermoPdf()
 async function onEmitido(payload: { termoEmitidoId: number; modeloTitulo: string }) {
     // Recarrega lista pra mostrar o novo item (rápido — lista é pequena).
     await carregar()
-    // Quando o termo recém-emitido é aceite_link, o próprio modal exibe a tela
-    // de confirmação com o link/cópia — não geramos PDF de impressão aqui.
-    const recem = termos.value.find(t => t.id === payload.termoEmitidoId)
-    if (recem?.assinaturaTipo === "AceiteLink") {
-        emit("notificar", `Termo "${payload.modeloTitulo}" emitido.`, "success")
-        return
-    }
     emit("notificar", `Termo "${payload.modeloTitulo}" emitido. Baixando PDF para impressão…`, "success")
     try {
         const detalhe = await pacienteTermoService.obter(props.paciente.id, payload.termoEmitidoId)
@@ -228,7 +220,7 @@ async function baixarPdfGerado(t: TermoEmitidoResumo) {
     }
 }
 
-// Upload manual de PDF assinado
+// Upload do documento assinado (PDF, JPG ou PNG). Aceita 1-2 arquivos.
 function abrirSeletorPdf(t: TermoEmitidoResumo) {
     termoParaAnexar.value = t
     fileInput.value?.click()
@@ -236,67 +228,19 @@ function abrirSeletorPdf(t: TermoEmitidoResumo) {
 
 async function onArquivoSelecionado(ev: Event) {
     const input = ev.target as HTMLInputElement
-    const arquivo = input.files?.[0]
+    const arquivos = Array.from(input.files ?? [])
     input.value = "" // reset pra permitir reescolher o mesmo arquivo
     const t = termoParaAnexar.value
     termoParaAnexar.value = null
-    if (!arquivo || !t) return
-    if (arquivo.type && arquivo.type !== "application/pdf") {
-        emit("notificar", "Selecione um arquivo PDF.", "error")
-        return
-    }
+    if (!arquivos.length || !t) return
     if (acaoEmAndamentoId.value !== null) return
     acaoEmAndamentoId.value = t.id
     try {
-        await pacienteTermoService.anexarPdf(t.id, arquivo)
-        emit("notificar", "PDF anexado. Termo marcado como assinado.", "success")
+        await pacienteTermoService.anexarPdf(t.id, arquivos)
+        emit("notificar", "Documento anexado. Termo marcado como assinado.", "success")
         await carregar()
     } catch (e: any) {
-        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao anexar PDF.", "error")
-    } finally {
-        acaoEmAndamentoId.value = null
-    }
-}
-
-// ─── Ações específicas de aceite_link (Fase 4) ────────────────────────────
-const pacienteSemEmail = computed(() => !props.paciente?.email?.trim())
-
-/**
- * Copia o link público do termo. Como o token NÃO é exposto na listagem (LGPD),
- * pegamos via `reenviarLink(canal: "copia")` — endpoint sem cooldown que
- * devolve o token atual do termo sem enviar e-mail.
- */
-async function copiarLinkAceite(t: TermoEmitidoResumo) {
-    if (acaoEmAndamentoId.value !== null) return
-    acaoEmAndamentoId.value = t.id
-    try {
-        const r = await pacienteTermoService.reenviarLink(t.id, "copia")
-        const url = montarUrlAceitePublico(r.tokenAceite)
-        try {
-            await navigator.clipboard.writeText(url)
-            emit("notificar", "Link copiado.", "success")
-        } catch {
-            // Sem clipboard API (http não-seguro ou bloqueio do browser):
-            // mostra a URL no toast pro usuário copiar manualmente.
-            emit("notificar", `Copie manualmente: ${url}`, "info")
-        }
-    } catch (e: any) {
-        emit("notificar", e?.response?.data?.mensagem ?? "Não foi possível obter o link.", "error")
-    } finally {
-        acaoEmAndamentoId.value = null
-    }
-}
-
-async function reenviarEmailAceite(t: TermoEmitidoResumo) {
-    if (acaoEmAndamentoId.value !== null) return
-    acaoEmAndamentoId.value = t.id
-    try {
-        await pacienteTermoService.reenviarLink(t.id, "email")
-        emit("notificar", "E-mail reenviado.", "success")
-    } catch (e: any) {
-        // O backend devolve 422 com mensagem amigável quando dentro do cooldown
-        // ("Aguarde X minutos antes de reenviar."). Exibe a mensagem dele.
-        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao reenviar e-mail.", "error")
+        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao anexar documento.", "error")
     } finally {
         acaoEmAndamentoId.value = null
     }
@@ -468,28 +412,6 @@ onMounted(() => {
                             <i class="fa-solid fa-lock"></i>
                         </button>
 
-                        <!-- Fase 4: aceite_link pendente — copiar link público -->
-                        <button
-                            v-if="podeEmitir && t.status === 'Pendente' && t.assinaturaTipo === 'AceiteLink'"
-                            class="btn-icon"
-                            title="Copiar link de aceite"
-                            :disabled="acaoEmAndamentoId === t.id"
-                            @click="copiarLinkAceite(t)"
-                        >
-                            <i class="fa-solid fa-link"></i>
-                        </button>
-
-                        <!-- Fase 4: aceite_link pendente + paciente com e-mail — reenviar -->
-                        <button
-                            v-if="podeEmitir && t.status === 'Pendente' && t.assinaturaTipo === 'AceiteLink' && !pacienteSemEmail"
-                            class="btn-icon"
-                            title="Reenviar e-mail de aceite"
-                            :disabled="acaoEmAndamentoId === t.id"
-                            @click="reenviarEmailAceite(t)"
-                        >
-                            <i class="fa-solid fa-envelope"></i>
-                        </button>
-
                         <!-- Revogar: só assinados, gated por gerenciar_modelos -->
                         <button
                             v-if="podeRevogar && t.status === 'Assinado'"
@@ -546,11 +468,12 @@ onMounted(() => {
             <p class="msg-mini">Mínimo 10, máximo 500 caracteres.</p>
         </AppConfirmDialog>
 
-        <!-- File input invisível para anexar PDF -->
+        <!-- File input invisível para anexar documento (PDF, JPG ou PNG — até 2 arquivos) -->
         <input
             ref="fileInput"
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,image/jpeg,image/png"
+            multiple
             class="visually-hidden"
             @change="onArquivoSelecionado"
         />

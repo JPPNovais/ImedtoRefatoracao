@@ -9,7 +9,6 @@ import { useProfissionalStore } from "@/stores/profissionalStore"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { termoModeloService, type TermoModeloDto } from "@/services/termoModeloService"
 import { pacienteTermoService } from "@/services/pacienteTermoService"
-import { montarUrlAceitePublico } from "@/services/termoAceitePublicoService"
 import { profissionalService } from "@/services/profissionalService"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { resolverVariaveis, type ContextoResolucaoTermo } from "@/utils/termoResolverVariaveis"
@@ -18,21 +17,25 @@ import type { Paciente } from "@/services/pacienteService"
 import type { CategoriaTermo } from "@/services/termoModeloService"
 
 /**
- * Wizard de 3 passos pra emitir um termo de consentimento ao paciente:
+ * Wizard de 2 passos para emitir um termo de consentimento ao paciente:
  *   1. Selecionar modelo (cards filtráveis por categoria + busca)
- *   2. Preview com variáveis resolvidas client-side
- *   3. Forma de assinatura (PDF físico recomendado; aceite por link na Fase 4)
+ *   2. Preview com variáveis resolvidas client-side + confirmar
+ *
+ * Briefing 2026-06-12_002: AceiteLink removido. O único fluxo é PdfAnexado
+ * (documento físico). O passo 3 de escolha de assinatura foi removido.
  *
  * Após confirmação, chama `POST /api/pacientes/{id}/termos` e emite evento
  * `emitido` para o pai (que tipicamente baixa o PDF para impressão e atualiza
  * a lista).
- *
- * Carregamento de modelos é lazy: só dispara ao abrir o modal. Lista de
- * estabelecimento/profissional usa stores já hidratadas (sem custo extra).
  */
 const props = defineProps<{
     aberto:   boolean
     paciente: Paciente | null
+    /**
+     * Quando fornecido, vincula o termo emitido à evolução (CA-C1).
+     * O backend registra evolucaoId em termo_emitido.evolucao_id.
+     */
+    evolucaoId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -43,9 +46,7 @@ const emit = defineEmits<{
 }>()
 
 // ─── Estado do wizard ──────────────────────────────────────────────────────
-// Passo 4 = confirmação pós-emissão de aceite_link (mostra link + copiar).
-// O fluxo pdf_anexado nunca chega ao passo 4 — fecha o modal direto no emit.
-const passo = ref<1 | 2 | 3 | 4>(1)
+const passo = ref<1 | 2>(1)
 const emitindo = ref(false)
 const erro = ref<string | null>(null)
 
@@ -62,39 +63,17 @@ const carregandoContexto = ref(false)
 const estabelecimentoAtivo = ref<Estabelecimento | null>(null)
 const profissionalAtivo = ref<{ nome: string | null; conselho: string | null; uf: string | null; numeroRegistro: string | null; especialidade: string | null } | null>(null)
 
-const tipoAssinatura = ref<"pdf_anexado" | "aceite_link">("pdf_anexado")
-const canalEnvio = ref<"email" | "copia">("email")
-
-// Estado da tela de confirmação (passo 4 — só aceite_link)
-const linkGerado = ref<string | null>(null)
-const linkCopiado = ref(false)
-const canalEnvioConfirmado = ref<"email" | "copia">("email")
-
-const pacienteSemEmail = computed(() => !props.paciente?.email?.trim())
-
 // ─── Reset ao abrir/fechar ────────────────────────────────────────────────
 watch(() => props.aberto, (aberto) => {
     if (aberto) {
         passo.value = 1
         erro.value = null
         modeloSelecionado.value = null
-        tipoAssinatura.value = "pdf_anexado"
-        canalEnvio.value = "email"
-        linkGerado.value = null
-        linkCopiado.value = false
         filtroBuscaInput.value = ""
         filtroCategoria.value = "todas"
         carregarModelos()
     }
 }, { immediate: true })
-
-// Quando o emissor escolhe aceite_link mas o paciente não tem e-mail,
-// já força "copia" pra evitar enviar à API um canalEnvio inviável.
-watch(tipoAssinatura, (novo) => {
-    if (novo === "aceite_link" && pacienteSemEmail.value) {
-        canalEnvio.value = "copia"
-    }
-})
 
 // ─── Passo 1 — modelos ─────────────────────────────────────────────────────
 async function carregarModelos() {
@@ -103,7 +82,7 @@ async function carregarModelos() {
         const r = await termoModeloService.listarModelos({
             somenteAtivos: true,
             incluirPadroes: true,
-            tamanho: 100, // a lista é pequena no MVP; 1 página
+            tamanho: 100,
         })
         modelos.value = r.itens
     } catch (e: any) {
@@ -181,7 +160,7 @@ const nomePacienteVazio = computed(() => {
     return !nome
 })
 
-// ─── Carregamento de contexto ao avançar do passo 1 → 2 ────────────────────
+// ─── Carregamento de contexto ao avançar passo 1 → 2 ──────────────────────
 async function carregarContexto() {
     carregandoContexto.value = true
     try {
@@ -192,21 +171,16 @@ async function carregarContexto() {
         const tenant = useTenantStore()
         estabelecimentoAtivo.value = ests.find(e => e.id === tenant.estabelecimentoAtivoId) ?? null
 
-        if (perfil) {
-            const auth = useAuthStore()
-            profissionalAtivo.value = {
-                nome: auth.usuario?.nomeCompleto ?? null,
-                conselho: perfil.conselho,
-                uf: perfil.uf,
-                numeroRegistro: perfil.numeroRegistro,
-                especialidade: perfil.especialidade,
-            }
-        } else {
-            const auth = useAuthStore()
-            profissionalAtivo.value = {
-                nome: auth.usuario?.nomeCompleto ?? null,
-                conselho: null, uf: null, numeroRegistro: null, especialidade: null,
-            }
+        const auth = useAuthStore()
+        profissionalAtivo.value = perfil ? {
+            nome: auth.usuario?.nomeCompleto ?? null,
+            conselho: perfil.conselho,
+            uf: perfil.uf,
+            numeroRegistro: perfil.numeroRegistro,
+            especialidade: perfil.especialidade,
+        } : {
+            nome: auth.usuario?.nomeCompleto ?? null,
+            conselho: null, uf: null, numeroRegistro: null, especialidade: null,
         }
     } finally {
         carregandoContexto.value = false
@@ -220,14 +194,12 @@ async function avancar() {
         if (!modeloSelecionado.value) return
         await carregarContexto()
         passo.value = 2
-    } else if (passo.value === 2) {
-        passo.value = 3
     }
 }
 
 function voltar() {
     erro.value = null
-    if (passo.value > 1) passo.value = (passo.value - 1) as 1 | 2 | 3
+    if (passo.value > 1) passo.value = (passo.value - 1) as 1 | 2
 }
 
 function fechar() {
@@ -243,38 +215,13 @@ async function emitir() {
         erro.value = "Paciente sem nome — não é possível emitir o termo."
         return
     }
-    // Validação UX (back é fonte da verdade — 422 se o paciente não tiver e-mail).
-    if (tipoAssinatura.value === "aceite_link" && canalEnvio.value === "email" && pacienteSemEmail.value) {
-        erro.value = "Paciente sem e-mail cadastrado — escolha “Apenas copiar link” ou cadastre o e-mail."
-        return
-    }
     emitindo.value = true
     erro.value = null
     try {
         const r = await pacienteTermoService.emitir(props.paciente.id, {
             modeloId: modeloSelecionado.value.id,
-            assinaturaTipo: tipoAssinatura.value,
-            ...(tipoAssinatura.value === "aceite_link"
-                ? { canalEnvio: canalEnvio.value }
-                : {}),
+            evolucaoId: props.evolucaoId ?? null,
         })
-
-        if (tipoAssinatura.value === "aceite_link" && r.tokenAceite) {
-            // Para aceite_link, NÃO fecha imediato — mostra tela de confirmação
-            // com o link e botão "Copiar". O `emitido` é emitido pra view pai
-            // atualizar a lista, mas o modal segue aberto.
-            linkGerado.value = montarUrlAceitePublico(r.tokenAceite)
-            canalEnvioConfirmado.value = canalEnvio.value
-            linkCopiado.value = false
-            emit("emitido", {
-                termoEmitidoId: r.termoEmitidoId,
-                modeloTitulo: modeloSelecionado.value.titulo,
-            })
-            passo.value = 4
-            return
-        }
-
-        // pdf_anexado: comportamento legado — emite e fecha; a view pai baixa o PDF.
         emit("emitido", {
             termoEmitidoId: r.termoEmitidoId,
             modeloTitulo: modeloSelecionado.value.titulo,
@@ -288,26 +235,7 @@ async function emitir() {
     }
 }
 
-async function copiarLink() {
-    if (!linkGerado.value) return
-    try {
-        await navigator.clipboard.writeText(linkGerado.value)
-        linkCopiado.value = true
-        window.setTimeout(() => { linkCopiado.value = false }, 2400)
-    } catch {
-        // Fallback: seleciona o texto pra usuário copiar manualmente.
-        const el = document.getElementById("link-aceite-gerado") as HTMLInputElement | null
-        el?.select()
-    }
-}
-
-function fecharAposSucesso() {
-    emit("update:aberto", false)
-    emit("fechar")
-}
-
-// ─── Ferramentas auxiliares (necessárias para o profissionalStore) ─────────
-// Garante que o store esteja populado se a tela for aberta antes do bootstrap.
+// Garante store hidratada antes de o modal abrir.
 const _profStore = useProfissionalStore()
 if (!_profStore.carregado) {
     void _profStore.init()
@@ -316,16 +244,13 @@ if (!_profStore.carregado) {
 
 <template>
     <AppModal :aberto="aberto" titulo="Emitir termo de consentimento" largura="lg" @fechar="fechar">
-        <!-- Stepper (oculto na tela final de sucesso pra dar destaque ao link) -->
-        <div v-if="passo < 4" class="et-stepper">
+        <!-- Stepper -->
+        <div class="et-stepper">
             <div class="et-step" :class="{ ativo: passo === 1, concluido: passo > 1 }">
                 <span class="num">1</span>Modelo
             </div>
-            <div class="et-step" :class="{ ativo: passo === 2, concluido: passo > 2 }">
-                <span class="num">2</span>Preview
-            </div>
-            <div class="et-step" :class="{ ativo: passo === 3 }">
-                <span class="num">3</span>Confirmar
+            <div class="et-step" :class="{ ativo: passo === 2 }">
+                <span class="num">2</span>Preview e confirmar
             </div>
         </div>
 
@@ -363,7 +288,7 @@ if (!_profStore.carregado) {
             </ul>
         </section>
 
-        <!-- Passo 2: Preview -->
+        <!-- Passo 2: Preview + confirmar -->
         <section v-else-if="passo === 2" class="et-pane et-preview">
             <p v-if="carregandoContexto" class="msg">Preparando preview…</p>
             <template v-else>
@@ -389,144 +314,53 @@ if (!_profStore.carregado) {
                         <p v-else class="msg-mini">Este modelo não usa variáveis.</p>
                     </aside>
                 </div>
+
+                <!-- Resumo da emissão -->
+                <div v-if="modeloSelecionado" class="et-resumo">
+                    <h5>Resumo da emissão</h5>
+                    <dl>
+                        <div>
+                            <dt>Paciente</dt>
+                            <dd>{{ paciente?.nomeCompleto }}</dd>
+                        </div>
+                        <div>
+                            <dt>Modelo</dt>
+                            <dd>{{ modeloSelecionado.titulo }} (v{{ modeloSelecionado.versaoAtual }})</dd>
+                        </div>
+                        <div>
+                            <dt>Categoria</dt>
+                            <dd>{{ labelCategoria(modeloSelecionado.categoria) }}</dd>
+                        </div>
+                        <div>
+                            <dt>Assinatura</dt>
+                            <dd>Documento físico (foto ou PDF)</dd>
+                        </div>
+                    </dl>
+                </div>
             </template>
-        </section>
-
-        <!-- Passo 3: Forma de assinatura -->
-        <section v-else-if="passo === 3" class="et-pane et-confirmar">
-            <h4>Como o paciente vai assinar?</h4>
-            <div class="et-tipos">
-                <label
-                    class="et-tipo"
-                    :class="{ ativo: tipoAssinatura === 'pdf_anexado' }"
-                >
-                    <input v-model="tipoAssinatura" type="radio" value="pdf_anexado" />
-                    <div class="et-tipo-body">
-                        <div class="et-tipo-head">
-                            <i class="fa-solid fa-print"></i>
-                            <b>Gerar PDF para assinatura física</b>
-                            <span class="et-rec">Recomendado</span>
-                        </div>
-                        <p>Você imprime, o paciente assina e depois você anexa o PDF assinado pelo botão na lista.</p>
-                    </div>
-                </label>
-
-                <label
-                    class="et-tipo"
-                    :class="{ ativo: tipoAssinatura === 'aceite_link' }"
-                >
-                    <input v-model="tipoAssinatura" type="radio" value="aceite_link" />
-                    <div class="et-tipo-body">
-                        <div class="et-tipo-head">
-                            <i class="fa-solid fa-link"></i>
-                            <b>Enviar link de aceite</b>
-                        </div>
-                        <p>O paciente recebe (ou você copia) um link e aceita digitalmente. O link vale 30 dias.</p>
-
-                        <!-- Sub-opções do canal — visível só quando este tipo está selecionado -->
-                        <div v-if="tipoAssinatura === 'aceite_link'" class="et-subop">
-                            <label class="et-radio-mini" :class="{ desabilitado: pacienteSemEmail }">
-                                <input
-                                    v-model="canalEnvio"
-                                    type="radio"
-                                    value="email"
-                                    :disabled="pacienteSemEmail"
-                                />
-                                <span>
-                                    Enviar por e-mail
-                                    <small v-if="pacienteSemEmail" class="et-aviso-mini">
-                                        — paciente sem e-mail cadastrado
-                                    </small>
-                                    <small v-else-if="paciente?.email" class="et-email-mini">
-                                        ({{ paciente.email }})
-                                    </small>
-                                </span>
-                            </label>
-                            <label class="et-radio-mini">
-                                <input v-model="canalEnvio" type="radio" value="copia" />
-                                <span>Apenas copiar link (sem enviar e-mail)</span>
-                            </label>
-                        </div>
-                    </div>
-                </label>
-            </div>
-
-            <div v-if="modeloSelecionado" class="et-resumo">
-                <h5>Resumo da emissão</h5>
-                <dl>
-                    <div>
-                        <dt>Paciente</dt>
-                        <dd>{{ paciente?.nomeCompleto }}</dd>
-                    </div>
-                    <div>
-                        <dt>Modelo</dt>
-                        <dd>{{ modeloSelecionado.titulo }} (v{{ modeloSelecionado.versaoAtual }})</dd>
-                    </div>
-                    <div>
-                        <dt>Categoria</dt>
-                        <dd>{{ labelCategoria(modeloSelecionado.categoria) }}</dd>
-                    </div>
-                </dl>
-            </div>
-        </section>
-
-        <!-- Passo 4: Confirmação pós-emissão (só aceite_link) -->
-        <section v-else class="et-pane et-sucesso">
-            <i class="fa-solid fa-circle-check et-sucesso-icone" aria-hidden="true"></i>
-            <h4>Link de aceite gerado</h4>
-            <p v-if="canalEnvioConfirmado === 'email'">
-                E-mail enviado para <b>{{ paciente?.email }}</b>. O paciente tem 30 dias para responder.
-            </p>
-            <p v-else>
-                Compartilhe o link abaixo com o paciente. Validade: 30 dias.
-            </p>
-
-            <div class="et-link-box">
-                <input
-                    id="link-aceite-gerado"
-                    :value="linkGerado"
-                    readonly
-                    class="et-link-input"
-                    aria-label="Link de aceite gerado"
-                    @focus="($event.target as HTMLInputElement).select()"
-                />
-                <AppButton
-                    variant="secondary"
-                    :icon="linkCopiado ? 'fa-solid fa-check' : 'fa-regular fa-copy'"
-                    @click="copiarLink"
-                >
-                    {{ linkCopiado ? "Copiado" : "Copiar" }}
-                </AppButton>
-            </div>
         </section>
 
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
         <template #rodape>
-            <!-- Passo 4 (sucesso aceite_link): só um botão "Fechar" -->
-            <template v-if="passo === 4">
-                <AppButton icon="fa-solid fa-check" @click="fecharAposSucesso">Fechar</AppButton>
-            </template>
-            <template v-else>
-                <AppButton variant="secondary" :disabled="emitindo" @click="fechar">Cancelar</AppButton>
-                <AppButton v-if="passo > 1" variant="secondary" :disabled="emitindo" @click="voltar">Voltar</AppButton>
-                <AppButton
-                    v-if="passo < 3"
-                    :disabled="(passo === 1 && !modeloSelecionado) || carregandoModelos || carregandoContexto || nomePacienteVazio"
-                    @click="avancar"
-                >
-                    {{ passo === 1 ? "Avançar para preview" : "Avançar" }}
-                </AppButton>
-                <AppButton
-                    v-else
-                    icon="fa-solid fa-file-signature"
-                    :loading="emitindo"
-                    :disabled="nomePacienteVazio"
-                    @click="emitir"
-                >
-                    Emitir termo
-                </AppButton>
-            </template>
+            <AppButton variant="secondary" :disabled="emitindo" @click="fechar">Cancelar</AppButton>
+            <AppButton v-if="passo > 1" variant="secondary" :disabled="emitindo" @click="voltar">Voltar</AppButton>
+            <AppButton
+                v-if="passo < 2"
+                :disabled="!modeloSelecionado || carregandoModelos || carregandoContexto || nomePacienteVazio"
+                @click="avancar"
+            >
+                Avançar para preview
+            </AppButton>
+            <AppButton
+                v-else
+                icon="fa-solid fa-file-signature"
+                :loading="emitindo"
+                :disabled="nomePacienteVazio"
+                @click="emitir"
+            >
+                Emitir termo
+            </AppButton>
         </template>
     </AppModal>
 </template>
@@ -540,7 +374,7 @@ if (!_profStore.carregado) {
 .et-step {
     flex: 1;
     display: flex; align-items: center; gap: 6px;
-    font-size: 12px; font-weight: 600;
+    font-size: var(--text-xs); font-weight: 600;
     color: hsl(var(--secondary) / 0.5);
 }
 .et-step .num {
@@ -576,9 +410,9 @@ if (!_profStore.carregado) {
 .et-modelo-head {
     display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;
 }
-.et-modelo-head h4 { margin: 0; font-size: 14px; color: hsl(var(--primary-dark)); flex: 1; min-width: 200px; }
+.et-modelo-head h4 { margin: 0; font-size: var(--text-sm); color: hsl(var(--primary-dark)); flex: 1; min-width: 200px; }
 .et-modelo-preview {
-    margin: 0; font-size: 12.5px; color: hsl(var(--secondary) / 0.7); line-height: 1.5;
+    margin: 0; font-size: var(--text-xs); color: hsl(var(--secondary) / 0.7); line-height: 1.5;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .et-tag-padrao {
@@ -589,7 +423,7 @@ if (!_profStore.carregado) {
 
 .et-preview-grid {
     display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px;
-    max-height: 460px; min-height: 320px;
+    max-height: 360px; min-height: 260px;
 }
 .et-html {
     overflow-y: auto;
@@ -597,15 +431,14 @@ if (!_profStore.carregado) {
     border: 1px solid hsl(var(--secondary) / 0.12);
     border-radius: 8px;
     background: white;
-    font-size: 13.5px; line-height: 1.6;
+    font-size: var(--text-sm); line-height: 1.6;
     color: hsl(var(--foreground));
 }
 .et-html :deep(p) { margin: 0 0 8px; }
-.et-html :deep(h1) { font-size: var(--text-md); color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
-.et-html :deep(h2) { font-size: var(--text-md); color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
+.et-html :deep(h1), .et-html :deep(h2) { font-size: var(--text-md); color: hsl(var(--primary-dark)); margin: 12px 0 6px; }
 .et-html :deep(h3) { font-size: var(--text-sm); color: hsl(var(--primary-dark)); margin: 10px 0 6px; }
 .et-html :deep(ul), .et-html :deep(ol) { margin: 0 0 8px 20px; }
-.et-html :deep(strong) { font-weight: 700; }
+.et-html :deep(strong) { font-weight: var(--font-weight-bold); }
 .et-html :deep(em) { font-style: italic; }
 
 .et-sidebar {
@@ -617,12 +450,12 @@ if (!_profStore.carregado) {
 }
 .et-sidebar h5 {
     margin: 0 0 8px;
-    font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em;
-    color: hsl(var(--secondary)); font-weight: 700;
+    font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em;
+    color: hsl(var(--secondary)); font-weight: var(--font-weight-bold);
 }
 .et-sidebar ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .et-sidebar li {
-    font-size: 12px;
+    font-size: var(--text-xs);
     display: flex; flex-direction: column; gap: 1px;
     padding: 6px 8px; border-radius: 6px;
     background: white; border: 1px solid hsl(var(--secondary) / 0.08);
@@ -631,7 +464,7 @@ if (!_profStore.carregado) {
     font-size: 10.5px; color: hsl(var(--secondary) / 0.75);
     font-family: ui-monospace, monospace;
 }
-.et-sidebar li span { font-weight: 600; color: hsl(var(--foreground)); word-break: break-word; }
+.et-sidebar li span { font-weight: var(--font-weight-semibold); color: hsl(var(--foreground)); word-break: break-word; }
 .et-sidebar li.fallback {
     background: hsl(var(--warning) / 0.08);
     border-color: hsl(var(--warning) / 0.4);
@@ -644,31 +477,6 @@ if (!_profStore.carregado) {
     margin-bottom: -16px;
 }
 
-.et-confirmar h4 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
-.et-tipos { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-.et-tipo {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 12px 14px;
-    border: 1px solid hsl(var(--secondary) / 0.16);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: border 120ms, background 120ms;
-}
-.et-tipo:hover { border-color: hsl(var(--primary) / 0.45); }
-.et-tipo.ativo { border-color: hsl(var(--primary)); background: hsl(var(--primary) / 0.04); }
-.et-tipo.desabilitado { opacity: 0.55; cursor: not-allowed; }
-.et-tipo input[type="radio"] { margin-top: 3px; }
-.et-tipo-body { flex: 1; }
-.et-tipo-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; flex-wrap: wrap; }
-.et-tipo-head i { color: hsl(var(--primary)); }
-.et-tipo-head b { font-size: 14px; }
-.et-tipo p { margin: 0; font-size: 12.5px; color: hsl(var(--secondary) / 0.75); }
-.et-rec {
-    background: hsl(var(--success) / 0.15); color: hsl(var(--success));
-    font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
-}
-.et-rec.em-breve { background: hsl(var(--secondary) / 0.15); color: hsl(var(--secondary)); }
-
 .et-resumo {
     background: hsl(var(--muted) / 0.5);
     border: 1px solid hsl(var(--secondary) / 0.08);
@@ -676,12 +484,12 @@ if (!_profStore.carregado) {
     padding: 12px 14px;
 }
 .et-resumo h5 {
-    margin: 0 0 8px; font-size: 11.5px; text-transform: uppercase;
-    letter-spacing: 0.04em; color: hsl(var(--secondary)); font-weight: 700;
+    margin: 0 0 8px; font-size: var(--text-xs); text-transform: uppercase;
+    letter-spacing: 0.04em; color: hsl(var(--secondary)); font-weight: var(--font-weight-bold);
 }
 .et-resumo dl { margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 14px; }
-.et-resumo dt { font-size: 10.5px; color: hsl(var(--secondary) / 0.65); text-transform: uppercase; font-weight: 700; }
-.et-resumo dd { margin: 0; font-size: 13px; }
+.et-resumo dt { font-size: 10.5px; color: hsl(var(--secondary) / 0.65); text-transform: uppercase; font-weight: var(--font-weight-bold); }
+.et-resumo dd { margin: 0; font-size: var(--text-sm); }
 
 .et-warn {
     background: hsl(var(--warning) / 0.1);
@@ -689,64 +497,22 @@ if (!_profStore.carregado) {
     color: hsl(var(--warning));
     border-radius: 8px;
     padding: 10px 14px;
-    font-size: 13px; font-weight: 600;
+    font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
     display: flex; align-items: center; gap: 8px;
 }
 
-.msg { font-size: 13.5px; color: hsl(var(--secondary) / 0.7); margin: 0; }
-.msg-mini { font-size: 12px; color: hsl(var(--secondary) / 0.55); margin: 0; }
+.msg { font-size: var(--text-sm); color: hsl(var(--secondary) / 0.7); margin: 0; }
+.msg-mini { font-size: var(--text-xs); color: hsl(var(--secondary) / 0.55); margin: 0; }
 .msg-erro {
     color: hsl(var(--error));
     background: hsl(var(--error) / 0.08);
     border: 1px solid hsl(var(--error) / 0.25);
     padding: 8px 12px; border-radius: 6px;
-    font-size: 13px; font-weight: 600;
+    font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
     margin-top: 8px;
 }
-
-/* Sub-opções de canal (e-mail/copia) dentro do card "Enviar link" */
-.et-subop {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed hsl(var(--secondary) / 0.18);
-    display: flex; flex-direction: column; gap: 6px;
-}
-.et-radio-mini {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 13px; color: hsl(var(--foreground));
-    cursor: pointer;
-}
-.et-radio-mini.desabilitado { color: hsl(var(--secondary) / 0.55); cursor: not-allowed; }
-.et-radio-mini input[type="radio"] { accent-color: hsl(var(--primary)); }
-.et-aviso-mini { color: hsl(var(--warning)); font-weight: 600; }
-.et-email-mini { color: hsl(var(--secondary) / 0.65); }
-
-/* Passo 4 — confirmação pós-emissão (aceite_link) */
-.et-sucesso {
-    display: flex; flex-direction: column; align-items: center;
-    text-align: center; gap: 10px; padding: 20px 0;
-}
-.et-sucesso-icone { font-size: 44px; color: hsl(160 79% 32%); }
-.et-sucesso h4 { margin: 0; font-size: 16px; color: hsl(var(--primary-dark)); font-weight: 700; }
-.et-sucesso p { margin: 0; font-size: 13.5px; color: hsl(var(--secondary) / 0.8); max-width: 480px; }
-
-.et-link-box {
-    display: flex; gap: 8px; width: 100%; max-width: 560px;
-    margin-top: 8px;
-}
-.et-link-input {
-    flex: 1; min-width: 0;
-    padding: 10px 12px;
-    border: 1px solid hsl(var(--secondary) / 0.15);
-    border-radius: 8px;
-    background: hsl(var(--muted) / 0.5);
-    font-size: 13px; font-family: ui-monospace, monospace;
-    color: hsl(var(--foreground));
-}
-.et-link-input:focus { outline: 2px solid hsl(var(--primary) / 0.35); outline-offset: 1px; }
 
 @media (max-width: 720px) {
     .et-preview-grid { grid-template-columns: 1fr; min-height: unset; max-height: 60vh; }
-    .et-link-box { flex-direction: column; }
 }
 </style>

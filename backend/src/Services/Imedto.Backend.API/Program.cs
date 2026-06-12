@@ -345,10 +345,7 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("auth-login", ctx => CriarParticao(ctx, 5));
     options.AddPolicy("auth-refresh", ctx => CriarParticao(ctx, 10));
     options.AddPolicy("auth-sensitive", ctx => CriarParticao(ctx, 3));
-    // Fase 4 — endpoints públicos do aceite de termo (anônimos, por token).
-    // 10 req/min por IP é generoso pra UX legítimo (paciente acessa, lê, responde)
-    // mas trava enumeração massiva de tokens.
-    options.AddPolicy("termos-publico", ctx => CriarParticao(ctx, 10));
+    // Briefing 2026-06-12_002 — "termos-publico" removido (AceiteLink eliminado).
     // Fase 2 (agendamentos) — endpoints públicos de confirmação de presença (anônimos, por token).
     options.AddPolicy("agendamentos-publico", ctx => CriarParticao(ctx, 10));
 

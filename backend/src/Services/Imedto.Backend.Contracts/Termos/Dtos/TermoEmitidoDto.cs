@@ -16,6 +16,7 @@ public class TermoEmitidoResumoDto
     public DateTime? TokenExpiraEm { get; set; }
     public bool TemPdf { get; set; }
     public DateTime CriadoEm { get; set; }
+    public long? EvolucaoId { get; set; }
     public Guid EmitidoPorUsuarioId { get; set; }
     public string EmitidoPorNome { get; set; }
 }

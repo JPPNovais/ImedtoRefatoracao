@@ -27,6 +27,7 @@ import { agendaService, type Agendamento } from "@/services/agendaService"
 import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
+import { usePermissoesStore } from "@/stores/permissoesStore"
 import { AppButton, AppField, AppSelect, AppToast } from "@/components/ui"
 import ProntuarioPacienteHeader    from "@/components/prontuario/ProntuarioPacienteHeader.vue"
 import ProntuarioTabs, { type AbaProntuario } from "@/components/prontuario/ProntuarioTabs.vue"
@@ -35,6 +36,7 @@ import ConsultasAnterioresTab      from "@/components/prontuario/tabs/ConsultasA
 import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTab.vue"
 import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
 import PedidoExameTab              from "@/components/prontuario/tabs/PedidoExameTab.vue"
+import EmitirTermoModal            from "@/components/termos/EmitirTermoModal.vue"
 import { exameFisicoService }      from "@/services/exameFisicoService"
 import { useProximosPassosStore }  from "@/stores/proximosPassosStore"
 import { type AcaoPendencia }     from "@/services/pendenciaService"
@@ -45,6 +47,19 @@ const route  = useRoute()
 const router = useRouter()
 const tenant = useTenantStore()
 const { ehEsteAtendimento, finalizar: limparAtendimentoLocal } = useAtendimentoAtivo()
+const permissoesStore = usePermissoesStore()
+
+// CA-RBAC1/2: controla visibilidade do botão de emitir termo no drawer da evolução.
+const podeEmitirTermo = computed(() => permissoesStore.pode("termos.emitir"))
+
+// CA-C1/C4: modal de emissão de termo vinculado a uma evolução.
+const modalTermoEvolucaoAberto = ref(false)
+const evolucaoIdParaTermo = ref<number | null>(null)
+
+function abrirEmitirTermoEvolucao(evolucaoId: number) {
+    evolucaoIdParaTermo.value = evolucaoId
+    modalTermoEvolucaoAberto.value = true
+}
 
 const pacienteId = computed(() => Number(route.params.id))
 const eventoId   = computed(() => {
@@ -463,11 +478,13 @@ async function finalizarAtendimento() {
                 :uploadando="uploadando"
                 :evolucao-sendo-baixada="evolucaoSendoBaixada"
                 :gerar-historico="exportarHistorico"
+                :pode-emitir-termo="podeEmitirTermo"
                 @download-anexo="baixarAnexo"
                 @selecionar-arquivo="selecionarArquivo"
                 @enviar-anexo="enviarAnexo"
                 @gerar-pdf-evolucao="exportarPdfEvolucao($event.evolucao, $event.modo)"
                 @total-atualizado="totalEvolucoes = $event"
+                @emitir-termo-evolucao="abrirEmitirTermoEvolucao"
             />
 
             <ReceitasTab
@@ -494,6 +511,16 @@ async function finalizarAtendimento() {
             :mensagem="toast.msg"
             :variante="toast.variante"
             @fechar="toast = null"
+        />
+
+        <!-- CA-C1/C4: emitir termo vinculado a uma evolução (briefing 2026-06-12_002) -->
+        <EmitirTermoModal
+            v-if="modalTermoEvolucaoAberto && paciente"
+            v-model:aberto="modalTermoEvolucaoAberto"
+            :paciente="paciente"
+            :evolucao-id="evolucaoIdParaTermo"
+            @fechar="modalTermoEvolucaoAberto = false; evolucaoIdParaTermo = null"
+            @emitido="notificar(`Termo emitido. Baixando PDF para assinar…`, 'success')"
         />
 
         <!-- Widget "Próximos passos" movido para AppLayout.vue (addendum 2, R25/CA202). -->

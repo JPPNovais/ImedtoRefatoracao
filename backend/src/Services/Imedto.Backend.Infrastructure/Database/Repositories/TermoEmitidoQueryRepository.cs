@@ -8,6 +8,7 @@ public interface ITermoEmitidoQueryRepository
 {
     Task<IReadOnlyList<TermoEmitidoResumoDto>> ListarDoPaciente(long pacienteId, long estabelecimentoId, string status);
     Task<TermoEmitidoDetalheDto> ObterPorIdComSnapshot(long termoEmitidoId, long estabelecimentoId);
+    Task<IReadOnlyList<TermoEmitidoResumoDto>> ListarDaEvolucao(long evolucaoId, long estabelecimentoId);
 }
 
 public sealed class TermoEmitidoQueryRepository : ITermoEmitidoQueryRepository
@@ -32,6 +33,7 @@ public sealed class TermoEmitidoQueryRepository : ITermoEmitidoQueryRepository
                     t.token_expira_em   AS TokenExpiraEm,
                     (t.pdf_url IS NOT NULL) AS TemPdf,
                     t.criado_em         AS CriadoEm,
+                    t.evolucao_id       AS EvolucaoId,
                     t.emitido_por_usuario_id AS EmitidoPorUsuarioId,
                     u.nome_completo     AS EmitidoPorNome
             FROM    public.termo_emitido t
@@ -69,6 +71,7 @@ public sealed class TermoEmitidoQueryRepository : ITermoEmitidoQueryRepository
                     t.token_expira_em   AS TokenExpiraEm,
                     (t.pdf_url IS NOT NULL) AS TemPdf,
                     t.criado_em         AS CriadoEm,
+                    t.evolucao_id       AS EvolucaoId,
                     t.emitido_por_usuario_id AS EmitidoPorUsuarioId,
                     u.nome_completo     AS EmitidoPorNome,
                     t.conteudo_snapshot_html  AS ConteudoSnapshotHtml,
@@ -91,5 +94,45 @@ public sealed class TermoEmitidoQueryRepository : ITermoEmitidoQueryRepository
             TermoEmitidoId = termoEmitidoId,
             EstabelecimentoId = estabelecimentoId,
         });
+    }
+
+    /// <summary>
+    /// Lista termos vinculados a uma evolução específica — usado pela timeline da evolução (CA-C2).
+    /// Multi-tenant: filtra por estabelecimento_id para garantir isolamento.
+    /// </summary>
+    public async Task<IReadOnlyList<TermoEmitidoResumoDto>> ListarDaEvolucao(long evolucaoId, long estabelecimentoId)
+    {
+        const string sql = """
+            SELECT  t.id                AS Id,
+                    t.paciente_id       AS PacienteId,
+                    t.estabelecimento_id AS EstabelecimentoId,
+                    t.termo_modelo_id   AS TermoModeloId,
+                    m.titulo            AS TermoModeloTitulo,
+                    m.categoria         AS Categoria,
+                    t.versao_modelo     AS VersaoModelo,
+                    t.status            AS Status,
+                    t.assinatura_tipo   AS AssinaturaTipo,
+                    t.assinado_em       AS AssinadoEm,
+                    t.token_expira_em   AS TokenExpiraEm,
+                    (t.pdf_url IS NOT NULL) AS TemPdf,
+                    t.criado_em         AS CriadoEm,
+                    t.evolucao_id       AS EvolucaoId,
+                    t.emitido_por_usuario_id AS EmitidoPorUsuarioId,
+                    u.nome_completo     AS EmitidoPorNome
+            FROM    public.termo_emitido t
+            LEFT JOIN public.termo_modelo m ON m.id = t.termo_modelo_id
+            LEFT JOIN public.usuarios u ON u.id = t.emitido_por_usuario_id
+            WHERE   t.evolucao_id = @EvolucaoId
+              AND   t.estabelecimento_id = @EstabelecimentoId
+            ORDER BY t.criado_em DESC
+            """;
+
+        await using var conn = new NpgsqlConnection(_connStr);
+        var itens = await conn.QueryAsync<TermoEmitidoResumoDto>(sql, new
+        {
+            EvolucaoId = evolucaoId,
+            EstabelecimentoId = estabelecimentoId,
+        });
+        return itens.ToList();
     }
 }

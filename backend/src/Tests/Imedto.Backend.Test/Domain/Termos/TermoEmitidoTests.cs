@@ -4,6 +4,11 @@ using NUnit.Framework;
 
 namespace Imedto.Backend.Test.Domain.Termos;
 
+/// <summary>
+/// Testes do aggregate TermoEmitido pós briefing 2026-06-12_002:
+/// - AceiteLink removido; único fluxo é PdfAnexado.
+/// - Métodos RegistrarAceitePublico, Expirar, RegistrarRecusaPublica removidos.
+/// </summary>
 [TestFixture]
 public class TermoEmitidoTests
 {
@@ -11,42 +16,48 @@ public class TermoEmitidoTests
     private const long EstabId = 1;
     private const long ModeloId = 99;
 
-    private static TermoEmitido EmitirSimples(AssinaturaTipo tipo = AssinaturaTipo.PdfAnexado) =>
+    private static TermoEmitido EmitirSimples(long? evolucaoId = null) =>
         TermoEmitido.Emitir(
             PacienteId, EstabId, ModeloId, versaoModelo: 1,
             conteudoResolvidoHtml: "<p>Hello</p>",
             conteudoResolvidoTexto: "Hello",
-            assinaturaTipo: tipo,
             emitidoPorUsuarioId: Guid.NewGuid(),
-            ttlLinkPublico: TimeSpan.FromDays(7));
+            evolucaoId: evolucaoId);
+
+    // ── Emissão ───────────────────────────────────────────────────────────────
 
     [Test]
-    public void Emitir_TipoPdfAnexado_NaoGeraToken()
+    public void Emitir_PdfAnexado_NaoGeraTokenEFicaPendente()
     {
-        var t = EmitirSimples(AssinaturaTipo.PdfAnexado);
+        var t = EmitirSimples();
         Assert.That(t.TokenAceite, Is.Null);
         Assert.That(t.TokenExpiraEm, Is.Null);
         Assert.That(t.Status, Is.EqualTo(StatusTermoEmitido.Pendente));
+        Assert.That(t.AssinaturaTipo, Is.EqualTo(AssinaturaTipo.PdfAnexado));
         Assert.That(t.HashIntegridade, Has.Length.EqualTo(64));
     }
 
     [Test]
-    public void Emitir_TipoAceiteLink_GeraTokenComExpiracao()
+    public void Emitir_ComEvolucaoId_VinculaCorretamente()
     {
-        var t = EmitirSimples(AssinaturaTipo.AceiteLink);
-        Assert.That(t.TokenAceite, Is.Not.Null);
-        Assert.That(t.TokenAceite, Has.Length.GreaterThan(40)); // 32 bytes base64url ~ 43 chars
-        Assert.That(t.TokenExpiraEm, Is.Not.Null);
-        Assert.That(t.TokenExpiraEm.Value, Is.GreaterThan(DateTime.UtcNow.AddDays(6)));
+        var t = EmitirSimples(evolucaoId: 42L);
+        Assert.That(t.EvolucaoId, Is.EqualTo(42L));
+    }
+
+    [Test]
+    public void Emitir_SemEvolucaoId_EvolucaoIdEhNull()
+    {
+        var t = EmitirSimples();
+        Assert.That(t.EvolucaoId, Is.Null);
     }
 
     [Test]
     public void Emitir_ConteudosNormalizadosComCrlf_GeramMesmoHashQueLf()
     {
         var t1 = TermoEmitido.Emitir(PacienteId, EstabId, ModeloId, 1,
-            "<p>Linha1</p>\n<p>Linha2</p>", "txt", AssinaturaTipo.PdfAnexado, Guid.NewGuid(), TimeSpan.FromDays(7));
+            "<p>Linha1</p>\n<p>Linha2</p>", "txt", Guid.NewGuid());
         var t2 = TermoEmitido.Emitir(PacienteId, EstabId, ModeloId, 1,
-            "<p>Linha1</p>\r\n<p>Linha2</p>", "txt", AssinaturaTipo.PdfAnexado, Guid.NewGuid(), TimeSpan.FromDays(7));
+            "<p>Linha1</p>\r\n<p>Linha2</p>", "txt", Guid.NewGuid());
 
         Assert.That(t1.HashIntegridade, Is.EqualTo(t2.HashIntegridade));
     }
@@ -55,16 +66,17 @@ public class TermoEmitidoTests
     public void Emitir_ConteudoVazio_LancaBusinessException()
     {
         Assert.Throws<BusinessException>(() =>
-            TermoEmitido.Emitir(PacienteId, EstabId, ModeloId, 1, "", "tx",
-                AssinaturaTipo.PdfAnexado, Guid.NewGuid(), TimeSpan.FromDays(7)));
+            TermoEmitido.Emitir(PacienteId, EstabId, ModeloId, 1, "", "tx", Guid.NewGuid()));
     }
 
     [Test]
-    public void AnexarPdf_TipoAceiteLink_LancaBusinessException()
+    public void Emitir_EmissorVazio_LancaBusinessException()
     {
-        var t = EmitirSimples(AssinaturaTipo.AceiteLink);
-        Assert.Throws<BusinessException>(() => t.AnexarPdf("path/x.pdf", new string('a', 64)));
+        Assert.Throws<BusinessException>(() =>
+            TermoEmitido.Emitir(PacienteId, EstabId, ModeloId, 1, "<p>x</p>", "x", Guid.Empty));
     }
+
+    // ── AnexarPdf ──────────────────────────────────────────────────────────────
 
     [Test]
     public void AnexarPdf_HashInvalido_LancaBusinessException()
@@ -82,6 +94,7 @@ public class TermoEmitidoTests
         Assert.That(t.Status, Is.EqualTo(StatusTermoEmitido.Assinado));
         Assert.That(t.AssinadoEm, Is.Not.Null);
         Assert.That(t.PdfUrl, Is.EqualTo("termos/1/2_a.pdf"));
+        Assert.That(t.PdfHash, Is.EqualTo(new string('a', 64)));
     }
 
     [Test]
@@ -93,21 +106,15 @@ public class TermoEmitidoTests
     }
 
     [Test]
-    public void RegistrarAceitePublico_TipoPdfAnexado_LancaBusinessException()
+    public void AnexarPdf_JaTemPdfUrl_LancaBusinessException()
     {
-        var t = EmitirSimples(AssinaturaTipo.PdfAnexado);
-        Assert.Throws<BusinessException>(() => t.RegistrarAceitePublico("1.2.3.4", "Mozilla"));
+        // Segunda chamada (mesma instância já tem PdfUrl preenchida após primeira).
+        var t = EmitirSimples();
+        t.AnexarPdf("p.pdf", new string('a', 64));
+        Assert.Throws<BusinessException>(() => t.AnexarPdf("outro.pdf", new string('b', 64)));
     }
 
-    [Test]
-    public void RegistrarAceitePublico_AceiteLinkValido_MarcaAssinado()
-    {
-        var t = EmitirSimples(AssinaturaTipo.AceiteLink);
-        t.RegistrarAceitePublico("1.2.3.4", "Mozilla/5.0");
-        Assert.That(t.Status, Is.EqualTo(StatusTermoEmitido.Assinado));
-        Assert.That(t.IpAssinatura, Is.EqualTo("1.2.3.4"));
-        Assert.That(t.UserAgentAssinatura, Is.EqualTo("Mozilla/5.0"));
-    }
+    // ── Revogar ───────────────────────────────────────────────────────────────
 
     [Test]
     public void Revogar_NaoAssinado_LancaBusinessException()
@@ -137,15 +144,7 @@ public class TermoEmitidoTests
         Assert.That(t.RevogadoMotivo, Is.EqualTo("Erro no consentimento"));
     }
 
-    [Test]
-    public void Expirar_AceiteLinkAposPrazo_MudaParaExpirado()
-    {
-        var t = TermoEmitido.Emitir(PacienteId, EstabId, ModeloId, 1, "<p>x</p>", "x",
-            AssinaturaTipo.AceiteLink, Guid.NewGuid(), TimeSpan.FromMilliseconds(1));
-        Thread.Sleep(10);
-        t.Expirar();
-        Assert.That(t.Status, Is.EqualTo(StatusTermoEmitido.Expirado));
-    }
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     [Test]
     public void NormalizarHtml_DiferentesEolsRetornamMesmoString()

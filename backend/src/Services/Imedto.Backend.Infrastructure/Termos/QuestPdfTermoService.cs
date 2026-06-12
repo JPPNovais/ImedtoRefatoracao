@@ -490,13 +490,14 @@ public class QuestPdfTermoService : ITermoPdfGeradoService
                 linhas.Spacing(2);
 
                 var statusNorm = t.Status?.ToUpperInvariant() ?? "";
+                // CA-REG1: PdfAnexado = documento físico assinado; evidência é o hash do PDF.
+                var ehDocumentoFisico = string.Equals(t.AssinaturaTipo, "PdfAnexado", StringComparison.OrdinalIgnoreCase);
 
                 if (statusNorm == "ASSINADO" || statusNorm == "REVOGADO")
                 {
-                    // Assinado: exibe dados completos do aceite
                     linhas.Item().Text(text =>
                     {
-                        text.Span("Aceito digitalmente em ").FontSize(9).FontColor(CorSecondary);
+                        text.Span("Assinado em ").FontSize(9).FontColor(CorSecondary);
                         text.Span(FormatarDataHora(t.AssinadoEm)).FontSize(9).Bold().FontColor(CorInk);
                     });
 
@@ -506,36 +507,46 @@ public class QuestPdfTermoService : ITermoPdfGeradoService
                         text.Span(t.PacienteNome ?? "—").FontSize(9).Bold().FontColor(CorInk);
                     });
 
-                    if (!string.IsNullOrWhiteSpace(t.IpAssinatura))
+                    if (ehDocumentoFisico)
                     {
-                        linhas.Item().Text(text =>
-                        {
-                            text.Span("IP de origem: ").FontSize(9).FontColor(CorSecondary);
-                            text.Span(t.IpAssinatura!).FontSize(9).FontColor(CorInk);
-                        });
+                        // Documento físico: evidência é o hash SHA-256 do PDF anexado.
+                        linhas.Item().Text("Modalidade: Documento físico assinado presencialmente.")
+                            .FontSize(9).FontColor(CorSecondary);
                     }
-
-                    if (!string.IsNullOrWhiteSpace(t.UserAgentAssinatura))
+                    else
                     {
-                        var ua = t.UserAgentAssinatura!.Length > 80
-                            ? t.UserAgentAssinatura[..80] + "…"
-                            : t.UserAgentAssinatura;
-                        linhas.Item().Text(text =>
+                        // Aceite digital legado: exibe IP + token (últimos 6 chars).
+                        if (!string.IsNullOrWhiteSpace(t.IpAssinatura))
                         {
-                            text.Span("Dispositivo: ").FontSize(9).FontColor(CorSecondary);
-                            text.Span(ua).FontSize(9).FontColor(CorInk);
-                        });
-                    }
+                            linhas.Item().Text(text =>
+                            {
+                                text.Span("IP de origem: ").FontSize(9).FontColor(CorSecondary);
+                                text.Span(t.IpAssinatura!).FontSize(9).FontColor(CorInk);
+                            });
+                        }
 
-                    // CA3: apenas os últimos 6 caracteres do token — nunca o completo.
-                    if (!string.IsNullOrWhiteSpace(t.TokenAceite) && t.TokenAceite.Length >= 6)
-                    {
-                        var tokenParcial = $"…{t.TokenAceite[^6..]}";
-                        linhas.Item().Text(text =>
+                        if (!string.IsNullOrWhiteSpace(t.UserAgentAssinatura))
                         {
-                            text.Span("Identificador do aceite: ").FontSize(9).FontColor(CorSecondary);
-                            text.Span(tokenParcial).FontSize(9).FontColor(CorInk);
-                        });
+                            var ua = t.UserAgentAssinatura!.Length > 80
+                                ? t.UserAgentAssinatura[..80] + "…"
+                                : t.UserAgentAssinatura;
+                            linhas.Item().Text(text =>
+                            {
+                                text.Span("Dispositivo: ").FontSize(9).FontColor(CorSecondary);
+                                text.Span(ua).FontSize(9).FontColor(CorInk);
+                            });
+                        }
+
+                        // CA3: apenas os últimos 6 caracteres do token — nunca o completo.
+                        if (!string.IsNullOrWhiteSpace(t.TokenAceite) && t.TokenAceite.Length >= 6)
+                        {
+                            var tokenParcial = $"…{t.TokenAceite[^6..]}";
+                            linhas.Item().Text(text =>
+                            {
+                                text.Span("Identificador do aceite: ").FontSize(9).FontColor(CorSecondary);
+                                text.Span(tokenParcial).FontSize(9).FontColor(CorInk);
+                            });
+                        }
                     }
                 }
                 else if (statusNorm == "RECUSADO")
@@ -546,7 +557,7 @@ public class QuestPdfTermoService : ITermoPdfGeradoService
                         text.Span(FormatarDataHora(t.AssinadoEm)).FontSize(9).Bold().FontColor(CorInk);
                     });
 
-                    if (!string.IsNullOrWhiteSpace(t.IpAssinatura))
+                    if (!ehDocumentoFisico && !string.IsNullOrWhiteSpace(t.IpAssinatura))
                     {
                         linhas.Item().Text(text =>
                         {
@@ -563,16 +574,16 @@ public class QuestPdfTermoService : ITermoPdfGeradoService
                 else
                 {
                     // Pendente e qualquer outro estado sem aceite
-                    linhas.Item().Text("Documento ainda não assinado — aguardando aceite.")
+                    linhas.Item().Text("Documento físico pendente de anexo.")
                         .FontSize(9).Italic().FontColor(CorMute);
                 }
 
-                // Hash de integridade (sempre que houver)
+                // Hash de integridade (sempre que houver) — principal evidência do documento físico
                 if (!string.IsNullOrWhiteSpace(t.HashIntegridade))
                 {
                     col.Item().PaddingTop(2, Unit.Millimetre).Text(text =>
                     {
-                        text.Span("Hash de integridade (SHA-256): ").FontSize(8).FontColor(CorSecondary);
+                        text.Span("Hash do documento (SHA-256): ").FontSize(8).FontColor(CorSecondary);
                         text.Span(t.HashIntegridade!).FontSize(8).FontColor(CorMute);
                     });
                 }
@@ -597,10 +608,15 @@ public class QuestPdfTermoService : ITermoPdfGeradoService
     private static void DesenharRodape(IContainer container, TermoRow t)
     {
         var statusNorm = (t.Status ?? "").ToUpperInvariant();
+        var ehDocFisico = string.Equals(t.AssinaturaTipo, "PdfAnexado", StringComparison.OrdinalIgnoreCase);
         var aviso = statusNorm switch
         {
-            "PENDENTE"  => "Aguardando aceite digital pelo paciente.",
-            "ASSINADO"  => "Aceito digitalmente — evidência registrada acima.",
+            "PENDENTE"  => ehDocFisico
+                               ? "Aguardando anexo do documento físico assinado."
+                               : "Aguardando aceite digital pelo paciente.",
+            "ASSINADO"  => ehDocFisico
+                               ? "Documento físico assinado presencialmente — hash registrado acima."
+                               : "Aceito digitalmente — evidência registrada acima.",
             "REVOGADO"  => "Este consentimento foi revogado conforme registrado acima.",
             "RECUSADO"  => "O paciente recusou este consentimento.",
             "EXPIRADO"  => "O link de aceite expirou sem resposta.",

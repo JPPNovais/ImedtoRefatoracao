@@ -64,7 +64,7 @@ Precedente anterior: `NotificarEquipeAoConfirmarHandler` (Cirurgias) — fan-out
 Dois documentos clínicos são gerados integralmente no servidor via **QuestPDF** (licença Community), devolvendo `application/pdf` como `FileContentResult`:
 
 - **`QuestPdfReceitaService`** (`Infrastructure/Receitas/`) — receita médica. Endpoint: `GET /api/receitas/{id}/pdf`.
-- **`QuestPdfTermoService`** (`Infrastructure/Termos/`) — PDF probatório do termo de consentimento emitido. Endpoint: `GET /api/termos/{id}/pdf-gerado`. Conteúdo: cabeçalho institucional + bloco do paciente + snapshot HTML da versão aceita + bloco de evidência do aceite (data/hora, IP/UA, hash SHA-256, últimos 6 chars do token — nunca o token completo) + marca d'água por status.
+- **`QuestPdfTermoService`** (`Infrastructure/Termos/`) — PDF probatório do termo de consentimento emitido. Endpoint: `GET /api/termos/{id}/pdf-gerado`. Conteúdo: cabeçalho institucional + bloco do paciente + snapshot HTML da versão aceita + bloco de evidência + marca d'água por status. **Desde o briefing 2026-06-12_002 (termo físico-primeiro)**, o bloco de evidência degrada por estado: termo `Assinado` por **documento físico** (foto/PDF anexado) exibe o **hash do PDF anexado** como evidência de integridade, **sem** token/IP de aceite público; termo legado `Assinado` por link (histórico) preserva a evidência antiga (hash SHA-256 + últimos 6 chars do token — nunca o token completo). QuestPDF também é usado para **converter foto (JPG/PNG) em PDF multi-página** no anexo de termo físico (ver seção de Termos físicos).
 
 Ambos os serviços compartilham: identidade visual (fonte Nunito embarcada em `Receitas/Fonts/`, constantes de cor sincronizadas com `PDF_THEME` do frontend, cabeçalho com logo do estabelecimento ou placeholder de iniciais, bloco do paciente, marca d'água por status). O registro de fontes Nunito é idempotente (flag estático interno ao assembly).
 
@@ -536,9 +536,16 @@ O `AgendamentoReagendadoEvent` **não carrega PII** (apenas IDs + novo `InicioPr
 - Idempotência: já Confirmado → 200 "Presença já confirmada".
 - Todo acesso GET/POST grava `AgendamentoConfirmacaoAcessoLog` (`{AgendamentoId, EstabelecimentoId, IP, UserAgent, acao, timestamp}`) — sem PII do paciente.
 
-**Frontend**: rota anônima `/agendamentos/confirmar/:token` → `ConfirmarPresencaPublicaView` (espelho de `AceiteTermoPublicoView`). Sem login, sem menu, mobile-first.
+**Frontend**: rota anônima `/agendamentos/confirmar/:token` → `ConfirmarPresencaPublicaView`. Sem login, sem menu, mobile-first. (O espelho original de Termos — `AceiteTermoPublicoView` — foi **removido** no briefing 2026-06-12_002; a confirmação de presença de agendamento permanece como o único fluxo público anônimo por token.)
 
 ---
+
+### Termos de consentimento — físico-primeiro (briefing 2026-06-12_002)
+
+O termo de consentimento é **assinado fisicamente** (paciente presente) e arquivado digitalmente. O **aceite por link público foi removido** por completo: não há mais `TermoPublicoController`, query por token, e-mail de link, reenvio, recusa pública nem expiração por link. Para termos novos, `AssinaturaTipo` é só **documento físico** — o valor `PdfAnexado` é mantido no schema (sem migrar histórico) e passa a significar "foto convertida ou PDF assinado". Transição de estados nova: **`Pendente → Assinado → Revogado`** (os estados `Recusado`/`Expirado` permanecem no enum apenas para leitura do histórico legado, incluindo os `AceiteLink` `Pendente` migrados para `Expirado` por migration de transição idempotente).
+
+- **Anexo de documento** (`POST /api/termos/{id}/pdf`, gate `[RequiresAcao("termos", "emitir")]`): aceita `application/pdf`, `image/jpeg` e `image/png`. Quando o upload é imagem(ns), o backend **converte para PDF multi-página via QuestPDF** (1 imagem/página; frente+verso = 2 páginas), calcula o **SHA-256 do PDF resultante** e segue o fluxo `PdfAnexado` (upload no S3 → `TermoEmitido.AnexarPdf` → status `Assinado`). PDF direto não é convertido. Validação por **magic bytes reais** (PDF `%PDF-`, JPG `\xFF\xD8\xFF`, PNG `\x89PNG…`); **HEIC é rejeitado** (backlog). Path no S3 por GUID, sem PII. Reusa `AnexarPdfTermoCommandHandler` (estendido), `ITermoPdfStorageService`, `ITermoAuditLogger` (`termo-pdf-anexado`).
+- **Emitir + anexar pela evolução**: o termo pode ser emitido e anexado **dentro da evolução do prontuário** (reusando o passo de seleção de modelo do `EmitirTermoModal`), com vínculo `EvolucaoId`. O documento aparece **na timeline da evolução e na aba de Termos do paciente**, apontando para o **mesmo objeto S3** (binário não duplicado). O anexo pela evolução audita em **dois trilhos**: `termo_audit_log` (`termo-pdf-anexado`) **e** `prontuario_acesso_log` (`Escrita`, via `IProntuarioAcessoLogService`), ambos best-effort. A forma do vínculo (`evolucao_id` em `termos_emitidos` vs. `ProntuarioAnexo` espelho) está registrada no PR da entrega.
 
 ## Área de domínio: Cobranças (Financeiro / contas a receber) — briefing 2026-06-10_009 (F1)
 
