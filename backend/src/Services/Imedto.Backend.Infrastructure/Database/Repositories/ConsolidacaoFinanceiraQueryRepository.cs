@@ -86,7 +86,7 @@ public class ConsolidacaoFinanceiraQueryRepository
     // Extrato paginado com filtros (R2/R3/R4/CA158/CA159/CA161)
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<PaginaLancamentosExtratoDto> ListarExtrato(
+    public virtual async Task<PaginaLancamentosExtratoDto> ListarExtrato(
         long estabelecimentoId,
         DateOnly dataInicio,
         DateOnly dataFim,
@@ -146,6 +146,88 @@ public class ConsolidacaoFinanceiraQueryRepository
             EstabelecimentoId = estabelecimentoId,
             DataInicio = dataInicio.ToDateTime(TimeOnly.MinValue),
             DataFim = dataFim.ToDateTime(TimeOnly.MinValue),
+            Tipo = tipo,
+            Categoria = categoria,
+            FormaPagamento = formaPagamento,
+            Origem = origem,
+            Tamanho = tamanhoPagina,
+            Offset = offset
+        };
+
+        await using var multi = await conn.QueryMultipleAsync(sql, p);
+        var total = await multi.ReadSingleAsync<int>();
+        var itens = await multi.ReadAsync<LancamentoExtratoDto>();
+
+        return new PaginaLancamentosExtratoDto
+        {
+            Itens = itens.ToList(),
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanhoPagina
+        };
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Extrato modo vencidos — ignora período, filtra Pendente + vencimento < hoje
+    // Mesma regra de DashboardQueryRepository (paridade CA13/R1/R4).
+    // ────────────────────────────────────────────────────────────────────────────
+
+    public virtual async Task<PaginaLancamentosExtratoDto> ListarExtratoVencidos(
+        long estabelecimentoId,
+        string? tipo,
+        string? categoria,
+        string? formaPagamento,
+        string? origem,
+        int pagina,
+        int tamanhoPagina)
+    {
+        var offset = (pagina - 1) * tamanhoPagina;
+        await using var conn = new NpgsqlConnection(_connStr);
+
+        // WHERE: status=Pendente, data_vencimento < hoje. Ignora período.
+        // Multi-tenant: WHERE l.estabelecimento_id = @EstabelecimentoId (falha-fechada).
+        const string sqlBase = """
+            FROM lancamentos l
+            LEFT JOIN cobrancas c ON c.id = l.cobranca_id
+            LEFT JOIN pacientes pac ON pac.id = c.paciente_id
+            LEFT JOIN pagamentos pg ON pg.id = l.pagamento_id
+            LEFT JOIN formas_pagamento fp ON fp.id = pg.forma_pagamento_id
+            JOIN usuarios u ON u.id = l.criado_por_usuario_id
+            WHERE l.estabelecimento_id = @EstabelecimentoId
+              AND l.status = 'Pendente'
+              AND l.data_vencimento < CURRENT_DATE
+              AND (@Tipo::text           IS NULL OR l.tipo      = @Tipo)
+              AND (@Categoria::text      IS NULL OR l.categoria = @Categoria)
+              AND (@FormaPagamento::text IS NULL OR fp.nome     = @FormaPagamento)
+              AND (@Origem::text         IS NULL OR c.tipo_atendimento::text = @Origem)
+            """;
+
+        var sql = $"""
+            SELECT COUNT(*)::int {sqlBase};
+
+            SELECT
+                l.id                                                  AS Id,
+                l.tipo                                                AS Tipo,
+                l.descricao                                           AS Descricao,
+                l.valor                                               AS Valor,
+                l.data_pagamento                                      AS DataPagamento,
+                l.data_vencimento                                     AS DataVencimento,
+                l.status                                              AS Status,
+                l.categoria                                           AS Categoria,
+                fp.nome                                               AS FormaPagamento,
+                c.tipo_atendimento::text                              AS Origem,
+                l.cobranca_id                                         AS CobrancaId,
+                CASE WHEN l.cobranca_id IS NOT NULL THEN pac.id       END AS PacienteId,
+                CASE WHEN l.cobranca_id IS NOT NULL THEN pac.nome_completo END AS PacienteNome,
+                COALESCE(u.nome_completo, u.email)                    AS CriadoPorNome
+            {sqlBase}
+            ORDER BY l.data_vencimento ASC, l.id ASC
+            LIMIT @Tamanho OFFSET @Offset
+            """;
+
+        var p = new
+        {
+            EstabelecimentoId = estabelecimentoId,
             Tipo = tipo,
             Categoria = categoria,
             FormaPagamento = formaPagamento,

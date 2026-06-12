@@ -18,6 +18,16 @@ public class ListarExtratoQueryHandler : IRequestHandler<ListarExtratoQuery, Pag
         if (query.TamanhoPagina < 1 || query.TamanhoPagina > 100)
             throw new BusinessException("Tamanho da página deve estar entre 1 e 100.");
 
+        if (query.SomenteVencidos)
+            return _repo.ListarExtratoVencidos(
+                query.EstabelecimentoId,
+                query.Tipo,
+                query.Categoria,
+                query.FormaPagamento,
+                query.Origem,
+                query.Pagina,
+                query.TamanhoPagina);
+
         return _repo.ListarExtrato(
             query.EstabelecimentoId,
             query.DataInicio,

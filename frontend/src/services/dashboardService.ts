@@ -27,6 +27,9 @@ export interface DashboardData {
     itensAbaixoMinimo: number
     orcamentosPendentes: number
     lancamentosVencidos: number
+    // Valores somados dos vencidos por tipo (R2/CA12): mesma regra do LancamentosVencidos.
+    vencidosAReceber: number
+    vencidosAPagar: number
     proximosAgendamentos: ProximoAgendamento[]
     itensAbaixoMinimoLista: ItemAbaixoMinimo[]
 }

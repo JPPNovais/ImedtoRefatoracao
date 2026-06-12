@@ -196,6 +196,8 @@ export const financeiroService = {
         origem?: string
         pagina?: number
         tamanho?: number
+        // Modo vencidos (R4): ignora dataInicio/dataFim, lista Pendente + vencimento < hoje.
+        somenteVencidos?: boolean
     }): Promise<PaginaExtrato> {
         const { data } = await httpClient.get<PaginaExtrato>("/financeiro/extrato", { params })
         return data

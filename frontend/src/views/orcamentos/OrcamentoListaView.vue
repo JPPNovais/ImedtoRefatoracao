@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from "vue"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import {
     AppPageHeader, AppButton, AppSelect, AppSearchInput, AppPagination,
 } from "@/components/ui"
@@ -11,6 +11,7 @@ import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 
 const router = useRouter()
+const route = useRoute()
 const permissoes = usePermissoesStore()
 const podeConfigurar = computed(() => permissoes.pode("orcamento.configurar"))
 
@@ -124,7 +125,13 @@ function abrirNovoOrcamento() {
     router.push({ name: "OrcamentoNovo" })
 }
 
-onMounted(carregar)
+// Deep-link CA6: ?status=pendentes → tab Pendentes (Rascunho + Enviado).
+onMounted(async () => {
+    if (route.query.status === "pendentes") {
+        tab.value = "pendentes"
+    }
+    await carregar()
+})
 </script>
 
 <template>

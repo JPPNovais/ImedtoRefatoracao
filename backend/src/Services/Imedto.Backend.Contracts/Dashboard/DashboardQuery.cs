@@ -18,6 +18,10 @@ public class DashboardDto
     public int ItensAbaixoMinimo { get; set; }
     public int OrcamentosPendentes { get; set; }
     public int LancamentosVencidos { get; set; }
+    // Valores somados dos lançamentos vencidos (status=Pendente, data_vencimento < hoje) por tipo.
+    // Mesma regra do LancamentosVencidos — paridade garantida pelo mesmo WHERE.
+    public decimal VencidosAReceber { get; set; }
+    public decimal VencidosAPagar { get; set; }
     public List<ProximoAgendamentoDto> ProximosAgendamentos { get; set; } = new();
     public List<ItemAbaixoMinimoDto> ItensAbaixoMinimoLista { get; set; } = new();
 }

@@ -2,10 +2,11 @@
 import { ref, computed, onMounted, watch } from "vue"
 import { inventarioService, type ItemInventario, type MovimentacaoEstoque } from "@/services/inventarioService"
 import { estoqueCadastrosService, type CategoriaEstoque } from "@/services/estoqueCadastrosService"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { AppPageHeader, AppButton, AppTabs, AppToast, AppConfirmDialog } from "@/components/ui"
 
 const router = useRouter()
+const route = useRoute()
 import { formatarMoedaBrl } from "@/utils/format"
 
 import EstoqueKpis from "@/components/estoque/EstoqueKpis.vue"
@@ -284,8 +285,13 @@ watch(filtroTipoMovs, () => { paginaMovs.value = 1; carregarMovimentacoes() })
 // passamos o parâmetro como futuro (a API pode suportá-lo sem quebra).
 // Por ora buscaItens é filtro client-side dentro dos itens já carregados.
 
-// Carrega ambas as abas na montagem para ter KPIs corretos
+// Carrega ambas as abas na montagem para ter KPIs corretos.
+// Deep-link CA5: ?status=baixo → aba Alertas + filtro abaixo-do-mínimo ativo.
 onMounted(async () => {
+    if (route.query.status === "baixo") {
+        tabAtiva.value = "alertas"
+        filtroStatusItens.value = "baixo"
+    }
     await Promise.all([carregarItens(), carregarMovimentacoes(), carregarCategorias()])
 })
 </script>

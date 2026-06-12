@@ -6,7 +6,7 @@ import { useTenantStore } from "@/stores/tenantStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { dashboardService, type DashboardData } from "@/services/dashboardService"
 import { podeAcessarRota } from "@/router/routePermissions"
-import { AppToast } from "@/components/ui"
+import { AppToast, AppAlertCard } from "@/components/ui"
 
 const auth = useAuthStore()
 const tenant = useTenantStore()
@@ -83,13 +83,48 @@ const CARDS_ATALHO: readonly CardAtalho[] = [
     { routeName: "Relatorios",  titulo: "Relatórios",  descricao: "Faturamento por categoria e resumo de agendamentos." },
 ] as const
 
-const cardsVisiveis = computed<readonly CardAtalho[]>(() => {
-    const helpers = {
-        ehDono: permissoes.ehDono,
-        pode: (k: string) => permissoes.pode(k),
-        podeExtra: (k: string) => permissoes.podeExtra(k),
+const permHelpers = computed(() => ({
+    ehDono: permissoes.ehDono,
+    pode: (k: string) => permissoes.pode(k),
+    podeExtra: (k: string) => permissoes.podeExtra(k),
+}))
+
+const cardsVisiveis = computed<readonly CardAtalho[]>(() =>
+    CARDS_ATALHO.filter(c => podeAcessarRota(c.routeName, permHelpers.value))
+)
+
+function moedaCompacta(n: number) {
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 })
+}
+
+// Cards de alerta — cada um aparece somente se:
+//   1. o dashboard foi carregado (dado disponível),
+//   2. a pendência é > 0,
+//   3. o usuário tem acesso à rota destino (gate RBAC via podeAcessarRota/routePermissions.ts — R6).
+const cardAlertas = computed(() => {
+    if (!dashboard.value) return []
+    const h = permHelpers.value
+    const alertas = []
+
+    if (
+        dashboard.value.lancamentosVencidos > 0 &&
+        podeAcessarRota("Financeiro", h)
+    ) {
+        alertas.push({ tipo: "vencidos" as const })
     }
-    return CARDS_ATALHO.filter(c => podeAcessarRota(c.routeName, helpers))
+    if (
+        dashboard.value.itensAbaixoMinimo > 0 &&
+        podeAcessarRota("Inventario", h)
+    ) {
+        alertas.push({ tipo: "estoque" as const })
+    }
+    if (
+        dashboard.value.orcamentosPendentes > 0 &&
+        podeAcessarRota("Orcamentos", h)
+    ) {
+        alertas.push({ tipo: "orcamentos" as const })
+    }
+    return alertas
 })
 
 // Toast pós-redirect: o router insere `?bloqueado=<rota>` quando manda para
@@ -170,7 +205,60 @@ watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate:
             <p class="subtitulo">Bem-vindo ao painel.</p>
         </div>
 
-        <!-- KPIs -->
+        <!-- Bloco "Precisa da sua atenção" — R7: só renderiza quando há ao menos 1 card visível -->
+        <section v-if="cardAlertas.length > 0" class="alertas-bloco">
+            <h2 class="ds-section-title">Precisa da sua atenção</h2>
+            <div class="alertas-grid">
+                <!-- Card: Lançamentos vencidos -->
+                <AppAlertCard
+                    v-if="cardAlertas.some(c => c.tipo === 'vencidos')"
+                    :to="{ name: 'Financeiro', query: { filtro: 'vencidos' } }"
+                    titulo="Lançamentos vencidos"
+                    icone="fa-solid fa-circle-exclamation"
+                    :contagem="dashboard!.lancamentosVencidos"
+                    variante="error"
+                >
+                    <template #contexto>
+                        <span v-if="dashboard!.vencidosAReceber > 0">
+                            {{ moedaCompacta(dashboard!.vencidosAReceber) }} a receber
+                        </span>
+                        <span v-if="dashboard!.vencidosAPagar > 0">
+                            {{ moedaCompacta(dashboard!.vencidosAPagar) }} a pagar
+                        </span>
+                    </template>
+                </AppAlertCard>
+
+                <!-- Card: Itens abaixo do mínimo -->
+                <AppAlertCard
+                    v-if="cardAlertas.some(c => c.tipo === 'estoque')"
+                    :to="{ name: 'Inventario', query: { status: 'baixo' } }"
+                    titulo="Itens abaixo do mínimo"
+                    icone="fa-solid fa-box-open"
+                    :contagem="dashboard!.itensAbaixoMinimo"
+                    variante="warning"
+                >
+                    <template #contexto>
+                        <span>{{ dashboard!.itensAbaixoMinimo }} {{ dashboard!.itensAbaixoMinimo === 1 ? 'item precisa' : 'itens precisam' }} de reposição</span>
+                    </template>
+                </AppAlertCard>
+
+                <!-- Card: Orçamentos pendentes -->
+                <AppAlertCard
+                    v-if="cardAlertas.some(c => c.tipo === 'orcamentos')"
+                    :to="{ name: 'Orcamentos', query: { status: 'pendentes' } }"
+                    titulo="Orçamentos pendentes"
+                    icone="fa-solid fa-file-invoice"
+                    :contagem="dashboard!.orcamentosPendentes"
+                    variante="info"
+                >
+                    <template #contexto>
+                        <span>{{ dashboard!.orcamentosPendentes }} {{ dashboard!.orcamentosPendentes === 1 ? 'aguardando' : 'aguardando' }} andamento</span>
+                    </template>
+                </AppAlertCard>
+            </div>
+        </section>
+
+        <!-- KPIs neutros — sem alertas soltos (CA14) -->
         <section v-if="dashboard" class="kpis">
             <div class="kpi">
                 <span class="kpi-valor">{{ dashboard.totalPacientesAtivos }}</span>
@@ -188,22 +276,10 @@ watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate:
                 <span class="kpi-valor">{{ moeda(dashboard.saldoMes) }}</span>
                 <span class="kpi-label">Saldo do mês</span>
             </div>
-            <div v-if="dashboard.itensAbaixoMinimo > 0" class="kpi kpi-alerta">
-                <span class="kpi-valor laranja">{{ dashboard.itensAbaixoMinimo }}</span>
-                <span class="kpi-label">⚠ Itens abaixo do mínimo</span>
-            </div>
-            <div v-if="dashboard.lancamentosVencidos > 0" class="kpi kpi-alerta">
-                <span class="kpi-valor vermelho">{{ dashboard.lancamentosVencidos }}</span>
-                <span class="kpi-label">⚠ Lançamentos vencidos</span>
-            </div>
-            <div v-if="dashboard.orcamentosPendentes > 0" class="kpi">
-                <span class="kpi-valor amarelo">{{ dashboard.orcamentosPendentes }}</span>
-                <span class="kpi-label">Orçamentos pendentes</span>
-            </div>
         </section>
         <p v-else-if="carregando" class="info">Carregando dashboard...</p>
 
-        <!-- Próximos agendamentos + Alertas -->
+        <!-- Próximos agendamentos -->
         <div v-if="dashboard" class="paineis">
             <section class="painel" v-if="dashboard.proximosAgendamentos.length > 0">
                 <h3>Próximos agendamentos</h3>
@@ -218,19 +294,6 @@ watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate:
                     </li>
                 </ul>
                 <router-link :to="{ name: 'Agenda' }" class="ver-mais">Ver agenda completa →</router-link>
-            </section>
-
-            <section class="painel" v-if="dashboard.itensAbaixoMinimoLista.length > 0">
-                <h3>⚠ Estoque abaixo do mínimo</h3>
-                <ul>
-                    <li v-for="item in dashboard.itensAbaixoMinimoLista" :key="item.id" class="item-lista item-alerta">
-                        <div>
-                            <strong>{{ item.nome }}</strong>
-                            <small>{{ item.quantidadeAtual }} / {{ item.quantidadeMinima }} {{ item.unidadeMedida }}</small>
-                        </div>
-                    </li>
-                </ul>
-                <router-link :to="{ name: 'Inventario' }" class="ver-mais">Ver inventário →</router-link>
             </section>
         </div>
 
@@ -314,6 +377,18 @@ watch(() => route.query.bloqueado, () => tratarRedirectBloqueado(), { immediate:
 
 .page-header {
     margin-bottom: 1.5rem;
+}
+
+/* Bloco "Precisa da sua atenção" */
+.alertas-bloco {
+    margin-bottom: 1.5rem;
+}
+
+.alertas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.6rem;
 }
 
 h1 {

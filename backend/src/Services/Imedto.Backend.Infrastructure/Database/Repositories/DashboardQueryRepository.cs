@@ -41,7 +41,14 @@ public class DashboardQueryRepository
                     WHERE estabelecimento_id = @EstabId AND status IN ('Rascunho','Enviado'))               AS OrcamentosPendentes,
                 (SELECT COUNT(*) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND status = 'Pendente'
-                      AND data_vencimento < CURRENT_DATE)                                                    AS LancamentosVencidos;
+                      AND data_vencimento < CURRENT_DATE)                                                    AS LancamentosVencidos,
+                -- Valores de vencidos por tipo — mesma regra de LancamentosVencidos (paridade CA13).
+                (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
+                    WHERE estabelecimento_id = @EstabId AND tipo = 'Receita'
+                      AND status = 'Pendente' AND data_vencimento < CURRENT_DATE)                            AS VencidosAReceber,
+                (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
+                    WHERE estabelecimento_id = @EstabId AND tipo = 'Despesa'
+                      AND status = 'Pendente' AND data_vencimento < CURRENT_DATE)                            AS VencidosAPagar;
 
             SELECT
                 a.id                    AS Id,

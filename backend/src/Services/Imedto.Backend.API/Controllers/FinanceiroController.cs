@@ -332,7 +332,10 @@ public class FinanceiroController : ControllerBase
         [FromQuery] string? formaPagamento,
         [FromQuery] string? origem,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 20,
+        // Modo vencidos (R4): quando true, ignora dataInicio/dataFim e lista
+        // somente lançamentos Pendente com data_vencimento < hoje.
+        [FromQuery] bool somenteVencidos = false)
     {
         var result = await _query.Query<ListarExtratoQuery, PaginaLancamentosExtratoDto>(
             new ListarExtratoQuery
@@ -345,7 +348,8 @@ public class FinanceiroController : ControllerBase
                 FormaPagamento = formaPagamento,
                 Origem = origem,
                 Pagina = pagina,
-                TamanhoPagina = tamanho
+                TamanhoPagina = tamanho,
+                SomenteVencidos = somenteVencidos
             });
         return Ok(result);
     }

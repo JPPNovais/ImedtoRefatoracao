@@ -209,6 +209,59 @@ Card de KPI com borda superior colorida e chip de ícone. Localização: [`front
 
 **Estilo:** `.kpi-card` e variantes de borda (`.kpi--*`) estão declarados em `scoped` do componente. CSS do DS não é carregado automaticamente pelo frontend — qualquer estilo global deve ir em `frontend/src/assets/main.css`.
 
+### `AppAlertCard` (briefing 2026-06-12_001)
+
+Card de alerta acionável. Card inteiro é clicável (router-link). Usado no bloco "Precisa da sua atenção" da Home para conduzir o usuário diretamente à tela relevante já filtrada. Localização: [`frontend/src/components/ui/AppAlertCard.vue`](../frontend/src/components/ui/AppAlertCard.vue).
+
+**Props:**
+- `to: RouteLocationRaw` — destino da navegação (passado ao `RouterLink`).
+- `titulo: string` — rótulo do alerta (ex.: "Lançamentos vencidos").
+- `icone?: string` — classe Font Awesome.
+- `contagem: number` — número exibido no badge.
+- `variante?: "error" | "warning" | "info"` — determina cor da borda lateral, chip e CTA.
+
+**Slot:**
+- `#contexto` — conteúdo secundário abaixo do header (ex.: "R$ 150,00 a receber").
+
+**Variantes de cor:** `error` → `hsl(var(--destructive))`, `warning` → `hsl(var(--warning))`, `info` → `hsl(var(--primary))`.
+
+**Uso canônico:**
+```vue
+<AppAlertCard
+  :to="{ name: 'Financeiro', query: { filtro: 'vencidos' } }"
+  titulo="Lançamentos vencidos"
+  icone="fa-solid fa-circle-exclamation"
+  :contagem="3"
+  variante="error"
+>
+  <template #contexto>
+    <span>R$ 150,00 a receber</span>
+  </template>
+</AppAlertCard>
+```
+
+**Diferença de `AppKpiCard`:** enquanto `AppKpiCard` exibe métricas de KPI (não é clicável), `AppAlertCard` é um card de navegação acionável — toda a área é link.
+
+## Bloco "Precisa da sua atenção" — Home (briefing 2026-06-12_001)
+
+Bloco de alerta operacional posicionado **logo após o cabeçalho "Olá, [nome]"** e **antes** da faixa de KPIs neutros em `HomeView.vue`.
+
+**Regras de renderização:**
+- O bloco só aparece quando há **ao menos um card de alerta visível** (pendência > 0 E rota destino acessível ao usuário via `podeAcessarRota`). Sem pendência visível, o bloco inteiro não renderiza (sem cabeçalho órfão).
+- Cada card é ocultado individualmente se o usuário não tem acesso à rota destino (gate RBAC via `podeAcessarRota` + `routePermissions.ts` — fonte única de verdade).
+- Estado de loading: enquanto o dashboard não carregou, o bloco não aparece (não renderiza cards com dados indefinidos).
+
+**Cards disponíveis (contrato de deep-link):**
+| Card | Dado | Destino | Query param |
+|------|------|---------|-------------|
+| Lançamentos vencidos | `lancamentosVencidos` + `vencidosAReceber`/`vencidosAPagar` | Financeiro | `?filtro=vencidos` |
+| Itens abaixo do mínimo | `itensAbaixoMinimo` | Inventário | `?status=baixo` |
+| Orçamentos pendentes | `orcamentosPendentes` | Orçamentos | `?status=pendentes` |
+
+**Grid responsivo:** `grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))`.
+
+**Tipografia:** cabeçalho do bloco usa `<h2 class="ds-section-title">` (15px/700 via DS). Card usa tokens `--text-sm`, `--text-xs`, `--font-weight-semibold`, `--font-weight-bold`.
+
 ## Widget global de tarefas pendentes — `WidgetProximosPassos` (addendum 2, F3B)
 
 `WidgetProximosPassos` é um **widget global persistente** montado uma única vez em `AppLayout.vue`. Fica visível em todas as rotas autenticadas enquanto houver pendências do último atendimento na sessão.

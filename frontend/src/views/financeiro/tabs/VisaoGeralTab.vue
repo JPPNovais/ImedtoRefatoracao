@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue"
+import { useRoute } from "vue-router"
 import { financeiroService, type KpisFinanceiro, type LancamentoExtrato } from "@/services/financeiroService"
 import {
     AppKpiCard, AppFilterPills, AppPagination, AppModal, AppField, AppInput,
     AppSelect, AppDatePicker, AppButton, AppToast
 } from "@/components/ui"
 import { useTenantStore } from "@/stores/tenantStore"
+
+const route = useRoute()
 
 // Props externas: controle do modal de lançamento pelo header (FinanceiroView)
 const props = withDefaults(defineProps<{
@@ -88,6 +91,12 @@ async function carregarKpis() {
     }
 }
 
+// ─── Modo vencidos (deep-link R3/R4/CA4) ─────────────────────────────────────────
+// Quando true: extrato carrega somente Pendente + vencimento < hoje (ignora período).
+// Inicializado diretamente da URL para que o watch { immediate: true } já use o valor
+// correto na primeira chamada — sem request concorrente sem filtro (race condition Tipo A).
+const modoVencidos = ref(route.query.filtro === "vencidos")
+
 // ─── Extrato ─────────────────────────────────────────────────────────────────────
 const itens = ref<LancamentoExtrato[]>([])
 const total = ref(0)
@@ -101,19 +110,33 @@ const filtroOrigem = ref("")
 const filtroForma = ref("")
 
 async function carregarExtrato() {
-    if (!dataInicio.value || !dataFim.value) return
     carregandoExtrato.value = true
     erroExtrato.value = null
     try {
-        const pg = await financeiroService.extrato({
-            dataInicio: dataInicio.value,
-            dataFim: dataFim.value,
-            tipo: filtroTipo.value || undefined,
-            origem: filtroOrigem.value || undefined,
-            formaPagamento: filtroForma.value || undefined,
-            pagina: pagina.value,
-            tamanho: tamanho.value,
-        })
+        const pg = await financeiroService.extrato(
+            modoVencidos.value
+                ? {
+                    // Modo vencidos: datas são ignoradas pelo backend (R4), mas o
+                    // parâmetro obrigatório exige valores — enviamos as datas correntes.
+                    dataInicio: dataInicio.value,
+                    dataFim: dataFim.value,
+                    tipo: filtroTipo.value || undefined,
+                    origem: filtroOrigem.value || undefined,
+                    formaPagamento: filtroForma.value || undefined,
+                    pagina: pagina.value,
+                    tamanho: tamanho.value,
+                    somenteVencidos: true,
+                }
+                : {
+                    dataInicio: dataInicio.value,
+                    dataFim: dataFim.value,
+                    tipo: filtroTipo.value || undefined,
+                    origem: filtroOrigem.value || undefined,
+                    formaPagamento: filtroForma.value || undefined,
+                    pagina: pagina.value,
+                    tamanho: tamanho.value,
+                }
+        )
         itens.value = pg.itens
         total.value = pg.total
     } catch {
@@ -123,11 +146,11 @@ async function carregarExtrato() {
     }
 }
 
-// Reset página ao mudar filtros/período.
-watch([filtroTipo, filtroOrigem, filtroForma, dataInicio, dataFim], () => {
+// Reset página ao mudar filtros/período/modo.
+watch([filtroTipo, filtroOrigem, filtroForma, dataInicio, dataFim, modoVencidos], () => {
     pagina.value = 1
 })
-watch([pagina, tamanho, filtroTipo, filtroOrigem, filtroForma, dataInicio, dataFim],
+watch([pagina, tamanho, filtroTipo, filtroOrigem, filtroForma, dataInicio, dataFim, modoVencidos],
     () => { carregarExtrato(); carregarKpis() },
     { immediate: true }
 )

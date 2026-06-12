@@ -629,7 +629,41 @@ Query singleton `ExportarExtratoQuery → ExportarExtratoQueryHandler` → `Cons
 
 **Audit best-effort:** `ConsolidacaoFinanceiraQueryRepository.GravarExportAuditAsync(...)` faz INSERT em `financeiro_export_log` — captura toda exceção silenciosamente (não bloqueia o fluxo). A tabela precisa ser criada pelo `imedto-database` (migration pendente).
 
-**Pattern de teste:** `FakeConsolidacaoRepo : ConsolidacaoFinanceiraQueryRepository` sobrescreve os métodos `virtual` (`ExportarExtrato`, `GravarExportAuditAsync`) — sem interface, isolamento por herança.
+**Pattern de teste:** `FakeConsolidacaoRepo : ConsolidacaoFinanceiraQueryRepository` sobrescreve os métodos `virtual` (`ExportarExtrato`, `GravarExportAuditAsync`, `ListarExtrato`, `ListarExtratoVencidos`) — sem interface, isolamento por herança.
+
+#### Modo vencidos no extrato — briefing 2026-06-12_001
+
+`GET /financeiro/extrato?somenteVencidos=true` é um **modo aditivo** da rota existente. Quando `somenteVencidos=true`:
+
+- O backend **ignora** `dataInicio`/`dataFim` e filtra `status = 'Pendente' AND data_vencimento < CURRENT_DATE`.
+- Retorna receitas **e** despesas vencidas, paginadas, pelo mesmo `LancamentoExtratoDto` (sem DTO novo).
+- Multi-tenant: `WHERE l.estabelecimento_id = @EstabelecimentoId` aplicado no `ListarExtratoVencidos` (falha-fechada).
+- **Paridade CA13**: a condição é idêntica à subquery `LancamentosVencidos` do `DashboardQueryRepository` — garante que a contagem do card da Home bate com a lista ao clicar.
+
+Sem o parâmetro (default `false`): comportamento original preservado (CA15).
+
+Handler: `ListarExtratoQueryHandler` roteia para `_repo.ListarExtratoVencidos(...)` quando `query.SomenteVencidos = true`; caso contrário, `_repo.ListarExtrato(...)` (inalterado).
+
+#### Dashboard — campos VencidosAReceber/VencidosAPagar
+
+`DashboardDto` ganhou dois campos adicionais calculados na mesma passada SQL do `DashboardQueryRepository`:
+
+- `VencidosAReceber`: `SUM(valor) WHERE tipo='Receita' AND status='Pendente' AND data_vencimento < CURRENT_DATE AND estabelecimento_id = @EstabId`.
+- `VencidosAPagar`: idem com `tipo='Despesa'`.
+
+Regra idêntica à contagem `LancamentosVencidos` — garante paridade card × tela (CA13).
+
+#### Padrão deep-link por query param (route.query nas views de lista)
+
+Estabelecido na entrega 2026-06-12_001. Contrato: a URL de destino carrega um `?param=valor` que a view lê no `onMounted` e aplica ao estado interno já existente (aba, filtro, modo). O resultado sobrevive a F5. Regras:
+
+- A **view de destino** lê `route.query` no `onMounted` e aplica o filtro/aba correspondente **antes** do primeiro carregamento.
+- O **query param nunca é fonte de tenant** — o estabelecimento_id sempre vem do token via `ICurrentTenantAccessor`.
+- Após o usuário ajustar filtros manualmente, o param não precisa ser reescrito na URL (estado inicial only).
+- Contratos fixos em vigor:
+  - `/financeiro?filtro=vencidos` → `VisaoGeralTab.vue` ativa `modoVencidos = true` (chama `GET /financeiro/extrato?somenteVencidos=true`).
+  - `/inventario?status=baixo` → `InventarioView.vue` seta `tabAtiva = 'alertas'` + `filtroStatusItens = 'baixo'`.
+  - `/orcamentos?status=pendentes` → `OrcamentoListaView.vue` seta `tab = 'pendentes'`.
 
 ---
 
