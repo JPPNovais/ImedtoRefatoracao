@@ -24,34 +24,38 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             // ── Necessidade 1: coluna evolucao_id ─────────────────────────────────
-            migrationBuilder.AddColumn<long>(
-                name: "evolucao_id",
-                schema: "public",
-                table: "termo_emitido",
-                type: "bigint",
-                nullable: true);
+            // Implementação via SQL raw idempotente para tolerar o caso em que o
+            // schema foi aplicado manualmente antes do registro em __ef_migrations_history
+            // (incidente deploy 2026-06-12, run Actions 27449733719).
+            // ADD COLUMN IF NOT EXISTS e DO-guards em FK/índice garantem que o bloco
+            // pode rodar com qualquer estado pré-existente sem erro.
 
-            migrationBuilder.AddForeignKey(
-                name: "fk_termo_emitido_evolucao",
-                schema: "public",
-                table: "termo_emitido",
-                column: "evolucao_id",
-                principalSchema: "public",
-                principalTable: "prontuario_evolucoes",
-                principalColumn: "id",
-                onDelete: ReferentialAction.SetNull);
+            migrationBuilder.Sql(@"
+ALTER TABLE public.termo_emitido
+    ADD COLUMN IF NOT EXISTS evolucao_id bigint NULL;
+");
 
-            // Índice criado via Sql() com CONCURRENTLY — não pode estar em transação.
-            // O arquivo db/migrations/20260612120100_..._indices.sql contém este DDL
-            // para aplicação pela pipeline CI/CD fora da transação da migration principal.
-            // Aqui adicionamos o índice sem CONCURRENTLY para compatibilidade com o
-            // runner EF (que opera em transação). A pipeline aplica o arquivo _indices.sql
-            // em seguida para produção zero-downtime.
-            migrationBuilder.CreateIndex(
-                name: "ix_termo_emitido_evolucao_id",
-                schema: "public",
-                table: "termo_emitido",
-                column: "evolucao_id");
+            migrationBuilder.Sql(@"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'fk_termo_emitido_evolucao'
+          AND conrelid = 'public.termo_emitido'::regclass
+    ) THEN
+        ALTER TABLE public.termo_emitido
+            ADD CONSTRAINT fk_termo_emitido_evolucao
+            FOREIGN KEY (evolucao_id)
+            REFERENCES public.prontuario_evolucoes (id)
+            ON DELETE SET NULL;
+    END IF;
+END $$;
+");
+
+            migrationBuilder.Sql(@"
+CREATE INDEX IF NOT EXISTS ix_termo_emitido_evolucao_id
+    ON public.termo_emitido (evolucao_id);
+");
 
             // ── Necessidade 2: transição AceiteLink → Expirado ────────────────────
             // Idempotente: WHERE duplo garante que rodar 2x não altera mais nada.
