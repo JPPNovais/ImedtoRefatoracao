@@ -469,6 +469,7 @@ async function finalizarAtendimento() {
                 :salvando="salvandoEvolucao"
                 :paciente-sexo="paciente?.genero ?? null"
                 @salvar="salvarEvolucao"
+                @aplicar-template="(chave, corpo) => { novaEvolucao[chave] = corpo }"
             />
 
             <ConsultasAnterioresTab

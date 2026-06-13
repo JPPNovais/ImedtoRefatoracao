@@ -299,6 +299,25 @@ Os catálogos globais descritos acima (modelo de prontuário, variável pool, re
 | Modelo de prontuário | `modelo_de_prontuario` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
 | Variável pool | `prontuario_variaveis_pool` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
 | Região anatômica | `regioes_anatomicas_catalogo` | global por construção | acessa diretamente | Live-link |
+| Modelo de descrição cirúrgica | `modelos_descricao_cirurgica` | `eh_padrao_sistema=true`, `estabelecimento_id=NULL` | WHERE `eh_padrao_sistema=true OR estabelecimento_id=@X` | Live-link |
+
+#### Modelos de descrição cirúrgica (briefing 2026-06-13_002)
+
+Aggregate `ModeloDescricaoCirurgica` (bounded context: Prontuários). Armazena templates de texto livre reutilizáveis para a seção `desc-cirurgica` do prontuário.
+
+**Aggregate root:** `Domain/Prontuarios/ModeloDescricaoCirurgica.cs`
+- Props: `Titulo` (≤200 chars), `Corpo`, `EstabelecimentoId` (nullable — NULL para padrão-sistema), `EhPadraoSistema`, `Ativo`.
+- Fábricas: `CriarDoEstabelecimento(long, string, string)` e `CriarPadraoSistema(string, string)`.
+- Métodos: `Editar(titulo, corpo)` (guard: `EhPadraoSistema` → `BusinessException`), `Inativar()`, `Reativar()`.
+- Dedup: `ExisteOutroComMesmoTitulo` aplica `NormalizadorPool.Normalizar` em memória (mesma convenção do pool de variáveis — sem unaccent Postgres).
+
+**Endpoints (`ProntuarioTemplateController`, `/api/prontuario/modelos-cirurgia`):**
+- `GET` — leitura aberta (qualquer membro do tenant); inclui padrão-sistema + do estabelecimento.
+- `POST`, `PUT`, `DELETE` — exigem `[RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]`.
+
+**Multi-tenant:** `IModeloDescricaoCirurgicaRepository.ObterPorIdOuNulo(id, estabelecimentoId)` — jamais retorna registro de outro tenant nem padrão-sistema para operações de escrita. Mensagem de erro genérica ("não encontrado").
+
+**Frontend:** `SeletorTemplateCirurgico.vue` aplica template client-side (`novaEvolucao["desc-cirurgica"] = corpo`) — zero request adicional ao aplicar. Confirmação de substituição via `AppConfirmDialog` quando campo já tem conteúdo. Gerenciado em `modeloDescricaoCirurgicaService.ts`.
 
 #### Vínculo pool ↔ prontuário (briefing 2026-06-05_001)
 

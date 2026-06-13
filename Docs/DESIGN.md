@@ -62,7 +62,7 @@ Lógica assíncrona reutilizável entre dois ou mais componentes vive em `fronte
     → { buscando: Ref<boolean> }
   ```
   Garantias: R1 (disparo só com 8 dígitos), R2 (limpeza síncrona imediata ao CEP < 8 dígitos via `onLimpar`), R3 (debounce 300–400ms), R4 (guard de race `reqId` — última requisição vence), R5 (não sobrescreve o que o usuário já digitou — cada tela implementa no `onEndereco` com `e.campo || form.campo`), R6 (erro silencioso). Usa o service canônico `viaCepService.buscarPorCep` (campos `cidade`/`uf`). O `utils/viaCep.ts` foi removido (briefing 2026-06-13_001). Telas de edição: abrir com CEP preenchido não apaga campos porque R5 protege; `onLimpar` só dispara quando o usuário apaga dígitos.
-
+  
   UX: exibir hint "buscando..." no label do campo CEP enquanto `buscando.value === true` (padrão visual idêntico ao OnboardingView).
 
 ## Padrão de desenvolvimento
@@ -316,6 +316,49 @@ As rotas `/automacoes`, `/configuracoes/ia`, `/minha-assinatura`, `/configuracoe
 ### Item de backlog
 
 Quando houver um segundo caso de uso de master-detail, extrair para componente genérico do design system (ex: `AppMasterDetail`/`AppSubNav`). Esta entrega resolve exclusivamente a página de configurações — sem extração prematura.
+
+### Padrão "Modelos e listas" — variante título+corpo (briefing 2026-06-13_002)
+
+Seções do grupo "Modelos e listas" em `EstabelecimentoView` que gerenciam registros com **título curto + corpo longo** (ex: `ModelosDescricaoCirurgicaTab.vue`) seguem este padrão:
+
+**CRUD inline:**
+- Form em `AppCard` (acima da lista) com `AppInput` para título (máx. 200 chars) e `AppTextarea` para corpo. O mesmo card serve criar e editar — o título muda de "Novo modelo" para "Editar modelo" via `editandoId`.
+- Validação client-side (campos obrigatórios) + toast de erro com mensagem do backend (422).
+- Botão "Cancelar" visível apenas no modo edição.
+
+**Lista:**
+- Itens com `.mdc-item`: `flex` horizontal com `mdc-item-info` (flex:1) e `mdc-item-acoes` (ações de editar/excluir).
+- Badge `.badge-padrao` (pílula com `hsl(var(--secondary))`) para itens `ehPadraoSistema = true`.
+- Botões `.btn-icon .btn-icon-editar` e `.btn-icon .btn-icon-excluir` **ausentes** para itens padrão do sistema — protege invariante do aggregate.
+- Preview truncado: `corpo.slice(0, 120)` + `"…"`.
+
+**Permissão (prop `podeEditar`):**
+- `podeEditar = false`: exibe aviso `.aviso-leitura` e esconde form e botões de ação — apenas leitura.
+- `podeEditar = true`: form visível + ações habilitadas.
+- O pai passa `podeEditar` via `permissoes.podeExtra("modelos_prontuario")`.
+
+**Lazy load da seção:** o componente só monta (e só chama o service) quando a seção está ativa (`v-if` em `EstabelecimentoView`). Segue o padrão de toda seção do master-detail.
+
+### Padrão "Usar template" inline no módulo de prontuário (briefing 2026-06-13_002)
+
+Para seções de texto longo no prontuário que suportam aplicação de template pré-cadastrado (ex: `desc-cirurgica`):
+
+**Botão no header do módulo:**
+- `<div class="module-action">` com `AppButton variant="ghost" size="sm"` e ícone `fa-file-import`.
+- Condicionado à chave da seção: `v-if="secao.chave === 'desc-cirurgica'"`.
+
+**Componente `SeletorTemplateCirurgico`:**
+- Localização: [`frontend/src/components/prontuario/SeletorTemplateCirurgico.vue`](../frontend/src/components/prontuario/SeletorTemplateCirurgico.vue).
+- Props: `aberto: boolean`, `valorAtual: string`.
+- Emits: `update:aberto`, `aplicar: [corpo: string]`.
+- Lazy fetch: `watch(() => props.aberto, ...)` — só carrega modelos ao abrir, sem request no mount da view.
+- Se `valorAtual.trim()` não vazio → abre `AppConfirmDialog` ("Substituir conteúdo atual?"). Se vazio → aplica diretamente.
+- Atalho "Cadastrar novo modelo" faz `router.push({ path: "/estabelecimento", query: { secao: "modelos-cirurgia" } })`.
+
+**Evento `"aplicar-template"`:**
+- `ConsultaAtualTab` emite `"aplicar-template": [chave: string, corpo: string]`.
+- `ProntuarioView` trata com `@aplicar-template="(chave, corpo) => { novaEvolucao[chave] = corpo }"`.
+- Evita prop mutation — mantém o fluxo unidirecional.
 
 ## Escala tipográfica (fonte única de verdade — briefing 2026-06-08_003)
 

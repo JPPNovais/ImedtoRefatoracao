@@ -190,6 +190,9 @@ public class AppDbContext : DbContext
     public DbSet<TermoAuditLog> TermosAuditLog => Set<TermoAuditLog>();
     public DbSet<TermoEmitidoAcessoLog> TermosEmitidoAcessoLog => Set<TermoEmitidoAcessoLog>();
 
+    // Modelos de descrição cirúrgica (briefing 2026-06-13_002).
+    public DbSet<ModeloDescricaoCirurgica> ModelosDescricaoCirurgica => Set<ModeloDescricaoCirurgica>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("public");

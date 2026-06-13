@@ -10,9 +10,10 @@
     reorganiza visualmente o que já existia.
 -->
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { AppButton, AppPopover } from "@/components/ui"
 import SecaoProntuario from "@/components/prontuario/SecaoProntuario.vue"
+import SeletorTemplateCirurgico from "@/components/prontuario/SeletorTemplateCirurgico.vue"
 import type { ModeloProntuario, SecaoModelo } from "@/services/prontuarioService"
 
 const props = defineProps<{
@@ -28,7 +29,20 @@ const props = defineProps<{
 const emit = defineEmits<{
     salvar: []
     "update:modeloId": [id: number]
+    /** Aplica o corpo do template ao campo da seção desc-cirurgica (CA2/CA3). */
+    "aplicar-template": [chave: string, corpo: string]
 }>()
+
+// ─── Seletor de template cirúrgico (CA15: só abre ao clicar) ─────────────────
+const seletorAberto = ref(false)
+
+function abrirSeletorTemplate() {
+    seletorAberto.value = true
+}
+
+function aplicarTemplate(corpo: string) {
+    emit("aplicar-template", "desc-cirurgica", corpo)
+}
 
 // Heurística simples para mapear chaves conhecidas a ícones FontAwesome.
 function iconePara(chave: string): string {
@@ -172,6 +186,17 @@ function selecionarModelo(id: number, fechar: () => void) {
                         <div class="module-title">
                             <h3>{{ secao.titulo }}</h3>
                         </div>
+                        <!-- Botão "Usar template" — exclusivo da seção desc-cirurgica (R9/CA16) -->
+                        <div v-if="secao.chave === 'desc-cirurgica'" class="module-action">
+                            <AppButton
+                                variant="ghost"
+                                size="sm"
+                                icon="fa-solid fa-file-import"
+                                @click="abrirSeletorTemplate"
+                            >
+                                Usar template
+                            </AppButton>
+                        </div>
                         <div class="module-status">
                             <span
                                 class="ms-pill"
@@ -211,6 +236,13 @@ function selecionarModelo(id: number, fechar: () => void) {
             </div>
         </div>
     </div>
+
+    <!-- Seletor de template (desc-cirurgica). Montado aqui mas só faz request ao abrir (CA15). -->
+    <SeletorTemplateCirurgico
+        v-model:aberto="seletorAberto"
+        :valor-atual="novaEvolucao['desc-cirurgica'] ?? ''"
+        @aplicar="aplicarTemplate"
+    />
 </template>
 
 <style scoped>
@@ -355,6 +387,8 @@ function selecionarModelo(id: number, fechar: () => void) {
     font-size: var(--text-md); font-weight: var(--font-weight-bold);
     color: hsl(var(--primary-dark));
 }
+.module-action { margin-left: auto; }
+
 .module-status .ms-pill {
     font-size: 11px; padding: 3px 8px; border-radius: 99px; font-weight: 600;
     display: inline-flex; align-items: center; gap: 4px;

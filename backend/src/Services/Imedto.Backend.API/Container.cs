@@ -533,11 +533,16 @@ public static class Container
         services.AddScoped<AdicionarVariavelPoolCommandHandler>();
         services.AddScoped<AtualizarVariavelPoolCommandHandler>();
         services.AddScoped<ExcluirVariavelPoolCommandHandler>();
+        services.AddScoped<CriarModeloDescricaoCirurgicaCommandHandler>();
+        services.AddScoped<EditarModeloDescricaoCirurgicaCommandHandler>();
+        services.AddScoped<ExcluirModeloDescricaoCirurgicaCommandHandler>();
         services.AddSingleton<ListarModelosDisponiveisQueryHandlers>();
         services.AddSingleton<ObterModeloDeProntuarioQueryHandlers>();
         services.AddSingleton<ListarVariaveisPoolQueryHandlers>();
+        services.AddSingleton<ListarModelosDescricaoCirurgicaQueryHandler>();
         services.AddSingleton<ModeloProntuarioQueryRepository>();
         services.AddSingleton<VariavelPoolQueryRepository>();
+        services.AddSingleton<ModeloDescricaoCirurgicaQueryRepository>();
 
         // Prontuários (aggregate + evoluções)
         services.AddScoped<PoolExtratorEvolucao>(); // extração automática de itens do pool ao salvar evolução
@@ -1068,6 +1073,9 @@ public static class Container
             bus.Register<AdicionarVariavelPoolCommand, AdicionarVariavelPoolCommandHandler>();
             bus.Register<AtualizarVariavelPoolCommand, AtualizarVariavelPoolCommandHandler>();
             bus.Register<ExcluirVariavelPoolCommand, ExcluirVariavelPoolCommandHandler>();
+            bus.Register<CriarModeloDescricaoCirurgicaCommand, CriarModeloDescricaoCirurgicaCommandHandler>();
+            bus.Register<EditarModeloDescricaoCirurgicaCommand, EditarModeloDescricaoCirurgicaCommandHandler>();
+            bus.Register<ExcluirModeloDescricaoCirurgicaCommand, ExcluirModeloDescricaoCirurgicaCommandHandler>();
             bus.Register<IniciarProntuarioCommand, IniciarProntuarioCommandHandler>();
             bus.Register<RegistrarEvolucaoCommand, RegistrarEvolucaoCommandHandler>();
             bus.Register<RegistrarExportacaoProntuarioCommand, RegistrarExportacaoProntuarioCommandHandler>();
@@ -1262,6 +1270,7 @@ public static class Container
             bus.Register<ListarModelosDisponiveisQuery, IEnumerable<ModeloProntuarioDto>, ListarModelosDisponiveisQueryHandlers>();
             bus.Register<ObterModeloDeProntuarioQuery, ModeloProntuarioDto, ObterModeloDeProntuarioQueryHandlers>();
             bus.Register<ListarVariaveisPoolQuery, IEnumerable<VariavelPoolDto>, ListarVariaveisPoolQueryHandlers>();
+            bus.Register<ListarModelosDescricaoCirurgicaQuery, IEnumerable<ModeloDescricaoCirurgicaDto>, ListarModelosDescricaoCirurgicaQueryHandler>();
             bus.Register<ObterProntuarioDoPacienteQuery, ProntuarioCompletoDto, ObterProntuarioDoPacienteQueryHandlers>();
             bus.Register<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto, ListarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto, ContarEvolucoesProntuarioPacienteQueryHandlers>();

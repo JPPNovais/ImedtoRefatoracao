@@ -117,6 +117,70 @@ public class ProntuarioTemplateController : ControllerBase
         return NoContent();
     }
 
+    // ─── Modelos de descrição cirúrgica ──────────────────────────────────────────
+
+    /// <summary>Lista modelos de descrição cirúrgica (padrão-sistema + do estabelecimento). Leitura aberta a qualquer membro.</summary>
+    [HttpGet("modelos-cirurgia")]
+    [ProducesResponseType(typeof(IEnumerable<ModeloDescricaoCirurgicaDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarModelosCirurgia([FromQuery] bool apenasAtivos = true)
+    {
+        var lista = await _requestBus.Query<ListarModelosDescricaoCirurgicaQuery, IEnumerable<ModeloDescricaoCirurgicaDto>>(
+            new ListarModelosDescricaoCirurgicaQuery
+            {
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                ApenasAtivos = apenasAtivos
+            });
+        return Ok(lista);
+    }
+
+    /// <summary>Cria um modelo de descrição cirúrgica. Dono ou usuário com permissão de modelos.</summary>
+    [HttpPost("modelos-cirurgia")]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> CriarModeloCirurgia([FromBody] ModeloCirurgiaRequest request)
+    {
+        await _commandBus.Send(new CriarModeloDescricaoCirurgicaCommand
+        {
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Titulo = request.Titulo,
+            Corpo = request.Corpo
+        });
+        return Created(string.Empty, null);
+    }
+
+    /// <summary>Edita um modelo do estabelecimento (não pode editar padrão-sistema). Dono ou usuário com permissão de modelos.</summary>
+    [HttpPut("modelos-cirurgia/{id:long}")]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EditarModeloCirurgia(long id, [FromBody] ModeloCirurgiaRequest request)
+    {
+        await _commandBus.Send(new EditarModeloDescricaoCirurgicaCommand
+        {
+            ModeloId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            Titulo = request.Titulo,
+            Corpo = request.Corpo
+        });
+        return NoContent();
+    }
+
+    /// <summary>Exclui um modelo do estabelecimento (não pode excluir padrão-sistema). Dono ou usuário com permissão de modelos.</summary>
+    [HttpDelete("modelos-cirurgia/{id:long}")]
+    [RequiresPermissaoExtra(PermissoesExtras.ModelosProntuario)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ExcluirModeloCirurgia(long id)
+    {
+        await _commandBus.Send(new ExcluirModeloDescricaoCirurgicaCommand
+        {
+            ModeloId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId
+        });
+        return NoContent();
+    }
+
     /// <summary>Lista itens do pool de variáveis (opcionalmente filtrado por tipo).</summary>
     [HttpGet("pool")]
     [ProducesResponseType(typeof(IEnumerable<VariavelPoolDto>), StatusCodes.Status200OK)]
@@ -186,3 +250,4 @@ public class ProntuarioTemplateController : ControllerBase
 public record ModeloRequest(string Nome, string Descricao, string EstruturaJson);
 public record AdicionarPoolRequest(string Tipo, string Nome);
 public record AtualizarPoolRequest(string Nome);
+public record ModeloCirurgiaRequest(string Titulo, string Corpo);
