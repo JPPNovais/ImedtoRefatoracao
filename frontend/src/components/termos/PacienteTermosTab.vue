@@ -8,12 +8,10 @@ import { usePermissoesStore } from "@/stores/permissoesStore"
 import {
     pacienteTermoService,
     type TermoEmitidoResumo,
-    type TermoEmitidoDetalhe,
     type StatusTermoEmitido,
 } from "@/services/pacienteTermoService"
 import { CATEGORIAS_TERMO } from "@/constants/termoVariaveis"
 import EmitirTermoModal from "./EmitirTermoModal.vue"
-import TermoVisualizacaoDrawer from "./TermoVisualizacaoDrawer.vue"
 import { useTermoPdf } from "@/composables/useTermoPdf"
 import type { Paciente } from "@/services/pacienteService"
 
@@ -22,7 +20,6 @@ import type { Paciente } from "@/services/pacienteService"
  *  - lista (filtro por status + paginação client-side, MVP: lista pequena, ≤100)
  *  - botão Emitir termo (gated por `termos.emitir`)
  *  - botão Anexar PDF assinado (somente em status Pendente + tipo PdfAnexado)
- *  - Visualizar via drawer (snapshot + metadados)
  *  - Baixar PDF anexado (presigned URL)
  *  - Gerar PDF de impressão (front via `useTermoPdf`)
  *  - Revogar (motivo obrigatório, gated por `termos.gerenciar_modelos`)
@@ -57,10 +54,6 @@ const filtroStatus = ref<"" | StatusTermoEmitido>("")
 const acaoEmAndamentoId = ref<number | null>(null)
 
 const modalEmitirAberto = ref(false)
-
-const drawerAberto = ref(false)
-const carregandoDrawer = ref(false)
-const termoDetalhe = ref<TermoEmitidoDetalhe | null>(null)
 
 const confirmRevogar = ref<{ aberto: boolean; termo: TermoEmitidoResumo | null; motivo: string; salvando: boolean }>({
     aberto: false, termo: null, motivo: "", salvando: false,
@@ -177,20 +170,6 @@ async function onEmitido(payload: { termoEmitidoId: number; modeloTitulo: string
     }
 }
 
-async function abrirDrawer(t: TermoEmitidoResumo) {
-    drawerAberto.value = true
-    carregandoDrawer.value = true
-    termoDetalhe.value = null
-    try {
-        termoDetalhe.value = await pacienteTermoService.obter(props.paciente.id, t.id)
-    } catch (e: any) {
-        emit("notificar", e?.response?.data?.mensagem ?? "Erro ao carregar termo.", "error")
-        drawerAberto.value = false
-    } finally {
-        carregandoDrawer.value = false
-    }
-}
-
 async function baixarPdfAnexado(t: TermoEmitidoResumo) {
     if (acaoEmAndamentoId.value !== null) return
     acaoEmAndamentoId.value = t.id
@@ -275,19 +254,6 @@ async function confirmarRevogacao() {
     }
 }
 
-// ─── Drawer → ação encadeada ───────────────────────────────────────────────
-function drawerBaixarPdf() {
-    if (termoDetalhe.value?.temPdf) {
-        void baixarPdfAnexado(termoDetalhe.value as unknown as TermoEmitidoResumo)
-    }
-}
-
-function drawerGerarPdf() {
-    if (termoDetalhe.value) {
-        void gerarPdf(termoDetalhe.value, props.paciente, "download")
-    }
-}
-
 onMounted(() => {
     // Quando a aba já está ativa no mount (e.g. usuário recarrega já nela).
     if (props.ativa && !carregado.value) void carregar()
@@ -361,14 +327,6 @@ onMounted(() => {
                     <td>{{ fmtData(t.criadoEm) }}</td>
                     <td>{{ fmtData(t.assinadoEm) }}</td>
                     <td class="acoes">
-                        <button
-                            class="btn-icon btn-icon-ver"
-                            title="Visualizar termo"
-                            @click="abrirDrawer(t)"
-                        >
-                            <i class="fa-solid fa-eye"></i>
-                        </button>
-
                         <!-- Baixar PDF anexado: só quando tem PDF -->
                         <button
                             v-if="t.temPdf"
@@ -433,16 +391,6 @@ onMounted(() => {
             :paciente="paciente"
             @fechar="modalEmitirAberto = false"
             @emitido="onEmitido"
-        />
-
-        <!-- Drawer visualizar -->
-        <TermoVisualizacaoDrawer
-            :aberto="drawerAberto"
-            :termo="termoDetalhe"
-            :carregando="carregandoDrawer"
-            @fechar="drawerAberto = false; termoDetalhe = null"
-            @baixar-pdf-anexado="drawerBaixarPdf"
-            @gerar-pdf="drawerGerarPdf"
         />
 
         <!-- Confirmar revogação -->
