@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref, toRef } from "vue"
 import { vMaska } from "maska/vue"
 import { AppButton, AppCard, AppField, AppInput, AppModal, AppSelect } from "@/components/ui"
 import { unidadeService, type Unidade, type UnidadePayload } from "@/services/unidadeService"
-import { buscarCep } from "@/utils/viaCep"
+import { useCepAutofill } from "@/composables/useCepAutofill"
 
 const props = defineProps<{
     estabelecimentoId: number
@@ -34,24 +34,27 @@ const formNovo = reactive<UnidadePayload>({
     telefone: "",
 })
 const salvandoNovo = ref(false)
-const buscandoCepNovo = ref(false)
 
-async function onCepBlurNovo() {
-    if (!formNovo.cep) return
-    buscandoCepNovo.value = true
-    try {
-        const r = await buscarCep(formNovo.cep)
-        if (r) {
-            formNovo.logradouro = r.logradouro || formNovo.logradouro || ""
-            formNovo.bairro     = r.bairro     || formNovo.bairro     || ""
-            formNovo.cidade     = r.localidade || formNovo.cidade     || ""
-            formNovo.estado     = r.uf         || formNovo.estado     || ""
-            if (!formNovo.complemento && r.complemento) formNovo.complemento = r.complemento
-        }
-    } finally {
-        buscandoCepNovo.value = false
-    }
-}
+// Autofill de CEP para o formulário de criação (CA11)
+const { buscando: buscandoCepNovo } = useCepAutofill(
+    toRef(formNovo, "cep"),
+    (e) => {
+        // R5: preserva o que o usuário já digitou manualmente
+        formNovo.logradouro = e.logradouro || formNovo.logradouro || ""
+        formNovo.bairro     = e.bairro     || formNovo.bairro     || ""
+        formNovo.cidade     = e.cidade     || formNovo.cidade     || ""
+        formNovo.estado     = e.uf         || formNovo.estado     || ""
+        if (!formNovo.complemento && e.complemento) formNovo.complemento = e.complemento
+    },
+    {
+        onLimpar: () => {
+            formNovo.logradouro = ""
+            formNovo.bairro     = ""
+            formNovo.cidade     = ""
+            formNovo.estado     = ""
+        },
+    },
+)
 
 async function adicionar() {
     erro.value = null
@@ -87,7 +90,27 @@ const formEdit = reactive<UnidadePayload>({
     bairro: "", cidade: "", estado: "", telefone: "",
 })
 const salvandoEdit = ref(false)
-const buscandoCepEdit = ref(false)
+
+// Autofill de CEP para o formulário de edição (CA12).
+// marcarCargaEdit é chamado em iniciarEdicao para prevenir disparo automático
+// no mount ao abrir edição com CEP já preenchido.
+const { buscando: buscandoCepEdit, marcarCarga: marcarCargaEdit } = useCepAutofill(
+    toRef(formEdit, "cep"),
+    (e) => {
+        formEdit.logradouro = e.logradouro || formEdit.logradouro || ""
+        formEdit.bairro     = e.bairro     || formEdit.bairro     || ""
+        formEdit.cidade     = e.cidade     || formEdit.cidade     || ""
+        formEdit.estado     = e.uf         || formEdit.estado     || ""
+    },
+    {
+        onLimpar: () => {
+            formEdit.logradouro = ""
+            formEdit.bairro     = ""
+            formEdit.cidade     = ""
+            formEdit.estado     = ""
+        },
+    },
+)
 
 function iniciarEdicao(u: Unidade) {
     editandoId.value = u.id
@@ -103,26 +126,12 @@ function iniciarEdicao(u: Unidade) {
         estado: u.estado ?? "",
         telefone: u.telefone ?? "",
     })
+    // Previne disparo automático de busca ao abrir edição com CEP já preenchido.
+    if (formEdit.cep) marcarCargaEdit(formEdit.cep)
 }
 
 function cancelarEdicao() {
     editandoId.value = null
-}
-
-async function onCepBlurEdit() {
-    if (!formEdit.cep) return
-    buscandoCepEdit.value = true
-    try {
-        const r = await buscarCep(formEdit.cep)
-        if (r) {
-            formEdit.logradouro = r.logradouro || formEdit.logradouro || ""
-            formEdit.bairro     = r.bairro     || formEdit.bairro     || ""
-            formEdit.cidade     = r.localidade || formEdit.cidade     || ""
-            formEdit.estado     = r.uf         || formEdit.estado     || ""
-        }
-    } finally {
-        buscandoCepEdit.value = false
-    }
 }
 
 async function salvarEdicao() {
@@ -249,13 +258,11 @@ onMounted(carregar)
             </label>
 
             <div class="grade-3">
-                <AppField label="CEP">
+                <AppField :label="buscandoCepNovo ? 'CEP (buscando...)' : 'CEP'">
                     <AppInput
                         v-model="formNovo.cep"
                         v-maska="'#####-###'"
                         placeholder="00000-000"
-                        :disabled="buscandoCepNovo"
-                        @blur="onCepBlurNovo"
                     />
                 </AppField>
                 <AppField label="Logradouro" class="col-span-2">
@@ -328,12 +335,10 @@ onMounted(carregar)
                     </label>
 
                     <div class="grade-3">
-                        <AppField label="CEP">
+                        <AppField :label="buscandoCepEdit ? 'CEP (buscando...)' : 'CEP'">
                             <AppInput
                                 v-model="formEdit.cep"
                                 v-maska="'#####-###'"
-                                :disabled="buscandoCepEdit"
-                                @blur="onCepBlurEdit"
                             />
                         </AppField>
                         <AppField label="Logradouro" class="col-span-2">

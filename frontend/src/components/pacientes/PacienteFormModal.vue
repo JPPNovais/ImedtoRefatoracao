@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue"
+import { computed, reactive, ref, toRef, watch } from "vue"
 import { vMaska } from "maska/vue"
 import {
     AppButton, AppDatePicker, AppField, AppInput, AppModal, AppSelect, AppTextarea,
@@ -7,6 +7,7 @@ import {
 import { pacienteService, type Paciente, type PacientePayload } from "@/services/pacienteService"
 import { cpfValido } from "@/utils/cpf"
 import { PACIENTE_TAGS } from "@/constants/pacienteTags"
+import { useCepAutofill } from "@/composables/useCepAutofill"
 
 /**
  * Modal de cadastro/edição de paciente — alinhado ao estilo do design system
@@ -128,6 +129,9 @@ function popularComPaciente(p: Paciente) {
     form.tags = [...(p.tags ?? [])]
     form.alertas = [...(p.alertas ?? [])]
     parseEndereco(p.endereco)
+    // Previne disparo automático de busca ao montar em modo edição (CA12):
+    // o composable ignora o próximo disparo debounced com este valor.
+    if (form.cep) marcarCargaCep(form.cep)
 }
 
 watch(() => [props.aberto, props.paciente] as const, ([aberto, p]) => {
@@ -136,7 +140,27 @@ watch(() => [props.aberto, props.paciente] as const, ([aberto, p]) => {
     else reset()
 }, { immediate: true })
 
-// ─── Endereço (CEP autocompletar) ─────────────────────────────────────────
+// ─── Endereço (CEP autocompletar) ────────────────────────────────────────────
+const { buscando: buscandoCep, marcarCarga: marcarCargaCep } = useCepAutofill(
+    toRef(form, "cep"),
+    (e) => {
+        // R5: preserva o que o usuário já digitou manualmente
+        if (e.logradouro) form.logradouro = e.logradouro || form.logradouro
+        if (e.bairro)     form.bairro     = e.bairro     || form.bairro
+        if (e.cidade)     form.cidade     = e.cidade     || form.cidade
+        if (e.uf)         form.uf         = e.uf         || form.uf
+        if (!form.complemento && e.complemento) form.complemento = e.complemento
+    },
+    {
+        onLimpar: () => {
+            form.logradouro = ""
+            form.bairro     = ""
+            form.cidade     = ""
+            form.uf         = ""
+        },
+    },
+)
+
 function parseEndereco(end: string | null | undefined) {
     if (!end) return
     const matchCep = end.match(/(\d{5}-?\d{3})/)
@@ -163,25 +187,6 @@ function montarEndereco(): string {
     if (form.cep)         partes.push(`CEP ${form.cep}`)
     return partes.join(", ")
 }
-
-async function buscarCep() {
-    const digits = form.cep.replace(/\D/g, "")
-    if (digits.length !== 8) return
-    try {
-        const r = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
-        const d = await r.json()
-        if (d.erro) return
-        if (d.logradouro) form.logradouro = d.logradouro
-        if (d.bairro)     form.bairro     = d.bairro
-        if (d.localidade) form.cidade     = d.localidade
-        if (d.uf)         form.uf         = d.uf
-    } catch { /* offline — silencioso */ }
-}
-
-watch(() => form.cep, (v) => {
-    const digits = (v ?? "").replace(/\D/g, "")
-    if (digits.length === 8) void buscarCep()
-})
 
 // ─── Tags + alertas ────────────────────────────────────────────────────────
 function toggleTag(chave: string) {
@@ -432,11 +437,10 @@ const subtitulo = computed(() =>
             <section class="secao">
                 <h3 class="ds-section-title">Endereço</h3>
                 <div class="form-grid">
-                    <AppField label="CEP">
+                    <AppField :label="buscandoCep ? 'CEP (buscando...)' : 'CEP'">
                         <AppInput
                             v-model="form.cep" v-maska="'#####-###'"
                             placeholder="00000-000" :disabled="salvando"
-                            @blur="buscarCep"
                         />
                     </AppField>
 

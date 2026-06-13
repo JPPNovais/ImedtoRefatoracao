@@ -56,6 +56,15 @@ Lógica assíncrona reutilizável entre dois ou mais componentes vive em `fronte
 
 - **`useProfissaoEspecialidade`** (briefing 2026-06-04_003): mecânica de cascata profissão→especialidade por catálogo estrito. Expõe `profissoes`, `especialidades`, `profissaoId`, `especialidade`, `carregandoEspecialidades`, `profissaoTemEspecialidades`, `conselhoSigla`, `carregarProfissoes`, `reset`, `inicializarComVinculo`. Usado por `ConvidarProfissionalModal.vue` e `ProfissionalDetalhesModal.vue` — fonte única, sem duplicação. Regra: trocar profissão limpa especialidade; `inicializarComVinculo` pré-seleciona sem limpar (abertura do modal de detalhes com dados existentes).
 
+- **`useCepAutofill`** (briefing 2026-06-13_001) — **padrão obrigatório para qualquer campo de CEP**. Encerra a divergência de três implementações (fetch cru, @blur, watch manual). API:
+  ```ts
+  useCepAutofill(cepRef, onEndereco, { onLimpar?, delay? })
+    → { buscando: Ref<boolean> }
+  ```
+  Garantias: R1 (disparo só com 8 dígitos), R2 (limpeza síncrona imediata ao CEP < 8 dígitos via `onLimpar`), R3 (debounce 300–400ms), R4 (guard de race `reqId` — última requisição vence), R5 (não sobrescreve o que o usuário já digitou — cada tela implementa no `onEndereco` com `e.campo || form.campo`), R6 (erro silencioso). Usa o service canônico `viaCepService.buscarPorCep` (campos `cidade`/`uf`). O `utils/viaCep.ts` foi removido (briefing 2026-06-13_001). Telas de edição: abrir com CEP preenchido não apaga campos porque R5 protege; `onLimpar` só dispara quando o usuário apaga dígitos.
+
+  UX: exibir hint "buscando..." no label do campo CEP enquanto `buscando.value === true` (padrão visual idêntico ao OnboardingView).
+
 ## Padrão de desenvolvimento
 
 - Backend segue DDD + CQRS (commands/queries/events) com **regra de negócio sempre no domain/handler**, nunca no controller, no SQL ou na view.

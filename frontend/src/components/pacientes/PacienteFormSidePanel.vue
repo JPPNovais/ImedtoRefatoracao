@@ -3,11 +3,12 @@
     Visual alinhado ao legado (modules/shared/components/PatientFormSidePanel.vue).
 -->
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue"
+import { ref, reactive, watch, toRef } from "vue"
 import { vMaska } from "maska/vue"
 import { AppDrawer, AppDatePicker, AppButton, AppField, AppInput } from "@/components/ui"
 import { pacienteService, type PacienteListaItem } from "@/services/pacienteService"
 import { cpfValido } from "@/utils/cpf"
+import { useCepAutofill } from "@/composables/useCepAutofill"
 
 const props = defineProps<{
     aberto: boolean
@@ -41,6 +42,27 @@ const form = reactive({
 
 const salvando = ref(false)
 const erro = ref<string | null>(null)
+
+// ─── Autofill de CEP (CA9) ────────────────────────────────────────────────────
+const { buscando: buscandoCep } = useCepAutofill(
+    toRef(form, "cep"),
+    (e) => {
+        // R5: preserva o que o usuário já digitou manualmente
+        form.endereco = e.logradouro || form.endereco
+        form.bairro   = e.bairro     || form.bairro
+        form.cidade   = e.cidade     || form.cidade
+        form.uf       = e.uf         || form.uf
+        if (!form.complemento && e.complemento) form.complemento = e.complemento
+    },
+    {
+        onLimpar: () => {
+            form.endereco = ""
+            form.bairro   = ""
+            form.cidade   = ""
+            form.uf       = ""
+        },
+    },
+)
 
 watch(() => props.aberto, (a) => {
     if (!a) return
@@ -218,7 +240,7 @@ async function salvar() {
             </div>
         </AppField>
 
-        <AppField label="CEP">
+        <AppField :label="buscandoCep ? 'CEP (buscando...)' : 'CEP'">
             <AppInput
                 v-model="form.cep"
                 v-maska="'#####-###'"

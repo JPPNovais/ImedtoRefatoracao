@@ -11,7 +11,7 @@
  * Backend integration (salva tudo ao final em uma única chamada atômica):
  *   → onboardingService.finalizar (perfil + estabelecimento + profissional + horários)
  */
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref, toRef, watch } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
 import { useAuthStore } from "@/stores/authStore"
@@ -22,8 +22,8 @@ import type { ProfissaoCatalogo, EspecialidadeCatalogo } from "@/services/catalo
 import { usuarioService } from "@/services/usuarioService"
 import { estabelecimentoService } from "@/services/estabelecimentoService"
 import { vinculoService } from "@/services/vinculoService"
-import { buscarPorCep } from "@/services/viaCepService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
+import { useCepAutofill } from "@/composables/useCepAutofill"
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -125,9 +125,12 @@ const clinica = reactive({
     cnpj: "",
     telefone: "",
     cep: "",
-    cidadeUf: "",
-    endereco: "",
+    logradouro: "",
     numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    uf: "",
     tamanho: "Só eu",  // "Só eu" | "2 a 5" | "6 a 20" | "Mais de 20"
 })
 
@@ -200,29 +203,27 @@ watch(cnpjDebounced, async (valor) => {
     }
 }, { immediate: true })
 
-// ── CEP: busca automática no ViaCEP e preenche cidade/UF + endereço ──
-const cepBuscando = ref(false)
-const cepRef = computed(() => clinica.cep)
-const cepDebounced = useDebouncedRef(cepRef, 400)
-
-let cepReqId = 0
-watch(cepDebounced, async (valor) => {
-    const digitos = valor.replace(/\D/g, "")
-    if (digitos.length !== 8) return
-    cepBuscando.value = true
-    const reqId = ++cepReqId
-    const endereco = await buscarPorCep(digitos)
-    if (reqId !== cepReqId) return
-    cepBuscando.value = false
-    if (endereco) {
-        clinica.cidadeUf = `${endereco.cidade} / ${endereco.uf}`
-        // Preenche endereço com logradouro + bairro se ainda não foi digitado nada.
-        if (!clinica.endereco.trim()) {
-            const partes = [endereco.logradouro, endereco.bairro].filter(Boolean)
-            clinica.endereco = partes.join(" — ")
-        }
-    }
-})
+// ── CEP: busca automática via composable padronizado (CA15) ──
+const { buscando: cepBuscando } = useCepAutofill(
+    toRef(clinica, "cep"),
+    (e) => {
+        // R5: preserva o que o usuário já digitou manualmente
+        clinica.logradouro = e.logradouro || clinica.logradouro
+        clinica.bairro     = e.bairro     || clinica.bairro
+        clinica.cidade     = e.cidade     || clinica.cidade
+        clinica.uf         = e.uf         || clinica.uf
+        if (!clinica.complemento && e.complemento) clinica.complemento = e.complemento
+    },
+    {
+        onLimpar: () => {
+            clinica.logradouro = ""
+            clinica.bairro     = ""
+            clinica.cidade     = ""
+            clinica.uf         = ""
+        },
+        delay: 400,
+    },
+)
 
 // ─── Step 3: Especialidade ───
 const TIPOS_ATEND = [
@@ -397,9 +398,11 @@ async function finalizar() {
         const listaEspecialidades = [...especialidadesSelecionadas.value]
         const especialidade = listaEspecialidades.join(", ")
 
-        // Endereço final: "Rua X, 123 — Bairro Y, Cidade/UF, CEP"
-        const ruaENumero = [clinica.endereco.trim(), clinica.numero.trim()].filter(Boolean).join(", ")
-        const enderecoCompleto = [ruaENumero, clinica.cidadeUf, clinica.cep].filter(Boolean).join(" — ")
+        // Remonta a string endereco a partir dos campos separados (CA16/R7).
+        // Contrato HTTP intacto: o payload continua com estabelecimento.endereco: string.
+        const cidadeUf = [clinica.cidade.trim(), clinica.uf.trim()].filter(Boolean).join(" / ")
+        const logradouroNumero = [clinica.logradouro.trim(), clinica.numero.trim()].filter(Boolean).join(", ")
+        const enderecoCompleto = [logradouroNumero, clinica.complemento.trim(), clinica.bairro.trim(), cidadeUf, clinica.cep.trim()].filter(Boolean).join(" — ")
 
         const ativos = dias.value.filter(d => d.ativo)
         const inicio = ativos.length > 0
@@ -731,26 +734,15 @@ const stepperPassos = computed(() => [
                                 />
                             </div>
                         </div>
-                        <div class="field">
-                            <label>Cidade / UF</label>
-                            <div class="input-wrap">
-                                <i class="fa-solid fa-city" aria-hidden="true"></i>
-                                <input
-                                    v-model="clinica.cidadeUf"
-                                    type="text"
-                                    placeholder="São Paulo / SP"
-                                />
-                            </div>
-                        </div>
                         <div class="field full endereco-row">
                             <div class="endereco-main">
-                                <label>Endereço</label>
+                                <label>Logradouro</label>
                                 <div class="input-wrap">
                                     <i class="fa-solid fa-map-pin" aria-hidden="true"></i>
                                     <input
-                                        v-model="clinica.endereco"
+                                        v-model="clinica.logradouro"
                                         type="text"
-                                        placeholder="Rua, complemento, bairro"
+                                        placeholder="Rua, Avenida..."
                                     />
                                 </div>
                             </div>
@@ -763,6 +755,56 @@ const stepperPassos = computed(() => [
                                         type="text"
                                         placeholder="123"
                                         inputmode="numeric"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field full endereco-row">
+                            <div class="endereco-main">
+                                <label>Complemento <span class="hint">(opcional)</span></label>
+                                <div class="input-wrap">
+                                    <i class="fa-solid fa-building" aria-hidden="true"></i>
+                                    <input
+                                        v-model="clinica.complemento"
+                                        type="text"
+                                        placeholder="Sala, andar..."
+                                    />
+                                </div>
+                            </div>
+                            <div class="endereco-numero" style="flex: 1;">
+                                <label>Bairro</label>
+                                <div class="input-wrap">
+                                    <i class="fa-solid fa-map" aria-hidden="true"></i>
+                                    <input
+                                        v-model="clinica.bairro"
+                                        type="text"
+                                        placeholder="Bairro"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="field full endereco-row">
+                            <div class="endereco-main">
+                                <label>Cidade</label>
+                                <div class="input-wrap">
+                                    <i class="fa-solid fa-city" aria-hidden="true"></i>
+                                    <input
+                                        v-model="clinica.cidade"
+                                        type="text"
+                                        placeholder="Cidade"
+                                    />
+                                </div>
+                            </div>
+                            <div class="endereco-numero" style="flex: 0 0 80px;">
+                                <label>UF</label>
+                                <div class="input-wrap">
+                                    <i class="fa-solid fa-flag" aria-hidden="true"></i>
+                                    <input
+                                        v-model="clinica.uf"
+                                        type="text"
+                                        placeholder="SP"
+                                        maxlength="2"
+                                        style="text-transform: uppercase;"
                                     />
                                 </div>
                             </div>
