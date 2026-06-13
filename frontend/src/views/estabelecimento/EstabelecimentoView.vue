@@ -27,6 +27,7 @@ import FuncionamentoTab from "@/components/estabelecimento/FuncionamentoTab.vue"
 import UnidadesTab from "@/components/estabelecimento/UnidadesTab.vue"
 import ReparticoesTab from "@/components/estabelecimento/ReparticoesTab.vue"
 import ListasVariaveisTab from "@/components/estabelecimento/ListasVariaveisTab.vue"
+import ModelosDescricaoCirurgicaTab from "@/components/estabelecimento/ModelosDescricaoCirurgicaTab.vue"
 
 // ─── Painéis lazy (defineAsyncComponent → não montam até a seção ser aberta) ─
 const PainelAutomacoes      = defineAsyncComponent(() => import("@/views/automacoes/AutomacoesView.vue"))
@@ -34,7 +35,6 @@ const PainelModelosPront    = defineAsyncComponent(() => import("@/views/configu
 const PainelIa              = defineAsyncComponent(() => import("@/views/configuracoes/MinhaIaSettingsView.vue"))
 const PainelAssinatura      = defineAsyncComponent(() => import("@/views/assinatura/MinhaAssinaturaView.vue"))
 const PainelTermos          = defineAsyncComponent(() => import("@/components/termos/TermosPainelEmbutido.vue"))
-const PainelFinanceiro      = defineAsyncComponent(() => import("@/views/financeiro/FinanceiroConfigView.vue"))
 const PainelConvenios       = defineAsyncComponent(() => import("@/views/estabelecimento/ConveniosConfigView.vue"))
 
 // ─── Stores e router ──────────────────────────────────────────────────────────
@@ -55,9 +55,9 @@ const podeEditar       = ref(false)
 // ─── Definição dos grupos e seções ────────────────────────────────────────────
 type SecaoId =
     | "dados" | "funcionamento" | "unidades" | "reparticoes"
-    | "modelos-prontuario" | "termos" | "variaveis"
+    | "modelos-prontuario" | "termos" | "variaveis" | "modelos-cirurgia"
     | "automacoes" | "ia" | "assinatura" | "seguranca"
-    | "financeiro" | "convenios"
+    | "convenios"
 
 interface SecaoItem {
     id: SecaoId
@@ -85,9 +85,10 @@ const GRUPOS_NAV: GrupoNav[] = [
     {
         label: "Modelos e listas",
         secoes: [
-            { id: "modelos-prontuario", label: "Modelos de prontuário",    icone: "fa-solid fa-notes-medical",  visivel: podeVerModelos },
-            { id: "termos",             label: "Termos de consentimento",  icone: "fa-solid fa-file-signature", visivel: podeVerTermos },
-            { id: "variaveis",          label: "Listas de variáveis",      icone: "fa-solid fa-list",           visivel: true },
+            { id: "modelos-prontuario", label: "Modelos de prontuário",            icone: "fa-solid fa-notes-medical",  visivel: podeVerModelos },
+            { id: "termos",             label: "Termos de consentimento",          icone: "fa-solid fa-file-signature", visivel: podeVerTermos },
+            { id: "variaveis",          label: "Listas de variáveis",              icone: "fa-solid fa-list",           visivel: true },
+            { id: "modelos-cirurgia",   label: "Modelos de descrição cirúrgica",   icone: "fa-solid fa-file-pen",       visivel: true },
         ],
     },
     {
@@ -102,7 +103,6 @@ const GRUPOS_NAV: GrupoNav[] = [
     {
         label: "Faturamento",
         secoes: [
-            { id: "financeiro", label: "Financeiro", icone: "fa-solid fa-hand-holding-dollar", visivel: true },
             { id: "convenios",  label: "Convênios",  icone: "fa-solid fa-handshake",           visivel: podeVerConvenios },
         ],
     },
@@ -127,9 +127,9 @@ const gruposFiltrados = computed(() => {
 // ─── Seção ativa (deep-link bidirecional com ?secao=) ─────────────────────────
 const TODAS_SECOES: SecaoId[] = [
     "dados", "funcionamento", "unidades", "reparticoes",
-    "modelos-prontuario", "termos", "variaveis",
+    "modelos-prontuario", "termos", "variaveis", "modelos-cirurgia",
     "automacoes", "ia", "assinatura", "seguranca",
-    "financeiro", "convenios",
+    "convenios",
 ]
 
 function secaoValida(s: string | null | undefined): s is SecaoId {
@@ -563,6 +563,15 @@ onMounted(async () => {
                     <ListasVariaveisTab :pode-editar="podeEditar" />
                 </section>
 
+                <!-- ── Modelos de descrição cirúrgica ─────────────────────── -->
+                <section v-else-if="secaoAtiva === 'modelos-cirurgia'" class="painel-secao">
+                    <header class="secao-head">
+                        <h2 class="ds-section-title">Modelos de descrição cirúrgica</h2>
+                        <p class="secao-head-sub">Modelos de texto reutilizáveis para a seção "Descrição cirúrgica" da evolução do prontuário. Escolha um modelo na tela de evolução para preencher o campo automaticamente.</p>
+                    </header>
+                    <ModelosDescricaoCirurgicaTab :pode-editar="permissoes.podeExtra('modelos_prontuario')" />
+                </section>
+
                 <!-- ── Automações (lazy) ──────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'automacoes'" class="painel-secao">
                     <div v-if="!podeVerAutomacoes" class="estado-sem-permissao">
@@ -584,11 +593,6 @@ onMounted(async () => {
                 <!-- ── Assinatura (lazy) ──────────────────────────────────── -->
                 <section v-else-if="secaoAtiva === 'assinatura'" class="painel-secao">
                     <PainelAssinatura />
-                </section>
-
-                <!-- ── Financeiro — tabela de preços + taxa (lazy) ────────── -->
-                <section v-else-if="secaoAtiva === 'financeiro'" class="painel-secao">
-                    <PainelFinanceiro />
                 </section>
 
                 <!-- ── Convênios — CRUD de convênios e planos (lazy) ─────── -->

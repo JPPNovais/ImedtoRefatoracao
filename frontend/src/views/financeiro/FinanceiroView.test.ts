@@ -20,6 +20,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/stores/permissoesStore", () => ({ usePermissoesStore: vi.fn(() => mocks.permissoes) }))
 vi.mock("@/stores/tenantStore",     () => ({ useTenantStore:     vi.fn(() => mocks.tenant)     }))
 
+// useRoute/useRouter — deep-link adicionado no briefing 2026-06-13_003
+vi.mock("vue-router", () => ({
+    useRoute: vi.fn(() => ({ query: {} })),
+    useRouter: vi.fn(() => ({ replace: vi.fn() })),
+}))
+
 // AppPageHeader e AppButton — stubs que preservam o slot #acoes e propagam @click.
 vi.mock("@/components/ui", () => ({
     AppPageHeader: defineComponent({

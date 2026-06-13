@@ -204,11 +204,11 @@ const router = createRouter({
             redirect: { path: "/estabelecimento", query: { secao: "ia" } },
         },
 
-        // Configurações Financeiro (F1) — tabela de preços + taxa por forma de pagamento.
+        // Configurações Financeiro (F1) — redireciona para aba config do módulo /financeiro.
         {
             path: "/configuracoes/financeiro",
             name: "FinanceiroSettings",
-            redirect: { path: "/estabelecimento", query: { secao: "financeiro" } },
+            redirect: { path: "/financeiro", query: { aba: "config" } },
         },
 
         // Notificações full-page

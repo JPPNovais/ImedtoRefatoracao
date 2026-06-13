@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from "vue"
+import { ref, computed, defineAsyncComponent, watch } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { AppPageHeader, AppButton } from "@/components/ui"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { useTenantStore } from "@/stores/tenantStore"
@@ -12,18 +13,48 @@ const ConfigTab     = defineAsyncComponent(() => import("./tabs/FinanceiroConfig
 
 const permissoesStore = usePermissoesStore()
 const tenantStore     = useTenantStore()
+const route  = useRoute()
+const router = useRouter()
 const ehDono = computed(() => permissoesStore.ehDono)
 
 type Aba = "visao-geral" | "caixa" | "comissoes" | "config"
-const abaAtiva = ref<Aba>("visao-geral")
+
+const ABAS_VALIDAS: Aba[] = ["visao-geral", "caixa", "comissoes", "config"]
+
+function resolverAbaInicial(): Aba {
+    const q = route.query.aba as string | undefined
+    if (q && ABAS_VALIDAS.includes(q as Aba)) return q as Aba
+    return "visao-geral"
+}
 
 // Memoize: só instancia cada aba quando visitada pela primeira vez.
-const abasCarregadas = ref<Set<Aba>>(new Set<Aba>(["visao-geral"]))
+const abaInicial = resolverAbaInicial()
+const abaAtiva = ref<Aba>(abaInicial)
+const abasCarregadas = ref<Set<Aba>>(new Set<Aba>([abaInicial]))
 
 function selecionarAba(aba: Aba) {
     abaAtiva.value = aba
     abasCarregadas.value.add(aba)
 }
+
+// Sincroniza aba → URL (replace para não poluir histórico) — CA13
+watch(abaAtiva, (a) => {
+    const q = route.query.aba
+    if (q !== a) {
+        router.replace({ query: { ...route.query, aba: a } })
+    }
+})
+
+// Sincroniza URL → aba (navegação por link externo / botão voltar) — CA12/14
+watch(() => route.query.aba, (q) => {
+    const a = q as string | undefined
+    if (a && ABAS_VALIDAS.includes(a as Aba) && a !== abaAtiva.value) {
+        abaAtiva.value = a as Aba
+        abasCarregadas.value.add(a as Aba)
+    } else if (!a || !ABAS_VALIDAS.includes(a as Aba)) {
+        abaAtiva.value = "visao-geral"
+    }
+})
 
 const abas: { id: Aba; rotulo: string; icone: string }[] = [
     { id: "visao-geral", rotulo: "Visão geral",  icone: "fa-solid fa-chart-line"     },

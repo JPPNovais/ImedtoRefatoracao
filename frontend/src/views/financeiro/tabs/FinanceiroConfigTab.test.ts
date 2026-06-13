@@ -14,6 +14,27 @@ import FinanceiroConfigTab from "./FinanceiroConfigTab.vue"
  * 4. String vazia é tratada como null no payload
  */
 
+// ─── Mock de stores adicionados no briefing 2026-06-13_003 ───────────────────
+vi.mock("@/stores/cobrancaStore", () => ({
+    useCobrancaConfigStore: vi.fn(() => ({
+        tabelaPreco: [],
+        configTaxa: [],
+        carregando: false,
+        carregarTabelaPreco: vi.fn().mockResolvedValue(undefined),
+        carregarConfigTaxa: vi.fn().mockResolvedValue(undefined),
+        salvarTabelaPreco: vi.fn().mockResolvedValue(undefined),
+        inativarTabelaPreco: vi.fn().mockResolvedValue(undefined),
+        salvarConfigTaxa: vi.fn().mockResolvedValue(undefined),
+    })),
+}))
+
+vi.mock("@/stores/permissoesStore", () => ({
+    usePermissoesStore: vi.fn(() => ({
+        pode: vi.fn(() => true),
+        ehDono: true,
+    })),
+}))
+
 // ─── Mock do design system ────────────────────────────────────────────────────
 vi.mock("@/components/ui", () => {
     const AppField = {
@@ -32,7 +53,7 @@ vi.mock("@/components/ui", () => {
         />`,
     }
     const AppButton = {
-        props: ["variant", "loading", "disabled"],
+        props: ["variant", "loading", "disabled", "icon", "size"],
         emits: ["click"],
         template: `<button :disabled="disabled || loading" @click="$emit('click')"><slot /></button>`,
     }
@@ -50,8 +71,27 @@ vi.mock("@/components/ui", () => {
         props: ["variant", "label"],
         template: `<span>{{ label }}</span>`,
     }
-    return { AppField, AppInputDecimal, AppButton, AppModal, AppToast, AppBadge }
+    const AppSelect = {
+        props: ["modelValue", "options"],
+        emits: ["update:modelValue"],
+        template: `<select :value="modelValue" @change="$emit('update:modelValue', $event.target.value)"><option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option></select>`,
+    }
+    const AppEmptyState = {
+        props: ["icone", "titulo", "descricao"],
+        template: `<div data-testid="empty-state"><slot /></div>`,
+    }
+    const AppSearchInput = {
+        props: ["modelValue", "placeholder"],
+        emits: ["update:modelValue"],
+        template: `<input data-testid="search-input" :value="modelValue" @input="$emit('update:modelValue', $event.target.value)" />`,
+    }
+    return { AppField, AppInputDecimal, AppButton, AppModal, AppToast, AppBadge, AppSelect, AppEmptyState, AppSearchInput }
 })
+
+// useDebouncedRef: retorna o próprio ref de entrada (sem delay) para simplificar testes
+vi.mock("@/composables/useDebouncedRef", () => ({
+    useDebouncedRef: (source: any) => source,
+}))
 
 // ─── Mocks de service ─────────────────────────────────────────────────────────
 const mockSalvarConfigComissao   = vi.fn()
