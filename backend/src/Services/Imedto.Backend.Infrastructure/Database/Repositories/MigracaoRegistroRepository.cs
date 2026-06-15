@@ -28,6 +28,11 @@ public class MigracaoRegistroRepository : IMigracaoRegistroRepository
             .Where(r => r.MigracaoJobId == jobId)
             .ToListAsync(ct);
 
+    public async Task<List<MigracaoRegistro>> ListarCriadosPorJob(long jobId, CancellationToken ct = default)
+        => await _db.MigracaoRegistros
+            .Where(r => r.MigracaoJobId == jobId && r.Status == "importado_criado")
+            .ToListAsync(ct);
+
     public async Task<RelatorioMigracao> ObterRelatorio(long jobId, CancellationToken ct = default)
     {
         var registros = await _db.MigracaoRegistros

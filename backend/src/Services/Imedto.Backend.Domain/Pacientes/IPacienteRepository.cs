@@ -27,4 +27,10 @@ public interface IPacienteRepository
     Task<Paciente?> ObterPorCpfOuNulo(string cpfDigitos, long estabelecimentoId);
     Task<Paciente?> ObterPorDocumentoInternacionalOuNulo(string doc, long estabelecimentoId);
     Task<Paciente?> ObterPorNomeTelefoneOuNulo(string nome, string telefone, long estabelecimentoId);
+
+    /// <summary>
+    /// Remove o paciente do banco. Uso exclusivo do rollback de migração (CA17).
+    /// O caller garante que não há FK ativa apontando para o paciente antes de chamar.
+    /// </summary>
+    Task Remover(Paciente paciente);
 }

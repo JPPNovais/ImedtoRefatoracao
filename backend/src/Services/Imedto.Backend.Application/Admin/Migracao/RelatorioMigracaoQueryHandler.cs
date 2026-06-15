@@ -24,8 +24,10 @@ public sealed class RelatorioMigracaoQueryHandler
         var job = await _jobRepo.ObterPorIdAdminOuNulo(jobId, ct)
             ?? throw new BusinessException("Job não encontrado.");
 
-        if (job.Status != MigracaoJob.StatusConcluido && job.Status != MigracaoJob.StatusConcluidoComErros)
-            throw new BusinessException("Relatório disponível apenas para jobs concluídos.");
+        if (job.Status != MigracaoJob.StatusConcluido
+            && job.Status != MigracaoJob.StatusConcluidoComErros
+            && job.Status != MigracaoJob.StatusDesfeito)
+            throw new BusinessException("Relatório disponível apenas para jobs concluídos ou desfeitos.");
 
         var relatorio = await _registroRepo.ObterRelatorio(jobId, ct);
 

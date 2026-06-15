@@ -179,4 +179,16 @@ public class MigracaoJob : Entity
         Status = StatusConcluidoComErros;
         AtualizadoEm = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Marca o job como desfeito após rollback dos registros criados (CA17, R9, D12).
+    /// Transição: concluido | concluido_com_erros → desfeito.
+    /// </summary>
+    public virtual void MarcarDesfeito()
+    {
+        if (Status != StatusConcluido && Status != StatusConcluidoComErros)
+            throw new BusinessException("Apenas jobs concluídos podem ser desfeitos.");
+        Status = StatusDesfeito;
+        AtualizadoEm = DateTime.UtcNow;
+    }
 }

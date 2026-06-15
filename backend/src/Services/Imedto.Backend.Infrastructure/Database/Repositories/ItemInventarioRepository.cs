@@ -41,4 +41,10 @@ public class ItemInventarioRepository : IItemInventarioRepository
         return await _db.ItensInventario
             .FirstOrDefaultAsync(i => i.EstabelecimentoId == estabelecimentoId && i.Nome.ToLower() == norm);
     }
+
+    public async Task Remover(ItemInventario item)
+    {
+        _db.ItensInventario.Remove(item);
+        await _db.SaveChangesAsync();
+    }
 }

@@ -42,6 +42,12 @@ public class CategoriaEstoqueRepository : ICategoriaEstoqueRepository
         return await _db.Set<CategoriaEstoque>()
             .FirstOrDefaultAsync(c => c.EstabelecimentoId == estabelecimentoId && c.Nome.ToLower() == norm);
     }
+
+    public async Task Remover(CategoriaEstoque categoria)
+    {
+        _db.Set<CategoriaEstoque>().Remove(categoria);
+        await _db.SaveChangesAsync();
+    }
 }
 
 public class FabricanteEstoqueRepository : IFabricanteEstoqueRepository
@@ -82,6 +88,12 @@ public class FabricanteEstoqueRepository : IFabricanteEstoqueRepository
         var norm = nome.Trim().ToLower();
         return await _db.Set<FabricanteEstoque>()
             .FirstOrDefaultAsync(f => f.EstabelecimentoId == estabelecimentoId && f.Nome.ToLower() == norm);
+    }
+
+    public async Task Remover(FabricanteEstoque fabricante)
+    {
+        _db.Set<FabricanteEstoque>().Remove(fabricante);
+        await _db.SaveChangesAsync();
     }
 }
 
@@ -138,6 +150,12 @@ public class FornecedorEstoqueRepository : IFornecedorEstoqueRepository
         return await _db.Set<FornecedorEstoque>()
             .FirstOrDefaultAsync(f => f.EstabelecimentoId == estabelecimentoId && f.RazaoSocial.ToLower() == norm);
     }
+
+    public async Task Remover(FornecedorEstoque fornecedor)
+    {
+        _db.Set<FornecedorEstoque>().Remove(fornecedor);
+        await _db.SaveChangesAsync();
+    }
 }
 
 public class LocalEstoqueRepository : ILocalEstoqueRepository
@@ -178,5 +196,11 @@ public class LocalEstoqueRepository : ILocalEstoqueRepository
         var norm = nome.Trim().ToLower();
         return await _db.Set<LocalEstoque>()
             .FirstOrDefaultAsync(l => l.EstabelecimentoId == estabelecimentoId && l.Nome.ToLower() == norm);
+    }
+
+    public async Task Remover(LocalEstoque local)
+    {
+        _db.Set<LocalEstoque>().Remove(local);
+        await _db.SaveChangesAsync();
     }
 }

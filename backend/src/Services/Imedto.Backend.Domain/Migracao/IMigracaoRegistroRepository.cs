@@ -6,6 +6,12 @@ public interface IMigracaoRegistroRepository
     Task Salvar(MigracaoRegistro registro, CancellationToken ct = default);
     Task<List<MigracaoRegistro>> ListarPorJob(long jobId, CancellationToken ct = default);
     Task<RelatorioMigracao> ObterRelatorio(long jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Retorna apenas os registros com status <c>importado_criado</c> do job.
+    /// Usado pelo rollback (CA17) para identificar o que reverter.
+    /// </summary>
+    Task<List<MigracaoRegistro>> ListarCriadosPorJob(long jobId, CancellationToken ct = default);
 }
 
 public class RelatorioMigracao

@@ -67,6 +67,18 @@ export interface RelatorioMigracaoResult {
     porEntidade: Record<string, RelatorioEntidadeResult>
 }
 
+/** CA17, R9 — Resultado do desfazer de migração. */
+export interface RelatorioDesfazimentoResult {
+    /** Registros criados pelo job que foram revertidos com sucesso. */
+    totalRevertidos: number
+    /** Registros criados que NÃO puderam ser revertidos (FK ativa de outro fluxo). */
+    totalNaoRevertidos: number
+    /** Registros atualizados pelo upsert — não são revertidos, apenas reportados. */
+    totalAtualizadosMantidos: number
+    /** Mensagem explicativa exibida ao operador. */
+    aviso: string
+}
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 const base = "/migracao"
@@ -113,6 +125,15 @@ export const migracaoAdminService = {
 
     async obterRelatorio(jobId: number): Promise<RelatorioMigracaoResult> {
         const { data } = await adminApi.get<RelatorioMigracaoResult>(`${base}/${jobId}/relatorio`)
+        return data
+    },
+
+    /**
+     * CA17 — Desfaz a migração: reverte SOMENTE os registros criados pelo job.
+     * Registros atualizados (que já existiam) NÃO são tocados — relatório avisa.
+     */
+    async desfazer(jobId: number): Promise<RelatorioDesfazimentoResult> {
+        const { data } = await adminApi.post<RelatorioDesfazimentoResult>(`${base}/${jobId}/desfazer`)
         return data
     },
 }

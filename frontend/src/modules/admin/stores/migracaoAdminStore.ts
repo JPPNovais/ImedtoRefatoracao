@@ -6,6 +6,7 @@ import {
     type ListarJobsResult,
     type PreviewMigracaoResult,
     type RelatorioMigracaoResult,
+    type RelatorioDesfazimentoResult,
 } from "../services/migracaoAdminService"
 
 export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
@@ -19,6 +20,8 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
     const preview = ref<PreviewMigracaoResult | null>(null)
     const relatorio = ref<RelatorioMigracaoResult | null>(null)
     const disparando = ref(false)
+    const desfazendo = ref(false)
+    const relatorioDesfazimento = ref<RelatorioDesfazimentoResult | null>(null)
 
     async function carregar(filtros: {
         estabelecimentoId?: number | null
@@ -102,6 +105,20 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         relatorio.value = await migracaoAdminService.obterRelatorio(jobId)
     }
 
+    /** CA17 — Desfaz a migração e popula relatorioDesfazimento com o relatório. */
+    async function desfazer(jobId: number): Promise<void> {
+        desfazendo.value = true
+        relatorioDesfazimento.value = null
+        try {
+            relatorioDesfazimento.value = await migracaoAdminService.desfazer(jobId)
+            if (jobAtual.value?.id === jobId) {
+                await carregarJob(jobId)
+            }
+        } finally {
+            desfazendo.value = false
+        }
+    }
+
     return {
         jobs,
         total,
@@ -113,6 +130,8 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         preview,
         relatorio,
         disparando,
+        desfazendo,
+        relatorioDesfazimento,
         carregar,
         carregarJob,
         salvarMapa,
@@ -120,5 +139,6 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         gerarPreview,
         disparar,
         carregarRelatorio,
+        desfazer,
     }
 })

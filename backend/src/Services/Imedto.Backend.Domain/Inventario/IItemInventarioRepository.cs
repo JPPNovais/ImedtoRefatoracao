@@ -19,4 +19,7 @@ public interface IItemInventarioRepository
 
     Task<ItemInventario?> ObterPorCodigoOuNulo(string codigo, long estabelecimentoId);
     Task<ItemInventario?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
+
+    /// <summary>Remove o item de inventário. Uso exclusivo do rollback de migração (CA17).</summary>
+    Task Remover(ItemInventario item);
 }

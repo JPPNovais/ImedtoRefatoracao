@@ -33,6 +33,10 @@ const erroDisparar = ref("")
 const erroRelatorio = ref("")
 const carregandoRelatorio = ref(false)
 
+// Marco 4 — desfazer (CA17, R9)
+const modalDesfazer = ref(false)
+const erroDesfazer = ref("")
+
 // Modal de template
 const modalTemplate = ref(false)
 const nomeTemplate  = ref("")
@@ -148,6 +152,16 @@ async function verRelatorio() {
         erroRelatorio.value = "Não foi possível carregar o relatório."
     } finally {
         carregandoRelatorio.value = false
+    }
+}
+
+async function confirmarDesfazer() {
+    erroDesfazer.value = ""
+    try {
+        await store.desfazer(Number(props.jobId))
+        modalDesfazer.value = false
+    } catch {
+        erroDesfazer.value = "Não foi possível desfazer a migração."
     }
 }
 </script>
@@ -386,8 +400,56 @@ async function verRelatorio() {
                     <i class="fa-solid fa-chart-bar" aria-hidden="true" />
                     Carregar relatório
                 </AppButton>
+                <!-- CA17 — Botão Desfazer: reverte só os criados -->
+                <AppButton
+                    variant="danger"
+                    @click="modalDesfazer = true"
+                >
+                    <i class="fa-solid fa-rotate-left" aria-hidden="true" />
+                    Desfazer
+                </AppButton>
             </div>
         </AppCard>
+
+        <!-- Marco 4 — Relatório de desfazimento (status: desfeito) -->
+        <AppCard v-if="statusJob === 'desfeito'" class="marco3-card">
+            <h2 class="ds-section-title">Migração desfeita</h2>
+            <AppBadge variant="warning">Desfeito</AppBadge>
+            <div v-if="store.relatorioDesfazimento" class="relatorio-resumo">
+                <p class="aviso-desfazimento" role="status">
+                    {{ store.relatorioDesfazimento.aviso }}
+                </p>
+                <p>
+                    Revertidos: <strong>{{ store.relatorioDesfazimento.totalRevertidos }}</strong>
+                    · Não revertidos: <strong>{{ store.relatorioDesfazimento.totalNaoRevertidos }}</strong>
+                    · Atualizados mantidos: <strong>{{ store.relatorioDesfazimento.totalAtualizadosMantidos }}</strong>
+                </p>
+            </div>
+        </AppCard>
+
+        <!-- Marco 4 — Modal de confirmação de desfazer (CA17) -->
+        <AppModal
+            :aberto="modalDesfazer"
+            titulo="Desfazer migração"
+            @fechar="modalDesfazer = false"
+        >
+            <p class="desfazer-aviso">
+                Esta ação reverterá <strong>somente os registros criados</strong> por esta migração.
+                Registros que já existiam e foram atualizados pelo upsert
+                <strong>não serão tocados</strong>.
+            </p>
+            <div v-if="erroDesfazer" class="erro-msg">{{ erroDesfazer }}</div>
+            <template #rodape>
+                <AppButton variant="ghost" @click="modalDesfazer = false">Cancelar</AppButton>
+                <AppButton
+                    variant="danger"
+                    :loading="store.desfazendo"
+                    @click="confirmarDesfazer"
+                >
+                    Confirmar desfazer
+                </AppButton>
+            </template>
+        </AppModal>
 
         <!-- Modal: salvar como template -->
         <AppModal
@@ -549,5 +611,22 @@ async function verRelatorio() {
 
 .relatorio-table tr:last-child td {
     border-bottom: none;
+}
+
+/* Marco 4 — desfazer */
+.desfazer-aviso {
+    font-size: var(--text-sm);
+    color: hsl(var(--foreground));
+    line-height: 1.6;
+}
+
+.aviso-desfazimento {
+    font-size: var(--text-sm);
+    background: hsl(var(--warning) / 0.1);
+    border-left: 3px solid hsl(var(--warning));
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    color: hsl(var(--foreground));
 }
 </style>

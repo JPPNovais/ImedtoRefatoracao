@@ -62,4 +62,10 @@ public class AgendamentoRepository : IAgendamentoRepository
                 a.ProfissionalUsuarioId == profissionalUsuarioId &&
                 a.InicioPrevisto == inicioPrevisto &&
                 a.EstabelecimentoId == estabelecimentoId);
+
+    public async Task Remover(Agendamento agendamento)
+    {
+        _db.Agendamentos.Remove(agendamento);
+        await _db.SaveChangesAsync();
+    }
 }

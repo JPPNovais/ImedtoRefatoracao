@@ -63,4 +63,10 @@ public class PacienteRepository : IPacienteRepository
                 p.Telefone == telefone &&
                 p.EstabelecimentoId == estabelecimentoId &&
                 p.DeletadoEm == null);
+
+    public async Task Remover(Paciente paciente)
+    {
+        _context.Pacientes.Remove(paciente);
+        await _context.SaveChangesAsync();
+    }
 }

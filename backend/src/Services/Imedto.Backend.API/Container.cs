@@ -417,6 +417,7 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DisparaMigracaoCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.PreviewOnda1QueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.RelatorioMigracaoQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DesfazerMigracaoCommandHandler>();
         services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda1JobHandler>();
     }
 

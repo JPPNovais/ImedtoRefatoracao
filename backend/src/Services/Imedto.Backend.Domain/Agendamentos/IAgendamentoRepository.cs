@@ -38,4 +38,7 @@ public interface IAgendamentoRepository
         long? excluirAgendamentoId = null);
 
     Task<Agendamento?> ObterPorChaveDeNegocioOuNulo(long pacienteId, Guid profissionalUsuarioId, DateTime inicioPrevisto, long estabelecimentoId);
+
+    /// <summary>Remove o agendamento. Uso exclusivo do rollback de migração (CA17).</summary>
+    Task Remover(Agendamento agendamento);
 }

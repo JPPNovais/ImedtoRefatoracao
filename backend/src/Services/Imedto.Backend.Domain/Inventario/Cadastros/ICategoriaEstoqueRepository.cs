@@ -9,6 +9,8 @@ public interface ICategoriaEstoqueRepository
     Task<bool> ExistemItensVinculados(long categoriaId, long estabelecimentoId);
     Task Salvar(CategoriaEstoque categoria);
     Task<CategoriaEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
+    /// <summary>Remove a categoria. Uso exclusivo do rollback de migração (CA17).</summary>
+    Task Remover(CategoriaEstoque categoria);
 }
 
 public interface IFabricanteEstoqueRepository
@@ -18,6 +20,8 @@ public interface IFabricanteEstoqueRepository
     Task<bool> ExistemItensVinculados(long fabricanteId, long estabelecimentoId);
     Task Salvar(FabricanteEstoque fabricante);
     Task<FabricanteEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
+    /// <summary>Remove o fabricante. Uso exclusivo do rollback de migração (CA17).</summary>
+    Task Remover(FabricanteEstoque fabricante);
 }
 
 public interface IFornecedorEstoqueRepository
@@ -29,6 +33,8 @@ public interface IFornecedorEstoqueRepository
     Task Salvar(FornecedorEstoque fornecedor);
     Task<FornecedorEstoque?> ObterPorCnpjOuNulo(string cnpjDigitos, long estabelecimentoId);
     Task<FornecedorEstoque?> ObterPorNomeOuNulo(string razaoSocial, long estabelecimentoId);
+    /// <summary>Remove o fornecedor. Uso exclusivo do rollback de migração (CA17).</summary>
+    Task Remover(FornecedorEstoque fornecedor);
 }
 
 public interface ILocalEstoqueRepository
@@ -38,4 +44,6 @@ public interface ILocalEstoqueRepository
     Task<bool> ExistemItensVinculados(long localId, long estabelecimentoId);
     Task Salvar(LocalEstoque local);
     Task<LocalEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
+    /// <summary>Remove o local. Uso exclusivo do rollback de migração (CA17).</summary>
+    Task Remover(LocalEstoque local);
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.Application.Admin.Migracao;
 using Imedto.Backend.Contracts.Admin.Migracao;
+using Imedto.Backend.Domain.Migracao;
 
 namespace Imedto.Backend.API.Controllers.Admin;
 
@@ -23,6 +24,7 @@ public class AdminMigracaoController : ControllerBase
     private readonly PreviewOnda1QueryHandler            _previewHandler;
     private readonly DisparaMigracaoCommandHandler       _disparaHandler;
     private readonly RelatorioMigracaoQueryHandler       _relatorioHandler;
+    private readonly DesfazerMigracaoCommandHandler      _desfazerHandler;
 
     public AdminMigracaoController(
         ListarJobsMigracaoAdminQueryHandler listarHandler,
@@ -31,7 +33,8 @@ public class AdminMigracaoController : ControllerBase
         SalvarTemplateDeOrigemCommandHandler salvarTemplateHandler,
         PreviewOnda1QueryHandler            previewHandler,
         DisparaMigracaoCommandHandler       disparaHandler,
-        RelatorioMigracaoQueryHandler       relatorioHandler)
+        RelatorioMigracaoQueryHandler       relatorioHandler,
+        DesfazerMigracaoCommandHandler      desfazerHandler)
     {
         _listarHandler        = listarHandler;
         _obterHandler         = obterHandler;
@@ -40,6 +43,7 @@ public class AdminMigracaoController : ControllerBase
         _previewHandler       = previewHandler;
         _disparaHandler       = disparaHandler;
         _relatorioHandler     = relatorioHandler;
+        _desfazerHandler      = desfazerHandler;
     }
 
     /// <summary>Lista jobs de migração (filtros opcionais: estabelecimento, status).</summary>
@@ -150,6 +154,20 @@ public class AdminMigracaoController : ControllerBase
     public async Task<IActionResult> Relatorio(long jobId, CancellationToken ct)
     {
         var resultado = await _relatorioHandler.Handle(jobId, ct);
+        return Ok(resultado);
+    }
+
+    /// <summary>
+    /// Desfaz a migração — reverte SOMENTE os registros criados pelo job (CA17, R9).
+    /// Registros que já existiam e foram atualizados pelo upsert NÃO são tocados.
+    /// O relatório de retorno avisa explicitamente quantos atualizados foram mantidos.
+    /// </summary>
+    [HttpPost("{jobId:long}/desfazer")]
+    [ProducesResponseType(typeof(RelatorioDesfazimentoResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Desfazer(long jobId, CancellationToken ct)
+    {
+        var resultado = await _desfazerHandler.Handle(jobId, ct);
         return Ok(resultado);
     }
 
