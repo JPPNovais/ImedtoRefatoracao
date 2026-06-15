@@ -37,7 +37,7 @@ public class RegistrarEvolucaoCommandHandler : ICommandHandler<RegistrarEvolucao
         _pendenciaExtrator = pendenciaExtrator;
     }
 
-    public async Task Handle(RegistrarEvolucaoCommand command)
+    public virtual async Task Handle(RegistrarEvolucaoCommand command)
     {
         // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
         // Mensagem padronizada (nao vaza existencia cross-tenant).

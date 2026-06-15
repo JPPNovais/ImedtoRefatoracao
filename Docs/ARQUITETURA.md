@@ -719,10 +719,29 @@ aguardando_arquivo → aguardando_mapa → mapa_em_revisao → preview_pronto
 migrando → concluido / concluido_com_erros / desfeito
 ```
 
-- `Criar(estabelecimentoId, usuarioId, origem?)` — estado inicial `aguardando_arquivo`.
+- `Criar(estabelecimentoId, usuarioId, origem?, onda?)` — estado inicial `aguardando_arquivo`.
+  - `onda = null` → Onda 1 (pacientes). `onda = "prontuario"` → Onda 2 (Marco 5).
 - `RegistrarArquivoRecebido(s3Key)` — seta `ArquivoExpiraEm = UtcNow + 30 dias` (CA24, R12) + `TermoAceitoEm`.
 - `Rejeitar()` — transição de `aguardando_arquivo`/`aguardando_mapa` → `rejeitado`.
 - `MarcarArquivoExpirado()` — chamado pelo job `expirar-arquivos-migracao`.
+
+### Onda 2 — Prontuário histórico (Marco 5, briefing 2026-06-15_001)
+
+`CarregarOnda2JobHandler` (Application/Migracao/Jobs) espelha `CarregarOnda1JobHandler` com três diferenças centrais:
+
+**Port `IMigracaoPacienteLookup`** (Domain/Migracao/IMigracaoPacienteLookup.cs):
+- `ObterPorCpfOuNulo(cpf, estabelecimentoId)` — lookup por CPF.
+- `ObterPorDocumentoInternacionalOuNulo(doc, estabelecimentoId)` — lookup para pacientes estrangeiros.
+- `ObterIdModeloPadraoProntuarioOuNulo(estabelecimentoId)` — modelo padrão para criação de prontuário.
+- Adapter: `DapperPacienteMigracaoLookup` (Infrastructure/Migracao). Singleton — conexão por chamada.
+
+**CA13 — Dependência de Onda 1:** `ExisteOnda1AtivaParaTenant(estabelecimentoId)` bloqueia Onda 2 enquanto houver job de pacientes em `migrando`/`aguardando_mapa`/etc. O job fica no status `migrando` e é reprocessado na próxima rodada do scheduler.
+
+**CA15 — Honestidade estrutural:**
+- `prontuario_evolucao` com `conteudo_json` → `RegistrarEvolucaoCommand` (evolução estruturada).
+- `prontuario_evolucao` sem `conteudo_json` OU `prontuario_anexo` → `AdicionarAnexoCommand` com `text/plain` (anexo histórico pesquisável). Nunca fabrica evolução estruturada inventada.
+
+**CA21 — Audit:** cada chamada a `RegistrarEvolucaoCommand`/`AdicionarAnexoCommand` usa `AutorSistemaId = 00000000-0000-0000-0000-000000000001` — gerado via `IProntuarioAcessoLogService` interno aos handlers reutilizados. Audit trail separável da escrita clínica normal por este ID fixo.
 
 ### Storage S3
 

@@ -34,6 +34,14 @@ public class MigracaoJobConfiguration : IEntityTypeConfiguration<MigracaoJob>
             .HasColumnName("origem")
             .HasColumnType("varchar(200)");
 
+        // Onda de carga: null = Onda 1 (padrão), "prontuario" = Onda 2 (CA13 — briefing 2026-06-15_001 Marco 5).
+        builder.Property(j => j.Onda)
+            .HasColumnName("onda")
+            .HasColumnType("varchar(50)");
+
+        builder.HasIndex(j => new { j.EstabelecimentoId, j.Onda, j.Status })
+            .HasDatabaseName("ix_migracao_jobs_estab_onda_status");
+
         builder.Property(j => j.ArquivoS3Key)
             .HasColumnName("arquivo_s3_key")
             .HasColumnType("varchar(500)");

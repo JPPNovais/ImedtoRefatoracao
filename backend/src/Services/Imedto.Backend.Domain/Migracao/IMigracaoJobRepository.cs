@@ -36,4 +36,17 @@ public interface IMigracaoJobRepository
 
     /// <summary>Retorna o job mais antigo com status "migrando". Null se não houver.</summary>
     Task<MigracaoJob?> ObterMaisAntigoMigrandoOuNulo(CancellationToken ct = default);
+
+    /// <summary>
+    /// Retorna o job mais antigo com status "migrando" e onda="prontuario" (Onda 2 — CA13).
+    /// Null se não houver.
+    /// </summary>
+    Task<MigracaoJob?> ObterMaisAntigoMigrandoOnda2OuNulo(CancellationToken ct = default);
+
+    /// <summary>
+    /// CA13 — verifica se o tenant tem algum job de Onda 1 (pacientes) ainda ativo
+    /// (status: migrando, preview_pronto, mapa_em_revisao, aguardando_mapa).
+    /// Retorna true se existir — a Onda 2 deve ficar bloqueada.
+    /// </summary>
+    Task<bool> ExisteOnda1AtivaParaTenant(long estabelecimentoId, CancellationToken ct = default);
 }

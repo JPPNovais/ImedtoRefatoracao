@@ -86,7 +86,32 @@ public class MigracaoJobRepository : IMigracaoJobRepository
 
     public async Task<MigracaoJob?> ObterMaisAntigoMigrandoOuNulo(CancellationToken ct = default)
         => await _db.MigracaoJobs
-            .Where(j => j.Status == MigracaoJob.StatusMigrando)
+            .Where(j => j.Status == MigracaoJob.StatusMigrando && j.Onda != MigracaoJob.OndaProntuario)
             .OrderBy(j => j.CriadoEm)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<MigracaoJob?> ObterMaisAntigoMigrandoOnda2OuNulo(CancellationToken ct = default)
+        => await _db.MigracaoJobs
+            .Where(j => j.Status == MigracaoJob.StatusMigrando && j.Onda == MigracaoJob.OndaProntuario)
+            .OrderBy(j => j.CriadoEm)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<bool> ExisteOnda1AtivaParaTenant(long estabelecimentoId, CancellationToken ct = default)
+    {
+        // CA13: Onda 1 bloqueante = jobs do mesmo tenant com onda != "prontuario"
+        // que ainda não concluíram/falharam/foram desfeitos.
+        var statusBloqueantes = new[]
+        {
+            MigracaoJob.StatusMigrando,
+            MigracaoJob.StatusPreviewPronto,
+            MigracaoJob.StatusMapaEmRevisao,
+            MigracaoJob.StatusAguardandoMapa,
+        };
+
+        return await _db.MigracaoJobs.AnyAsync(
+            j => j.EstabelecimentoId == estabelecimentoId
+              && j.Onda != MigracaoJob.OndaProntuario
+              && statusBloqueantes.Contains(j.Status),
+            ct);
+    }
 }

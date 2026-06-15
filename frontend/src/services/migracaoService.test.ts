@@ -116,4 +116,30 @@ describe("migracaoService", () => {
         const [, formData] = vi.mocked(httpClient.post).mock.calls[0]
         expect((formData as FormData).get("origem")).toBe("iClinic")
     })
+
+    // ─── CA13 — Onda 2 (prontuário) ─────────────────────────────────────────────
+
+    it("iniciarUpload — inclui onda=prontuario quando Onda 2 selecionada (CA13)", async () => {
+        const arquivo = new File(["zip"], "prontuarios.zip", { type: "application/zip" })
+        vi.mocked(httpClient.post).mockResolvedValueOnce({
+            data: { jobId: 11, status: "aguardando_mapa" },
+        })
+
+        await migracaoService.iniciarUpload(estabelecimentoId, arquivo, undefined, "prontuario")
+
+        const [, formData] = vi.mocked(httpClient.post).mock.calls[0]
+        expect((formData as FormData).get("onda")).toBe("prontuario")
+    })
+
+    it("iniciarUpload — NÃO inclui campo onda quando Onda 1 (valor vazio)", async () => {
+        const arquivo = new File(["zip"], "pacientes.zip", { type: "application/zip" })
+        vi.mocked(httpClient.post).mockResolvedValueOnce({
+            data: { jobId: 12, status: "aguardando_mapa" },
+        })
+
+        await migracaoService.iniciarUpload(estabelecimentoId, arquivo, undefined, undefined)
+
+        const [, formData] = vi.mocked(httpClient.post).mock.calls[0]
+        expect((formData as FormData).get("onda")).toBeNull()
+    })
 })

@@ -52,6 +52,7 @@ public class MigracaoController : ControllerBase
     public async Task<IActionResult> Upload(
         IFormFile arquivo,
         [FromForm] string? origem = null,
+        [FromForm] string? onda = null,
         CancellationToken ct = default)
     {
         if (arquivo is null || arquivo.Length == 0)
@@ -72,7 +73,10 @@ public class MigracaoController : ControllerBase
             ArquivoStream = arquivo.OpenReadStream(),
             ArquivoTamanhoBytes = arquivo.Length,
             ArquivoNomeOriginal = arquivo.FileName,
-            Origem = origem
+            Origem = origem,
+            // Onda 2: cliente pode indicar que o ZIP é de prontuário histórico (CA13).
+            // Quando ausente → Onda 1 (padrão).
+            Onda = onda
         }, ct);
 
         return CreatedAtAction(

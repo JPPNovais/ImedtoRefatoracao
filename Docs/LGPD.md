@@ -216,6 +216,16 @@ Quando o Marco 2 implementar `IMapeadorDeMigracao`, o adapter **deve** extrair o
 
 O aceite do termo é registrado em `migracao_jobs.termo_aceito_em` no momento do upload (via `RegistrarArquivoRecebido`). O frontend exige o checkbox antes de habilitar o envio — a API não precisa receber o aceite separadamente (o POST `/api/migracao/upload` implica aceite, que é gravado no aggregate).
 
+### Onda 2 — Prontuário histórico (Marco 5, CA21): audit de escrita
+
+A carga de Onda 2 (`CarregarOnda2JobHandler`) grava evoluções e anexos históricos através dos **handlers de prontuário existentes** (`RegistrarEvolucaoCommand`, `AdicionarAnexoCommand`), que internamente chamam `IProntuarioAcessoLogService.RegistrarAsync(..., TipoAcessoProntuario.Escrita)`. O campo `AutorUsuarioId` é preenchido com o Guid fixo `00000000-0000-0000-0000-000000000001` (constante `CarregarOnda2JobHandler.AutorSistemaId`) — identifica o "usuário-migração" sem PII real, separando linhas de migração das evoluções clínicas normais nas consultas de audit.
+
+Regras LGPD específicas da Onda 2:
+- **Motivo de rejeição sem PII (CA4/CA20):** mensagem padronizada "paciente não identificado" — nunca revela CPF/documento tentado.
+- **Sem PII em log:** `_logger.LogInformation` registra apenas `JobId` e `EstabelecimentoId` (nunca CPF, nome, conteudo_json do prontuário).
+- **Minimização de payload:** `IMigracaoPacienteLookup` retorna apenas `(PacienteId, ProntuarioId)` — nunca dados sensíveis do paciente.
+- **CA15 — honestidade estrutural:** prontuário sem campos identificáveis não gera evolução inventada; entra como anexo `text/plain` pesquisável. Isso evita PII falso ou distorcido nos prontuários.
+
 ---
 
 ## Checklist multi-tenant — premissa não-negociável

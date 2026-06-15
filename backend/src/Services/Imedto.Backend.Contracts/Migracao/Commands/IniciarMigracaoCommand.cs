@@ -22,6 +22,12 @@ public sealed class IniciarMigracaoCommand : ICommand
 
     /// <summary>Sistema de origem informado pelo cliente (opcional).</summary>
     public string? Origem { get; init; }
+
+    /// <summary>
+    /// Onda de carga. Null = Onda 1 (padrão — pacientes, estoque, agenda, orçamento).
+    /// "prontuario" = Onda 2 (bloqueada até Onda 1 concluir — CA13).
+    /// </summary>
+    public string? Onda { get; init; }
 }
 
 /// <summary>Resultado do command — Id do job criado.</summary>

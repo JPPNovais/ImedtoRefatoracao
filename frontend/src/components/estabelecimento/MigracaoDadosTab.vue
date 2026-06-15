@@ -28,6 +28,14 @@ const erroUpload         = ref<string | null>(null)
 const jobCriado          = ref<MigracaoJobStatus | null>(null)
 const inputRef           = ref<HTMLInputElement | null>(null)
 
+// Onda — Onda 1 (pacientes) é o padrão; "prontuario" = Onda 2 (CA13).
+const ondaSelecionada    = ref<"" | "prontuario">("")
+
+const OPCOES_ONDA = [
+    { valor: "",           rotulo: "Onda 1 — Pacientes e agenda",     descricao: "Importa pacientes, agendamentos e dados cadastrais." },
+    { valor: "prontuario", rotulo: "Onda 2 — Prontuários históricos", descricao: "Importa evoluções e documentos de prontuário. Requer a Onda 1 concluída." },
+] as const
+
 // ─── Label de status ─────────────────────────────────────────────────────────
 const STATUS_LABELS: Record<string, string> = {
     aguardando_arquivo:   "Aguardando arquivo",
@@ -84,7 +92,9 @@ async function enviar() {
     try {
         const resultado = await migracaoService.iniciarUpload(
             props.estabelecimentoId,
-            arquivoSelecionado.value
+            arquivoSelecionado.value,
+            undefined,
+            ondaSelecionada.value || undefined
         )
         jobCriado.value = resultado
         arquivoSelecionado.value = null
@@ -155,6 +165,29 @@ function iniciarNovaMigracao() {
                     <i class="fa-solid fa-shield-halved" />
                     Seus dados são criptografados no envio e mantidos por 30 dias para fins de auditoria.
                 </p>
+            </div>
+
+            <!-- Seleção de onda (CA13) -->
+            <div class="card upload-card">
+                <h3 class="ds-card-title">Tipo de importação</h3>
+                <div class="onda-opcoes" role="radiogroup" aria-label="Tipo de importação">
+                    <label
+                        v-for="op in OPCOES_ONDA"
+                        :key="op.valor"
+                        class="onda-opcao"
+                        :class="{ 'onda-opcao--ativa': ondaSelecionada === op.valor }"
+                    >
+                        <input
+                            v-model="ondaSelecionada"
+                            type="radio"
+                            :value="op.valor"
+                            :disabled="enviando"
+                            class="visually-hidden"
+                        />
+                        <span class="onda-opcao-rotulo">{{ op.rotulo }}</span>
+                        <span class="onda-opcao-desc">{{ op.descricao }}</span>
+                    </label>
+                </div>
             </div>
 
             <!-- Área de upload -->
@@ -412,5 +445,45 @@ function iniciarNovaMigracao() {
     font-size: var(--text-xs);
     color: hsl(var(--muted-foreground));
     margin: 0;
+}
+
+/* ── Seletor de onda (CA13) ───────────────────────────────────────────────── */
+.onda-opcoes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    margin-top: 0.75rem;
+}
+
+.onda-opcao {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.875rem 1rem;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.onda-opcao:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    background: hsl(var(--primary) / 0.03);
+}
+
+.onda-opcao--ativa {
+    border-color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.04);
+}
+
+.onda-opcao-rotulo {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--foreground));
+}
+
+.onda-opcao-desc {
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
 }
 </style>

@@ -28,7 +28,7 @@ public class IniciarProntuarioCommandHandler : ICommandHandler<IniciarProntuario
         _eventBus = eventBus;
     }
 
-    public async Task Handle(IniciarProntuarioCommand command)
+    public virtual async Task Handle(IniciarProntuarioCommand command)
     {
         // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
         // Mensagem padronizada (nao vaza existencia cross-tenant).

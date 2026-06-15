@@ -49,6 +49,16 @@ public class MigracaoJob : Entity
 
     protected MigracaoJob() { }
 
+    /// <summary>
+    /// Identifica a onda de carga do job.
+    /// Null = Onda 1 (pacientes, estoque, agenda, orçamento).
+    /// "prontuario" = Onda 2 (CA13 — bloqueado até Onda 1 concluir).
+    /// </summary>
+    public virtual string? Onda { get; protected set; }
+
+    // ─── Onda constants ──────────────────────────────────────────────────────────
+    public const string OndaProntuario = "prontuario";
+
     // ─── Status constants ────────────────────────────────────────────────────────
     public const string StatusAguardandoArquivo   = "aguardando_arquivo";
     public const string StatusAguardandoMapa      = "aguardando_mapa";
@@ -69,7 +79,8 @@ public class MigracaoJob : Entity
     public static MigracaoJob Criar(
         long estabelecimentoId,
         Guid criadoPorUsuarioId,
-        string? origem = null)
+        string? origem = null,
+        string? onda = null)
     {
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
@@ -82,6 +93,7 @@ public class MigracaoJob : Entity
             EstabelecimentoId = estabelecimentoId,
             Status = StatusAguardandoArquivo,
             Origem = string.IsNullOrWhiteSpace(origem) ? null : origem.Trim(),
+            Onda = string.IsNullOrWhiteSpace(onda) ? null : onda.Trim(),
             CriadoPorUsuarioId = criadoPorUsuarioId,
             CriadoEm = agora,
             AtualizadoEm = agora

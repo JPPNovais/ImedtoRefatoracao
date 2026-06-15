@@ -419,6 +419,11 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.RelatorioMigracaoQueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DesfazerMigracaoCommandHandler>();
         services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda1JobHandler>();
+
+        // Central de Migração — Marco 5 — Onda 2 Prontuário (briefing 2026-06-15_001)
+        services.AddSingleton<Imedto.Backend.Domain.Migracao.IMigracaoPacienteLookup,
+                              Imedto.Backend.Infrastructure.Migracao.DapperPacienteMigracaoLookup>();
+        services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda2JobHandler>();
     }
 
     /// <summary>

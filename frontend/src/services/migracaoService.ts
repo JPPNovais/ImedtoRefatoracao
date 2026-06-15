@@ -15,12 +15,15 @@ const migracaoService = {
     /**
      * Inicia uma migração fazendo upload do ZIP.
      * Valida o limite de 50MB no front antes de enviar (CA19).
+     *
+     * @param onda - undefined / null = Onda 1 (pacientes); "prontuario" = Onda 2 (CA13).
      * Retorna o job criado com status inicial.
      */
     async iniciarUpload(
         estabelecimentoId: number,
         arquivo: File,
-        origem?: string
+        origem?: string,
+        onda?: string
     ): Promise<MigracaoJobStatus> {
         // Trava de front (CA19) — o back também valida (422 se burlar).
         if (arquivo.size > LIMITE_UPLOAD_BYTES) {
@@ -30,6 +33,7 @@ const migracaoService = {
         const form = new FormData()
         form.append("arquivo", arquivo)
         if (origem) form.append("origem", origem)
+        if (onda) form.append("onda", onda)
 
         const { data } = await httpClient.post<MigracaoJobStatus>(
             "/api/migracao/upload",

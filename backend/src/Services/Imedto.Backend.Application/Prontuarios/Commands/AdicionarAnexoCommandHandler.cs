@@ -33,7 +33,7 @@ public class AdicionarAnexoCommandHandler : ICommandHandler<AdicionarAnexoComman
         _storageOptions = storageOptions.Value;
     }
 
-    public async Task Handle(AdicionarAnexoCommand command)
+    public virtual async Task Handle(AdicionarAnexoCommand command)
     {
         // Defense-in-depth multi-tenant: filtro por estabelecimentoId no proprio repo.
         // Mensagem padronizada (nao vaza existencia cross-tenant).

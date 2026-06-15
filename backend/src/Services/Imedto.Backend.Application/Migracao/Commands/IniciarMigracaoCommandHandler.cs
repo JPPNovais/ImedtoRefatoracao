@@ -47,7 +47,8 @@ public sealed class IniciarMigracaoCommandHandler
         var job = MigracaoJob.Criar(
             estabelecimentoId: cmd.EstabelecimentoId,
             criadoPorUsuarioId: cmd.UsuarioId,
-            origem: cmd.Origem);
+            origem: cmd.Origem,
+            onda: cmd.Onda);
 
         // Persiste para obter Id antes do upload S3 (chave usa o Id).
         await _repo.Salvar(job, ct);
