@@ -1,26 +1,21 @@
 # syntax=docker/dockerfile:1.7
-# Multi-stage build do backend .NET 10.
-
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
-
-# Copia projeto para restore + build (cache otimizado).
-COPY backend/src/ ./
-
-RUN dotnet restore Imedto.Backend.sln \
-    && dotnet publish Services/Imedto.Backend.API/Imedto.Backend.API.csproj \
-       -c Release -o /app/publish --no-restore /p:UseAppHost=false
-
-# Runtime mínimo (ASP.NET 10).
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+# Runtime do backend .NET 10.
+#
+# O publish self-contained é gerado no runner (SDK via setup-dotnet/CDN — não
+# depende das imagens do MCR, que sofrem rate-limit 429 em pulls anônimos).
+# A base é Ubuntu (Docker Hub) + libs nativas para globalização pt-BR; o
+# runtime .NET vem dentro do publish self-contained.
+#
+# Context de build = pasta publish-backend (binários self-contained).
+FROM ubuntu:24.04
 WORKDIR /app
 
-# Cultura pt-BR (já configurada no Program.cs, mas garante ICU presente)
+# libicu = globalização pt-BR; demais = TLS, tz e healthcheck.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        wget \
+        libicu74 ca-certificates tzdata wget \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /app/publish ./
+COPY . ./
 
 ENV ASPNETCORE_URLS=http://+:5000 \
     ASPNETCORE_ENVIRONMENT=Production \
@@ -33,4 +28,4 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD wget -q --spider http://localhost:5000/health || exit 1
 
-ENTRYPOINT ["dotnet", "Imedto.Backend.API.dll"]
+ENTRYPOINT ["./Imedto.Backend.API"]

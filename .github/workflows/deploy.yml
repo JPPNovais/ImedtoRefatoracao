@@ -106,39 +106,30 @@ jobs:
             ghcr.io/${{ steps.meta.outputs.owner_lc }}/imedto-frontend:latest
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=min,scope=frontend
-      # Backend puxa imagens base .NET do MCR (mcr.microsoft.com), que faz
-      # rate-limit (429) em pulls anônimos dos IPs compartilhados dos runners.
-      # Retry com backoff crescente dá tempo da janela de limite resetar, sem
-      # depender de re-run manual. Builder buildx + login GHCR já configurados acima.
-      - name: Build & push backend (retry p/ 429 do MCR)
-        env:
-          OWNER: ${{ steps.meta.outputs.owner_lc }}
-          TAG: ${{ steps.meta.outputs.tag }}
+      # As imagens base .NET do MCR (mcr.microsoft.com) sofrem rate-limit (429)
+      # persistente em pulls anônimos dos runners. Para tirar o MCR do caminho:
+      # publica self-contained no runner (SDK via setup-dotnet/CDN — sem 429) e
+      # empacota numa base Ubuntu (Docker Hub). O runtime .NET vai no publish.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Publish backend (self-contained, sem MCR)
+        working-directory: backend/src
         run: |
-          set -uo pipefail
-          for attempt in 1 2 3 4 5; do
-            echo "::group::Build backend — tentativa $attempt/5"
-            if docker buildx build \
-                --file docker/backend.Dockerfile \
-                --push \
-                --tag "ghcr.io/$OWNER/imedto-backend:$TAG" \
-                --tag "ghcr.io/$OWNER/imedto-backend:latest" \
-                --cache-from type=gha,scope=backend \
-                --cache-to type=gha,mode=min,scope=backend \
-                . ; then
-              echo "::endgroup::"
-              echo "Build OK na tentativa $attempt."
-              exit 0
-            fi
-            echo "::endgroup::"
-            if [ "$attempt" -lt 5 ]; then
-              espera=$((attempt * 60))
-              echo "Tentativa $attempt falhou (provável 429 do MCR). Aguardando ${espera}s antes de retentar..."
-              sleep "$espera"
-            fi
-          done
-          echo "Build do backend falhou após 5 tentativas."
-          exit 1
+          dotnet publish Services/Imedto.Backend.API/Imedto.Backend.API.csproj \
+            -c Release -r linux-x64 --self-contained true \
+            -o "$GITHUB_WORKSPACE/publish-backend"
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: publish-backend
+          file: docker/backend.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.meta.outputs.owner_lc }}/imedto-backend:${{ steps.meta.outputs.tag }}
+            ghcr.io/${{ steps.meta.outputs.owner_lc }}/imedto-backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=min,scope=backend
 
   # ─────────────────────────────────────────────────────────────────
   # Migration: gera SQL idempotente e aplica no Postgres local (container na EC2) via SSH.
