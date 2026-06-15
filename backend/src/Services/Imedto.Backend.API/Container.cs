@@ -271,6 +271,15 @@ public static class Container
         services.AddScoped<IJobHandler, LimparAuditAdminJob>(); // Wave 7 — retenção audit admin
         // ExpirarTrialsJob removido (F6 — 2026-06-11_003): trials expiram pela estrutura nova (imedto_assinaturas.expira_em).
         services.AddScoped<IJobHandler, LimparCacheIaJob>(); // item 3.8
+
+        // Central de Migração (briefing 2026-06-15_001 — Marco 1)
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoJobRepository,
+                           Imedto.Backend.Infrastructure.Database.Repositories.MigracaoJobRepository>();
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoArquivoStorageService,
+                           Imedto.Backend.Infrastructure.Migracao.S3MigracaoArquivoStorageService>();
+        services.AddScoped<Imedto.Backend.Application.Migracao.Commands.IniciarMigracaoCommandHandler>();
+        services.AddScoped<IJobHandler, Imedto.Backend.Infrastructure.Migracao.ExpirarArquivosMigracaoJob>();
+
         services.AddSingleton<JobScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
         // SeedPlanosHostedService removido (F6 — 2026-06-11_003): seed da estrutura nova é gerido por migrations idempotentes.

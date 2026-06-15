@@ -693,6 +693,59 @@ Estabelecido na entrega 2026-06-12_001. Contrato: a URL de destino carrega um `?
 
 ---
 
+## Bounded Context: Migração de Dados (briefing 2026-06-15_001 — Marco 1)
+
+Permite que clientes importem dados de outros sistemas (iClinic, Feegow, Clinicorp, planilhas) via upload de ZIP. O processamento é assistido pelo time Imedto.
+
+### Porta `IMapeadorDeMigracao`
+
+Interface em `Domain/Migracao/IMapeadorDeMigracao.cs`. Descreve o contrato para IA inferir o mapeamento de colunas CSV/XLSX → entidade Imedto.
+
+```csharp
+Task<PropostaDeMapa> InferirMapaAsync(EsquemaDeArquivo esquema, string entidadeAlvo, CancellationToken ct);
+```
+
+`EsquemaDeArquivo` contém `Cabecalhos[]` + `AmostraMascarada` (IReadOnlyList de dicionários) — os dados são anonimizados antes de chegar ao mapper (CA4). `PropostaDeMapa` devolve `DeParaColunas`, `Confianca` e `Duvidas`.
+
+O adapter concreto (Marco 2) implementará esta porta chamando `IaService` (já existente). Trocar provedor de IA = trocar apenas o adapter, sem tocar Domain nem Handler.
+
+### Aggregate `MigracaoJob`
+
+`Domain/Migracao/MigracaoJob.cs`. Estados (string constants):
+
+```
+aguardando_arquivo → aguardando_mapa → mapa_em_revisao → preview_pronto
+                                                       ↘ rejeitado
+migrando → concluido / concluido_com_erros / desfeito
+```
+
+- `Criar(estabelecimentoId, usuarioId, origem?)` — estado inicial `aguardando_arquivo`.
+- `RegistrarArquivoRecebido(s3Key)` — seta `ArquivoExpiraEm = UtcNow + 30 dias` (CA24, R12) + `TermoAceitoEm`.
+- `Rejeitar()` — transição de `aguardando_arquivo`/`aguardando_mapa` → `rejeitado`.
+- `MarcarArquivoExpirado()` — chamado pelo job `expirar-arquivos-migracao`.
+
+### Storage S3
+
+`IMigracaoArquivoStorageService` (Domain) / `S3MigracaoArquivoStorageService` (Infrastructure). Reutiliza `BucketAnexosProntuario` com key `migracao/{estabelecimentoId}/{jobId}/arquivo.zip`. Retenção de 30 dias via `ExpirarArquivosMigracaoJob` (CA24, R12).
+
+### Schema (tabelas `migracao_*`)
+
+4 tabelas geradas pelo `imedto-database` (migration pendente):
+- `migracao_jobs` — job por upload (multi-tenant: `estabelecimento_id`).
+- `migracao_registros` — linhas individuais para importação.
+- `migracao_mapas` — proposta de mapeamento (gerada pelo mapeador IA nos marcos seguintes).
+- `migracao_templates` — templates reutilizáveis de mapeamento por sistema de origem.
+
+### Checklist multi-tenant
+
+`IMigracaoJobRepository.ObterPorIdDoEstabelecimentoOuNulo(jobId, estabelecimentoId)` lança `InvalidOperationException` se `estabelecimentoId <= 0` (falha-fechada). Retorna `null` (→ 404 genérico) se o job não pertencer ao tenant da requisição.
+
+### Frontend
+
+Seção "Migrar meus dados" em `EstabelecimentoView.vue` (grupo "Onboarding", `SecaoId = "migracao-dados"`). Componente `MigracaoDadosTab.vue` + `migracaoService.ts`. Validação de ZIP + 50MB no front antes do POST (`migracaoService.iniciarUpload`). Termo de responsabilidade obrigatório (R12).
+
+---
+
 ## Conexão Postgres (RDS)
 
 - Connection string normal Npgsql em `ConnectionStrings:Default` (runtime) e `ConnectionStrings:Migrations` (autoria de migrations via `dotnet ef`).

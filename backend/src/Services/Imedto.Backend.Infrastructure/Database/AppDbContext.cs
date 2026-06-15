@@ -33,6 +33,7 @@ using Imedto.Backend.Domain.Receitas;
 using Imedto.Backend.Domain.Salas;
 using Imedto.Backend.Domain.Termos;
 using Imedto.Backend.Domain.Unidades;
+using Imedto.Backend.Domain.Migracao;
 using Imedto.Backend.Domain.Usuarios;
 using Imedto.Backend.Domain.Vinculos;
 
@@ -192,6 +193,12 @@ public class AppDbContext : DbContext
 
     // Modelos de descrição cirúrgica (briefing 2026-06-13_002).
     public DbSet<ModeloDescricaoCirurgica> ModelosDescricaoCirurgica => Set<ModeloDescricaoCirurgica>();
+
+    // Central de Migração — Marco 1 (briefing 2026-06-15_001).
+    public DbSet<MigracaoTemplate> MigracaoTemplates => Set<MigracaoTemplate>();
+    public DbSet<MigracaoJob> MigracaoJobs => Set<MigracaoJob>();
+    public DbSet<MigracaoRegistro> MigracaoRegistros => Set<MigracaoRegistro>();
+    public DbSet<MigracaoMapa> MigracaoMapas => Set<MigracaoMapa>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

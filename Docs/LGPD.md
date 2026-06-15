@@ -190,6 +190,32 @@ Export `GET /financeiro/extrato/export` retorna CSV com dados financeiros agrega
 - **Nome do arquivo**: `extrato-financeiro-{dataFim}.csv` — sem PII no nome.
 - **Encoding**: UTF-8 com BOM (compatibilidade Excel pt-BR). Decimal com vírgula, separador `;`.
 
+## Central de Migração — LGPD e retenção (briefing 2026-06-15_001 — Marco 1)
+
+### Arquivo ZIP bruto — retenção de 30 dias (CA24, R12)
+
+O arquivo ZIP enviado pelo cliente é armazenado no S3 (`BucketAnexosProntuario`, prefixo `migracao/{estabelecimentoId}/{jobId}/arquivo.zip`) **exclusivamente** para uso pelo time Imedto no processo de mapeamento e importação. Regras:
+
+| Dado | Local | Regra |
+|---|---|---|
+| ZIP bruto | S3 `migracao/{estab}/{job}/arquivo.zip` | Retenção **30 dias** a partir do upload. Apagado pelo job `expirar-arquivos-migracao` (1×/dia). `ArquivoExpirado=true` fica no staging como auditoria. |
+| `migracao_jobs` | Postgres `migracao_jobs` | Mantida indefinidamente (auditável). Não contém PII direta — apenas metadados (origin, status, timestamps). |
+| `migracao_registros` | Postgres `migracao_registros` | Contém payload bruto das linhas a importar (potencialmente PII). Retenção: a definir nos marcos seguintes (fase de mapeamento + importação). |
+
+### Amostra mascarada ao mapeador IA (Marco 2 — premissa já fixada)
+
+Quando o Marco 2 implementar `IMapeadorDeMigracao`, o adapter **deve** extrair os cabeçalhos e uma amostra de até 5 linhas, passando os valores **mascarados** via `IAnonimizacaoService` antes de enviar ao `IaService`. O contrato `EsquemaDeArquivo.AmostraMascarada` já reflete isso: `IReadOnlyList<IReadOnlyDictionary<string, string>>` — nenhum valor real de paciente trafega para a IA. Nunca enviar CSV original nem PII real ao provedor de IA.
+
+### Sem PII em logs e mensagens de erro
+
+- `ExpirarArquivosMigracaoJob`: log de falha individual registra apenas `JobId` — nunca `EstabelecimentoId`, nome do arquivo ou conteúdo.
+- `IniciarMigracaoCommandHandler`: mensagem de rejeição é genérica ("Falha ao processar o arquivo. Tente novamente.") — sem detalhes do S3 nem nome do arquivo original.
+- Endpoint `GET /api/migracao/{jobId}`: job de outro tenant retorna 404 com mensagem genérica (CA2).
+
+### Termo de responsabilidade (R12)
+
+O aceite do termo é registrado em `migracao_jobs.termo_aceito_em` no momento do upload (via `RegistrarArquivoRecebido`). O frontend exige o checkbox antes de habilitar o envio — a API não precisa receber o aceite separadamente (o POST `/api/migracao/upload` implica aceite, que é gravado no aggregate).
+
 ---
 
 ## Checklist multi-tenant — premissa não-negociável

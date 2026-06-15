@@ -43,5 +43,8 @@ public static class JobsRegistrados
         // Assinatura Digital ICP-Brasil — expira receitas pendentes sem resposta após 30 min.
         // Roda 1x/h (configurável via AssinaturaDigital:ExpiracaoPendenteMinutos).
         new("expirar-assinaturas-pendentes", IntervaloSeg: 60 * 60),
+
+        // Central de Migração (briefing 2026-06-15_001) — apaga ZIPs expirados do S3 após 30 dias (CA24, R12).
+        new("expirar-arquivos-migracao", IntervaloSeg: 24 * 60 * 60),
     };
 }

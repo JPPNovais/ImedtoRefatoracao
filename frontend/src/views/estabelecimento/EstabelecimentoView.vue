@@ -28,6 +28,7 @@ import UnidadesTab from "@/components/estabelecimento/UnidadesTab.vue"
 import ReparticoesTab from "@/components/estabelecimento/ReparticoesTab.vue"
 import ListasVariaveisTab from "@/components/estabelecimento/ListasVariaveisTab.vue"
 import ModelosDescricaoCirurgicaTab from "@/components/estabelecimento/ModelosDescricaoCirurgicaTab.vue"
+import MigracaoDadosTab from "@/components/estabelecimento/MigracaoDadosTab.vue"
 
 // ─── Painéis lazy (defineAsyncComponent → não montam até a seção ser aberta) ─
 const PainelAutomacoes      = defineAsyncComponent(() => import("@/views/automacoes/AutomacoesView.vue"))
@@ -57,7 +58,7 @@ type SecaoId =
     | "dados" | "funcionamento" | "unidades" | "reparticoes"
     | "modelos-prontuario" | "termos" | "variaveis" | "modelos-cirurgia"
     | "automacoes" | "ia" | "assinatura" | "seguranca"
-    | "convenios"
+    | "convenios" | "migracao-dados"
 
 interface SecaoItem {
     id: SecaoId
@@ -106,6 +107,12 @@ const GRUPOS_NAV: GrupoNav[] = [
             { id: "convenios",  label: "Convênios",  icone: "fa-solid fa-handshake",           visivel: podeVerConvenios },
         ],
     },
+    {
+        label: "Onboarding",
+        secoes: [
+            { id: "migracao-dados", label: "Migrar meus dados", icone: "fa-solid fa-file-import", visivel: true },
+        ],
+    },
 ]
 
 // ─── Busca client-side no sub-nav ──────────────────────────────────────────────
@@ -129,7 +136,7 @@ const TODAS_SECOES: SecaoId[] = [
     "dados", "funcionamento", "unidades", "reparticoes",
     "modelos-prontuario", "termos", "variaveis", "modelos-cirurgia",
     "automacoes", "ia", "assinatura", "seguranca",
-    "convenios",
+    "convenios", "migracao-dados",
 ]
 
 function secaoValida(s: string | null | undefined): s is SecaoId {
@@ -598,6 +605,15 @@ onMounted(async () => {
                 <!-- ── Convênios — CRUD de convênios e planos (lazy) ─────── -->
                 <section v-else-if="secaoAtiva === 'convenios'" class="painel-secao">
                     <PainelConvenios />
+                </section>
+
+                <!-- ── Migrar meus dados ──────────────────────────────────── -->
+                <section v-else-if="secaoAtiva === 'migracao-dados'" class="painel-secao">
+                    <MigracaoDadosTab
+                        v-if="estab"
+                        :estabelecimento-id="estab.id"
+                    />
+                    <div v-else class="estado-msg">Nenhum estabelecimento selecionado.</div>
                 </section>
 
                 <!-- ── Segurança — 2FA do Dono ────────────────────────────── -->
