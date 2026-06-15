@@ -86,9 +86,37 @@ describe("migracaoService", () => {
         await migracaoService.obterStatus(estabelecimentoId, jobId)
 
         const [url, config] = vi.mocked(httpClient.get).mock.calls[0]
-        expect(url).toBe(`/api/migracao/${jobId}`)
+        expect(url).toBe(`/migracao/${jobId}`)
         expect((config as { headers?: Record<string, string> })?.headers?.["X-Estabelecimento-Id"])
             .toBe(String(estabelecimentoId))
+    })
+
+    // ─── Blindagem de regressão — bug duplo-prefixo /api/api ─────────────────────
+    // O httpClient já tem baseURL com /api; o path NÃO pode começar com /api,
+    // senão a URL final vira /api/api/migracao/... (404 em produção).
+
+    it("iniciarUpload — URL não começa com /api (blindagem /api/api)", async () => {
+        const arquivo = new File(["zip"], "a.zip", { type: "application/zip" })
+        vi.mocked(httpClient.post).mockResolvedValueOnce({
+            data: { jobId: 1, status: "aguardando_mapa" },
+        })
+
+        await migracaoService.iniciarUpload(estabelecimentoId, arquivo)
+
+        const [url] = vi.mocked(httpClient.post).mock.calls[0]
+        expect(url).toBe("/migracao/upload")
+        expect(url).not.toMatch(/^\/api/)
+    })
+
+    it("obterStatus — URL não começa com /api (blindagem /api/api)", async () => {
+        vi.mocked(httpClient.get).mockResolvedValueOnce({
+            data: { jobId, status: "aguardando_mapa" },
+        })
+
+        await migracaoService.obterStatus(estabelecimentoId, jobId)
+
+        const [url] = vi.mocked(httpClient.get).mock.calls[0]
+        expect(url).not.toMatch(/^\/api/)
     })
 
     // ─── Fluxo feliz ─────────────────────────────────────────────────────────────

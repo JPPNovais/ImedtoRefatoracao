@@ -36,7 +36,7 @@ const migracaoService = {
         if (onda) form.append("onda", onda)
 
         const { data } = await httpClient.post<MigracaoJobStatus>(
-            "/api/migracao/upload",
+            "/migracao/upload",
             form,
             {
                 headers: {
@@ -54,7 +54,7 @@ const migracaoService = {
         jobId: number
     ): Promise<MigracaoJobStatus> {
         const { data } = await httpClient.get<MigracaoJobStatus>(
-            `/api/migracao/${jobId}`,
+            `/migracao/${jobId}`,
             { headers: { "X-Estabelecimento-Id": String(estabelecimentoId) } }
         )
         return data
