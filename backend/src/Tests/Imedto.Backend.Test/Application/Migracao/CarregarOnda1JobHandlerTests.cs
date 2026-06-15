@@ -81,7 +81,9 @@ public class CarregarOnda1JobHandlerTests
     {
         var adminId = Guid.NewGuid();
         var job = MigracaoJob.Criar(EstabelecimentoId, Guid.NewGuid(), "iClinic");
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("migracao/42/99/arquivo.zip");
+        job.AprovarAnalise(adminId);
         job.MarcarMapaEmRevisao();
         job.MarcarPreviewPronto(adminId);
         job.MarcarMigrando(adminId);

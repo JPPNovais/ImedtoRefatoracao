@@ -15,10 +15,12 @@ const mockSalvarTemplate = vi.fn()
 const mockDesfazer = vi.fn()
 const mockCarregarRelatorio = vi.fn()
 const mockReprocessar = vi.fn()
+const mockAprovarAnalise = vi.fn()
 
 let mockRelatorioDesfazimento: unknown = null
 let mockDesfazendo = false
 let mockReprocessando = false
+let mockAprovando = false
 
 const mapaJson = JSON.stringify({
     de_para: { nome: "nome", cpf: "cpf" },
@@ -40,6 +42,7 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         get preview() { return null },
         get disparando() { return false },
         get reprocessando() { return mockReprocessando },
+        get aprovando() { return mockAprovando },
         carregarJob: mockCarregarJob,
         salvarMapa: mockSalvarMapa,
         salvarTemplate: mockSalvarTemplate,
@@ -48,6 +51,7 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         disparar: vi.fn(),
         gerarPreview: vi.fn(),
         reprocessar: mockReprocessar,
+        aprovarAnalise: mockAprovarAnalise,
     }),
 }))
 
@@ -87,6 +91,8 @@ describe("MigracaoRevisaoView", () => {
         mockRelatorioDesfazimento = null
         mockDesfazendo = false
         mockReprocessando = false
+        mockAprovando = false
+        mockAprovarAnalise.mockReset()
     })
 
     it("chama carregarJob no onMounted", () => {
@@ -278,5 +284,65 @@ describe("MigracaoRevisaoView", () => {
         expect(wrapper.text()).not.toContain("Job com falha")
         const botoes = wrapper.findAll("button")
         expect(botoes.some(b => b.text().includes("Reprocessar"))).toBe(false)
+    })
+
+    // ─── Addendum 003 — CA41 — gate de aprovação humana ─────────────────────
+
+    it("CA41 — painel de aprovação aparece quando status é aguardando_aprovacao", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "aguardando_aprovacao",
+            origem: "iClinic", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.text()).toContain("Aguardando aprovação")
+        expect(wrapper.text()).toContain("análise por IA")
+    })
+
+    it("CA41 — botão 'Aprovar análise' aparece no painel de aprovação", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "aguardando_aprovacao",
+            origem: "iClinic", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        const botoes = wrapper.findAll("button")
+        expect(botoes.some(b => b.text().includes("Aprovar análise"))).toBe(true)
+    })
+
+    it("CA41 — clicar 'Aprovar análise' chama store.aprovarAnalise com jobId correto", async () => {
+        mockAprovarAnalise.mockResolvedValueOnce(undefined)
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "aguardando_aprovacao",
+            origem: "iClinic", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        const botaoAprovar = wrapper.findAll("button").find(b => b.text().includes("Aprovar análise"))
+        await botaoAprovar!.trigger("click")
+        await wrapper.vm.$nextTick()
+        expect(mockAprovarAnalise).toHaveBeenCalledWith(10)
+    })
+
+    it("CA41 — painel de aprovação NÃO aparece quando status é aguardando_mapa", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "aguardando_mapa",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.text()).not.toContain("Aprovar análise")
     })
 })

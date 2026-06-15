@@ -20,8 +20,9 @@ const store = useMigracaoAdminStore()
 const filtroStatus = ref<string | null>(null)
 
 const STATUS_LABELS: Record<string, string> = {
-    aguardando_arquivo: "Aguardando arquivo",
-    aguardando_mapa:    "Aguardando mapa",
+    aguardando_arquivo:    "Aguardando arquivo",
+    aguardando_aprovacao:  "Aguardando aprovação",
+    aguardando_mapa:       "Aguardando mapa",
     mapa_em_revisao:    "Mapa em revisão",
     preview_pronto:     "Preview pronto",
     migrando:           "Migrando",
@@ -33,8 +34,9 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "error" | "info"> = {
-    aguardando_arquivo: "default",
-    aguardando_mapa:    "warning",
+    aguardando_arquivo:    "default",
+    aguardando_aprovacao:  "warning",
+    aguardando_mapa:       "warning",
     mapa_em_revisao:    "info",
     preview_pronto:     "info",
     migrando:           "warning",

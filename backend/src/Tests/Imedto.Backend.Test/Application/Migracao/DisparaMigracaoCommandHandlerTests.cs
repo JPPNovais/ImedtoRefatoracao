@@ -33,7 +33,9 @@ public class DisparaMigracaoCommandHandlerTests
         var job = MigracaoJob.Criar(EstabelecimentoId, Guid.NewGuid(), "iClinic");
         if (status == "preview_pronto" || status == "migrando")
         {
+            // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
             job.RegistrarArquivoRecebido("migracao/42/77/arquivo.zip");
+            job.AprovarAnalise(AdminId);
             job.MarcarMapaEmRevisao();
             job.MarcarPreviewPronto(AdminId);
         }
@@ -95,7 +97,9 @@ public class DisparaMigracaoCommandHandlerTests
     {
         // Arrange — Job em mapa_em_revisao, não em preview_pronto
         var job = MigracaoJob.Criar(EstabelecimentoId, Guid.NewGuid(), "iClinic");
+        // Addendum 003: precisa aprovar antes de marcar mapa em revisão.
         job.RegistrarArquivoRecebido("migracao/42/77/arquivo.zip");
+        job.AprovarAnalise(AdminId);
         job.MarcarMapaEmRevisao();
         // Não chama MarcarPreviewPronto → status = "mapa_em_revisao"
 

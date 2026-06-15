@@ -9,8 +9,11 @@ public class MigracaoJobTransicaoTests
 {
     private static MigracaoJob CriarJobAguardandoMapa()
     {
+        // Addendum 003: upload agora vai para aguardando_aprovacao;
+        // AprovarAnalise() é necessário para chegar em aguardando_mapa.
         var job = MigracaoJob.Criar(42L, Guid.NewGuid());
         job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip");
+        job.AprovarAnalise(Guid.NewGuid()); // aguardando_aprovacao → aguardando_mapa
         return job; // status = aguardando_mapa
     }
 

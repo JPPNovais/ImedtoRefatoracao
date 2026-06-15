@@ -89,6 +89,22 @@ describe("MigracoesListView", () => {
         })
     })
 
+    // ─── Addendum 003 — CA40 — badge de aguardando_aprovacao na lista ────────
+
+    it("CA40 — job com status aguardando_aprovacao exibe badge 'Aguardando aprovação'", () => {
+        mockJobs = [
+            {
+                id: 11, estabelecimentoId: 42, status: "aguardando_aprovacao",
+                origem: "iClinic", criadoPorUsuarioId: "abc",
+                criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+                mapas: [], motivoFalha: null,
+            },
+        ]
+        const wrapper = mount(MigracoesListView)
+        const badges = wrapper.findAll(".badge")
+        expect(badges.some(b => b.text() === "Aguardando aprovação")).toBe(true)
+    })
+
     // ─── Addendum 002 — CA29 — badge de falhou na lista ─────────────────────
 
     it("CA29 — job com status falhou exibe badge com label 'Falhou'", () => {

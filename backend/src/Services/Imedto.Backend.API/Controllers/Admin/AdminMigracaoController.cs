@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.Application.Admin.Migracao;
 using Imedto.Backend.Contracts.Admin.Migracao;
 using Imedto.Backend.Domain.Migracao;
+// Necessário para AprovarAnaliseCommandHandler resolvido via DI.
 
 namespace Imedto.Backend.API.Controllers.Admin;
 
@@ -26,27 +27,30 @@ public class AdminMigracaoController : ControllerBase
     private readonly RelatorioMigracaoQueryHandler       _relatorioHandler;
     private readonly DesfazerMigracaoCommandHandler      _desfazerHandler;
     private readonly ReprocessarMigracaoCommandHandler   _reprocessarHandler;
+    private readonly AprovarAnaliseCommandHandler         _aprovarAnaliseHandler;
 
     public AdminMigracaoController(
-        ListarJobsMigracaoAdminQueryHandler listarHandler,
-        ObterJobMigracaoAdminQueryHandler   obterHandler,
-        SalvarMapaRevisadoCommandHandler    salvarMapaHandler,
-        SalvarTemplateDeOrigemCommandHandler salvarTemplateHandler,
-        PreviewOnda1QueryHandler            previewHandler,
-        DisparaMigracaoCommandHandler       disparaHandler,
-        RelatorioMigracaoQueryHandler       relatorioHandler,
-        DesfazerMigracaoCommandHandler      desfazerHandler,
-        ReprocessarMigracaoCommandHandler   reprocessarHandler)
+        ListarJobsMigracaoAdminQueryHandler  listarHandler,
+        ObterJobMigracaoAdminQueryHandler    obterHandler,
+        SalvarMapaRevisadoCommandHandler     salvarMapaHandler,
+        SalvarTemplateDeOrigemCommandHandler  salvarTemplateHandler,
+        PreviewOnda1QueryHandler             previewHandler,
+        DisparaMigracaoCommandHandler        disparaHandler,
+        RelatorioMigracaoQueryHandler        relatorioHandler,
+        DesfazerMigracaoCommandHandler       desfazerHandler,
+        ReprocessarMigracaoCommandHandler    reprocessarHandler,
+        AprovarAnaliseCommandHandler          aprovarAnaliseHandler)
     {
-        _listarHandler        = listarHandler;
-        _obterHandler         = obterHandler;
-        _salvarMapaHandler    = salvarMapaHandler;
+        _listarHandler         = listarHandler;
+        _obterHandler          = obterHandler;
+        _salvarMapaHandler     = salvarMapaHandler;
         _salvarTemplateHandler = salvarTemplateHandler;
-        _previewHandler       = previewHandler;
-        _disparaHandler       = disparaHandler;
-        _relatorioHandler     = relatorioHandler;
-        _desfazerHandler      = desfazerHandler;
-        _reprocessarHandler   = reprocessarHandler;
+        _previewHandler        = previewHandler;
+        _disparaHandler        = disparaHandler;
+        _relatorioHandler      = relatorioHandler;
+        _desfazerHandler       = desfazerHandler;
+        _reprocessarHandler    = reprocessarHandler;
+        _aprovarAnaliseHandler = aprovarAnaliseHandler;
     }
 
     /// <summary>Lista jobs de migração (filtros opcionais: estabelecimento, status).</summary>
@@ -184,6 +188,29 @@ public class AdminMigracaoController : ControllerBase
     public async Task<IActionResult> Reprocessar(long jobId, CancellationToken ct)
     {
         await _reprocessarHandler.Handle(jobId, ct);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Aprova a análise por IA de um job represado em aguardando_aprovacao.
+    /// Addendum 003 — CA41/CA42/CA43. Transição: aguardando_aprovacao → aguardando_mapa.
+    /// Válido apenas quando status == "aguardando_aprovacao"; 422 caso contrário.
+    /// Apenas ImedtoAdmin (policy herdada da classe).
+    /// </summary>
+    [HttpPost("{jobId:long}/aprovar-analise")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AprovarAnalise(long jobId, CancellationToken ct)
+    {
+        var adminId = ObterAdminId();
+        if (!adminId.HasValue) return Unauthorized();
+
+        await _aprovarAnaliseHandler.Handle(new AprovarAnaliseCommand
+        {
+            JobId   = jobId,
+            AdminId = adminId.Value,
+        }, ct);
+
         return NoContent();
     }
 

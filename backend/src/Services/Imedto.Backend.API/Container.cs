@@ -420,6 +420,8 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DesfazerMigracaoCommandHandler>();
         // Addendum 002 — reprocessar job que falhou (CA30/CA31)
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.ReprocessarMigracaoCommandHandler>();
+        // Addendum 003 — aprovar análise por IA (CA41/CA42/CA43)
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.AprovarAnaliseCommandHandler>();
         services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda1JobHandler>();
 
         // Central de Migração — Marco 5 — Onda 2 Prontuário (briefing 2026-06-15_001)

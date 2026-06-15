@@ -23,6 +23,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
     const desfazendo = ref(false)
     const relatorioDesfazimento = ref<RelatorioDesfazimentoResult | null>(null)
     const reprocessando = ref(false)
+    const aprovando = ref(false)
 
     async function carregar(filtros: {
         estabelecimentoId?: number | null
@@ -133,6 +134,19 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         }
     }
 
+    /** CA41 — Aprova a análise por IA de um job em aguardando_aprovacao. */
+    async function aprovarAnalise(jobId: number): Promise<void> {
+        aprovando.value = true
+        try {
+            await migracaoAdminService.aprovarAnalise(jobId)
+            if (jobAtual.value?.id === jobId) {
+                await carregarJob(jobId)
+            }
+        } finally {
+            aprovando.value = false
+        }
+    }
+
     return {
         jobs,
         total,
@@ -147,6 +161,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         desfazendo,
         relatorioDesfazimento,
         reprocessando,
+        aprovando,
         carregar,
         carregarJob,
         salvarMapa,
@@ -156,5 +171,6 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         carregarRelatorio,
         desfazer,
         reprocessar,
+        aprovarAnalise,
     }
 })

@@ -150,4 +150,13 @@ export const migracaoAdminService = {
     async reprocessar(jobId: number): Promise<void> {
         await adminApi.post(`${base}/${jobId}/reprocessar`)
     },
+
+    /**
+     * CA41 — Aprova a análise por IA de um job em aguardando_aprovacao.
+     * Transição: aguardando_aprovacao → aguardando_mapa.
+     * Apenas ImedtoAdmin pode chamar (RBAC no backend — R-A4/CA43).
+     */
+    async aprovarAnalise(jobId: number): Promise<void> {
+        await adminApi.post(`${base}/${jobId}/aprovar-analise`)
+    },
 }

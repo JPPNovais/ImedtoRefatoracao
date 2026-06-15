@@ -73,6 +73,15 @@ public class MigracaoJob : Entity
 
     // ─── Status constants ────────────────────────────────────────────────────────
     public const string StatusAguardandoArquivo   = "aguardando_arquivo";
+
+    /// <summary>
+    /// Arquivo recebido — aguardando aprovação manual do admin Imedto antes de
+    /// disparar a inferência por IA (addendum 003 — CA40/D-A5).
+    /// Nenhum job neste estado é selecionado pelo recorrente de inferência.
+    /// Transição: AprovarAnalise(adminId) → aguardando_mapa.
+    /// </summary>
+    public const string StatusAguardandoAprovacao = "aguardando_aprovacao";
+
     public const string StatusAguardandoMapa      = "aguardando_mapa";
     public const string StatusMapaEmRevisao       = "mapa_em_revisao";
     public const string StatusPreviewPronto       = "preview_pronto";
@@ -122,7 +131,9 @@ public class MigracaoJob : Entity
 
     /// <summary>
     /// Registra que o arquivo ZIP foi recebido, salvo no S3 e termo aceito.
-    /// Transição: aguardando_arquivo → aguardando_mapa.
+    /// Transição: aguardando_arquivo → aguardando_aprovacao (addendum 003 — R-A1/CA40).
+    /// O job fica represado até o admin Imedto aprovar via AprovarAnalise().
+    /// Nenhuma IA é disparada até a aprovação (gate de custo/governança — D-A5).
     /// </summary>
     public virtual void RegistrarArquivoRecebido(string arquivoS3Key)
     {
@@ -134,16 +145,38 @@ public class MigracaoJob : Entity
         ArquivoS3Key = arquivoS3Key;
         ArquivoExpiraEm = DateTime.UtcNow.AddDays(30);  // R12 — retenção 30 dias (CA24)
         TermoAceitoEm = DateTime.UtcNow;                  // R12 — termo registrado no momento do upload
+        Status = StatusAguardandoAprovacao;               // addendum 003 — R-A1: gate de aprovação antes da IA
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Aprovação manual do admin Imedto: libera o job para inferência por IA.
+    /// Transição: aguardando_aprovacao → aguardando_mapa (addendum 003 — R-A2/CA41).
+    /// Apenas admins ImedtoAdmin podem chamar este método (RBAC no endpoint — R-A4).
+    /// Qualquer outro status → BusinessException → 422 (CA42).
+    /// </summary>
+    /// <param name="adminId">ID do usuário admin que aprovou (para audit — R-A6).</param>
+    public virtual void AprovarAnalise(Guid adminId)
+    {
+        if (Status != StatusAguardandoAprovacao)
+            throw new BusinessException("Apenas jobs aguardando aprovação podem ser aprovados.");
+        if (adminId == Guid.Empty)
+            throw new BusinessException("Admin é obrigatório para aprovar a análise.");
+
         Status = StatusAguardandoMapa;
         AtualizadoEm = DateTime.UtcNow;
     }
 
     /// <summary>
     /// Rejeita o job antes do processamento (ex.: arquivo > 50MB — CA19, R11).
+    /// Addendum 003 — R-A5/D-A4: ampliado para aceitar aguardando_aprovacao
+    /// (operador pode descartar job antes de aprovar, levando ao terminal rejeitado).
     /// </summary>
     public virtual void Rejeitar()
     {
-        if (Status != StatusAguardandoArquivo && Status != StatusAguardandoMapa)
+        if (Status != StatusAguardandoArquivo
+            && Status != StatusAguardandoAprovacao   // addendum 003 — R-A5
+            && Status != StatusAguardandoMapa)
             throw new BusinessException("Apenas jobs pendentes podem ser rejeitados.");
 
         Status = StatusRejeitado;

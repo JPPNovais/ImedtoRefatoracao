@@ -714,18 +714,21 @@ O adapter concreto (Marco 2) implementará esta porta chamando `IaService` (já 
 `Domain/Migracao/MigracaoJob.cs`. Estados (string constants):
 
 ```
-aguardando_arquivo → aguardando_mapa → mapa_em_revisao → preview_pronto
-                                                       ↘ rejeitado
+aguardando_arquivo → aguardando_aprovacao → aguardando_mapa → mapa_em_revisao → preview_pronto
+                                                                              ↘ rejeitado
 migrando → concluido / concluido_com_erros / desfeito
 
 aguardando_mapa ──┐
 migrando ─────────┴→ falhou → (Reprocessar) → aguardando_mapa / migrando
 ```
 
+**Gate de aprovação antes da IA (addendum 2026-06-15_003):** o upload **não** vai direto para `aguardando_mapa`. Ele para em `aguardando_aprovacao`, e a inferência por IA só roda **após aprovação manual do admin** (`aguardando_aprovacao --AprovarAnalise(admin)--> aguardando_mapa`). O recorrente `InferirMapaMigracaoJob` seleciona **exclusivamente** `aguardando_mapa` (`ObterMaisAntigoAguardandoMapaOuNulo`) — esse é o gate de custo/governança de IA: nenhum job não-aprovado é jamais inferido. Padrão reaproveitável: **aprovação humana por job antes de qualquer chamada de IA cara**.
+
 - `Criar(estabelecimentoId, usuarioId, origem?, onda?)` — estado inicial `aguardando_arquivo`.
   - `onda = null` → Onda 1 (pacientes). `onda = "prontuario"` → Onda 2 (Marco 5).
-- `RegistrarArquivoRecebido(s3Key)` — seta `ArquivoExpiraEm = UtcNow + 30 dias` (CA24, R12) + `TermoAceitoEm`.
-- `Rejeitar()` — transição de `aguardando_arquivo`/`aguardando_mapa` → `rejeitado`.
+- `RegistrarArquivoRecebido(s3Key)` — transição `aguardando_arquivo → aguardando_aprovacao` (addendum 003 — antes ia direto para `aguardando_mapa`); seta `ArquivoExpiraEm = UtcNow + 30 dias` (CA24, R12) + `TermoAceitoEm`.
+- `AprovarAnalise(adminId)` — transição `aguardando_aprovacao → aguardando_mapa`, libera a inferência por IA. Válido apenas em `aguardando_aprovacao`. Handler: `AprovarAnaliseCommandHandler` (ImedtoAdmin only, RBAC). Endpoint `POST /{jobId}/aprovar-analise` (addendum 003, CA40–CA44).
+- `Rejeitar()` — transição de `aguardando_arquivo`/`aguardando_aprovacao`/`aguardando_mapa` → `rejeitado` (addendum 003 ampliou para incluir `aguardando_aprovacao` — D-A4; job rejeitado nunca dispara IA).
 - `MarcarArquivoExpirado()` — chamado pelo job `expirar-arquivos-migracao`.
 - `MarcarFalhou(motivo)` — transição de `aguardando_mapa` ou `migrando` → `falhou`. Salva `StatusAntesFalha` (para restauração) e `MotivoFalha` (categoria legível sem PII). Chamado pelos handlers de job ao capturar exceção inesperada (addendum 002, CA25/CA26).
 - `Reprocessar()` — válido apenas em `falhou`. Restaura `StatusAntesFalha` e limpa `MotivoFalha`/`StatusAntesFalha`. Os schedulers recorrentes re-selecionam automaticamente o job (CA30). Handler: `ReprocessarMigracaoCommandHandler` (ImedtoAdmin only, RBAC).

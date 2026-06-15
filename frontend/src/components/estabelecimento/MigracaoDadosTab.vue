@@ -39,6 +39,7 @@ const OPCOES_ONDA = [
 // ─── Label de status ─────────────────────────────────────────────────────────
 const STATUS_LABELS: Record<string, string> = {
     aguardando_arquivo:   "Aguardando arquivo",
+    aguardando_aprovacao: "Recebemos seus arquivos. Aguardando aprovação da equipe Imedto para iniciar a análise.",
     aguardando_mapa:      "Arquivo recebido — aguardando mapeamento",
     mapa_em_revisao:      "Mapa em revisão pelo administrador",
     preview_pronto:       "Preview pronto — aguardando aprovação",

@@ -69,16 +69,17 @@ public class MigracaoJobTests
     // ─── RegistrarArquivoRecebido ───────────────────────────────────────────────
 
     [Test]
-    public void RegistrarArquivoRecebido_Valido_TransicionaParaAguardandoMapa()
+    public void RegistrarArquivoRecebido_Valido_TransicionaParaAguardandoAprovacao()
     {
+        // Addendum 003 — R-A1: upload agora vai para aguardando_aprovacao (não mais aguardando_mapa).
         var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId);
         var antes = DateTime.UtcNow;
 
         job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip");
 
-        Assert.That(job.Status, Is.EqualTo(MigracaoJob.StatusAguardandoMapa));
+        Assert.That(job.Status, Is.EqualTo(MigracaoJob.StatusAguardandoAprovacao));
         Assert.That(job.ArquivoS3Key, Is.EqualTo("migracao/42/1/arquivo.zip"));
-        // CA24 — retenção de 30 dias a partir do registro.
+        // CA24 — retenção de 30 dias a partir do registro (R12 intacto).
         Assert.That(job.ArquivoExpiraEm, Is.GreaterThan(antes.AddDays(29)));
         // R12 — termo registrado no momento do upload.
         Assert.That(job.TermoAceitoEm, Is.GreaterThanOrEqualTo(antes));
@@ -97,7 +98,7 @@ public class MigracaoJobTests
     public void RegistrarArquivoRecebido_StatusErrado_LancaBusinessException()
     {
         var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId);
-        job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip"); // → aguardando_mapa
+        job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip"); // → aguardando_aprovacao (addendum 003)
 
         // Tentar registrar de novo não é permitido.
         var ex = Assert.Throws<BusinessException>(() =>
@@ -121,6 +122,20 @@ public class MigracaoJobTests
     [Test]
     public void Rejeitar_EmAguardandoMapa_TransicionaParaRejeitado()
     {
+        // Para chegar em aguardando_mapa: upload (→ aguardando_aprovacao) + aprovar (→ aguardando_mapa).
+        var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId);
+        job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip");
+        job.AprovarAnalise(UsuarioId); // → aguardando_mapa
+
+        job.Rejeitar();
+
+        Assert.That(job.Status, Is.EqualTo(MigracaoJob.StatusRejeitado));
+    }
+
+    [Test]
+    public void Rejeitar_EmAguardandoAprovacao_TransicionaParaRejeitado()
+    {
+        // Addendum 003 — R-A5: rejeitar a partir de aguardando_aprovacao (D-A4).
         var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId);
         job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip");
 

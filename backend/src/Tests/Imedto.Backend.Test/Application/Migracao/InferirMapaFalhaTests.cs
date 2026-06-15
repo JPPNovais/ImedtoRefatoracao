@@ -52,7 +52,9 @@ public class InferirMapaFalhaTests
     {
         var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("migracao/42/7/arquivo.zip");
+        job.AprovarAnalise(Guid.NewGuid());
         return job;
     }
 

@@ -40,6 +40,9 @@ const erroDesfazer = ref("")
 // Addendum 002 — reprocessar (CA30)
 const erroReprocessar = ref("")
 
+// Addendum 003 — aprovar análise (CA41)
+const erroAprovar = ref("")
+
 // Modal de template
 const modalTemplate = ref(false)
 const nomeTemplate  = ref("")
@@ -177,6 +180,16 @@ async function reprocessar() {
         erroReprocessar.value = "Não foi possível reprocessar o job."
     }
 }
+
+/** CA41 — Aprova a análise por IA do job em aguardando_aprovacao → aguardando_mapa. */
+async function aprovarAnalise() {
+    erroAprovar.value = ""
+    try {
+        await store.aprovarAnalise(Number(props.jobId))
+    } catch {
+        erroAprovar.value = "Não foi possível aprovar a análise."
+    }
+}
 </script>
 
 <template>
@@ -283,6 +296,29 @@ async function reprocessar() {
                 </div>
             </AppCard>
         </template>
+
+        <!-- Addendum 003 — Gate de aprovação humana (status: aguardando_aprovacao) — CA41/CA43/CA45 -->
+        <AppCard
+            v-if="statusJob === 'aguardando_aprovacao'"
+            class="marco3-card"
+        >
+            <h2 class="ds-section-title">Arquivo recebido — aguardando aprovação</h2>
+            <AppBadge variant="warning">Aguardando aprovação</AppBadge>
+            <p class="muted">
+                O arquivo foi enviado pelo cliente. Aprove para liberar a análise por IA — a inferência do mapa de migração só inicia após aprovação explícita.
+            </p>
+            <div v-if="erroAprovar" class="erro-msg">{{ erroAprovar }}</div>
+            <div class="marco3-acoes">
+                <AppButton
+                    variant="primary"
+                    :loading="store.aprovando"
+                    @click="aprovarAnalise"
+                >
+                    <i class="fa-solid fa-check" aria-hidden="true" />
+                    Aprovar análise
+                </AppButton>
+            </div>
+        </AppCard>
 
         <!-- Marco 3 — Painel de preview (status: mapa_em_revisao) -->
         <AppCard

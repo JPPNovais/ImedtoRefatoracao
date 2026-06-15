@@ -73,7 +73,9 @@ public class InferirMapaMigracaoJobHandlerTests
         // Usa reflection para setar Id (simula EF).
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
 
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("migracao/42/99/arquivo.zip");
+        job.AprovarAnalise(Guid.NewGuid());
         return job;
     }
 
@@ -195,7 +197,9 @@ public class InferirMapaMigracaoJobHandlerTests
 
         var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId, origem);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("migracao/42/99/arquivo.zip");
+        job.AprovarAnalise(Guid.NewGuid());
 
         _jobRepo.Setup(r => r.ObterMaisAntigoAguardandoMapaOuNulo(It.IsAny<CancellationToken>()))
             .ReturnsAsync(job);

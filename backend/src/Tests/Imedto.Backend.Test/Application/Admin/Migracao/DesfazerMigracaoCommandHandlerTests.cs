@@ -76,7 +76,9 @@ public class DesfazerMigracaoCommandHandlerTests
         var job = MigracaoJob.Criar(EstabelecimentoId, Guid.NewGuid());
         // Avança o job para o status desejado via reflexão (não há ctor público com estado interno)
         // Em vez disso, criamos via as transições legítimas.
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("s3://key");
+        job.AprovarAnalise(Guid.NewGuid());
         job.MarcarMapaEmRevisao();
         job.MarcarPreviewPronto(Guid.NewGuid());
         job.MarcarMigrando(Guid.NewGuid());

@@ -68,7 +68,8 @@ public class IniciarMigracaoCommandHandlerTests
 
         var result = await _sut.Handle(cmd);
 
-        Assert.That(result.Status, Is.EqualTo(MigracaoJob.StatusAguardandoMapa));
+        // Addendum 003 — R-A1: após upload, job vai para aguardando_aprovacao.
+        Assert.That(result.Status, Is.EqualTo(MigracaoJob.StatusAguardandoAprovacao));
     }
 
     /// <summary>CA19 — arquivo 1 byte acima de 50MB deve ser rejeitado antes de qualquer I/O.</summary>
@@ -106,7 +107,8 @@ public class IniciarMigracaoCommandHandlerTests
         var result = await _sut.Handle(cmd);
 
         Assert.That(result.JobId, Is.EqualTo(99L));
-        Assert.That(result.Status, Is.EqualTo(MigracaoJob.StatusAguardandoMapa));
+        // Addendum 003 — R-A1: após upload, job vai para aguardando_aprovacao.
+        Assert.That(result.Status, Is.EqualTo(MigracaoJob.StatusAguardandoAprovacao));
 
         _storage.Verify(s => s.UploadArquivoAsync(
             EstabelecimentoId, 99L, Stream.Null, It.IsAny<CancellationToken>()), Times.Once);

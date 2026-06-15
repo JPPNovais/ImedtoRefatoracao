@@ -39,7 +39,9 @@ public class ReprocessarMigracaoCommandHandlerTests
     {
         var job = MigracaoJob.Criar(EstId, AdminId);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("migracao/42/77/arquivo.zip");
+        job.AprovarAnalise(Guid.NewGuid());
         return job;
     }
 

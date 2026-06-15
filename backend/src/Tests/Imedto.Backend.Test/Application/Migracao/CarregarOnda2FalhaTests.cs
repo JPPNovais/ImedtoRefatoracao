@@ -63,7 +63,9 @@ public class CarregarOnda2FalhaTests
     {
         var job = MigracaoJob.Criar(EstId, AdminId, onda: MigracaoJob.OndaProntuario);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
+        // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("migracao/42/66/prontuario.zip");
+        job.AprovarAnalise(Guid.NewGuid());
         job.MarcarMapaEmRevisao();
         job.MarcarPreviewPronto(AdminId);
         job.MarcarMigrando(AdminId);

@@ -8,7 +8,13 @@ public enum StatusMigracaoJob
     /// <summary>Job criado, aguardando upload do arquivo (estado inicial).</summary>
     AguardandoArquivo,
 
-    /// <summary>Arquivo recebido — pipeline descompactando e disparando inferência de mapa.</summary>
+    /// <summary>
+    /// Arquivo recebido — aguardando aprovação manual do admin Imedto antes da inferência por IA.
+    /// (addendum 003 — R-A1)
+    /// </summary>
+    AguardandoAprovacao,
+
+    /// <summary>Aprovado pelo admin — pipeline descompactando e disparando inferência de mapa.</summary>
     AguardandoMapa,
 
     /// <summary>Mapa proposto pela IA — aguardando revisão do operador admin.</summary>

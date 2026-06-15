@@ -167,10 +167,11 @@ describe("MigracaoDadosTab", () => {
 
     // ── Fluxo de envio ────────────────────────────────────────────────────────
 
-    it("envio bem-sucedido exibe estado job-criado", async () => {
+    it("envio bem-sucedido exibe estado job-criado com status aguardando_aprovacao (CA40/CA47)", async () => {
+        // Addendum 003: backend agora retorna aguardando_aprovacao (não mais aguardando_mapa).
         vi.mocked(migracaoService.iniciarUpload).mockResolvedValueOnce({
             jobId: 7,
-            status: "aguardando_mapa",
+            status: "aguardando_aprovacao",
         })
 
         const wrapper = montarComponente()
@@ -186,8 +187,8 @@ describe("MigracaoDadosTab", () => {
         await vi.waitFor(() => wrapper.find(".job-criado").exists())
 
         expect(wrapper.find(".job-criado").exists()).toBe(true)
-        // ID do job exibido.
-        expect(wrapper.find(".job-info-valor").text()).toContain("Arquivo recebido")
+        // CA47: label honesto para o cliente (D-A2): "aguardando aprovação da equipe Imedto".
+        expect(wrapper.find(".job-info-valor").text()).toContain("Aguardando aprovação")
     })
 
     it("falha no upload exibe mensagem de erro", async () => {
