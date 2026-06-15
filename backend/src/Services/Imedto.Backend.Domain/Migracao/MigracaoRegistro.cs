@@ -38,4 +38,44 @@ public class MigracaoRegistro : Entity
     public virtual DateTime CriadoEm { get; protected set; }
 
     protected MigracaoRegistro() { }
+
+    public static MigracaoRegistro Criar(long jobId, long estabelecimentoId, string entidade, string payloadBruto)
+    {
+        if (jobId <= 0) throw new BusinessException("Job é obrigatório.");
+        if (estabelecimentoId <= 0) throw new BusinessException("Estabelecimento é obrigatório.");
+        if (string.IsNullOrWhiteSpace(entidade)) throw new BusinessException("Entidade é obrigatória.");
+        return new MigracaoRegistro
+        {
+            MigracaoJobId = jobId,
+            EstabelecimentoId = estabelecimentoId,
+            Entidade = entidade.Trim(),
+            PayloadBruto = string.IsNullOrWhiteSpace(payloadBruto) ? "{}" : payloadBruto,
+            Status = "pendente",
+            CriadoEm = DateTime.UtcNow,
+        };
+    }
+
+    public virtual void MarcarImportadoCriado(long entidadeAlvoId)
+    {
+        EntidadeAlvoId = entidadeAlvoId;
+        Status = "importado_criado";
+    }
+
+    public virtual void MarcarImportadoAtualizado(long entidadeAlvoId)
+    {
+        EntidadeAlvoId = entidadeAlvoId;
+        Status = "importado_atualizado";
+    }
+
+    public virtual void MarcarRejeitado(string motivoSemPii)
+    {
+        MotivoRejeicao = motivoSemPii;
+        Status = "rejeitado";
+    }
+
+    public virtual void MarcarPulado(string motivoSemPii)
+    {
+        MotivoRejeicao = motivoSemPii;
+        Status = "pulado";
+    }
 }

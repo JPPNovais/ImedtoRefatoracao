@@ -35,6 +35,13 @@ public class CategoriaEstoqueRepository : ICategoriaEstoqueRepository
             _db.Set<CategoriaEstoque>().Update(categoria);
         await _db.SaveChangesAsync();
     }
+
+    public async Task<CategoriaEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId)
+    {
+        var norm = nome.Trim().ToLower();
+        return await _db.Set<CategoriaEstoque>()
+            .FirstOrDefaultAsync(c => c.EstabelecimentoId == estabelecimentoId && c.Nome.ToLower() == norm);
+    }
 }
 
 public class FabricanteEstoqueRepository : IFabricanteEstoqueRepository
@@ -68,6 +75,13 @@ public class FabricanteEstoqueRepository : IFabricanteEstoqueRepository
         else
             _db.Set<FabricanteEstoque>().Update(fabricante);
         await _db.SaveChangesAsync();
+    }
+
+    public async Task<FabricanteEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId)
+    {
+        var norm = nome.Trim().ToLower();
+        return await _db.Set<FabricanteEstoque>()
+            .FirstOrDefaultAsync(f => f.EstabelecimentoId == estabelecimentoId && f.Nome.ToLower() == norm);
     }
 }
 
@@ -113,6 +127,17 @@ public class FornecedorEstoqueRepository : IFornecedorEstoqueRepository
             _db.Set<FornecedorEstoque>().Update(fornecedor);
         await _db.SaveChangesAsync();
     }
+
+    public async Task<FornecedorEstoque?> ObterPorCnpjOuNulo(string cnpjDigitos, long estabelecimentoId)
+        => await _db.Set<FornecedorEstoque>()
+            .FirstOrDefaultAsync(f => f.EstabelecimentoId == estabelecimentoId && f.Cnpj == cnpjDigitos);
+
+    public async Task<FornecedorEstoque?> ObterPorNomeOuNulo(string razaoSocial, long estabelecimentoId)
+    {
+        var norm = razaoSocial.Trim().ToLower();
+        return await _db.Set<FornecedorEstoque>()
+            .FirstOrDefaultAsync(f => f.EstabelecimentoId == estabelecimentoId && f.RazaoSocial.ToLower() == norm);
+    }
 }
 
 public class LocalEstoqueRepository : ILocalEstoqueRepository
@@ -146,5 +171,12 @@ public class LocalEstoqueRepository : ILocalEstoqueRepository
         else
             _db.Set<LocalEstoque>().Update(local);
         await _db.SaveChangesAsync();
+    }
+
+    public async Task<LocalEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId)
+    {
+        var norm = nome.Trim().ToLower();
+        return await _db.Set<LocalEstoque>()
+            .FirstOrDefaultAsync(l => l.EstabelecimentoId == estabelecimentoId && l.Nome.ToLower() == norm);
     }
 }

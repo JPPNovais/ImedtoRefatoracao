@@ -8,6 +8,7 @@ public interface ICategoriaEstoqueRepository
     /// <summary>Indica se existem itens de inventário (ativos ou não) ligados a esta categoria — usado para bloquear inativação.</summary>
     Task<bool> ExistemItensVinculados(long categoriaId, long estabelecimentoId);
     Task Salvar(CategoriaEstoque categoria);
+    Task<CategoriaEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
 }
 
 public interface IFabricanteEstoqueRepository
@@ -16,6 +17,7 @@ public interface IFabricanteEstoqueRepository
     Task<bool> ExisteComNomeNoEstabelecimento(string nome, long estabelecimentoId, long? ignorarId = null);
     Task<bool> ExistemItensVinculados(long fabricanteId, long estabelecimentoId);
     Task Salvar(FabricanteEstoque fabricante);
+    Task<FabricanteEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
 }
 
 public interface IFornecedorEstoqueRepository
@@ -25,6 +27,8 @@ public interface IFornecedorEstoqueRepository
     Task<bool> ExisteComCnpjNoEstabelecimento(string cnpj, long estabelecimentoId, long? ignorarId = null);
     Task<bool> ExistemItensVinculados(long fornecedorId, long estabelecimentoId);
     Task Salvar(FornecedorEstoque fornecedor);
+    Task<FornecedorEstoque?> ObterPorCnpjOuNulo(string cnpjDigitos, long estabelecimentoId);
+    Task<FornecedorEstoque?> ObterPorNomeOuNulo(string razaoSocial, long estabelecimentoId);
 }
 
 public interface ILocalEstoqueRepository
@@ -33,4 +37,5 @@ public interface ILocalEstoqueRepository
     Task<bool> ExisteComNomeNoEstabelecimento(string nome, long estabelecimentoId, long? ignorarId = null);
     Task<bool> ExistemItensVinculados(long localId, long estabelecimentoId);
     Task Salvar(LocalEstoque local);
+    Task<LocalEstoque?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
 }

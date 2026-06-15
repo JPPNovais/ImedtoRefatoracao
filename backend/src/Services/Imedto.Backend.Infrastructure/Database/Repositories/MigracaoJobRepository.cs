@@ -83,4 +83,10 @@ public class MigracaoJobRepository : IMigracaoJobRepository
 
         return (itens, total);
     }
+
+    public async Task<MigracaoJob?> ObterMaisAntigoMigrandoOuNulo(CancellationToken ct = default)
+        => await _db.MigracaoJobs
+            .Where(j => j.Status == MigracaoJob.StatusMigrando)
+            .OrderBy(j => j.CriadoEm)
+            .FirstOrDefaultAsync(ct);
 }

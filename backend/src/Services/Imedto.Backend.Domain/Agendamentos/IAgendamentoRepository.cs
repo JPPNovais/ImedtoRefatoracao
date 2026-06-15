@@ -36,4 +36,6 @@ public interface IAgendamentoRepository
         DateTime inicioPrevisto,
         DateTime fimPrevisto,
         long? excluirAgendamentoId = null);
+
+    Task<Agendamento?> ObterPorChaveDeNegocioOuNulo(long pacienteId, Guid profissionalUsuarioId, DateTime inicioPrevisto, long estabelecimentoId);
 }

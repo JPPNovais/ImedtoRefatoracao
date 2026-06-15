@@ -20,17 +20,26 @@ public class AdminMigracaoController : ControllerBase
     private readonly ObterJobMigracaoAdminQueryHandler   _obterHandler;
     private readonly SalvarMapaRevisadoCommandHandler    _salvarMapaHandler;
     private readonly SalvarTemplateDeOrigemCommandHandler _salvarTemplateHandler;
+    private readonly PreviewOnda1QueryHandler            _previewHandler;
+    private readonly DisparaMigracaoCommandHandler       _disparaHandler;
+    private readonly RelatorioMigracaoQueryHandler       _relatorioHandler;
 
     public AdminMigracaoController(
         ListarJobsMigracaoAdminQueryHandler listarHandler,
         ObterJobMigracaoAdminQueryHandler   obterHandler,
         SalvarMapaRevisadoCommandHandler    salvarMapaHandler,
-        SalvarTemplateDeOrigemCommandHandler salvarTemplateHandler)
+        SalvarTemplateDeOrigemCommandHandler salvarTemplateHandler,
+        PreviewOnda1QueryHandler            previewHandler,
+        DisparaMigracaoCommandHandler       disparaHandler,
+        RelatorioMigracaoQueryHandler       relatorioHandler)
     {
         _listarHandler        = listarHandler;
         _obterHandler         = obterHandler;
         _salvarMapaHandler    = salvarMapaHandler;
         _salvarTemplateHandler = salvarTemplateHandler;
+        _previewHandler       = previewHandler;
+        _disparaHandler       = disparaHandler;
+        _relatorioHandler     = relatorioHandler;
     }
 
     /// <summary>Lista jobs de migração (filtros opcionais: estabelecimento, status).</summary>
@@ -108,6 +117,40 @@ public class AdminMigracaoController : ControllerBase
         }, ct);
 
         return NoContent();
+    }
+
+    /// <summary>Gera preview — muda job para preview_pronto.</summary>
+    [HttpPut("{jobId:long}/preview-pronto")]
+    [ProducesResponseType(typeof(PreviewMigracaoResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> GerarPreview(long jobId, CancellationToken ct)
+    {
+        var adminId = ObterAdminId();
+        if (!adminId.HasValue) return Unauthorized();
+        var resultado = await _previewHandler.Handle(jobId, adminId.Value, ct);
+        return Ok(resultado);
+    }
+
+    /// <summary>Dispara carga assíncrona — CA22: retorna 202 imediatamente.</summary>
+    [HttpPost("{jobId:long}/disparar")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Disparar(long jobId, CancellationToken ct)
+    {
+        var adminId = ObterAdminId();
+        if (!adminId.HasValue) return Unauthorized();
+        await _disparaHandler.Handle(new DisparaMigracaoCommand { JobId = jobId, AdminId = adminId.Value }, ct);
+        return Accepted();
+    }
+
+    /// <summary>Relatório final da carga.</summary>
+    [HttpGet("{jobId:long}/relatorio")]
+    [ProducesResponseType(typeof(RelatorioMigracaoResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Relatorio(long jobId, CancellationToken ct)
+    {
+        var resultado = await _relatorioHandler.Handle(jobId, ct);
+        return Ok(resultado);
     }
 
     private Guid? ObterAdminId()

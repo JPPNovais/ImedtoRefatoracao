@@ -141,4 +141,42 @@ public class MigracaoJob : Entity
         Status = StatusMapaEmRevisao;
         AtualizadoEm = DateTime.UtcNow;
     }
+
+    public virtual void MarcarPreviewPronto(Guid adminId)
+    {
+        if (Status != StatusMapaEmRevisao)
+            throw new BusinessException("Job precisa estar em revisão para gerar preview.");
+        if (adminId == Guid.Empty)
+            throw new BusinessException("Admin é obrigatório.");
+        DisparadoPorUsuarioId = adminId;
+        Status = StatusPreviewPronto;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void MarcarMigrando(Guid adminId)
+    {
+        if (Status != StatusPreviewPronto)
+            throw new BusinessException("Job precisa estar com preview pronto para migrar.");
+        if (adminId == Guid.Empty)
+            throw new BusinessException("Admin é obrigatório.");
+        DisparadoPorUsuarioId = adminId;
+        Status = StatusMigrando;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void MarcarConcluido()
+    {
+        if (Status != StatusMigrando)
+            throw new BusinessException("Job precisa estar migrando para concluir.");
+        Status = StatusConcluido;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    public virtual void MarcarConcluidoComErros()
+    {
+        if (Status != StatusMigrando)
+            throw new BusinessException("Job precisa estar migrando para concluir com erros.");
+        Status = StatusConcluidoComErros;
+        AtualizadoEm = DateTime.UtcNow;
+    }
 }

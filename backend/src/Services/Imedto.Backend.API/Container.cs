@@ -406,6 +406,18 @@ public static class Container
         services.AddSingleton<Imedto.Backend.Application.Admin.Migracao.ObterJobMigracaoAdminQueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.SalvarMapaRevisadoCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.SalvarTemplateDeOrigemCommandHandler>();
+
+        // Central de Migração — Marco 3 — admin (briefing 2026-06-15_001)
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoRegistroRepository,
+                           Imedto.Backend.Infrastructure.Database.Repositories.MigracaoRegistroRepository>();
+        services.AddSingleton<Imedto.Backend.Domain.Migracao.IMigracaoCatalogoCirurgiaLookup,
+                              Imedto.Backend.Infrastructure.Migracao.DapperCatalogoCirurgiaLookup>();
+        services.AddSingleton<Imedto.Backend.Domain.Migracao.IMigracaoCatalogoProdutoLookup,
+                              Imedto.Backend.Infrastructure.Migracao.DapperCatalogoProdutoLookup>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DisparaMigracaoCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.PreviewOnda1QueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.RelatorioMigracaoQueryHandler>();
+        services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda1JobHandler>();
     }
 
     /// <summary>

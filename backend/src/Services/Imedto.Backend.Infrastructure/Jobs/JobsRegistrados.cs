@@ -50,5 +50,9 @@ public static class JobsRegistrados
         // Central de Migração — Marco 2 (briefing 2026-06-15_001) — inferência de mapa via IA.
         // Poll a cada 30s; processa 1 job por rodada. Idempotente.
         new("inferir-mapa-migracao", IntervaloSeg: 30),
+
+        // Central de Migração — Marco 3 (briefing 2026-06-15_001) — carga onda 1 (entidades base).
+        // Poll a cada 30s; processa 1 job por rodada em lotes de 100. Idempotente.
+        new("carregar-onda1-migracao", IntervaloSeg: 30),
     };
 }

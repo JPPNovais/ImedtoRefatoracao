@@ -30,4 +30,15 @@ public class ItemInventarioRepository : IItemInventarioRepository
             _db.ItensInventario.Update(item);
         await _db.SaveChangesAsync();
     }
+
+    public async Task<ItemInventario?> ObterPorCodigoOuNulo(string codigo, long estabelecimentoId)
+        => await _db.ItensInventario
+            .FirstOrDefaultAsync(i => i.Codigo == codigo && i.EstabelecimentoId == estabelecimentoId);
+
+    public async Task<ItemInventario?> ObterPorNomeOuNulo(string nome, long estabelecimentoId)
+    {
+        var norm = nome.Trim().ToLower();
+        return await _db.ItensInventario
+            .FirstOrDefaultAsync(i => i.EstabelecimentoId == estabelecimentoId && i.Nome.ToLower() == norm);
+    }
 }

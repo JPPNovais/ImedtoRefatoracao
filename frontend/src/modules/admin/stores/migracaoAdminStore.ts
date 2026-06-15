@@ -4,6 +4,8 @@ import {
     migracaoAdminService,
     type MigracaoJobAdminDto,
     type ListarJobsResult,
+    type PreviewMigracaoResult,
+    type RelatorioMigracaoResult,
 } from "../services/migracaoAdminService"
 
 export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
@@ -14,6 +16,9 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
     const carregando = ref(false)
     const erro = ref<string | null>(null)
     const jobAtual = ref<MigracaoJobAdminDto | null>(null)
+    const preview = ref<PreviewMigracaoResult | null>(null)
+    const relatorio = ref<RelatorioMigracaoResult | null>(null)
+    const disparando = ref(false)
 
     async function carregar(filtros: {
         estabelecimentoId?: number | null
@@ -70,6 +75,33 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         await migracaoAdminService.salvarTemplate(jobId, { nomeTemplate })
     }
 
+    async function gerarPreview(jobId: number): Promise<void> {
+        preview.value = null
+        const result = await migracaoAdminService.gerarPreview(jobId)
+        preview.value = result
+        // Atualiza status no jobAtual para refletir transição preview_pronto.
+        if (jobAtual.value?.id === jobId) {
+            await carregarJob(jobId)
+        }
+    }
+
+    async function disparar(jobId: number): Promise<void> {
+        disparando.value = true
+        try {
+            await migracaoAdminService.disparar(jobId)
+            if (jobAtual.value?.id === jobId) {
+                await carregarJob(jobId)
+            }
+        } finally {
+            disparando.value = false
+        }
+    }
+
+    async function carregarRelatorio(jobId: number): Promise<void> {
+        relatorio.value = null
+        relatorio.value = await migracaoAdminService.obterRelatorio(jobId)
+    }
+
     return {
         jobs,
         total,
@@ -78,9 +110,15 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         carregando,
         erro,
         jobAtual,
+        preview,
+        relatorio,
+        disparando,
         carregar,
         carregarJob,
         salvarMapa,
         salvarTemplate,
+        gerarPreview,
+        disparar,
+        carregarRelatorio,
     }
 })

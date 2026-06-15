@@ -47,4 +47,20 @@ public class PacienteRepository : IPacienteRepository
             _context.Pacientes.Update(paciente);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<Paciente?> ObterPorCpfOuNulo(string cpfDigitos, long estabelecimentoId)
+        => await _context.Pacientes
+            .FirstOrDefaultAsync(p => p.Cpf == cpfDigitos && p.EstabelecimentoId == estabelecimentoId && p.DeletadoEm == null);
+
+    public async Task<Paciente?> ObterPorDocumentoInternacionalOuNulo(string doc, long estabelecimentoId)
+        => await _context.Pacientes
+            .FirstOrDefaultAsync(p => p.DocumentoInternacional == doc && p.EstabelecimentoId == estabelecimentoId && p.DeletadoEm == null);
+
+    public async Task<Paciente?> ObterPorNomeTelefoneOuNulo(string nome, string telefone, long estabelecimentoId)
+        => await _context.Pacientes
+            .FirstOrDefaultAsync(p =>
+                p.NomeCompleto == nome &&
+                p.Telefone == telefone &&
+                p.EstabelecimentoId == estabelecimentoId &&
+                p.DeletadoEm == null);
 }

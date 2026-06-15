@@ -26,6 +26,13 @@ const edicoes = ref<Record<string, Record<string, string>>>({})
 const salvando = ref<Record<string, boolean>>({})
 const erros = ref<Record<string, string>>({})
 
+// Marco 3 — preview + disparo + relatório
+const erroPreview = ref("")
+const gerandoPreview = ref(false)
+const erroDisparar = ref("")
+const erroRelatorio = ref("")
+const carregandoRelatorio = ref(false)
+
 // Modal de template
 const modalTemplate = ref(false)
 const nomeTemplate  = ref("")
@@ -108,6 +115,41 @@ async function confirmarTemplate() {
 }
 
 const temMapas = computed(() => (store.jobAtual?.mapas?.length ?? 0) > 0)
+
+const statusJob = computed(() => store.jobAtual?.status ?? "")
+
+async function gerarPreview() {
+    gerandoPreview.value = true
+    erroPreview.value = ""
+    try {
+        await store.gerarPreview(Number(props.jobId))
+    } catch {
+        erroPreview.value = "Não foi possível gerar o preview."
+    } finally {
+        gerandoPreview.value = false
+    }
+}
+
+async function disparar() {
+    erroDisparar.value = ""
+    try {
+        await store.disparar(Number(props.jobId))
+    } catch {
+        erroDisparar.value = "Não foi possível disparar a carga."
+    }
+}
+
+async function verRelatorio() {
+    carregandoRelatorio.value = true
+    erroRelatorio.value = ""
+    try {
+        await store.carregarRelatorio(Number(props.jobId))
+    } catch {
+        erroRelatorio.value = "Não foi possível carregar o relatório."
+    } finally {
+        carregandoRelatorio.value = false
+    }
+}
 </script>
 
 <template>
@@ -214,6 +256,138 @@ const temMapas = computed(() => (store.jobAtual?.mapas?.length ?? 0) > 0)
                 </div>
             </AppCard>
         </template>
+
+        <!-- Marco 3 — Painel de preview (status: mapa_em_revisao) -->
+        <AppCard
+            v-if="statusJob === 'mapa_em_revisao'"
+            class="marco3-card"
+        >
+            <h2 class="ds-section-title">Gerar preview da carga</h2>
+            <p class="muted">Confirme os mapas revisados e gere o preview para ver quantos registros serão importados por entidade.</p>
+            <div v-if="store.preview" class="preview-resultado">
+                <p class="preview-total">Total de registros: <strong>{{ store.preview.totalRegistros }}</strong></p>
+                <table class="relatorio-table">
+                    <thead>
+                        <tr>
+                            <th>Entidade</th>
+                            <th>Pendentes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(ent, nome) in store.preview.porEntidade" :key="nome">
+                            <td>{{ nome }}</td>
+                            <td>{{ ent.pendentes }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div v-if="erroPreview" class="erro-msg">{{ erroPreview }}</div>
+            <div class="marco3-acoes">
+                <AppButton
+                    variant="primary"
+                    :loading="gerandoPreview"
+                    @click="gerarPreview"
+                >
+                    Gerar preview
+                </AppButton>
+            </div>
+        </AppCard>
+
+        <!-- Marco 3 — Painel de disparo (status: preview_pronto) -->
+        <AppCard
+            v-if="statusJob === 'preview_pronto'"
+            class="marco3-card"
+        >
+            <h2 class="ds-section-title">Disparar carga</h2>
+            <p class="muted">O preview foi gerado. Confirme para iniciar a importação em background.</p>
+            <div v-if="store.preview" class="preview-resultado">
+                <p class="preview-total">Total de registros: <strong>{{ store.preview.totalRegistros }}</strong></p>
+                <table class="relatorio-table">
+                    <thead>
+                        <tr>
+                            <th>Entidade</th>
+                            <th>Pendentes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(ent, nome) in store.preview.porEntidade" :key="nome">
+                            <td>{{ nome }}</td>
+                            <td>{{ ent.pendentes }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div v-if="erroDisparar" class="erro-msg">{{ erroDisparar }}</div>
+            <div class="marco3-acoes">
+                <AppButton
+                    variant="primary"
+                    :loading="store.disparando"
+                    @click="disparar"
+                >
+                    <i class="fa-solid fa-play" aria-hidden="true" />
+                    Disparar carga
+                </AppButton>
+            </div>
+        </AppCard>
+
+        <!-- Marco 3 — Painel de progresso (status: migrando) -->
+        <AppCard
+            v-if="statusJob === 'migrando'"
+            class="marco3-card"
+        >
+            <h2 class="ds-section-title">Carga em andamento</h2>
+            <p class="muted">A importação está sendo processada em background. Aguarde e recarregue a página para ver o resultado.</p>
+            <div class="marco3-acoes">
+                <AppButton variant="secondary" @click="store.carregarJob(Number(props.jobId))">
+                    <i class="fa-solid fa-rotate" aria-hidden="true" />
+                    Atualizar status
+                </AppButton>
+            </div>
+        </AppCard>
+
+        <!-- Marco 3 — Relatório final (status: concluido / concluido_com_erros) -->
+        <AppCard
+            v-if="statusJob === 'concluido' || statusJob === 'concluido_com_erros'"
+            class="marco3-card"
+        >
+            <h2 class="ds-section-title">Relatório da carga</h2>
+            <AppBadge v-if="statusJob === 'concluido'" variant="success">Concluído</AppBadge>
+            <AppBadge v-else variant="warning">Concluído com erros</AppBadge>
+            <div v-if="store.relatorio" class="relatorio-resumo">
+                <p>Criados: <strong>{{ store.relatorio.totalCriados }}</strong> · Atualizados: <strong>{{ store.relatorio.totalAtualizados }}</strong> · Rejeitados: <strong>{{ store.relatorio.totalRejeitados }}</strong> · Pulados: <strong>{{ store.relatorio.totalPulados }}</strong></p>
+                <table class="relatorio-table">
+                    <thead>
+                        <tr>
+                            <th>Entidade</th>
+                            <th>Criados</th>
+                            <th>Atualizados</th>
+                            <th>Rejeitados</th>
+                            <th>Pulados</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(ent, nome) in store.relatorio.porEntidade" :key="nome">
+                            <td>{{ nome }}</td>
+                            <td>{{ ent.criados }}</td>
+                            <td>{{ ent.atualizados }}</td>
+                            <td>{{ ent.rejeitados }}</td>
+                            <td>{{ ent.pulados }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div v-if="erroRelatorio" class="erro-msg">{{ erroRelatorio }}</div>
+            <div class="marco3-acoes">
+                <AppButton
+                    variant="secondary"
+                    :loading="carregandoRelatorio"
+                    @click="verRelatorio"
+                >
+                    <i class="fa-solid fa-chart-bar" aria-hidden="true" />
+                    Carregar relatório
+                </AppButton>
+            </div>
+        </AppCard>
 
         <!-- Modal: salvar como template -->
         <AppModal
@@ -332,5 +506,48 @@ const temMapas = computed(() => (store.jobAtual?.mapas?.length ?? 0) > 0)
 
 .sem-mapas {
     padding: 2rem;
+}
+
+.marco3-card {
+    margin-bottom: 1.5rem;
+}
+
+.marco3-acoes {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.preview-resultado,
+.relatorio-resumo {
+    margin: 1rem 0;
+}
+
+.preview-total {
+    font-size: var(--text-sm);
+    margin-bottom: 0.5rem;
+}
+
+.relatorio-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    margin-top: 0.5rem;
+}
+
+.relatorio-table th,
+.relatorio-table td {
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid hsl(var(--border));
+    text-align: left;
+}
+
+.relatorio-table th {
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--muted-foreground));
+}
+
+.relatorio-table tr:last-child td {
+    border-bottom: none;
 }
 </style>

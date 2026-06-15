@@ -16,4 +16,7 @@ public interface IItemInventarioRepository
     Task<bool> ExisteComCodigoNoEstabelecimento(string codigo, long estabelecimentoId);
 
     Task Salvar(ItemInventario item);
+
+    Task<ItemInventario?> ObterPorCodigoOuNulo(string codigo, long estabelecimentoId);
+    Task<ItemInventario?> ObterPorNomeOuNulo(string nome, long estabelecimentoId);
 }

@@ -54,4 +54,12 @@ public class AgendamentoRepository : IAgendamentoRepository
                 a.FimPrevisto > inicioPrevisto)
             .AnyAsync();
     }
+
+    public async Task<Agendamento?> ObterPorChaveDeNegocioOuNulo(long pacienteId, Guid profissionalUsuarioId, DateTime inicioPrevisto, long estabelecimentoId)
+        => await _db.Agendamentos
+            .FirstOrDefaultAsync(a =>
+                a.PacienteId == pacienteId &&
+                a.ProfissionalUsuarioId == profissionalUsuarioId &&
+                a.InicioPrevisto == inicioPrevisto &&
+                a.EstabelecimentoId == estabelecimentoId);
 }

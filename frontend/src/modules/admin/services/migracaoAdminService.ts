@@ -41,6 +41,32 @@ export interface SalvarTemplatePayload {
     nomeTemplate: string
 }
 
+// Marco 3 — preview + disparo + relatório
+
+export interface EntidadePreview {
+    pendentes: number
+}
+
+export interface PreviewMigracaoResult {
+    totalRegistros: number
+    porEntidade: Record<string, EntidadePreview>
+}
+
+export interface RelatorioEntidadeResult {
+    criados: number
+    atualizados: number
+    rejeitados: number
+    pulados: number
+}
+
+export interface RelatorioMigracaoResult {
+    totalCriados: number
+    totalAtualizados: number
+    totalRejeitados: number
+    totalPulados: number
+    porEntidade: Record<string, RelatorioEntidadeResult>
+}
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 const base = "/migracao"
@@ -74,5 +100,19 @@ export const migracaoAdminService = {
 
     async salvarTemplate(jobId: number, payload: SalvarTemplatePayload): Promise<void> {
         await adminApi.post(`${base}/${jobId}/template`, payload)
+    },
+
+    async gerarPreview(jobId: number): Promise<PreviewMigracaoResult> {
+        const { data } = await adminApi.put<PreviewMigracaoResult>(`${base}/${jobId}/preview-pronto`)
+        return data
+    },
+
+    async disparar(jobId: number): Promise<void> {
+        await adminApi.post(`${base}/${jobId}/disparar`)
+    },
+
+    async obterRelatorio(jobId: number): Promise<RelatorioMigracaoResult> {
+        const { data } = await adminApi.get<RelatorioMigracaoResult>(`${base}/${jobId}/relatorio`)
+        return data
     },
 }

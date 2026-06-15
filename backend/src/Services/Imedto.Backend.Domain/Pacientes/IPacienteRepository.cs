@@ -23,4 +23,8 @@ public interface IPacienteRepository
     Task<bool> ExisteCpfNoEstabelecimento(string cpf, long estabelecimentoId, long ignorarPacienteId);
     Task<bool> ExisteDocumentoInternacionalNoEstabelecimento(string documento, long estabelecimentoId, long ignorarPacienteId);
     Task Salvar(Paciente paciente);
+
+    Task<Paciente?> ObterPorCpfOuNulo(string cpfDigitos, long estabelecimentoId);
+    Task<Paciente?> ObterPorDocumentoInternacionalOuNulo(string doc, long estabelecimentoId);
+    Task<Paciente?> ObterPorNomeTelefoneOuNulo(string nome, string telefone, long estabelecimentoId);
 }

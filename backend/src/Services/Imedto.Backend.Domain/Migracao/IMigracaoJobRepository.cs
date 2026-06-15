@@ -33,4 +33,7 @@ public interface IMigracaoJobRepository
         int pagina,
         int tamanho,
         CancellationToken ct = default);
+
+    /// <summary>Retorna o job mais antigo com status "migrando". Null se não houver.</summary>
+    Task<MigracaoJob?> ObterMaisAntigoMigrandoOuNulo(CancellationToken ct = default);
 }
