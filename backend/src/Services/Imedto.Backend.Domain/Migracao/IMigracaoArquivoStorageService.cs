@@ -19,4 +19,10 @@ public interface IMigracaoArquivoStorageService
 
     /// <summary>Remove o arquivo do S3 (job de expiração — CA24).</summary>
     Task RemoverArquivoAsync(string arquivoS3Key, CancellationToken ct = default);
+
+    /// <summary>
+    /// Baixa o arquivo ZIP do S3 como stream em memória.
+    /// Usado pelo job de inferência (Marco 2) para descompactar e parsear.
+    /// </summary>
+    Task<Stream> DownloadArquivoAsync(string arquivoS3Key, CancellationToken ct = default);
 }

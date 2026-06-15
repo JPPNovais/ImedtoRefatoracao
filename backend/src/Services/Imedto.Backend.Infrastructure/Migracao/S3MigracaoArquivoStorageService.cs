@@ -52,4 +52,19 @@ public sealed class S3MigracaoArquivoStorageService : IMigracaoArquivoStorageSer
             Key = arquivoS3Key,
         }, ct);
     }
+
+    public async Task<Stream> DownloadArquivoAsync(string arquivoS3Key, CancellationToken ct = default)
+    {
+        var response = await _s3.GetObjectAsync(new GetObjectRequest
+        {
+            BucketName = _options.BucketAnexosProntuario,
+            Key = arquivoS3Key,
+        }, ct);
+
+        // Copia para MemoryStream para que o stream seja seekable e o S3 dispose corretamente.
+        var ms = new MemoryStream();
+        await response.ResponseStream.CopyToAsync(ms, ct);
+        ms.Position = 0;
+        return ms;
+    }
 }

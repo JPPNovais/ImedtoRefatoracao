@@ -46,5 +46,9 @@ public static class JobsRegistrados
 
         // Central de Migração (briefing 2026-06-15_001) — apaga ZIPs expirados do S3 após 30 dias (CA24, R12).
         new("expirar-arquivos-migracao", IntervaloSeg: 24 * 60 * 60),
+
+        // Central de Migração — Marco 2 (briefing 2026-06-15_001) — inferência de mapa via IA.
+        // Poll a cada 30s; processa 1 job por rodada. Idempotente.
+        new("inferir-mapa-migracao", IntervaloSeg: 30),
     };
 }

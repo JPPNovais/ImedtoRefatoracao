@@ -128,4 +128,17 @@ public class MigracaoJob : Entity
         ArquivoExpirado = true;
         AtualizadoEm = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Transição: aguardando_mapa → mapa_em_revisao.
+    /// Chamada pelo job de inferência quando a IA termina de gerar o mapa.
+    /// </summary>
+    public virtual void MarcarMapaEmRevisao()
+    {
+        if (Status != StatusAguardandoMapa)
+            throw new BusinessException("Job não está aguardando mapa.");
+
+        Status = StatusMapaEmRevisao;
+        AtualizadoEm = DateTime.UtcNow;
+    }
 }

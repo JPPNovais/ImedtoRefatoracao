@@ -45,4 +45,42 @@ public class MigracaoJobRepository : IMigracaoJobRepository
                         && j.ArquivoS3Key != null)
             .ToListAsync(ct);
     }
+
+    public async Task<MigracaoJob?> ObterMaisAntigoAguardandoMapaOuNulo(CancellationToken ct = default)
+    {
+        return await _db.MigracaoJobs
+            .Where(j => j.Status == MigracaoJob.StatusAguardandoMapa && j.ArquivoS3Key != null)
+            .OrderBy(j => j.CriadoEm)
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<MigracaoJob?> ObterPorIdAdminOuNulo(long jobId, CancellationToken ct = default)
+    {
+        return await _db.MigracaoJobs.FirstOrDefaultAsync(j => j.Id == jobId, ct);
+    }
+
+    public async Task<(List<MigracaoJob> Itens, int Total)> ListarAdmin(
+        long? estabelecimentoId,
+        string? status,
+        int pagina,
+        int tamanho,
+        CancellationToken ct = default)
+    {
+        var query = _db.MigracaoJobs.AsQueryable();
+
+        if (estabelecimentoId.HasValue)
+            query = query.Where(j => j.EstabelecimentoId == estabelecimentoId.Value);
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(j => j.Status == status);
+
+        var total = await query.CountAsync(ct);
+        var itens = await query
+            .OrderByDescending(j => j.CriadoEm)
+            .Skip((pagina - 1) * tamanho)
+            .Take(tamanho)
+            .ToListAsync(ct);
+
+        return (itens, total);
+    }
 }

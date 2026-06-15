@@ -140,6 +140,18 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import("../views/RegioesGlobaisFormView.vue"),
                 props: true,
             },
+            // Central de Migração (briefing 2026-06-15_001 — Marco 2)
+            {
+                path: "migracao",
+                name: "AdminMigracoesLista",
+                component: () => import("../views/MigracoesListView.vue"),
+            },
+            {
+                path: "migracao/:jobId",
+                name: "AdminMigracaoRevisao",
+                component: () => import("../views/MigracaoRevisaoView.vue"),
+                props: true,
+            },
         ],
     },
     // Rota catch-all para /admin/* não encontrado.

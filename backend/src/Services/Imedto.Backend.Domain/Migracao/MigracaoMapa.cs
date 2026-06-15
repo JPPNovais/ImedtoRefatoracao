@@ -3,9 +3,9 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Domain.Migracao;
 
 /// <summary>
-/// POCO de mapeamento EF para mapa de campos entre origem e schema canônico.
+/// Mapeamento entre colunas do arquivo de origem e schema canônico do Imedto.
 /// Um mapa por entidade por job. Revisado pelo cliente antes de importar.
-/// Aggregate root completo será construído pelo developer.
+/// Multi-tenant: sempre filtrado por EstabelecimentoId.
 /// </summary>
 public class MigracaoMapa : Entity
 {
@@ -32,4 +32,41 @@ public class MigracaoMapa : Entity
     public virtual DateTime AtualizadoEm { get; protected set; }
 
     protected MigracaoMapa() { }
+
+    // ─── Factory ─────────────────────────────────────────────────────────────────
+
+    public static MigracaoMapa Criar(long migracaoJobId, long estabelecimentoId, string entidade, string mapaJson)
+    {
+        if (migracaoJobId <= 0) throw new BusinessException("Job é obrigatório.");
+        if (estabelecimentoId <= 0) throw new BusinessException("Estabelecimento é obrigatório.");
+        if (string.IsNullOrWhiteSpace(entidade)) throw new BusinessException("Entidade é obrigatória.");
+        if (string.IsNullOrWhiteSpace(mapaJson)) throw new BusinessException("Mapa JSON é obrigatório.");
+
+        var agora = DateTime.UtcNow;
+        return new MigracaoMapa
+        {
+            MigracaoJobId = migracaoJobId,
+            EstabelecimentoId = estabelecimentoId,
+            Entidade = entidade.Trim(),
+            MapaJson = mapaJson,
+            CriadoEm = agora,
+            AtualizadoEm = agora
+        };
+    }
+
+    // ─── Comportamento ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Registra revisão do admin — atualiza o JSON e marca o revisor.
+    /// </summary>
+    public virtual void Revisar(string mapaJsonAtualizado, Guid revisadoPorUsuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(mapaJsonAtualizado))
+            throw new BusinessException("Mapa não pode ser vazio.");
+
+        MapaJson = mapaJsonAtualizado;
+        RevisadoPorUsuarioId = revisadoPorUsuarioId;
+        RevisadoEm = DateTime.UtcNow;
+        AtualizadoEm = DateTime.UtcNow;
+    }
 }

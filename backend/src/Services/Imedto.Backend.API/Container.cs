@@ -280,6 +280,21 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Migracao.Commands.IniciarMigracaoCommandHandler>();
         services.AddScoped<IJobHandler, Imedto.Backend.Infrastructure.Migracao.ExpirarArquivosMigracaoJob>();
 
+        // Central de Migração — Marco 2
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoMapaRepository,
+                           Imedto.Backend.Infrastructure.Database.Repositories.MigracaoMapaRepository>();
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoTemplateRepository,
+                           Imedto.Backend.Infrastructure.Database.Repositories.MigracaoTemplateRepository>();
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMapeadorDeMigracao,
+                           Imedto.Backend.Infrastructure.Migracao.AnthropicMapeadorDeMigracao>();
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoArquivoParser,
+                           Imedto.Backend.Infrastructure.Migracao.CsvMigracaoParser>();
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoArquivoParser,
+                           Imedto.Backend.Infrastructure.Migracao.JsonMigracaoParser>();
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoArquivoParser,
+                           Imedto.Backend.Infrastructure.Migracao.XlsxMigracaoParser>();
+        services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.InferirMapaMigracaoJobHandler>();
+
         services.AddSingleton<JobScheduler>();
         services.AddHostedService(sp => sp.GetRequiredService<JobScheduler>());
         // SeedPlanosHostedService removido (F6 — 2026-06-11_003): seed da estrutura nova é gerido por migrations idempotentes.
@@ -384,6 +399,13 @@ public static class Container
         services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ObterCrescimentoMensalDashboardAdminQueryHandler>();
         services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ObterAlertasDashboardAdminQueryHandler>();
         services.AddSingleton<Imedto.Backend.Application.Admin.Dashboard.ListarAuditLogDashboardAdminQueryHandler>();
+
+        // Central de Migração — Marco 2 — admin (briefing 2026-06-15_001)
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.MigracaoAdminQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Migracao.ListarJobsMigracaoAdminQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Migracao.ObterJobMigracaoAdminQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.SalvarMapaRevisadoCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.SalvarTemplateDeOrigemCommandHandler>();
     }
 
     /// <summary>

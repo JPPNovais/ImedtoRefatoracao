@@ -3,10 +3,9 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Domain.Migracao;
 
 /// <summary>
-/// POCO de mapeamento EF para template de mapeamento cross-tenant.
+/// Template de mapeamento cross-tenant reutilizável.
 /// Templates são metadados de schema (não dados de paciente) — sem estabelecimento_id.
-/// Justificativa global: compartilhado entre todos os tenants como ponto de partida de IA.
-/// Aggregate root completo será construído pelo developer.
+/// Compartilhado entre todos os tenants como ponto de partida para a inferência IA.
 /// </summary>
 public class MigracaoTemplate : Entity
 {
@@ -26,4 +25,36 @@ public class MigracaoTemplate : Entity
     public virtual DateTime AtualizadoEm { get; protected set; }
 
     protected MigracaoTemplate() { }
+
+    // ─── Factory ─────────────────────────────────────────────────────────────────
+
+    public static MigracaoTemplate Criar(string nome, string entidade, string mapaJson, Guid criadoPorUsuarioId)
+    {
+        if (string.IsNullOrWhiteSpace(nome)) throw new BusinessException("Nome é obrigatório.");
+        if (string.IsNullOrWhiteSpace(entidade)) throw new BusinessException("Entidade é obrigatória.");
+        if (string.IsNullOrWhiteSpace(mapaJson)) throw new BusinessException("Mapa JSON é obrigatório.");
+        if (criadoPorUsuarioId == Guid.Empty) throw new BusinessException("Usuário criador é obrigatório.");
+
+        var agora = DateTime.UtcNow;
+        return new MigracaoTemplate
+        {
+            Nome = nome.Trim(),
+            Entidade = entidade.Trim(),
+            MapaJson = mapaJson,
+            CriadoPorUsuarioId = criadoPorUsuarioId,
+            CriadoEm = agora,
+            AtualizadoEm = agora
+        };
+    }
+
+    // ─── Comportamento ────────────────────────────────────────────────────────────
+
+    public virtual void AtualizarMapa(string novoMapaJson)
+    {
+        if (string.IsNullOrWhiteSpace(novoMapaJson))
+            throw new BusinessException("Mapa JSON não pode ser vazio.");
+
+        MapaJson = novoMapaJson;
+        AtualizadoEm = DateTime.UtcNow;
+    }
 }
