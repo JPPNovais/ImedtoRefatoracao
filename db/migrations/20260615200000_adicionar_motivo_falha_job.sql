@@ -28,6 +28,6 @@ DO $$ BEGIN
 END $$;
 
 -- Registro no histórico de migrations do EF Core (idempotente)
-INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+INSERT INTO public.__ef_migrations_history ("MigrationId", "ProductVersion")
 VALUES ('20260615200000_AdicionarMotivoFalhaJob', '10.0.0')
 ON CONFLICT ("MigrationId") DO NOTHING;
