@@ -45,5 +45,5 @@ const texto = computed(() => props.label ?? props.status ?? "")
 </script>
 
 <template>
-    <CountBadge :variant="variant">{{ texto }}</CountBadge>
+    <CountBadge :variant="variant"><slot>{{ texto }}</slot></CountBadge>
 </template>
