@@ -80,11 +80,22 @@ public sealed class InferirMapaMigracaoJobHandler : IJobHandler
         }
         catch (Exception ex)
         {
-            // Falha no job — loga sem PII e rejeita para não travar indefinidamente.
+            // Addendum 002 — R-B2: mapeia tipo de exceção para categoria legível sem PII.
+            // Detalhe técnico só no log estruturado (CA28).
             _logger.LogError(ex,
                 "[Job:{Nome}] Falha ao processar inferência do job {JobId}.", Nome, job.Id);
-            // Não rejeita o job automaticamente — pode ser falha temporária (S3, API de IA).
-            // O operador verá o job parado em aguardando_mapa e poderá acionar manualmente.
+
+            var motivo = CategorizarFalhaInferencia(ex);
+            try
+            {
+                job.MarcarFalhou(motivo);
+                await _jobRepo.Salvar(job, ct);
+            }
+            catch (Exception salvarEx)
+            {
+                _logger.LogError(salvarEx,
+                    "[Job:{Nome}] Falha ao persistir status 'falhou' do job {JobId}.", Nome, job.Id);
+            }
         }
     }
 
@@ -219,5 +230,31 @@ public sealed class InferirMapaMigracaoJobHandler : IJobHandler
 
         // Remove sufixo plural comum em português.
         return nomeSemExtensao.TrimEnd('s');
+    }
+
+    /// <summary>
+    /// Addendum 002 — R-B2: mapeia tipo de exceção para categoria legível PT-BR, sem PII.
+    /// A mensagem técnica fica apenas no log estruturado.
+    /// </summary>
+    private static string CategorizarFalhaInferencia(Exception ex)
+    {
+        // Chave/credencial de IA ausente ou inválida.
+        if (ex is InvalidOperationException && ex.Message.Contains("ApiKey", StringComparison.OrdinalIgnoreCase))
+            return "IA não configurada";
+        if (ex is System.Net.Http.HttpRequestException httpEx && (httpEx.StatusCode == System.Net.HttpStatusCode.Unauthorized || httpEx.StatusCode == System.Net.HttpStatusCode.Forbidden))
+            return "IA não configurada";
+
+        // Falha ao baixar o arquivo do S3.
+        if (ex.Message.Contains("S3", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("download", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("NoSuchKey", StringComparison.OrdinalIgnoreCase))
+            return "falha ao baixar o arquivo";
+
+        // Arquivo corrompido ou ilegível (descompactação/parse).
+        if (ex is InvalidDataException || ex is System.IO.IOException)
+            return "arquivo corrompido ou ilegível";
+
+        // Falha genérica na inferência de mapa.
+        return "falha ao gerar o mapa";
     }
 }

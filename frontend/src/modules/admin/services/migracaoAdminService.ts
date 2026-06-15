@@ -23,6 +23,8 @@ export interface MigracaoJobAdminDto {
     templateOrigemId: number | null
     /** Nome do template (join na query). Null quando templateOrigemId é null. */
     nomeTemplate: string | null
+    /** CA28 — Categoria legível do motivo da falha, sem PII. Null quando status != falhou. */
+    motivoFalha: string | null
     mapas: MigracaoMapaDto[]
 }
 
@@ -57,6 +59,10 @@ export interface RelatorioEntidadeResult {
     atualizados: number
     rejeitados: number
     pulados: number
+    /** CA34 — motivo → quantidade de rejeições (genérico, sem PII). */
+    motivosRejeicao: Record<string, number>
+    /** CA35 — motivo → quantidade de pulos. */
+    motivosPulo: Record<string, number>
 }
 
 export interface RelatorioMigracaoResult {
@@ -135,5 +141,13 @@ export const migracaoAdminService = {
     async desfazer(jobId: number): Promise<RelatorioDesfazimentoResult> {
         const { data } = await adminApi.post<RelatorioDesfazimentoResult>(`${base}/${jobId}/desfazer`)
         return data
+    },
+
+    /**
+     * CA30 — Reprocessa um job em estado "falhou", restaurando o status anterior.
+     * Apenas ImedtoAdmin pode chamar este endpoint (RBAC no backend).
+     */
+    async reprocessar(jobId: number): Promise<void> {
+        await adminApi.post(`${base}/${jobId}/reprocessar`)
     },
 }

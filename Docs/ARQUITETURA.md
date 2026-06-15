@@ -717,6 +717,9 @@ O adapter concreto (Marco 2) implementará esta porta chamando `IaService` (já 
 aguardando_arquivo → aguardando_mapa → mapa_em_revisao → preview_pronto
                                                        ↘ rejeitado
 migrando → concluido / concluido_com_erros / desfeito
+
+aguardando_mapa ──┐
+migrando ─────────┴→ falhou → (Reprocessar) → aguardando_mapa / migrando
 ```
 
 - `Criar(estabelecimentoId, usuarioId, origem?, onda?)` — estado inicial `aguardando_arquivo`.
@@ -724,6 +727,10 @@ migrando → concluido / concluido_com_erros / desfeito
 - `RegistrarArquivoRecebido(s3Key)` — seta `ArquivoExpiraEm = UtcNow + 30 dias` (CA24, R12) + `TermoAceitoEm`.
 - `Rejeitar()` — transição de `aguardando_arquivo`/`aguardando_mapa` → `rejeitado`.
 - `MarcarArquivoExpirado()` — chamado pelo job `expirar-arquivos-migracao`.
+- `MarcarFalhou(motivo)` — transição de `aguardando_mapa` ou `migrando` → `falhou`. Salva `StatusAntesFalha` (para restauração) e `MotivoFalha` (categoria legível sem PII). Chamado pelos handlers de job ao capturar exceção inesperada (addendum 002, CA25/CA26).
+- `Reprocessar()` — válido apenas em `falhou`. Restaura `StatusAntesFalha` e limpa `MotivoFalha`/`StatusAntesFalha`. Os schedulers recorrentes re-selecionam automaticamente o job (CA30). Handler: `ReprocessarMigracaoCommandHandler` (ImedtoAdmin only, RBAC).
+
+**Padrão Reprocessar:** ao reprocessar, o handler usa `ObterPorIdAdminOuNulo` (sem filtro de tenant — escopo admin). Após `job.Reprocessar()`, salva e retorna 204. O job volta ao estado anterior e é retomado pelo próximo ciclo do scheduler recorrente (`InferirMapaMigracaoJob` ou `CarregarMigracaoJob`) sem criar nova infra.
 
 ### Onda 2 — Prontuário histórico (Marco 5, briefing 2026-06-15_001)
 
@@ -749,9 +756,9 @@ migrando → concluido / concluido_com_erros / desfeito
 
 ### Schema (tabelas `migracao_*`)
 
-4 tabelas geradas pelo `imedto-database` (migration pendente):
-- `migracao_jobs` — job por upload (multi-tenant: `estabelecimento_id`).
-- `migracao_registros` — linhas individuais para importação.
+4 tabelas geradas pelo `imedto-database`:
+- `migracao_jobs` — job por upload (multi-tenant: `estabelecimento_id`). Colunas `motivo_falha text NULL` e `status_antes_falha text NULL` adicionadas em `20260615200000_AdicionarMotivoFalhaJob` (addendum 002).
+- `migracao_registros` — linhas individuais para importação. `motivo_rejeicao text NULL` é categoria genérica sem PII; usada para agregar `MotivosRejeicao` e `MotivosPulo` (`Dictionary<string,int>`) no relatório (CA34/CA35).
 - `migracao_mapas` — proposta de mapeamento (gerada pelo mapeador IA nos marcos seguintes).
 - `migracao_templates` — templates reutilizáveis de mapeamento por sistema de origem.
 

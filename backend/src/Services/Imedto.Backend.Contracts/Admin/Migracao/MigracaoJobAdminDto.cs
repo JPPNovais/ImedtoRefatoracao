@@ -19,5 +19,12 @@ public sealed class MigracaoJobAdminDto
     /// <summary>Nome do template de origem (join na query). Null quando TemplateOrigemId é null.</summary>
     public string? NomeTemplate { get; init; }
 
+    /// <summary>
+    /// Addendum 002 — CA29: categoria da falha para jobs em status "falhou".
+    /// Null quando o job não está em estado de falha.
+    /// Nunca contém PII (R-B2).
+    /// </summary>
+    public string? MotivoFalha { get; init; }
+
     public List<MigracaoMapaDto> Mapas { get; set; } = [];
 }

@@ -418,6 +418,8 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.PreviewOnda1QueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.RelatorioMigracaoQueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DesfazerMigracaoCommandHandler>();
+        // Addendum 002 — reprocessar job que falhou (CA30/CA31)
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.ReprocessarMigracaoCommandHandler>();
         services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda1JobHandler>();
 
         // Central de Migração — Marco 5 — Onda 2 Prontuário (briefing 2026-06-15_001)

@@ -37,6 +37,9 @@ const carregandoRelatorio = ref(false)
 const modalDesfazer = ref(false)
 const erroDesfazer = ref("")
 
+// Addendum 002 — reprocessar (CA30)
+const erroReprocessar = ref("")
+
 // Modal de template
 const modalTemplate = ref(false)
 const nomeTemplate  = ref("")
@@ -162,6 +165,16 @@ async function confirmarDesfazer() {
         modalDesfazer.value = false
     } catch {
         erroDesfazer.value = "Não foi possível desfazer a migração."
+    }
+}
+
+/** CA30 — Reprocessa job em falhou, restaurando o status anterior para reprocessamento automático. */
+async function reprocessar() {
+    erroReprocessar.value = ""
+    try {
+        await store.reprocessar(Number(props.jobId))
+    } catch {
+        erroReprocessar.value = "Não foi possível reprocessar o job."
     }
 }
 </script>
@@ -359,6 +372,35 @@ async function confirmarDesfazer() {
             </div>
         </AppCard>
 
+        <!-- Addendum 002 — Painel de falha (status: falhou) — CA25/CA29/CA30 -->
+        <AppCard
+            v-if="statusJob === 'falhou'"
+            class="marco3-card"
+        >
+            <h2 class="ds-section-title">Job com falha</h2>
+            <AppBadge variant="error">Falhou</AppBadge>
+            <div class="falha-detalhe">
+                <p v-if="store.jobAtual?.motivoFalha" class="falha-motivo">
+                    <strong>Motivo:</strong> {{ store.jobAtual.motivoFalha }}
+                </p>
+                <p v-else class="falha-motivo">Motivo não registrado.</p>
+                <p class="muted">
+                    Após reprocessar, o job voltará ao estado anterior e será retomado automaticamente pelo próximo ciclo do agendador.
+                </p>
+            </div>
+            <div v-if="erroReprocessar" class="erro-msg">{{ erroReprocessar }}</div>
+            <div class="marco3-acoes">
+                <AppButton
+                    variant="primary"
+                    :loading="store.reprocessando"
+                    @click="reprocessar"
+                >
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true" />
+                    Reprocessar
+                </AppButton>
+            </div>
+        </AppCard>
+
         <!-- Marco 3 — Relatório final (status: concluido / concluido_com_erros) -->
         <AppCard
             v-if="statusJob === 'concluido' || statusJob === 'concluido_com_erros'"
@@ -380,13 +422,43 @@ async function confirmarDesfazer() {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(ent, nome) in store.relatorio.porEntidade" :key="nome">
-                            <td>{{ nome }}</td>
-                            <td>{{ ent.criados }}</td>
-                            <td>{{ ent.atualizados }}</td>
-                            <td>{{ ent.rejeitados }}</td>
-                            <td>{{ ent.pulados }}</td>
-                        </tr>
+                        <template v-for="(ent, nome) in store.relatorio.porEntidade" :key="nome">
+                            <tr>
+                                <td>{{ nome }}</td>
+                                <td>{{ ent.criados }}</td>
+                                <td>{{ ent.atualizados }}</td>
+                                <td>{{ ent.rejeitados }}</td>
+                                <td>{{ ent.pulados }}</td>
+                            </tr>
+                            <!-- CA34 — motivos de rejeição agregados -->
+                            <tr
+                                v-if="Object.keys(ent.motivosRejeicao ?? {}).length > 0"
+                                class="row-motivos"
+                            >
+                                <td colspan="5" class="motivos-cell">
+                                    <span class="motivos-label">Motivos de rejeição:</span>
+                                    <span
+                                        v-for="(qtd, motivo) in ent.motivosRejeicao"
+                                        :key="String(motivo)"
+                                        class="motivo-item"
+                                    >{{ motivo }}: {{ qtd }}</span>
+                                </td>
+                            </tr>
+                            <!-- CA35 — motivos de pulo agregados -->
+                            <tr
+                                v-if="Object.keys(ent.motivosPulo ?? {}).length > 0"
+                                class="row-motivos"
+                            >
+                                <td colspan="5" class="motivos-cell">
+                                    <span class="motivos-label">Motivos de pulo:</span>
+                                    <span
+                                        v-for="(qtd, motivo) in ent.motivosPulo"
+                                        :key="String(motivo)"
+                                        class="motivo-item"
+                                    >{{ motivo }}: {{ qtd }}</span>
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
@@ -611,6 +683,50 @@ async function confirmarDesfazer() {
 
 .relatorio-table tr:last-child td {
     border-bottom: none;
+}
+
+/* Addendum 002 — falhou */
+.falha-detalhe {
+    margin: 1rem 0;
+}
+
+.falha-motivo {
+    font-size: var(--text-sm);
+    background: hsl(var(--destructive) / 0.08);
+    border-left: 3px solid hsl(var(--destructive));
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    color: hsl(var(--foreground));
+}
+
+/* CA34/CA35 — motivos agregados no relatório */
+.row-motivos td {
+    background: hsl(var(--muted) / 0.4);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+.motivos-cell {
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.motivos-label {
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--foreground));
+    margin-right: 0.25rem;
+}
+
+.motivo-item {
+    background: hsl(var(--muted));
+    border-radius: var(--radius);
+    padding: 0.125rem 0.5rem;
+    white-space: nowrap;
 }
 
 /* Marco 4 — desfazer */

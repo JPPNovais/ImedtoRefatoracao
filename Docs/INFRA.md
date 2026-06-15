@@ -97,6 +97,7 @@ Limites configuráveis em `Storage:*` (appsettings):
 | `assinatura/birdid-client-id` | String | client_id da aplicação registrada no BirdID (Soluti) |
 | `assinatura/birdid-client-secret` | SecureString | client_secret do BirdID |
 | `assinatura/birdid-webhook-secret` | SecureString | Chave HMAC usada para validar assinatura dos callbacks BirdID |
+| `ia/anthropic-api-key` | SecureString | API key Anthropic (Claude) para inferência de mapa de migração — Central de Migração (addendum 002, CA25). Sem esta chave, `InferirMapaMigracaoJobHandler` marca o job como `falhou` com motivo "IA não configurada". Configurar antes de habilitar a Central de Migração em produção. |
 
 EC2 lê via IAM role; CLI/laptop lê via `aws ssm get-parameter`. Nunca colocar em repo.
 

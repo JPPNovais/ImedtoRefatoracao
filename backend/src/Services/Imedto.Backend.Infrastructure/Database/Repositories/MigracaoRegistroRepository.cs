@@ -47,6 +47,8 @@ public class MigracaoRegistroRepository : IMigracaoRegistroRepository
             TotalPulados = registros.Count(r => r.Status == "pulado"),
         };
 
+        // Addendum 002 — D-C1/D-C2/CA34/CA35: agrega motivo → quantidade por entidade.
+        // MotivoRejeicao já é categoria genérica sem PII por design (R3/CA4 do briefing original).
         relatorio.PorEntidade = registros
             .GroupBy(r => r.Entidade)
             .ToDictionary(
@@ -59,9 +61,12 @@ public class MigracaoRegistroRepository : IMigracaoRegistroRepository
                     Pulados = g.Count(r => r.Status == "pulado"),
                     MotivosRejeicao = g
                         .Where(r => r.Status == "rejeitado" && r.MotivoRejeicao != null)
-                        .Select(r => r.MotivoRejeicao!)
-                        .Distinct()
-                        .ToList(),
+                        .GroupBy(r => r.MotivoRejeicao!)
+                        .ToDictionary(mg => mg.Key, mg => mg.Count()),
+                    MotivosPulo = g
+                        .Where(r => r.Status == "pulado" && r.MotivoRejeicao != null)
+                        .GroupBy(r => r.MotivoRejeicao!)
+                        .ToDictionary(mg => mg.Key, mg => mg.Count()),
                 });
 
         return relatorio;

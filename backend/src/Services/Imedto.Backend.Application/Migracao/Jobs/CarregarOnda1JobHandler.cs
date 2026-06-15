@@ -86,8 +86,18 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
         }
         catch (Exception ex)
         {
+            // Addendum 002 — R-B2/CA26: marca falhou em vez de re-lançar (que travava o job mudo).
             _logger.LogError(ex, "[Job:{Nome}] Falha inesperada no job {JobId}.", Nome, job.Id);
-            throw;
+            try
+            {
+                job.MarcarFalhou("falha inesperada na carga");
+                await _jobRepo.Salvar(job, ct);
+            }
+            catch (Exception salvarEx)
+            {
+                _logger.LogError(salvarEx,
+                    "[Job:{Nome}] Falha ao persistir status 'falhou' do job {JobId}.", Nome, job.Id);
+            }
         }
     }
 

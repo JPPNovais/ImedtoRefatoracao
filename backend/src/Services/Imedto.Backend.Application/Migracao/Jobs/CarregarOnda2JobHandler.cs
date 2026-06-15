@@ -80,8 +80,20 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
         }
         catch (Exception ex)
         {
+            // Addendum 002 — R-B2/CA26: marca falhou em vez de re-lançar (que travava o job mudo).
+            // CA27 — a espera legítima da Onda 1 usa "return" explícito ANTES deste try/catch
+            // (ProcessarJobAsync retorna sem lançar quando a Onda 1 ainda não concluiu).
             _logger.LogError(ex, "[Job:{Nome}] Falha inesperada no job {JobId}.", Nome, job.Id);
-            throw;
+            try
+            {
+                job.MarcarFalhou("falha inesperada na carga");
+                await _jobRepo.Salvar(job, ct);
+            }
+            catch (Exception salvarEx)
+            {
+                _logger.LogError(salvarEx,
+                    "[Job:{Nome}] Falha ao persistir status 'falhou' do job {JobId}.", Nome, job.Id);
+            }
         }
     }
 

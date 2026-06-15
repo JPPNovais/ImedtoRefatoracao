@@ -39,7 +39,9 @@ public sealed class RelatorioMigracaoQueryHandler
                 Atualizados = kv.Value.Atualizados,
                 Rejeitados = kv.Value.Rejeitados,
                 Pulados = kv.Value.Pulados,
+                // Addendum 002 — D-C1/D-C2: motivo → quantidade, sem PII (CA34/CA35).
                 MotivosRejeicao = kv.Value.MotivosRejeicao,
+                MotivosPulo = kv.Value.MotivosPulo,
             });
 
         return new RelatorioMigracaoResult

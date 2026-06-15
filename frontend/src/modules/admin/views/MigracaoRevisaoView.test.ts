@@ -14,9 +14,11 @@ const mockSalvarMapa = vi.fn()
 const mockSalvarTemplate = vi.fn()
 const mockDesfazer = vi.fn()
 const mockCarregarRelatorio = vi.fn()
+const mockReprocessar = vi.fn()
 
 let mockRelatorioDesfazimento: unknown = null
 let mockDesfazendo = false
+let mockReprocessando = false
 
 const mapaJson = JSON.stringify({
     de_para: { nome: "nome", cpf: "cpf" },
@@ -37,6 +39,7 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         get relatorio() { return null },
         get preview() { return null },
         get disparando() { return false },
+        get reprocessando() { return mockReprocessando },
         carregarJob: mockCarregarJob,
         salvarMapa: mockSalvarMapa,
         salvarTemplate: mockSalvarTemplate,
@@ -44,6 +47,7 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         carregarRelatorio: mockCarregarRelatorio,
         disparar: vi.fn(),
         gerarPreview: vi.fn(),
+        reprocessar: mockReprocessar,
     }),
 }))
 
@@ -77,10 +81,12 @@ describe("MigracaoRevisaoView", () => {
         mockSalvarTemplate.mockReset()
         mockDesfazer.mockReset()
         mockCarregarRelatorio.mockReset()
+        mockReprocessar.mockReset()
         mockJobAtual = null
         mockCarregando = false
         mockRelatorioDesfazimento = null
         mockDesfazendo = false
+        mockReprocessando = false
     })
 
     it("chama carregarJob no onMounted", () => {
@@ -210,5 +216,67 @@ describe("MigracaoRevisaoView", () => {
         expect(wrapper.text()).toContain("Migração desfeita")
         expect(wrapper.text()).toContain("200")
         expect(wrapper.text()).toContain("não revertidos")
+    })
+
+    // ─── Addendum 002 — CA29/CA30 — estado falhou e reprocessar ─────────────
+
+    it("CA29 — painel de falha aparece quando status é falhou", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "falhou",
+            origem: "iClinic", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: "IA não configurada",
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.text()).toContain("Job com falha")
+        expect(wrapper.text()).toContain("IA não configurada")
+    })
+
+    it("CA30 — botão Reprocessar aparece no painel de falha", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "falhou",
+            origem: "iClinic", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: "falha ao baixar o arquivo",
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        const botoes = wrapper.findAll("button")
+        expect(botoes.some(b => b.text().includes("Reprocessar"))).toBe(true)
+    })
+
+    it("CA30 — clicar Reprocessar chama store.reprocessar com jobId correto", async () => {
+        mockReprocessar.mockResolvedValueOnce(undefined)
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "falhou",
+            origem: "iClinic", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: "falha inesperada na carga",
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        const botaoReprocessar = wrapper.findAll("button").find(b => b.text().includes("Reprocessar"))
+        await botaoReprocessar!.trigger("click")
+        await wrapper.vm.$nextTick()
+        expect(mockReprocessar).toHaveBeenCalledWith(10)
+    })
+
+    it("CA29 — painel de falhou NÃO aparece quando status é migrando", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "migrando",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null,
+            motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.text()).not.toContain("Job com falha")
+        const botoes = wrapper.findAll("button")
+        expect(botoes.some(b => b.text().includes("Reprocessar"))).toBe(false)
     })
 })

@@ -22,6 +22,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
     const disparando = ref(false)
     const desfazendo = ref(false)
     const relatorioDesfazimento = ref<RelatorioDesfazimentoResult | null>(null)
+    const reprocessando = ref(false)
 
     async function carregar(filtros: {
         estabelecimentoId?: number | null
@@ -119,6 +120,19 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         }
     }
 
+    /** CA30 — Reprocessa um job em falhou, restaurando o status anterior. */
+    async function reprocessar(jobId: number): Promise<void> {
+        reprocessando.value = true
+        try {
+            await migracaoAdminService.reprocessar(jobId)
+            if (jobAtual.value?.id === jobId) {
+                await carregarJob(jobId)
+            }
+        } finally {
+            reprocessando.value = false
+        }
+    }
+
     return {
         jobs,
         total,
@@ -132,6 +146,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         disparando,
         desfazendo,
         relatorioDesfazimento,
+        reprocessando,
         carregar,
         carregarJob,
         salvarMapa,
@@ -140,5 +155,6 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         disparar,
         carregarRelatorio,
         desfazer,
+        reprocessar,
     }
 })

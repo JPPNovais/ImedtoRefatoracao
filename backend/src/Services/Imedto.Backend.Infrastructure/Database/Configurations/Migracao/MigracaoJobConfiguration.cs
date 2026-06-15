@@ -83,6 +83,15 @@ public class MigracaoJobConfiguration : IEntityTypeConfiguration<MigracaoJob>
             .HasColumnType("timestamp with time zone")
             .IsRequired();
 
+        // Addendum 002 — R-B1/R-B2: categoria da falha (sem PII) e status anterior para reprocessar.
+        builder.Property(j => j.MotivoFalha)
+            .HasColumnName("motivo_falha")
+            .HasColumnType("text");
+
+        builder.Property(j => j.StatusAntesFalha)
+            .HasColumnName("status_antes_falha")
+            .HasColumnType("text");
+
         // ── Índices ──────────────────────────────────────────────────────────
 
         // Multi-tenant por status (queries de listagem do tenant).

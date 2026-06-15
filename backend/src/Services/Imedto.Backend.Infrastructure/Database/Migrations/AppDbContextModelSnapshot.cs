@@ -3584,10 +3584,18 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasColumnType("varchar(200)")
                         .HasColumnName("origem");
 
+                    b.Property<string>("MotivoFalha")
+                        .HasColumnType("text")
+                        .HasColumnName("motivo_falha");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("varchar(50)")
                         .HasColumnName("status");
+
+                    b.Property<string>("StatusAntesFalha")
+                        .HasColumnType("text")
+                        .HasColumnName("status_antes_falha");
 
                     b.Property<long?>("TemplateOrigemId")
                         .HasColumnType("bigint")

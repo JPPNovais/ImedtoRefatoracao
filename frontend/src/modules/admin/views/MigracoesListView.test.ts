@@ -88,4 +88,20 @@ describe("MigracoesListView", () => {
             params: { jobId: "7" },
         })
     })
+
+    // ─── Addendum 002 — CA29 — badge de falhou na lista ─────────────────────
+
+    it("CA29 — job com status falhou exibe badge com label 'Falhou'", () => {
+        mockJobs = [
+            {
+                id: 9, estabelecimentoId: 42, status: "falhou",
+                origem: "iClinic", criadoPorUsuarioId: "abc",
+                criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+                mapas: [], motivoFalha: "IA não configurada",
+            },
+        ]
+        const wrapper = mount(MigracoesListView)
+        const badges = wrapper.findAll(".badge")
+        expect(badges.some(b => b.text() === "Falhou")).toBe(true)
+    })
 })

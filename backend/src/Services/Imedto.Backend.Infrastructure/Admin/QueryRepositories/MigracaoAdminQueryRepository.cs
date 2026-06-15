@@ -69,7 +69,8 @@ public sealed class MigracaoAdminQueryRepository
                 j.criado_em             AS CriadoEm,
                 j.atualizado_em         AS AtualizadoEm,
                 j.template_origem_id    AS TemplateOrigemId,
-                t.nome                  AS NomeTemplate
+                t.nome                  AS NomeTemplate,
+                j.motivo_falha          AS MotivoFalha
             FROM migracao_jobs j
             LEFT JOIN migracao_templates t
                 ON t.id = j.template_origem_id

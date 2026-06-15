@@ -29,6 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
     concluido_com_erros:"Concluído c/ erros",
     desfeito:           "Desfeito",
     rejeitado:          "Rejeitado",
+    falhou:             "Falhou",
 }
 
 const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "error" | "info"> = {
@@ -41,6 +42,7 @@ const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "error"
     concluido_com_erros:"error",
     desfeito:           "default",
     rejeitado:          "error",
+    falhou:             "error",
 }
 
 onMounted(() => carregar())

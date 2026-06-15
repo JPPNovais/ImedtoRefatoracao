@@ -29,5 +29,15 @@ public class RelatorioEntidade
     public int Atualizados { get; set; }
     public int Rejeitados { get; set; }
     public int Pulados { get; set; }
-    public List<string> MotivosRejeicao { get; set; } = new();
+
+    /// <summary>
+    /// Addendum 002 — D-C1/CA34: motivo → quantidade para rejeitados.
+    /// Chaves são categorias genéricas sem PII.
+    /// </summary>
+    public Dictionary<string, int> MotivosRejeicao { get; set; } = new();
+
+    /// <summary>
+    /// Addendum 002 — D-C2/CA35: motivo → quantidade para pulados.
+    /// </summary>
+    public Dictionary<string, int> MotivosPulo { get; set; } = new();
 }

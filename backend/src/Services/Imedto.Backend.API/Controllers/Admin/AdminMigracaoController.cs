@@ -25,6 +25,7 @@ public class AdminMigracaoController : ControllerBase
     private readonly DisparaMigracaoCommandHandler       _disparaHandler;
     private readonly RelatorioMigracaoQueryHandler       _relatorioHandler;
     private readonly DesfazerMigracaoCommandHandler      _desfazerHandler;
+    private readonly ReprocessarMigracaoCommandHandler   _reprocessarHandler;
 
     public AdminMigracaoController(
         ListarJobsMigracaoAdminQueryHandler listarHandler,
@@ -34,7 +35,8 @@ public class AdminMigracaoController : ControllerBase
         PreviewOnda1QueryHandler            previewHandler,
         DisparaMigracaoCommandHandler       disparaHandler,
         RelatorioMigracaoQueryHandler       relatorioHandler,
-        DesfazerMigracaoCommandHandler      desfazerHandler)
+        DesfazerMigracaoCommandHandler      desfazerHandler,
+        ReprocessarMigracaoCommandHandler   reprocessarHandler)
     {
         _listarHandler        = listarHandler;
         _obterHandler         = obterHandler;
@@ -44,6 +46,7 @@ public class AdminMigracaoController : ControllerBase
         _disparaHandler       = disparaHandler;
         _relatorioHandler     = relatorioHandler;
         _desfazerHandler      = desfazerHandler;
+        _reprocessarHandler   = reprocessarHandler;
     }
 
     /// <summary>Lista jobs de migração (filtros opcionais: estabelecimento, status).</summary>
@@ -169,6 +172,19 @@ public class AdminMigracaoController : ControllerBase
     {
         var resultado = await _desfazerHandler.Handle(jobId, ct);
         return Ok(resultado);
+    }
+
+    /// <summary>
+    /// Reprocessa um job que falhou (addendum 002 — CA30/CA31).
+    /// Válido apenas quando status == "falhou"; 422 caso contrário.
+    /// </summary>
+    [HttpPost("{jobId:long}/reprocessar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Reprocessar(long jobId, CancellationToken ct)
+    {
+        await _reprocessarHandler.Handle(jobId, ct);
+        return NoContent();
     }
 
     private Guid? ObterAdminId()

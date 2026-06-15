@@ -15,5 +15,16 @@ public class RelatorioEntidadeResult
     public int Atualizados { get; set; }
     public int Rejeitados { get; set; }
     public int Pulados { get; set; }
-    public List<string> MotivosRejeicao { get; set; } = new();
+
+    /// <summary>
+    /// Addendum 002 — D-C1/CA34: agregação motivo → quantidade para rejeitados.
+    /// Categorias genéricas sem PII (ex.: "CPF ausente": 12).
+    /// </summary>
+    public Dictionary<string, int> MotivosRejeicao { get; set; } = new();
+
+    /// <summary>
+    /// Addendum 002 — D-C2/CA35: agregação motivo → quantidade para pulados.
+    /// Ex.: "identificador ausente": 5.
+    /// </summary>
+    public Dictionary<string, int> MotivosPulo { get; set; } = new();
 }

@@ -59,6 +59,18 @@ public class MigracaoJob : Entity
     // ─── Onda constants ──────────────────────────────────────────────────────────
     public const string OndaProntuario = "prontuario";
 
+    /// <summary>
+    /// Categoria genérica da falha (R-B2 addendum 002). Nunca contém PII.
+    /// Preenchido quando <see cref="Status"/> == <see cref="StatusFalhou"/>.
+    /// </summary>
+    public virtual string? MotivoFalha { get; protected set; }
+
+    /// <summary>
+    /// Status imediatamente anterior à falha (R-B3/D-B3 addendum 002).
+    /// Usado pelo Reprocessar para saber em qual estado recolocar o job.
+    /// </summary>
+    public virtual string? StatusAntesFalha { get; protected set; }
+
     // ─── Status constants ────────────────────────────────────────────────────────
     public const string StatusAguardandoArquivo   = "aguardando_arquivo";
     public const string StatusAguardandoMapa      = "aguardando_mapa";
@@ -69,6 +81,12 @@ public class MigracaoJob : Entity
     public const string StatusConcluidoComErros   = "concluido_com_erros";
     public const string StatusDesfeito            = "desfeito";
     public const string StatusRejeitado           = "rejeitado";
+
+    /// <summary>
+    /// Job falhou — motivo visível ao operador, sem PII (addendum 002 — CA25/CA26).
+    /// O recorrente não re-seleciona jobs neste estado até o operador reprocessar.
+    /// </summary>
+    public const string StatusFalhou              = "falhou";
 
     // ─── Factory ─────────────────────────────────────────────────────────────────
 
@@ -201,6 +219,46 @@ public class MigracaoJob : Entity
         if (Status != StatusConcluido && Status != StatusConcluidoComErros)
             throw new BusinessException("Apenas jobs concluídos podem ser desfeitos.");
         Status = StatusDesfeito;
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Transição para <see cref="StatusFalhou"/> com motivo categórico genérico (sem PII).
+    /// Válido apenas a partir de <see cref="StatusAguardandoMapa"/> ou <see cref="StatusMigrando"/>.
+    /// Guarda o status atual em <see cref="StatusAntesFalha"/> para o reprocessar saber de onde retomar.
+    /// O recorrente para de re-selecionar o job até que <see cref="Reprocessar"/> seja chamado (D-B4).
+    /// (addendum 002 — R-B1, CA25, CA26)
+    /// </summary>
+    /// <param name="motivo">Categoria legível PT-BR, sem PII (R-B2). Ex.: "IA não configurada".</param>
+    public virtual void MarcarFalhou(string motivo)
+    {
+        if (Status != StatusAguardandoMapa && Status != StatusMigrando)
+            throw new BusinessException("Job só pode falhar a partir de 'aguardando_mapa' ou 'migrando'.");
+        if (string.IsNullOrWhiteSpace(motivo))
+            throw new BusinessException("Motivo da falha é obrigatório.");
+
+        StatusAntesFalha = Status;
+        Status = StatusFalhou;
+        MotivoFalha = motivo.Trim();
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Retoma o job de <see cref="StatusFalhou"/> para o estado anterior (R-B4, D-B3 addendum 002).
+    /// O recorrente correspondente ao <see cref="StatusAntesFalha"/> reprocessa automaticamente.
+    /// Somente jobs em <see cref="StatusFalhou"/> podem ser reprocessados.
+    /// A carga é idempotente — apenas registros <c>pendente</c> serão reprocessados (CA30).
+    /// </summary>
+    public virtual void Reprocessar()
+    {
+        if (Status != StatusFalhou)
+            throw new BusinessException("Apenas jobs que falharam podem ser reprocessados.");
+        if (string.IsNullOrWhiteSpace(StatusAntesFalha))
+            throw new BusinessException("Status anterior não registrado — não é possível reprocessar.");
+
+        Status = StatusAntesFalha;
+        StatusAntesFalha = null;
+        MotivoFalha = null;
         AtualizadoEm = DateTime.UtcNow;
     }
 }

@@ -30,5 +30,11 @@ public enum StatusMigracaoJob
     Desfeito,
 
     /// <summary>Rejeitado antes de iniciar (ex.: arquivo > 50MB).</summary>
-    Rejeitado
+    Rejeitado,
+
+    /// <summary>
+    /// Job falhou com motivo visível ao operador (addendum 002 — CA25/CA26).
+    /// O operador pode reprocessar após corrigir a causa.
+    /// </summary>
+    Falhou
 }
