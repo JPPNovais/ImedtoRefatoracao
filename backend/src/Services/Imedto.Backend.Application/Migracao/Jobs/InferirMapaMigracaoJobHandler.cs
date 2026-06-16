@@ -158,6 +158,16 @@ public sealed class InferirMapaMigracaoJobHandler : IJobHandler
         {
             if (ct.IsCancellationRequested) break;
 
+            // Ignora entradas de metadados macOS (AppleDouble / Finder) e diretórios.
+            // ZIPs criados pelo macOS/Finder contêm __MACOSX/._<nome> — binário, não parseável.
+            if (EhEntradaLixoMacOsOuDiretorio(entry))
+            {
+                _logger.LogDebug(
+                    "[Job:{Nome}] Job {JobId} — entrada '{Entry}' ignorada (metadado macOS ou diretório).",
+                    Nome, job.Id, entry.FullName);
+                continue;
+            }
+
             var extensao = Path.GetExtension(entry.Name).ToLowerInvariant();
             var parser = _parsers.FirstOrDefault(p => p.SuportaFormato(extensao));
             if (parser is null)
@@ -171,8 +181,21 @@ public sealed class InferirMapaMigracaoJobHandler : IJobHandler
             // Hint do arquivo (nome sem extensão) — passado à IA como contexto, não como decisão (R-S3).
             var hintArquivo = Path.GetFileNameWithoutExtension(entry.Name);
 
+            // Defesa em profundidade: falha de parse em um arquivo não derruba o job inteiro.
+            // Ex.: arquivo corrompido, binário com extensão .json (AppleDouble não filtrado acima).
             await using var entryStream = entry.Open();
-            var parseado = await parser.ParsearAsync(entryStream, entry.Name, ct);
+            ArquivoParseado parseado;
+            try
+            {
+                parseado = await parser.ParsearAsync(entryStream, entry.Name, ct);
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "[Job:{Nome}] Job {JobId} — falha ao parsear '{Arquivo}' ({Tipo}). Arquivo ignorado, demais prosseguem.",
+                    Nome, job.Id, entry.Name, ex.GetType().Name);
+                continue;
+            }
 
             // Addendum 4: itera sobre todos os blocos-candidatos do arquivo (CA70/R-S1).
             // Para CSV/JSON-array: 1 bloco. Para dump JSON aninhado: N blocos.
@@ -444,6 +467,30 @@ public sealed class InferirMapaMigracaoJobHandler : IJobHandler
     }
 
     // ─── helpers ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Retorna true para entradas que devem ser ignoradas antes da seleção do parser:
+    /// - Diretórios (Name vazio ou FullName terminando em '/').
+    /// - Metadados AppleDouble gerados pelo macOS/Finder:
+    ///   __MACOSX/ (prefixo de diretório de recurso) ou nome começando com '._' (fork de recurso).
+    /// Esses arquivos têm extensão legítima (ex.: ._dados.json) mas conteúdo binário, o que
+    /// causa JsonException se o parser for invocado — derrubando o job inteiro sem esse filtro.
+    /// </summary>
+    private static bool EhEntradaLixoMacOsOuDiretorio(ZipArchiveEntry entry)
+    {
+        // Diretório: Name vazio (ZipArchive representa dir assim) ou FullName termina em '/'.
+        if (string.IsNullOrEmpty(entry.Name) || entry.FullName.EndsWith('/'))
+            return true;
+
+        // Metadados macOS: pasta __MACOSX/ ou arquivo ._ (AppleDouble fork de recurso).
+        if (entry.FullName.StartsWith("__MACOSX/", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (Path.GetFileName(entry.Name).StartsWith("._", StringComparison.Ordinal))
+            return true;
+
+        return false;
+    }
 
     /// <summary>
     /// Trunca valor de campo da amostra a 500 chars após a máscara de PII (CA91/R-R4/D-R3).
