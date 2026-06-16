@@ -40,7 +40,14 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
     private readonly ICatalogoProdutoRepository _produtoRepo;
     private readonly IMigracaoCatalogoCirurgiaLookup _cirurgiaLookup;
     private readonly IMigracaoCatalogoProdutoLookup _produtoLookup;
+    private readonly IMigracaoPacienteLookup _pacienteLookup;
+    private readonly IMigracaoAgendamentoLookup _agendamentoLookup;
     private readonly ILogger<CarregarOnda1JobHandler> _logger;
+
+    // Guid fixo de sistema — idêntico ao CarregarOnda2JobHandler.AutorSistemaId.
+    // Representa o "usuário-migração" para satisfazer a invariante criadoPorUsuarioId != Guid.Empty
+    // sem vincular a carga a um usuário real do tenant (que poderia sair do sistema).
+    private static readonly Guid AutorSistemaId = new("00000000-0000-0000-0000-000000000001");
 
     public CarregarOnda1JobHandler(
         IMigracaoJobRepository jobRepo,
@@ -57,6 +64,8 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
         ICatalogoProdutoRepository produtoRepo,
         IMigracaoCatalogoCirurgiaLookup cirurgiaLookup,
         IMigracaoCatalogoProdutoLookup produtoLookup,
+        IMigracaoPacienteLookup pacienteLookup,
+        IMigracaoAgendamentoLookup agendamentoLookup,
         ILogger<CarregarOnda1JobHandler> logger)
     {
         _jobRepo = jobRepo;
@@ -73,6 +82,8 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
         _produtoRepo = produtoRepo;
         _cirurgiaLookup = cirurgiaLookup;
         _produtoLookup = produtoLookup;
+        _pacienteLookup = pacienteLookup;
+        _agendamentoLookup = agendamentoLookup;
         _logger = logger;
     }
 
@@ -463,7 +474,8 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
     // PACIENTE
     private async Task ProcessarPacienteAsync(long estId, MigracaoRegistro reg, Dictionary<string, string> payload, CancellationToken ct)
     {
-        var nome = G(payload, "nome_completo");
+        // Chave canônica: "nome" (não "nome_completo" — corrigido bug #1).
+        var nome = G(payload, "nome");
         var cpf = G(payload, "cpf");
         var docInt = G(payload, "documento_internacional");
         var telefone = G(payload, "telefone");
@@ -483,7 +495,8 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
 
         if (nome == null) { reg.MarcarRejeitado("nome obrigatório"); return; }
 
-        if (!Enum.TryParse<GeneroPaciente>(G(payload, "genero"), ignoreCase: true, out var genero))
+        // Chave canônica: "sexo" (não "genero" — corrigido bug #2).
+        if (!Enum.TryParse<GeneroPaciente>(G(payload, "sexo"), ignoreCase: true, out var genero))
             genero = GeneroPaciente.NaoInformado;
         DateTime? dataNasc = null;
         if (G(payload, "data_nascimento") is { } dnStr && DateTime.TryParse(dnStr, out var dn))
@@ -504,28 +517,72 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
     }
 
     // AGENDAMENTO
+    // Campos canônicos gravados pela materialização (do prompt da IA):
+    //   data_hora, profissional_nome, paciente_nome, tipo_consulta, duracao_minutos, observacoes
+    // A carga resolve pacienteId e profissionalId a partir dos nomes (lookup Dapper por nome no tenant).
     private async Task ProcessarAgendamentoAsync(long estId, MigracaoRegistro reg, Dictionary<string, string> payload, CancellationToken ct)
     {
-        if (!long.TryParse(G(payload, "paciente_id"), out var pacienteId) ||
-            !Guid.TryParse(G(payload, "profissional_usuario_id"), out var profId) ||
-            !DateTime.TryParse(G(payload, "inicio_previsto"), out var inicio))
+        var dataHoraStr = G(payload, "data_hora");
+        var profissionalNome = G(payload, "profissional_nome");
+        var pacienteNome = G(payload, "paciente_nome");
+
+        if (dataHoraStr == null || profissionalNome == null || pacienteNome == null)
         {
             reg.MarcarPulado("dados de agendamento insuficientes");
             return;
         }
 
-        var existente = await _agendamentoRepo.ObterPorChaveDeNegocioOuNulo(pacienteId, profId, inicio, estId);
+        if (!DateTime.TryParse(dataHoraStr, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeLocal, out var inicio))
+        {
+            reg.MarcarPulado("data_hora inválida");
+            return;
+        }
+        inicio = DateTime.SpecifyKind(inicio, DateTimeKind.Utc);
+
+        // Resolve paciente por CPF (prioritário) → fallback por nome no tenant.
+        long? pacienteId = null;
+        var cpf = G(payload, "cpf");
+        if (cpf != null)
+        {
+            var info = await _pacienteLookup.ObterPorCpfOuNulo(cpf, estId, ct);
+            pacienteId = info?.PacienteId;
+        }
+        pacienteId ??= await _pacienteLookup.ObterIdPorNomeOuNulo(pacienteNome, estId, ct);
+
+        if (pacienteId is null)
+        {
+            reg.MarcarPulado("paciente não encontrado para agendamento");
+            return;
+        }
+
+        // Resolve profissional por nome no tenant (Ativo ou Convidado).
+        var profId = await _agendamentoLookup.ObterProfissionalIdPorNomeOuNulo(profissionalNome, estId, ct);
+        if (profId is null)
+        {
+            reg.MarcarPulado("profissional não encontrado para agendamento");
+            return;
+        }
+
+        // Dedupe: agendamento com mesmo paciente, profissional e horário já importado.
+        var existente = await _agendamentoRepo.ObterPorChaveDeNegocioOuNulo(pacienteId.Value, profId.Value, inicio, estId);
         if (existente is not null)
         {
             reg.MarcarPulado("agendamento já existe");
             return;
         }
 
-        var fimPrevisto = DateTime.TryParse(G(payload, "fim_previsto"), out var fim) ? fim : inicio.AddHours(1);
-        var tipoServico = G(payload, "tipo_servico") ?? "Consulta";
-        // Agendamento.Criar valida que inicioPrevisto >= UtcNow - 5min — agendamentos históricos
-        // serão rejeitados com BusinessException → marcado como rejeitado automaticamente.
-        var novo = Agendamento.Criar(estId, pacienteId, profId, Guid.Empty, inicio, fimPrevisto, tipoServico, G(payload, "observacoes"));
+        // Duração: usa duracao_minutos do canônico; fallback 60min.
+        int.TryParse(G(payload, "duracao_minutos"), out var duracaoMin);
+        if (duracaoMin <= 0) duracaoMin = 60;
+        var fimPrevisto = inicio.AddMinutes(duracaoMin);
+
+        var tipoServico = G(payload, "tipo_consulta") ?? "Consulta";
+
+        // CriarHistorico bypassa a restrição de data passada — agendamentos históricos são válidos.
+        // AutorSistemaId satisfaz a invariante criadoPorUsuarioId != Guid.Empty (bug #3 corrigido).
+        var novo = Agendamento.CriarHistorico(estId, pacienteId.Value, profId.Value, AutorSistemaId,
+            inicio, fimPrevisto, tipoServico, G(payload, "observacoes"));
         await _agendamentoRepo.Salvar(novo);
         reg.MarcarImportadoCriado(novo.Id);
     }

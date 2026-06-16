@@ -15,6 +15,13 @@ public interface IMigracaoPacienteLookup
     /// <summary>Retorna (id, prontuario_id) do paciente cujo documento internacional bate no tenant.</summary>
     Task<PacienteMigracaoInfo?> ObterPorDocumentoInternacionalOuNulo(string doc, long estabelecimentoId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Retorna o id do paciente cujo nome (case-insensitive) bate no tenant.
+    /// Retorna null se não encontrado ou se houver ambiguidade (mais de 1 resultado).
+    /// Usado na carga de agendamento histórico quando CPF não está disponível.
+    /// </summary>
+    Task<long?> ObterIdPorNomeOuNulo(string nome, long estabelecimentoId, CancellationToken ct = default);
+
     /// <summary>Retorna o id do primeiro modelo de prontuário ativo visível pelo tenant (padrão sistema ou próprio).</summary>
     Task<long?> ObterIdModeloPadraoProntuarioOuNulo(long estabelecimentoId, CancellationToken ct = default);
 }

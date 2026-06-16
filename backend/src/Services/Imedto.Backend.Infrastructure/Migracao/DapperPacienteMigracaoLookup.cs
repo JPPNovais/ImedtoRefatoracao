@@ -52,6 +52,24 @@ public class DapperPacienteMigracaoLookup : IMigracaoPacienteLookup
         return row.HasValue ? new PacienteMigracaoInfo(row.Value.pacienteId, row.Value.prontuarioId) : null;
     }
 
+    public async Task<long?> ObterIdPorNomeOuNulo(
+        string nome, long estabelecimentoId, CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(_cs.Value);
+        // Retorna null se ambíguo (mais de 1 resultado) — agendamento será pulado com aviso.
+        // ILIKE = case-insensitive no Postgres; sem PII no log (CA4).
+        var ids = await conn.QueryAsync<long>(
+            @"SELECT id FROM pacientes
+              WHERE LOWER(nome) = LOWER(@Nome)
+                AND estabelecimento_id = @EstId
+                AND deletado_em IS NULL
+              LIMIT 2",
+            new { Nome = nome, EstId = estabelecimentoId });
+
+        var list = ids.ToList();
+        return list.Count == 1 ? list[0] : null;
+    }
+
     public async Task<long?> ObterIdModeloPadraoProntuarioOuNulo(
         long estabelecimentoId, CancellationToken ct = default)
     {

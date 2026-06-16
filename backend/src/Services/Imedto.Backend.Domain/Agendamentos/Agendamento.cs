@@ -72,6 +72,50 @@ public class Agendamento : Entity
         };
     }
 
+    /// <summary>
+    /// Factory para importação histórica via Central de Migração.
+    /// Não verifica restrição de data passada — agendamentos históricos são válidos neste contexto.
+    /// Requer <paramref name="criadoPorUsuarioId"/> = AutorSistemaId (guid de sistema, nunca Guid.Empty).
+    /// Não dispara <see cref="AgendamentoCriadoEvent"/> — migração não notifica pacientes.
+    /// </summary>
+    public static Agendamento CriarHistorico(
+        long estabelecimentoId,
+        long pacienteId,
+        Guid profissionalUsuarioId,
+        Guid criadoPorUsuarioId,
+        DateTime inicioPrevisto,
+        DateTime fimPrevisto,
+        string tipoServico,
+        string? observacoes)
+    {
+        if (estabelecimentoId <= 0)
+            throw new BusinessException("Estabelecimento é obrigatório.");
+        if (pacienteId <= 0)
+            throw new BusinessException("Paciente é obrigatório.");
+        if (profissionalUsuarioId == Guid.Empty)
+            throw new BusinessException("Profissional é obrigatório.");
+        if (criadoPorUsuarioId == Guid.Empty)
+            throw new BusinessException("Usuário criador é obrigatório.");
+        if (inicioPrevisto >= fimPrevisto)
+            throw new BusinessException("O horário de início deve ser anterior ao de término.");
+        if (string.IsNullOrWhiteSpace(tipoServico))
+            throw new BusinessException("Tipo de serviço é obrigatório.");
+
+        return new Agendamento
+        {
+            EstabelecimentoId = estabelecimentoId,
+            PacienteId = pacienteId,
+            ProfissionalUsuarioId = profissionalUsuarioId,
+            CriadoPorUsuarioId = criadoPorUsuarioId,
+            InicioPrevisto = inicioPrevisto,
+            FimPrevisto = fimPrevisto,
+            TipoServico = tipoServico.Trim(),
+            Observacoes = string.IsNullOrWhiteSpace(observacoes) ? null : observacoes.Trim(),
+            Status = AgendamentoStatus.Agendado,
+            CriadoEm = DateTime.UtcNow
+        };
+    }
+
     /// <summary>Anexa AgendamentoCriadoEvent — chamar após persistir o aggregate.</summary>
     public virtual void MarcarComoCriado()
     {

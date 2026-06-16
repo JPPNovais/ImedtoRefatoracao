@@ -36,6 +36,8 @@ public class CarregarOnda1JobHandlerTests
     private Mock<ICatalogoProdutoRepository>       _produtoRepo;
     private Mock<IMigracaoCatalogoCirurgiaLookup>  _cirurgiaLookup;
     private Mock<IMigracaoCatalogoProdutoLookup>   _produtoLookup;
+    private Mock<IMigracaoPacienteLookup>          _pacienteLookup;
+    private Mock<IMigracaoAgendamentoLookup>       _agendamentoLookup;
 
     private CarregarOnda1JobHandler _sut;
 
@@ -59,8 +61,10 @@ public class CarregarOnda1JobHandlerTests
         _agendamentoRepo = new Mock<IAgendamentoRepository>();
         _cirurgiaRepo   = new Mock<ICatalogoCirurgiaRepository>();
         _produtoRepo    = new Mock<ICatalogoProdutoRepository>();
-        _cirurgiaLookup = new Mock<IMigracaoCatalogoCirurgiaLookup>();
-        _produtoLookup  = new Mock<IMigracaoCatalogoProdutoLookup>();
+        _cirurgiaLookup    = new Mock<IMigracaoCatalogoCirurgiaLookup>();
+        _produtoLookup     = new Mock<IMigracaoCatalogoProdutoLookup>();
+        _pacienteLookup    = new Mock<IMigracaoPacienteLookup>();
+        _agendamentoLookup = new Mock<IMigracaoAgendamentoLookup>();
 
         _sut = CriarSut();
     }
@@ -80,6 +84,8 @@ public class CarregarOnda1JobHandlerTests
         _produtoRepo.Object,
         _cirurgiaLookup.Object,
         _produtoLookup.Object,
+        _pacienteLookup.Object,
+        _agendamentoLookup.Object,
         NullLogger<CarregarOnda1JobHandler>.Instance);
 
     private MigracaoJob CriarJobMigrando()

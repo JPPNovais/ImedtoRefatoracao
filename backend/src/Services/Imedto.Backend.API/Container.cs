@@ -434,6 +434,9 @@ public static class Container
         // Central de Migração — Marco 5 — Onda 2 Prontuário (briefing 2026-06-15_001)
         services.AddSingleton<Imedto.Backend.Domain.Migracao.IMigracaoPacienteLookup,
                               Imedto.Backend.Infrastructure.Migracao.DapperPacienteMigracaoLookup>();
+        // Lookup de profissional por nome — usado pela carga de agendamentos históricos (Onda 1).
+        services.AddSingleton<Imedto.Backend.Domain.Migracao.IMigracaoAgendamentoLookup,
+                              Imedto.Backend.Infrastructure.Migracao.DapperAgendamentoMigracaoLookup>();
         services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda2JobHandler>();
     }
 
