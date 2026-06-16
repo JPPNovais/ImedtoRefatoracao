@@ -117,7 +117,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var path = ctx.HttpContext.Request.Path;
 
-                // Rotas admin: cookie admin-access-token tem prioridade.
+                // Rotas admin: contexto de auth ISOLADO.
+                // Lê SOMENTE admin-access-token ou o header Authorization (Swagger/testes).
+                // Nunca cai no cookie access-token de usuário comum — evita que o token
+                // regular (válido, sem claim imedto_admin) autentique mas falhe na policy
+                // ImedtoAdmin com 403. Sem admin-access-token → fica anônimo → 401,
+                // que o interceptor do front sabe recuperar via admin-refresh-token.
                 if (path.StartsWithSegments("/api/admin"))
                 {
                     var adminCookie = ctx.Request.Cookies["admin-access-token"];
@@ -126,9 +131,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                         ctx.Token = adminCookie;
                         return Task.CompletedTask;
                     }
+
+                    // Fallback: Authorization header (Swagger / testes de integração)
+                    var adminHeader = ctx.Request.Headers.Authorization.ToString();
+                    if (adminHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        ctx.Token = adminHeader["Bearer ".Length..].Trim();
+
+                    // Deliberadamente NÃO lemos o cookie access-token aqui.
+                    return Task.CompletedTask;
                 }
 
-                // Cookie HttpOnly tem prioridade (frontend / produção)
+                // Rotas não-admin: cookie HttpOnly tem prioridade (frontend / produção)
                 var cookie = ctx.Request.Cookies["access-token"];
                 if (!string.IsNullOrEmpty(cookie))
                 {
