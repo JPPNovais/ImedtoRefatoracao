@@ -28,7 +28,10 @@ docker compose up -d --remove-orphans
 # arquivo novo (inode novo). Restart força remount com inode atualizado.
 docker compose restart caddy
 
-# Limpa imagens antigas (t3.micro tem disco pequeno).
-docker image prune -af --filter "until=72h" || true
+# Limpa imagens antigas (disco de 8GB enche rápido).
+# Sem filtro de tempo: vários deploys no mesmo dia acumulam imagens <72h que o filtro
+# "until=72h" nunca removia — foi o que encheu o disco e derrubou deploys. Remove tudo
+# que não está em uso pelos containers ativos (re-pull do ghcr é barato se precisar).
+docker image prune -af || true
 
 echo "✅ Deploy concluído (tag=${IMAGE_TAG:-latest})"
