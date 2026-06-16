@@ -418,4 +418,43 @@ public class CarregarOnda1JobHandlerTests
         Assert.That(regItem.Status, Is.EqualTo("importado_criado"));
         Assert.That(job.Status, Is.EqualTo("concluido"));
     }
+
+    // ─── Regressão: dedup de paciente normaliza telefone (Job #15 — não duplicar) ──
+    // Bug confirmado: telefone gravado normalizado ("31999999999") mas o dedup buscava
+    // com o telefone bruto do payload ("(31) 99999-9999") → nunca achava o existente →
+    // criava DUPLICATA a cada reprocessamento. O fix normaliza o valor de busca.
+
+    [Test]
+    public async Task ExecutarAsync_PacienteSemCpf_DedupNormalizaTelefone_AtualizaNaoDuplica()
+    {
+        // Arrange
+        var job = CriarJobMigrando();
+        var reg = CriarRegistro("paciente", new
+        {
+            nome = "José Antunes",
+            telefone = "(31) 99999-9999",   // formatado no payload
+            sexo = "M",
+            data_nascimento = "1980-01-01",
+        });
+        var existente = Paciente.Cadastrar(EstabelecimentoId, "José Antunes", null, null,
+            GeneroPaciente.NaoInformado, "31999999999", "", "", "");
+
+        _jobRepo.Setup(r => r.ObterMaisAntigoMigrandoOuNulo(default)).ReturnsAsync(job);
+        _registroRepo.Setup(r => r.ListarPorJob(job.Id, default))
+                     .ReturnsAsync(new List<MigracaoRegistro> { reg });
+        _registroRepo.Setup(r => r.Salvar(It.IsAny<MigracaoRegistro>(), default)).Returns(Task.CompletedTask);
+        _jobRepo.Setup(r => r.Salvar(It.IsAny<MigracaoJob>(), default)).Returns(Task.CompletedTask);
+        _pacienteRepo.Setup(r => r.Salvar(It.IsAny<Paciente>())).Returns(Task.CompletedTask);
+        // O dedup só encontra o existente quando buscado com o telefone NORMALIZADO (só dígitos).
+        _pacienteRepo.Setup(r => r.ObterPorNomeTelefoneOuNulo("José Antunes", "31999999999", EstabelecimentoId))
+                     .ReturnsAsync(existente);
+
+        // Act
+        await _sut.ExecutarAsync(default);
+
+        // Assert: buscou com telefone normalizado, achou e ATUALIZOU (não duplicou).
+        _pacienteRepo.Verify(r => r.ObterPorNomeTelefoneOuNulo("José Antunes", "31999999999", EstabelecimentoId), Times.Once);
+        _pacienteRepo.Verify(r => r.ObterPorNomeTelefoneOuNulo(It.IsAny<string>(), "(31) 99999-9999", It.IsAny<long>()), Times.Never);
+        Assert.That(reg.Status, Is.EqualTo("importado_atualizado"));
+    }
 }

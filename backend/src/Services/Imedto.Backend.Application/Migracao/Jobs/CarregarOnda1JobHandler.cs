@@ -7,6 +7,7 @@ using Imedto.Backend.Domain.Migracao;
 using Imedto.Backend.Domain.Orcamentos.Catalogos;
 using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Text;
 using Microsoft.Extensions.Logging;
 
 namespace Imedto.Backend.Application.Migracao.Jobs;
@@ -494,13 +495,21 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
         var docInt = G(payload, "documento_internacional");
         var telefone = G(payload, "telefone");
 
+        // Dedup compara contra valores JÁ normalizados no banco (cpf/telefone = só dígitos;
+        // doc internacional = trim). Normaliza os valores de busca para o mesmo formato — senão
+        // "(31) 99999-9999" do payload != "31999999999" gravado, o dedup nunca acha o existente
+        // e cria DUPLICATA a cada reprocessamento.
+        var cpfBusca = cpf != null ? TextSanitizer.SomenteDigitos(cpf) : null;
+        var telefoneBusca = telefone != null ? TextSanitizer.SomenteDigitos(telefone) : null;
+        var docIntBusca = string.IsNullOrWhiteSpace(docInt) ? null : docInt.Trim();
+
         Paciente? existente = null;
-        if (cpf != null)
-            existente = await _pacienteRepo.ObterPorCpfOuNulo(cpf, estId);
-        else if (docInt != null)
-            existente = await _pacienteRepo.ObterPorDocumentoInternacionalOuNulo(docInt, estId);
-        else if (nome != null && telefone != null)
-            existente = await _pacienteRepo.ObterPorNomeTelefoneOuNulo(nome, telefone, estId);
+        if (cpfBusca != null)
+            existente = await _pacienteRepo.ObterPorCpfOuNulo(cpfBusca, estId);
+        else if (docIntBusca != null)
+            existente = await _pacienteRepo.ObterPorDocumentoInternacionalOuNulo(docIntBusca, estId);
+        else if (nome != null && telefoneBusca != null)
+            existente = await _pacienteRepo.ObterPorNomeTelefoneOuNulo(nome, telefoneBusca, estId);
         else
         {
             reg.MarcarPulado("identificador ausente");
