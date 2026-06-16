@@ -18,10 +18,14 @@ namespace Imedto.Backend.Application.Admin.Migracao;
 public sealed class ReprocessarMigracaoCommandHandler
 {
     private readonly IMigracaoJobRepository _jobRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
 
-    public ReprocessarMigracaoCommandHandler(IMigracaoJobRepository jobRepo)
+    public ReprocessarMigracaoCommandHandler(
+        IMigracaoJobRepository jobRepo,
+        IMigracaoJobEventoRepository eventoRepo)
     {
-        _jobRepo = jobRepo;
+        _jobRepo    = jobRepo;
+        _eventoRepo = eventoRepo;
     }
 
     public async Task Handle(long jobId, CancellationToken ct = default)
@@ -33,8 +37,12 @@ public sealed class ReprocessarMigracaoCommandHandler
 
         // Domínio valida: só "falhou" pode ser reprocessado (CA31).
         // Lança BusinessException → 422 automático pelo GlobalExceptionFilter.
+        var statusAnterior = job.Status;
         job.Reprocessar();
 
         await _jobRepo.Salvar(job, ct);
+
+        var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnterior, job.Status, usuarioId: null);
+        await _eventoRepo.Gravar(evt, ct);
     }
 }

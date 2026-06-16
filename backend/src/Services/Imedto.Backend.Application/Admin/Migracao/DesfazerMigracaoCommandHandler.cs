@@ -27,6 +27,7 @@ public sealed class DesfazerMigracaoCommandHandler
 {
     private readonly IMigracaoJobRepository _jobRepo;
     private readonly IMigracaoRegistroRepository _registroRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
     private readonly IPacienteRepository _pacienteRepo;
     private readonly IAgendamentoRepository _agendamentoRepo;
     private readonly IItemInventarioRepository _itemRepo;
@@ -41,6 +42,7 @@ public sealed class DesfazerMigracaoCommandHandler
     public DesfazerMigracaoCommandHandler(
         IMigracaoJobRepository jobRepo,
         IMigracaoRegistroRepository registroRepo,
+        IMigracaoJobEventoRepository eventoRepo,
         IPacienteRepository pacienteRepo,
         IAgendamentoRepository agendamentoRepo,
         IItemInventarioRepository itemRepo,
@@ -54,6 +56,7 @@ public sealed class DesfazerMigracaoCommandHandler
     {
         _jobRepo       = jobRepo;
         _registroRepo  = registroRepo;
+        _eventoRepo    = eventoRepo;
         _pacienteRepo  = pacienteRepo;
         _agendamentoRepo = agendamentoRepo;
         _itemRepo      = itemRepo;
@@ -74,6 +77,7 @@ public sealed class DesfazerMigracaoCommandHandler
             ?? throw new BusinessException("Job não encontrado.");
 
         // Domínio valida que só jobs concluídos podem ser desfeitos
+        var statusAnterior = job.Status;
         job.MarcarDesfeito();
 
         // Contagem de atualizados (não revertidos — CA17: aviso obrigatório)
@@ -117,6 +121,9 @@ public sealed class DesfazerMigracaoCommandHandler
         }
 
         await _jobRepo.Salvar(job, ct);
+
+        var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnterior, job.Status, usuarioId: null);
+        await _eventoRepo.Gravar(evt, ct);
 
         // Aviso obrigatório de CA17
         var aviso = totalAtualizados > 0

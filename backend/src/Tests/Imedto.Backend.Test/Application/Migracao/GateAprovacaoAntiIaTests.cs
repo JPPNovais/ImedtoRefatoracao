@@ -41,12 +41,17 @@ public class GateAprovacaoAntiIaTests
 
     private InferirMapaMigracaoJobHandler CriarSut()
     {
+        var eventoRepo = new Mock<IMigracaoJobEventoRepository>();
+        eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                  .Returns(Task.CompletedTask);
+
         return new InferirMapaMigracaoJobHandler(
             _jobRepo.Object,
             _storage.Object,
             _mapeador.Object,
             _mapaRepo.Object,
             _templateRepo.Object,
+            eventoRepo.Object,
             parsers: [],
             NullLogger<InferirMapaMigracaoJobHandler>.Instance);
     }

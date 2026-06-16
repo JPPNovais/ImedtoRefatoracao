@@ -28,6 +28,7 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
 
     private readonly IMigracaoJobRepository _jobRepo;
     private readonly IMigracaoRegistroRepository _registroRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
     private readonly IPacienteRepository _pacienteRepo;
     private readonly ICategoriaEstoqueRepository _categoriaRepo;
     private readonly IFabricanteEstoqueRepository _fabricanteRepo;
@@ -44,6 +45,7 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
     public CarregarOnda1JobHandler(
         IMigracaoJobRepository jobRepo,
         IMigracaoRegistroRepository registroRepo,
+        IMigracaoJobEventoRepository eventoRepo,
         IPacienteRepository pacienteRepo,
         ICategoriaEstoqueRepository categoriaRepo,
         IFabricanteEstoqueRepository fabricanteRepo,
@@ -59,6 +61,7 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
     {
         _jobRepo = jobRepo;
         _registroRepo = registroRepo;
+        _eventoRepo = eventoRepo;
         _pacienteRepo = pacienteRepo;
         _categoriaRepo = categoriaRepo;
         _fabricanteRepo = fabricanteRepo;
@@ -88,10 +91,14 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
         {
             // Addendum 002 — R-B2/CA26: marca falhou em vez de re-lançar (que travava o job mudo).
             _logger.LogError(ex, "[Job:{Nome}] Falha inesperada no job {JobId}.", Nome, job.Id);
+            var statusAnteriorFalha = job.Status;
             try
             {
                 job.MarcarFalhou("falha inesperada na carga");
                 await _jobRepo.Salvar(job, ct);
+
+                var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnteriorFalha, job.Status, usuarioId: null);
+                await _eventoRepo.Gravar(evt, ct);
             }
             catch (Exception salvarEx)
             {
@@ -108,8 +115,11 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
 
         if (pendentes.Count == 0)
         {
+            var statusAnteriorVazio = job.Status;
             job.MarcarConcluido();
             await _jobRepo.Salvar(job, ct);
+            var evtVazio = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnteriorVazio, job.Status, usuarioId: null);
+            await _eventoRepo.Gravar(evtVazio, ct);
             return;
         }
 
@@ -137,12 +147,16 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
             }
         }
 
+        var statusAnteriorFim = job.Status;
         if (temRejeitados)
             job.MarcarConcluidoComErros();
         else
             job.MarcarConcluido();
 
         await _jobRepo.Salvar(job, ct);
+
+        var evtFim = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnteriorFim, job.Status, usuarioId: null);
+        await _eventoRepo.Gravar(evtFim, ct);
 
         _logger.LogInformation("[Job:{Nome}] Job {JobId} concluído. Status: {Status}.", Nome, job.Id, job.Status);
     }

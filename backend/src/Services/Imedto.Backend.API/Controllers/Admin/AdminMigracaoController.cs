@@ -18,28 +18,32 @@ namespace Imedto.Backend.API.Controllers.Admin;
 [Produces("application/json")]
 public class AdminMigracaoController : ControllerBase
 {
-    private readonly ListarJobsMigracaoAdminQueryHandler _listarHandler;
-    private readonly ObterJobMigracaoAdminQueryHandler   _obterHandler;
-    private readonly SalvarMapaRevisadoCommandHandler    _salvarMapaHandler;
-    private readonly SalvarTemplateDeOrigemCommandHandler _salvarTemplateHandler;
-    private readonly PreviewOnda1QueryHandler            _previewHandler;
-    private readonly DisparaMigracaoCommandHandler       _disparaHandler;
-    private readonly RelatorioMigracaoQueryHandler       _relatorioHandler;
-    private readonly DesfazerMigracaoCommandHandler      _desfazerHandler;
-    private readonly ReprocessarMigracaoCommandHandler   _reprocessarHandler;
-    private readonly AprovarAnaliseCommandHandler         _aprovarAnaliseHandler;
+    private readonly ListarJobsMigracaoAdminQueryHandler  _listarHandler;
+    private readonly ObterJobMigracaoAdminQueryHandler    _obterHandler;
+    private readonly SalvarMapaRevisadoCommandHandler     _salvarMapaHandler;
+    private readonly SalvarTemplateDeOrigemCommandHandler  _salvarTemplateHandler;
+    private readonly PreviewOnda1QueryHandler             _previewHandler;
+    private readonly DisparaMigracaoCommandHandler        _disparaHandler;
+    private readonly RelatorioMigracaoQueryHandler        _relatorioHandler;
+    private readonly DesfazerMigracaoCommandHandler       _desfazerHandler;
+    private readonly ReprocessarMigracaoCommandHandler    _reprocessarHandler;
+    private readonly AprovarAnaliseCommandHandler          _aprovarAnaliseHandler;
+    private readonly ObterEventosMigracaoQueryHandler     _eventosHandler;
+    private readonly ObterProgressoMigracaoQueryHandler   _progressoHandler;
 
     public AdminMigracaoController(
-        ListarJobsMigracaoAdminQueryHandler  listarHandler,
-        ObterJobMigracaoAdminQueryHandler    obterHandler,
-        SalvarMapaRevisadoCommandHandler     salvarMapaHandler,
-        SalvarTemplateDeOrigemCommandHandler  salvarTemplateHandler,
-        PreviewOnda1QueryHandler             previewHandler,
-        DisparaMigracaoCommandHandler        disparaHandler,
-        RelatorioMigracaoQueryHandler        relatorioHandler,
-        DesfazerMigracaoCommandHandler       desfazerHandler,
-        ReprocessarMigracaoCommandHandler    reprocessarHandler,
-        AprovarAnaliseCommandHandler          aprovarAnaliseHandler)
+        ListarJobsMigracaoAdminQueryHandler   listarHandler,
+        ObterJobMigracaoAdminQueryHandler     obterHandler,
+        SalvarMapaRevisadoCommandHandler      salvarMapaHandler,
+        SalvarTemplateDeOrigemCommandHandler   salvarTemplateHandler,
+        PreviewOnda1QueryHandler              previewHandler,
+        DisparaMigracaoCommandHandler         disparaHandler,
+        RelatorioMigracaoQueryHandler         relatorioHandler,
+        DesfazerMigracaoCommandHandler        desfazerHandler,
+        ReprocessarMigracaoCommandHandler     reprocessarHandler,
+        AprovarAnaliseCommandHandler           aprovarAnaliseHandler,
+        ObterEventosMigracaoQueryHandler      eventosHandler,
+        ObterProgressoMigracaoQueryHandler    progressoHandler)
     {
         _listarHandler         = listarHandler;
         _obterHandler          = obterHandler;
@@ -51,9 +55,11 @@ public class AdminMigracaoController : ControllerBase
         _desfazerHandler       = desfazerHandler;
         _reprocessarHandler    = reprocessarHandler;
         _aprovarAnaliseHandler = aprovarAnaliseHandler;
+        _eventosHandler        = eventosHandler;
+        _progressoHandler      = progressoHandler;
     }
 
-    /// <summary>Lista jobs de migração (filtros opcionais: estabelecimento, status).</summary>
+    /// <summary>Lista jobs de migração (filtros opcionais: estabelecimento, status, datas, onda, origem).</summary>
     [HttpGet]
     [ProducesResponseType(typeof(ListarJobsMigracaoAdminResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> Listar(
@@ -61,14 +67,22 @@ public class AdminMigracaoController : ControllerBase
         [FromQuery] string? status,
         [FromQuery] int page = 1,
         [FromQuery] int size = 25,
+        [FromQuery] DateTime? criadoDe = null,
+        [FromQuery] DateTime? criadoAte = null,
+        [FromQuery] string? onda = null,
+        [FromQuery] string? origem = null,
         CancellationToken ct = default)
     {
         var resultado = await _listarHandler.Handle(new ListarJobsMigracaoAdminQuery
         {
             EstabelecimentoId = estabelecimentoId,
-            Status  = status,
-            Pagina  = page,
-            Tamanho = size,
+            Status    = status,
+            Pagina    = page,
+            Tamanho   = size,
+            CriadoDe  = criadoDe,
+            CriadoAte = criadoAte,
+            Onda      = onda,
+            Origem    = origem,
         }, ct);
 
         return Ok(resultado);
@@ -99,10 +113,13 @@ public class AdminMigracaoController : ControllerBase
 
         await _salvarMapaHandler.Handle(new SalvarMapaRevisadoCommand
         {
-            JobId             = jobId,
-            Entidade          = entidade,
-            DePara            = body.DePara,
-            RevisadoPorUsuarioId = adminId.Value,
+            JobId                 = jobId,
+            Entidade              = entidade,
+            NomeBlocoOrigem       = body.NomeBlocoOrigem,
+            EntidadeReclassificada = body.EntidadeReclassificada,
+            Ignorado              = body.Ignorado,
+            DePara                = body.DePara,
+            RevisadoPorUsuarioId  = adminId.Value,
         }, ct);
 
         return NoContent();
@@ -214,6 +231,24 @@ public class AdminMigracaoController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Histórico de transições de status de um job (trilha de auditoria).</summary>
+    [HttpGet("{jobId:long}/eventos")]
+    [ProducesResponseType(typeof(List<MigracaoJobEventoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarEventos(long jobId, CancellationToken ct)
+    {
+        var eventos = await _eventosHandler.Handle(jobId, ct);
+        return Ok(eventos);
+    }
+
+    /// <summary>Progresso de carga por entidade e percentual agregado.</summary>
+    [HttpGet("{jobId:long}/progresso")]
+    [ProducesResponseType(typeof(ProgressoMigracaoResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Progresso(long jobId, CancellationToken ct)
+    {
+        var resultado = await _progressoHandler.Handle(jobId, ct);
+        return Ok(resultado);
+    }
+
     private Guid? ObterAdminId()
     {
         var claim = User.FindFirst("sub") ?? User.FindFirst("admin_id");
@@ -224,6 +259,12 @@ public class AdminMigracaoController : ControllerBase
 // Body DTOs inline (request bodies simples — sem namespace dedicado).
 public sealed class SalvarMapaRevisadoBody
 {
+    /// <summary>Addendum 4 — Nome do bloco de origem (dump aninhado). Vazio para CSV/JSON-array.</summary>
+    public string NomeBlocoOrigem { get; init; } = string.Empty;
+    /// <summary>Addendum 4 — Entidade reclassificada pelo operador. Null = mantém a atual.</summary>
+    public string? EntidadeReclassificada { get; init; }
+    /// <summary>Addendum 4 — Operador marcou o bloco como ignorar. Default: false.</summary>
+    public bool Ignorado { get; init; }
     public Dictionary<string, string> DePara { get; init; } = [];
 }
 

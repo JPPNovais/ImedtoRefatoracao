@@ -18,6 +18,11 @@ const router = useRouter()
 const store = useMigracaoAdminStore()
 
 const filtroStatus = ref<string | null>(null)
+const filtroEstabelecimento = ref<string>("")
+const filtroCriadoDe = ref<string>("")
+const filtroCriadoAte = ref<string>("")
+const filtroOnda = ref<string | null>(null)
+const filtroOrigem = ref<string>("")
 
 const STATUS_LABELS: Record<string, string> = {
     aguardando_arquivo:    "Aguardando arquivo",
@@ -50,7 +55,26 @@ const STATUS_VARIANT: Record<string, "default" | "success" | "warning" | "error"
 onMounted(() => carregar())
 
 async function carregar(p = 1) {
-    await store.carregar({ status: filtroStatus.value, page: p })
+    const estId = filtroEstabelecimento.value ? Number(filtroEstabelecimento.value) : null
+    await store.carregar({
+        status: filtroStatus.value,
+        estabelecimentoId: estId && !isNaN(estId) ? estId : null,
+        page: p,
+        criadoDe: filtroCriadoDe.value || null,
+        criadoAte: filtroCriadoAte.value || null,
+        onda: filtroOnda.value,
+        origem: filtroOrigem.value || null,
+    })
+}
+
+function limparFiltros() {
+    filtroStatus.value = null
+    filtroEstabelecimento.value = ""
+    filtroCriadoDe.value = ""
+    filtroCriadoAte.value = ""
+    filtroOnda.value = null
+    filtroOrigem.value = ""
+    carregar(1)
 }
 
 function verJob(id: number) {
@@ -70,7 +94,7 @@ function formatarData(iso: string) {
         <AppPageHeader titulo="Central de Migração" />
 
         <AppCard>
-            <!-- Filtro de status -->
+            <!-- Filtros -->
             <div class="filtros">
                 <select
                     v-model="filtroStatus"
@@ -81,6 +105,45 @@ function formatarData(iso: string) {
                     <option :value="null">Todos os status</option>
                     <option v-for="(label, key) in STATUS_LABELS" :key="key" :value="key">{{ label }}</option>
                 </select>
+                <input
+                    v-model="filtroEstabelecimento"
+                    type="text"
+                    class="form-input"
+                    placeholder="Estabelecimento ID"
+                    style="width: 160px;"
+                    @input="carregar(1)"
+                />
+                <input
+                    v-model="filtroCriadoDe"
+                    type="date"
+                    class="form-input"
+                    @change="carregar(1)"
+                />
+                <input
+                    v-model="filtroCriadoAte"
+                    type="date"
+                    class="form-input"
+                    @change="carregar(1)"
+                />
+                <select
+                    v-model="filtroOnda"
+                    class="form-input"
+                    style="width: 140px;"
+                    @change="carregar(1)"
+                >
+                    <option :value="null">Todas as ondas</option>
+                    <option value="onda1">Onda 1</option>
+                    <option value="onda2">Onda 2</option>
+                </select>
+                <input
+                    v-model="filtroOrigem"
+                    type="text"
+                    class="form-input"
+                    placeholder="Origem"
+                    style="width: 140px;"
+                    @input="carregar(1)"
+                />
+                <AppButton variant="ghost" size="sm" @click="limparFiltros">Limpar</AppButton>
             </div>
 
             <!-- Estado de carregamento -->
@@ -141,6 +204,10 @@ function formatarData(iso: string) {
 
 <style scoped>
 .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
     margin-bottom: 1rem;
 }
 

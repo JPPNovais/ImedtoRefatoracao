@@ -6,6 +6,7 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 /// <summary>
 /// Repositório EF para <see cref="MigracaoMapa"/>.
 /// Falha-fechada: toda query filtra por estabelecimentoId (CA2, multi-tenant).
+/// Addendum 4: chave de upsert é (jobId, entidade, nomeBlocoOrigem).
 /// </summary>
 public class MigracaoMapaRepository : IMigracaoMapaRepository
 {
@@ -34,12 +35,14 @@ public class MigracaoMapaRepository : IMigracaoMapaRepository
         return await _db.MigracaoMapas
             .Where(m => m.MigracaoJobId == jobId && m.EstabelecimentoId == estabelecimentoId)
             .OrderBy(m => m.Entidade)
+            .ThenBy(m => m.NomeBlocoOrigem)
             .ToListAsync(ct);
     }
 
-    public async Task<MigracaoMapa?> ObterPorJobEEntidadeOuNulo(
+    public async Task<MigracaoMapa?> ObterPorJobEntidadeBlocoOuNulo(
         long jobId,
         string entidade,
+        string nomeBlocoOrigem,
         long estabelecimentoId,
         CancellationToken ct = default)
     {
@@ -50,7 +53,18 @@ public class MigracaoMapaRepository : IMigracaoMapaRepository
             .FirstOrDefaultAsync(m =>
                 m.MigracaoJobId == jobId &&
                 m.Entidade == entidade &&
+                m.NomeBlocoOrigem == nomeBlocoOrigem &&
                 m.EstabelecimentoId == estabelecimentoId, ct);
+    }
+
+    public async Task<MigracaoMapa?> ObterPorJobEEntidadeOuNulo(
+        long jobId,
+        string entidade,
+        long estabelecimentoId,
+        CancellationToken ct = default)
+    {
+        // Compatibilidade: usa nomeBlocoOrigem = "" (CSV/JSON-array existente).
+        return await ObterPorJobEntidadeBlocoOuNulo(jobId, entidade, string.Empty, estabelecimentoId, ct);
     }
 
     public async Task<MigracaoMapa?> ObterPorJobEEntidadeAdminOuNulo(
@@ -60,5 +74,25 @@ public class MigracaoMapaRepository : IMigracaoMapaRepository
     {
         return await _db.MigracaoMapas
             .FirstOrDefaultAsync(m => m.MigracaoJobId == jobId && m.Entidade == entidade, ct);
+    }
+
+    /// <summary>
+    /// Addendum 4: busca por bloco sem filtro de tenant — uso exclusivo do admin.
+    /// Para CSV/JSON-array (nomeBlocoOrigem = ""), cai no método legado por compatibilidade.
+    /// </summary>
+    public async Task<MigracaoMapa?> ObterPorJobEntidadeBlocoAdminOuNulo(
+        long jobId,
+        string entidade,
+        string nomeBlocoOrigem,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(nomeBlocoOrigem))
+            return await ObterPorJobEEntidadeAdminOuNulo(jobId, entidade, ct);
+
+        return await _db.MigracaoMapas
+            .FirstOrDefaultAsync(m =>
+                m.MigracaoJobId == jobId &&
+                m.Entidade == entidade &&
+                m.NomeBlocoOrigem == nomeBlocoOrigem, ct);
     }
 }

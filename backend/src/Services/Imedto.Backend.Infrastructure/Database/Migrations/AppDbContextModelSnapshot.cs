@@ -3622,7 +3622,52 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                     b.HasIndex("EstabelecimentoId", "Onda", "Status")
                         .HasDatabaseName("ix_migracao_jobs_estab_onda_status");
 
+                    b.HasIndex("EstabelecimentoId", "CriadoEm")
+                        .HasDatabaseName("ix_migracao_jobs_estab_criado_em");
+
                     b.ToTable("migracao_jobs", "public");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Migracao.MigracaoJobEvento", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("MigracaoJobId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("migracao_job_id");
+
+                    b.Property<long>("EstabelecimentoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("estabelecimento_id");
+
+                    b.Property<string>("StatusAnterior")
+                        .HasColumnType("text")
+                        .HasColumnName("status_anterior");
+
+                    b.Property<string>("StatusNovo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status_novo");
+
+                    b.Property<Guid?>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("criado_em");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MigracaoJobId", "CriadoEm")
+                        .HasDatabaseName("ix_migracao_job_eventos_job_criado_em");
+
+                    b.ToTable("migracao_job_eventos", "public");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Migracao.MigracaoMapa", b =>
@@ -7596,6 +7641,16 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
                         .HasForeignKey("TemplateOrigemId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_migracao_jobs_template_origem");
+                });
+
+            modelBuilder.Entity("Imedto.Backend.Domain.Migracao.MigracaoJobEvento", b =>
+                {
+                    b.HasOne("Imedto.Backend.Domain.Migracao.MigracaoJob", null)
+                        .WithMany()
+                        .HasForeignKey("MigracaoJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_migracao_job_eventos_job");
                 });
 
             modelBuilder.Entity("Imedto.Backend.Domain.Migracao.MigracaoMapa", b =>

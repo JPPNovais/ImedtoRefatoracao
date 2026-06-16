@@ -12,8 +12,8 @@ namespace Imedto.Backend.Application.Migracao.Commands;
 /// 1. Valida limite de 50MB (CA19, R11) — rejeita antes de qualquer I/O pesado.
 /// 2. Cria o <see cref="MigracaoJob"/> (estado aguardando_arquivo).
 /// 3. Faz upload do ZIP no S3 via <see cref="IMigracaoArquivoStorageService"/> (retenção 30 dias — CA24, R12).
-/// 4. Registra o arquivo no job (transição → aguardando_mapa).
-/// 5. Persiste o job.
+/// 4. Registra o arquivo no job (transição → aguardando_aprovacao — addendum 003, R-A1).
+/// 5. Persiste o job + grava evento de transição (CA53 — forward-only, addendum 004).
 ///
 /// Multi-tenant: estabelecimento_id vem do JWT via ICurrentTenantAccessor — não do body (CA2, CA3).
 /// LGPD: nenhum PII nos logs; nome do arquivo não é logado (CA4).
@@ -24,13 +24,16 @@ public sealed class IniciarMigracaoCommandHandler
 
     private readonly IMigracaoJobRepository _repo;
     private readonly IMigracaoArquivoStorageService _storage;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
 
     public IniciarMigracaoCommandHandler(
         IMigracaoJobRepository repo,
-        IMigracaoArquivoStorageService storage)
+        IMigracaoArquivoStorageService storage,
+        IMigracaoJobEventoRepository eventoRepo)
     {
-        _repo = repo;
-        _storage = storage;
+        _repo       = repo;
+        _storage    = storage;
+        _eventoRepo = eventoRepo;
     }
 
     public async Task<IniciarMigracaoResult> Handle(IniciarMigracaoCommand cmd, CancellationToken ct = default)
@@ -71,9 +74,20 @@ public sealed class IniciarMigracaoCommandHandler
             throw new BusinessException("Falha ao processar o arquivo. Tente novamente.");
         }
 
-        // 4. Registrar arquivo recebido → transição para aguardando_mapa.
+        // 4. Registrar arquivo recebido → transição para aguardando_aprovacao (addendum 003, R-A1).
+        var statusAnterior = job.Status; // aguardando_arquivo
         job.RegistrarArquivoRecebido(s3Key);
         await _repo.Salvar(job, ct);
+
+        // CA53 — gravar evento de transição forward-only (addendum 004, R-T2).
+        // UsuarioId null: upload é ação do tenant, não do admin — nenhum admin autenticado aqui.
+        var evento = MigracaoJobEvento.Criar(
+            migracaoJobId: job.Id,
+            estabelecimentoId: job.EstabelecimentoId,
+            statusAnterior: statusAnterior,
+            statusNovo: job.Status,
+            usuarioId: null);
+        await _eventoRepo.Gravar(evento, ct);
 
         return new IniciarMigracaoResult
         {

@@ -24,6 +24,7 @@ public class DesfazerMigracaoCommandHandlerTests
 {
     private Mock<IMigracaoJobRepository>         _jobRepo;
     private Mock<IMigracaoRegistroRepository>    _registroRepo;
+    private Mock<IMigracaoJobEventoRepository>   _eventoRepo;
     private Mock<IPacienteRepository>            _pacienteRepo;
     private Mock<IAgendamentoRepository>         _agendamentoRepo;
     private Mock<IItemInventarioRepository>      _itemRepo;
@@ -44,6 +45,7 @@ public class DesfazerMigracaoCommandHandlerTests
     {
         _jobRepo        = new Mock<IMigracaoJobRepository>();
         _registroRepo   = new Mock<IMigracaoRegistroRepository>();
+        _eventoRepo     = new Mock<IMigracaoJobEventoRepository>();
         _pacienteRepo   = new Mock<IPacienteRepository>();
         _agendamentoRepo = new Mock<IAgendamentoRepository>();
         _itemRepo       = new Mock<IItemInventarioRepository>();
@@ -54,9 +56,13 @@ public class DesfazerMigracaoCommandHandlerTests
         _cirurgiaRepo   = new Mock<ICatalogoCirurgiaRepository>();
         _produtoRepo    = new Mock<ICatalogoProdutoRepository>();
 
+        _eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
+
         _sut = new DesfazerMigracaoCommandHandler(
             _jobRepo.Object,
             _registroRepo.Object,
+            _eventoRepo.Object,
             _pacienteRepo.Object,
             _agendamentoRepo.Object,
             _itemRepo.Object,
@@ -74,8 +80,9 @@ public class DesfazerMigracaoCommandHandlerTests
     private MigracaoJob CriarJobConcluido(string status = MigracaoJob.StatusConcluido)
     {
         var job = MigracaoJob.Criar(EstabelecimentoId, Guid.NewGuid());
-        // Avança o job para o status desejado via reflexão (não há ctor público com estado interno)
-        // Em vez disso, criamos via as transições legítimas.
+        // Simula ID persistido para que MigracaoJobEvento.Criar não rejeite Id <= 0
+        typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
+        // Avança o job para o status desejado via as transições legítimas.
         // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.
         job.RegistrarArquivoRecebido("s3://key");
         job.AprovarAnalise(Guid.NewGuid());

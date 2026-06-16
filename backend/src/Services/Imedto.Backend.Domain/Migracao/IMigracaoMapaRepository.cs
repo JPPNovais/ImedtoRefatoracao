@@ -3,6 +3,7 @@ namespace Imedto.Backend.Domain.Migracao;
 /// <summary>
 /// Repositório de <see cref="MigracaoMapa"/>.
 /// Falha-fechada: toda query filtra por estabelecimentoId (CA2, multi-tenant).
+/// Addendum 4: busca por bloco usa (jobId, entidade, nomeBlocoOrigem) como chave de upsert.
 /// </summary>
 public interface IMigracaoMapaRepository
 {
@@ -10,6 +11,21 @@ public interface IMigracaoMapaRepository
 
     Task<List<MigracaoMapa>> ListarPorJob(long jobId, long estabelecimentoId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Addendum 4: busca por (jobId, entidade, nomeBlocoOrigem).
+    /// Para CSV/JSON-array, nomeBlocoOrigem é string.Empty (compatibilidade).
+    /// </summary>
+    Task<MigracaoMapa?> ObterPorJobEntidadeBlocoOuNulo(
+        long jobId,
+        string entidade,
+        string nomeBlocoOrigem,
+        long estabelecimentoId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Compatibilidade: busca pelo contrato antigo (entidade sem bloco).
+    /// Internamente usa nomeBlocoOrigem = string.Empty.
+    /// </summary>
     Task<MigracaoMapa?> ObterPorJobEEntidadeOuNulo(
         long jobId,
         string entidade,
@@ -22,5 +38,16 @@ public interface IMigracaoMapaRepository
     Task<MigracaoMapa?> ObterPorJobEEntidadeAdminOuNulo(
         long jobId,
         string entidade,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Addendum 4: busca por (jobId, entidade, nomeBlocoOrigem) sem filtro de tenant.
+    /// Uso exclusivo do contexto admin (sem estabelecimentoId disponível).
+    /// Para CSV/JSON-array (nomeBlocoOrigem = ""), delega ao método legado.
+    /// </summary>
+    Task<MigracaoMapa?> ObterPorJobEntidadeBlocoAdminOuNulo(
+        long jobId,
+        string entidade,
+        string nomeBlocoOrigem,
         CancellationToken ct = default);
 }

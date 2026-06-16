@@ -13,8 +13,9 @@ namespace Imedto.Backend.Test.Application.Admin.Migracao;
 [TestFixture]
 public class AprovarAnaliseCommandHandlerTests
 {
-    private Mock<IMigracaoJobRepository> _jobRepo;
-    private AprovarAnaliseCommandHandler _sut;
+    private Mock<IMigracaoJobRepository>       _jobRepo;
+    private Mock<IMigracaoJobEventoRepository> _eventoRepo;
+    private AprovarAnaliseCommandHandler       _sut;
 
     private const long EstabelecimentoId = 42;
     private static readonly Guid UsuarioId = Guid.NewGuid();
@@ -23,13 +24,18 @@ public class AprovarAnaliseCommandHandlerTests
     [SetUp]
     public void SetUp()
     {
-        _jobRepo = new Mock<IMigracaoJobRepository>();
-        _sut = new AprovarAnaliseCommandHandler(_jobRepo.Object);
+        _jobRepo    = new Mock<IMigracaoJobRepository>();
+        _eventoRepo = new Mock<IMigracaoJobEventoRepository>();
+        _eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
+        _sut = new AprovarAnaliseCommandHandler(_jobRepo.Object, _eventoRepo.Object);
     }
 
-    private static MigracaoJob CriarJobEmAguardandoAprovacao()
+    private static MigracaoJob CriarJobEmAguardandoAprovacao(long id = 1L)
     {
         var job = MigracaoJob.Criar(EstabelecimentoId, UsuarioId);
+        // Simula ID persistido para que MigracaoJobEvento.Criar não rejeite Id <= 0
+        typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, id);
         job.RegistrarArquivoRecebido("migracao/42/1/arquivo.zip");
         // Pós upload → aguardando_aprovacao (addendum 003 R-A1).
         return job;

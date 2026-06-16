@@ -131,9 +131,14 @@ public class CarregarOnda2JobHandlerTests
         _registrarEvolucao = new FakeRegistrarEvolucao();
         _adicionarAnexo    = new FakeAdicionarAnexo();
 
+        var eventoRepo = new Mock<IMigracaoJobEventoRepository>();
+        eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                  .Returns(Task.CompletedTask);
+
         _sut = new CarregarOnda2JobHandler(
             _jobRepo.Object,
             _registroRepo.Object,
+            eventoRepo.Object,
             _pacienteLookup.Object,
             _prontuarioRepo.Object,
             _iniciarProntuario,

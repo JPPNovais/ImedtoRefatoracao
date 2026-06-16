@@ -11,10 +11,14 @@ namespace Imedto.Backend.Application.Admin.Migracao;
 public sealed class DisparaMigracaoCommandHandler
 {
     private readonly IMigracaoJobRepository _jobRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
 
-    public DisparaMigracaoCommandHandler(IMigracaoJobRepository jobRepo)
+    public DisparaMigracaoCommandHandler(
+        IMigracaoJobRepository jobRepo,
+        IMigracaoJobEventoRepository eventoRepo)
     {
-        _jobRepo = jobRepo;
+        _jobRepo    = jobRepo;
+        _eventoRepo = eventoRepo;
     }
 
     public async Task Handle(DisparaMigracaoCommand cmd, CancellationToken ct = default)
@@ -26,8 +30,12 @@ public sealed class DisparaMigracaoCommandHandler
             ?? throw new BusinessException("Job não encontrado.");
 
         // Transição de estado: preview_pronto → migrando (CA22 — retorna imediatamente)
+        var statusAnterior = job.Status;
         job.MarcarMigrando(cmd.AdminId);
         await _jobRepo.Salvar(job, ct);
         // Job será pego pelo CarregarOnda1JobHandler na próxima rodada do scheduler.
+
+        var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnterior, job.Status, cmd.AdminId);
+        await _eventoRepo.Gravar(evt, ct);
     }
 }

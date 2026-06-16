@@ -24,6 +24,7 @@ public class CarregarOnda1JobHandlerTests
 {
     private Mock<IMigracaoJobRepository>           _jobRepo;
     private Mock<IMigracaoRegistroRepository>      _registroRepo;
+    private Mock<IMigracaoJobEventoRepository>     _eventoRepo;
     private Mock<IPacienteRepository>              _pacienteRepo;
     private Mock<ICategoriaEstoqueRepository>      _categoriaRepo;
     private Mock<IFabricanteEstoqueRepository>     _fabricanteRepo;
@@ -46,6 +47,9 @@ public class CarregarOnda1JobHandlerTests
     {
         _jobRepo        = new Mock<IMigracaoJobRepository>();
         _registroRepo   = new Mock<IMigracaoRegistroRepository>();
+        _eventoRepo     = new Mock<IMigracaoJobEventoRepository>();
+        _eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
         _pacienteRepo   = new Mock<IPacienteRepository>();
         _categoriaRepo  = new Mock<ICategoriaEstoqueRepository>();
         _fabricanteRepo = new Mock<IFabricanteEstoqueRepository>();
@@ -64,6 +68,7 @@ public class CarregarOnda1JobHandlerTests
     private CarregarOnda1JobHandler CriarSut() => new(
         _jobRepo.Object,
         _registroRepo.Object,
+        _eventoRepo.Object,
         _pacienteRepo.Object,
         _categoriaRepo.Object,
         _fabricanteRepo.Object,

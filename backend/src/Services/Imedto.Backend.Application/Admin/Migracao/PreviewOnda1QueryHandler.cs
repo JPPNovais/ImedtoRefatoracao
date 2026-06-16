@@ -8,13 +8,16 @@ public sealed class PreviewOnda1QueryHandler
 {
     private readonly IMigracaoJobRepository _jobRepo;
     private readonly IMigracaoRegistroRepository _registroRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
 
     public PreviewOnda1QueryHandler(
         IMigracaoJobRepository jobRepo,
-        IMigracaoRegistroRepository registroRepo)
+        IMigracaoRegistroRepository registroRepo,
+        IMigracaoJobEventoRepository eventoRepo)
     {
-        _jobRepo = jobRepo;
+        _jobRepo      = jobRepo;
         _registroRepo = registroRepo;
+        _eventoRepo   = eventoRepo;
     }
 
     public async Task<PreviewMigracaoResult> Handle(long jobId, Guid adminId, CancellationToken ct = default)
@@ -37,8 +40,12 @@ public sealed class PreviewOnda1QueryHandler
                 g => g.Key,
                 g => new EntidadePreview { Pendentes = g.Count() });
 
+        var statusAnterior = job.Status;
         job.MarcarPreviewPronto(adminId);
         await _jobRepo.Salvar(job, ct);
+
+        var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnterior, job.Status, adminId);
+        await _eventoRepo.Gravar(evt, ct);
 
         return new PreviewMigracaoResult
         {

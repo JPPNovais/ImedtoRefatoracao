@@ -40,10 +40,32 @@ public sealed class CsvMigracaoParser : IMigracaoArquivoParser
             linhas.Add(dict);
         }
 
+        // Normalização de encoding nos valores do CSV (R-S8/CA80/CA81).
+        var linhasNormalizadas = new List<IReadOnlyDictionary<string, string>>(linhas.Count);
+        var encodingSuspeito = false;
+        foreach (var linha2 in linhas)
+        {
+            var (linhaNorm, suspeita) = MojibakeNormalizador.NormalizarLinha(linha2);
+            linhasNormalizadas.Add(linhaNorm);
+            if (suspeita) encodingSuspeito = true;
+        }
+
+        // Addendum 4: CSV → 1 bloco candidato com nome = arquivo sem extensão.
+        var nomeBloco = Path.GetFileNameWithoutExtension(nomeArquivo);
+        var bloco = new BlocoCandidato
+        {
+            NomeBloco = nomeBloco,
+            Cabecalhos = cabecalhos,
+            Linhas = linhasNormalizadas,
+            EhConfig = false,
+            EncodingSuspeito = encodingSuspeito,
+        };
+
         return new ArquivoParseado
         {
             Cabecalhos = cabecalhos,
-            Linhas = linhas,
+            Linhas = linhasNormalizadas,
+            Blocos = [bloco],
         };
     }
 

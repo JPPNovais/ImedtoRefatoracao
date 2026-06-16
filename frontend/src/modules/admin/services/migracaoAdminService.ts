@@ -5,10 +5,44 @@ import adminApi from "./adminApi"
 export interface MigracaoMapaDto {
     id: number
     entidade: string
+    /** Addendum 4 — Nome do bloco de origem no dump JSON. Vazio para CSV/JSON-array. */
+    nomeBlocoOrigem: string
     mapaJson: string
     revisadoPorUsuarioId: string | null
     revisadoEm: string | null
     criadoEm: string
+}
+
+/** Addendum 4 (D-S1) — Lista canônica de entidades suportadas pela carga. */
+export const ENTIDADES_CANONICAS = [
+    "paciente",
+    "agendamento",
+    "fornecedor_estoque",
+    "categoria_estoque",
+    "fabricante_estoque",
+    "local_estoque",
+    "item_estoque",
+    "produto_orcamento",
+    "procedimento_orcamento",
+    "prontuario",
+    "sem_equivalente",
+] as const
+export type EntidadeCanonica = (typeof ENTIDADES_CANONICAS)[number]
+
+/** Addendum 4 — Campos extras do mapa_json (classificação + flags). */
+export interface MapaJsonParsed {
+    de_para: Record<string, string>
+    confianca: number
+    duvidas: string[]
+    /** Entidade proposta pela IA (pode diferir da entidade confirmada pelo operador). */
+    entidade_classificada?: EntidadeCanonica | string
+    confianca_classificacao?: number
+    /** Operador marcou como ignorar. */
+    ignorado?: boolean
+    /** Ingestão detectou encoding suspeito neste bloco. */
+    encoding_suspeito?: boolean
+    /** Bloco é objeto de config (ex.: estabelecimento{}) — não migrável. */
+    eh_config?: boolean
 }
 
 export interface MigracaoJobAdminDto {
@@ -37,6 +71,12 @@ export interface ListarJobsResult {
 
 export interface SalvarMapaPayload {
     dePara: Record<string, string>
+    /** Addendum 4 — Nome do bloco de origem. Vazio para CSV/JSON-array. */
+    nomeBlocoOrigem?: string
+    /** Addendum 4 — Entidade reclassificada pelo operador. Null = mantém a atual. */
+    entidadeReclassificada?: string | null
+    /** Addendum 4 — Operador marcou o bloco como ignorar. */
+    ignorado?: boolean
 }
 
 export interface SalvarTemplatePayload {
@@ -85,6 +125,28 @@ export interface RelatorioDesfazimentoResult {
     aviso: string
 }
 
+export interface MigracaoEventoDto {
+    statusAnterior: string | null
+    statusNovo: string
+    usuarioId: string | null
+    criadoEm: string
+}
+
+export interface ProgressoEntidadeDto {
+    total: number
+    pendentes: number
+    criados: number
+    atualizados: number
+    rejeitados: number
+    pulados: number
+    percentual: number
+}
+
+export interface ProgressoMigracaoDto {
+    porEntidade: Record<string, ProgressoEntidadeDto>
+    percentualAgregado: number
+}
+
 // ─── Service ─────────────────────────────────────────────────────────────────
 
 const base = "/migracao"
@@ -95,6 +157,10 @@ export const migracaoAdminService = {
         status?: string | null
         page?: number
         size?: number
+        criadoDe?: string | null
+        criadoAte?: string | null
+        onda?: string | null
+        origem?: string | null
     }): Promise<ListarJobsResult> {
         const { data } = await adminApi.get<ListarJobsResult>(base, {
             params: {
@@ -102,6 +168,10 @@ export const migracaoAdminService = {
                 status: params.status || undefined,
                 page: params.page ?? 1,
                 size: params.size ?? 25,
+                criadoDe: params.criadoDe || undefined,
+                criadoAte: params.criadoAte || undefined,
+                onda: params.onda || undefined,
+                origem: params.origem || undefined,
             },
         })
         return data
@@ -158,5 +228,15 @@ export const migracaoAdminService = {
      */
     async aprovarAnalise(jobId: number): Promise<void> {
         await adminApi.post(`${base}/${jobId}/aprovar-analise`)
+    },
+
+    async obterEventos(jobId: number): Promise<MigracaoEventoDto[]> {
+        const { data } = await adminApi.get<MigracaoEventoDto[]>(`${base}/${jobId}/eventos`)
+        return data
+    },
+
+    async obterProgresso(jobId: number): Promise<ProgressoMigracaoDto> {
+        const { data } = await adminApi.get<ProgressoMigracaoDto>(`${base}/${jobId}/progresso`)
+        return data
     },
 }

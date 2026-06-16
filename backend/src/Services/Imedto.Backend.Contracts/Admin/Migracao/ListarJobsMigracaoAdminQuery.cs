@@ -6,6 +6,10 @@ public sealed class ListarJobsMigracaoAdminQuery
     public string? Status { get; init; }
     public int Pagina { get; init; } = 1;
     public int Tamanho { get; init; } = 25;
+    public DateTime? CriadoDe { get; init; }
+    public DateTime? CriadoAte { get; init; }
+    public string? Onda { get; init; }
+    public string? Origem { get; init; }
 }
 
 public sealed class ListarJobsMigracaoAdminResult

@@ -40,6 +40,7 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
 
     private readonly IMigracaoJobRepository _jobRepo;
     private readonly IMigracaoRegistroRepository _registroRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
     private readonly IMigracaoPacienteLookup _pacienteLookup;
     private readonly IProntuarioRepository _prontuarioRepo;
     private readonly IniciarProntuarioCommandHandler _iniciarProntuarioHandler;
@@ -50,6 +51,7 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
     public CarregarOnda2JobHandler(
         IMigracaoJobRepository jobRepo,
         IMigracaoRegistroRepository registroRepo,
+        IMigracaoJobEventoRepository eventoRepo,
         IMigracaoPacienteLookup pacienteLookup,
         IProntuarioRepository prontuarioRepo,
         IniciarProntuarioCommandHandler iniciarProntuarioHandler,
@@ -59,6 +61,7 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
     {
         _jobRepo = jobRepo;
         _registroRepo = registroRepo;
+        _eventoRepo = eventoRepo;
         _pacienteLookup = pacienteLookup;
         _prontuarioRepo = prontuarioRepo;
         _iniciarProntuarioHandler = iniciarProntuarioHandler;
@@ -84,10 +87,14 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
             // CA27 — a espera legítima da Onda 1 usa "return" explícito ANTES deste try/catch
             // (ProcessarJobAsync retorna sem lançar quando a Onda 1 ainda não concluiu).
             _logger.LogError(ex, "[Job:{Nome}] Falha inesperada no job {JobId}.", Nome, job.Id);
+            var statusAnteriorFalha = job.Status;
             try
             {
                 job.MarcarFalhou("falha inesperada na carga");
                 await _jobRepo.Salvar(job, ct);
+
+                var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnteriorFalha, job.Status, usuarioId: null);
+                await _eventoRepo.Gravar(evt, ct);
             }
             catch (Exception salvarEx)
             {
@@ -116,8 +123,11 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
 
         if (pendentes.Count == 0)
         {
+            var statusAnteriorVazio = job.Status;
             job.MarcarConcluido();
             await _jobRepo.Salvar(job, ct);
+            var evtVazio = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnteriorVazio, job.Status, usuarioId: null);
+            await _eventoRepo.Gravar(evtVazio, ct);
             return;
         }
 
@@ -135,12 +145,16 @@ public sealed class CarregarOnda2JobHandler : IJobHandler
             }
         }
 
+        var statusAnteriorFim = job.Status;
         if (temRejeitados)
             job.MarcarConcluidoComErros();
         else
             job.MarcarConcluido();
 
         await _jobRepo.Salvar(job, ct);
+
+        var evtFim = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnteriorFim, job.Status, usuarioId: null);
+        await _eventoRepo.Gravar(evtFim, ct);
 
         _logger.LogInformation("[Job:{Nome}] Job {JobId} concluído. Status: {Status}.", Nome, job.Id, job.Status);
     }

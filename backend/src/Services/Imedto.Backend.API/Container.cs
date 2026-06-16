@@ -422,6 +422,11 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.ReprocessarMigracaoCommandHandler>();
         // Addendum 003 — aprovar análise por IA (CA41/CA42/CA43)
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.AprovarAnaliseCommandHandler>();
+        // Addendum 003 — trilha de eventos e progresso (CA51-CA69)
+        services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoJobEventoRepository,
+                           Imedto.Backend.Infrastructure.Database.Repositories.MigracaoJobEventoRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Migracao.ObterEventosMigracaoQueryHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Migracao.ObterProgressoMigracaoQueryHandler>();
         services.AddScoped<IJobHandler, Imedto.Backend.Application.Migracao.Jobs.CarregarOnda1JobHandler>();
 
         // Central de Migração — Marco 5 — Onda 2 Prontuário (briefing 2026-06-15_001)

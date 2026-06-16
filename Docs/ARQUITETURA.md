@@ -757,13 +757,58 @@ migrando ─────────┴→ falhou → (Reprocessar) → aguardan
 
 `IMigracaoArquivoStorageService` (Domain) / `S3MigracaoArquivoStorageService` (Infrastructure). Reutiliza `BucketAnexosProntuario` com key `migracao/{estabelecimentoId}/{jobId}/arquivo.zip`. Retenção de 30 dias via `ExpirarArquivosMigracaoJob` (CA24, R12).
 
+### Decomposição de dump JSON aninhado em blocos (addendum 4 — CA70-72)
+
+Quando o arquivo enviado é um objeto JSON raiz (dump de sistema legado com múltiplas entidades), o `JsonMigracaoParser` não extrai mais apenas o primeiro array (bug `EncontrarPrimeiroArray` que causou a falha no job #11). O parser agora faz `DecomporObjetoRaiz()`:
+
+- **Array de objetos** → 1 `BlocoCandidato` por propriedade. Nome do bloco = nome da propriedade (ex.: `"pacientes"` → bloco `pacientes`).
+- **Objeto único (config)** → bloco com `EhConfig = true` (ex.: `"estabelecimento": {...}`). Não é mapeável — aparece no painel como "Configuração (não migrável)", ignorado por padrão.
+- **Campos escalares / arrays vazios** → ignorados.
+- **Sub-objetos e arrays internos em registros** → excluídos dos cabeçalhos do bloco (D-S4). Nunca inventados.
+- **JSON-array na raiz** → 1 bloco (nome = arquivo sem extensão) — compatibilidade preservada (CA71).
+- **CSV** → sempre 1 bloco (nome = arquivo sem extensão).
+
+Cada bloco passa individualmente pela IA via `InferirBlocoAsync()` (1 call = classifica entidade + produz de-para). O nome do arquivo se torna hint apenas — não determina a entidade.
+
+### Classificação de entidade por IA (addendum 4 — CA73-76)
+
+`AnthropicMapeadorDeMigracao.InferirBlocoAsync()` substitui a detecção anterior por nome de arquivo. O prompt instrui a IA a:
+1. Classificar a entidade com base no **schema do bloco** (nomes de cabeçalhos), não pelo nome do arquivo.
+2. Usar apenas a lista canônica fechada (`EntidadesCanônicas`): `paciente, agendamento, fornecedor_estoque, categoria_estoque, fabricante_estoque, local_estoque, item_estoque, produto_orcamento, procedimento_orcamento, prontuario, sem_equivalente`.
+3. Retornar a classificação + confiança + de-para + dúvidas em uma única chamada (D-N2 — sem round-trip extra).
+4. Nunca usar IDs internos do dump como campo de mapeamento.
+
+A resposta é validada contra `EntidadesCanônicas.EhValida()` — fallback para `sem_equivalente` se inválida. PII é mascarada antes da chamada (LGPD — CA82).
+
+### Normalização de encoding (addendum 4 — CA80-81)
+
+`MojibakeNormalizador` (Infrastructure) aplica correção determinística Latin-1↔UTF-8 na ingestão de cada valor textual, sem IA:
+- Detecta heurística de caracteres Latin-suspeitos (U+00C0–U+00FF).
+- Faz round-trip `iso-8859-1` → bytes → `utf-8` → string.
+- Compara "problem score" (chars de reposição, chars fora de BMP) entre original e corrigido.
+- Se corrigido tem score melhor e sem replacement chars → adota. Caso contrário → mantém original e sinaliza `encoding_suspeito = true`.
+
 ### Schema (tabelas `migracao_*`)
 
-4 tabelas geradas pelo `imedto-database`:
+5 tabelas geradas pelo `imedto-database`:
 - `migracao_jobs` — job por upload (multi-tenant: `estabelecimento_id`). Colunas `motivo_falha text NULL` e `status_antes_falha text NULL` adicionadas em `20260615200000_AdicionarMotivoFalhaJob` (addendum 002).
 - `migracao_registros` — linhas individuais para importação. `motivo_rejeicao text NULL` é categoria genérica sem PII; usada para agregar `MotivosRejeicao` e `MotivosPulo` (`Dictionary<string,int>`) no relatório (CA34/CA35).
-- `migracao_mapas` — proposta de mapeamento (gerada pelo mapeador IA nos marcos seguintes).
+- `migracao_mapas` — proposta de mapeamento por bloco. Coluna `nome_bloco_origem text NOT NULL DEFAULT ''` adicionada em `20260615160000_migracao_mapas_nome_bloco_origem` (addendum 4). Unique constraint alterada de `(migracao_job_id, entidade)` para `(migracao_job_id, entidade, nome_bloco_origem)` — permite dois blocos do mesmo dump classificados como a mesma entidade. `mapa_json` contém campos adicionais: `entidade_classificada`, `confianca_classificacao`, `encoding_suspeito`, `eh_config`, `ignorado`, `entidade_operador` (quando operador reclassificou).
 - `migracao_templates` — templates reutilizáveis de mapeamento por sistema de origem.
+- `migracao_job_eventos` — trilha de transições de status (addendum 3 — CA53-56). Cada linha = uma mudança de status: `status_anterior text NULL`, `status_novo text`, `usuario_id uuid NULL` (null = sistema/job; preenchido = admin), `criado_em timestamptz`. Multi-tenant via `estabelecimento_id` herdado do job. Ordem ASC = histórico cronológico. Sem PII.
+
+### Endpoint de progresso leve (addendum 3 — CA57-59)
+
+`GET /api/admin/migracao/{jobId}/progresso` — diferente do `/relatorio` (que exige job concluído e agrega por lote), o progresso:
+- Funciona em **qualquer status** (incluindo durante `migrando`) — sem gate de `BusinessException`.
+- Faz `GROUP BY entidade, status` em `migracao_registros` e calcula percentual em memória.
+- Retorna `ProgressoMigracaoResult { porEntidade: Record<string, ProgressoEntidadeDto>, percentualAgregado: int }`.
+- Handler: `ObterProgressoMigracaoQueryHandler` (Singleton — leitura Dapper pura).
+- Padrão reaproveitável: endpoints de progresso em background devem ser leves e sem gate de estado — o gate (ex: job concluído) é responsabilidade exclusiva do endpoint de relatório.
+
+### Polling no frontend (addendum 3 — CA60)
+
+`MigracaoRevisaoView.vue` usa `setTimeout` recursivo (não `setInterval`) com intervalo de 4 s. Inicia apenas quando `statusJob` é um dos estados ativos: `aguardando_mapa`, `mapa_em_revisao`, `migrando`. Para automaticamente no `onUnmounted` e via `watch(statusJob)` quando o status chega a terminal. O timeout recursivo garante que um request precisa completar antes de agendar o próximo (evita sobreposição em conexões lentas).
 
 ### Checklist multi-tenant
 

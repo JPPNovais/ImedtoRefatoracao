@@ -14,8 +14,9 @@ namespace Imedto.Backend.Test.Application.Migracao;
 [TestFixture]
 public class DisparaMigracaoCommandHandlerTests
 {
-    private Mock<IMigracaoJobRepository> _jobRepo;
-    private DisparaMigracaoCommandHandler _sut;
+    private Mock<IMigracaoJobRepository>       _jobRepo;
+    private Mock<IMigracaoJobEventoRepository> _eventoRepo;
+    private DisparaMigracaoCommandHandler      _sut;
 
     private static readonly Guid AdminId = Guid.NewGuid();
     private const long JobId = 77;
@@ -24,13 +25,18 @@ public class DisparaMigracaoCommandHandlerTests
     [SetUp]
     public void SetUp()
     {
-        _jobRepo = new Mock<IMigracaoJobRepository>();
-        _sut = new DisparaMigracaoCommandHandler(_jobRepo.Object);
+        _jobRepo    = new Mock<IMigracaoJobRepository>();
+        _eventoRepo = new Mock<IMigracaoJobEventoRepository>();
+        _eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
+        _sut = new DisparaMigracaoCommandHandler(_jobRepo.Object, _eventoRepo.Object);
     }
 
     private static MigracaoJob JobNaFase(string status)
     {
         var job = MigracaoJob.Criar(EstabelecimentoId, Guid.NewGuid(), "iClinic");
+        // Simula ID persistido para que MigracaoJobEvento.Criar não rejeite migracaoJobId <= 0
+        typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(job, JobId);
         if (status == "preview_pronto" || status == "migrando")
         {
             // Addendum 003: upload → aguardando_aprovacao; AprovarAnalise → aguardando_mapa.

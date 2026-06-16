@@ -42,7 +42,7 @@ describe("MigracoesListView", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
         mockPush.mockReset()
-        mockCarregar.mockReset()
+        mockCarregar.mockReset().mockResolvedValue(undefined)
         mockJobs = []
         mockCarregando = false
         mockErro = null
@@ -81,8 +81,10 @@ describe("MigracoesListView", () => {
             },
         ]
         const wrapper = mount(MigracoesListView)
-        // Clica no botão "Ver" na primeira linha.
-        await wrapper.find("button").trigger("click")
+        // Clica no botão "Ver" na linha da tabela (texto = "Ver").
+        const botaoVer = wrapper.findAll("button").find(b => b.text() === "Ver")
+        expect(botaoVer).toBeDefined()
+        await botaoVer!.trigger("click")
         expect(mockPush).toHaveBeenCalledWith({
             name: "AdminMigracaoRevisao",
             params: { jobId: "7" },
@@ -119,5 +121,44 @@ describe("MigracoesListView", () => {
         const wrapper = mount(MigracoesListView)
         const badges = wrapper.findAll(".badge")
         expect(badges.some(b => b.text() === "Falhou")).toBe(true)
+    })
+
+    // ─── Addendum 003 — CA61-CA67 — novos filtros ────────────────────────────
+
+    it("CA61 — campos de filtro estão presentes no DOM", () => {
+        const wrapper = mount(MigracoesListView)
+        const inputs = wrapper.findAll("input")
+        const selects = wrapper.findAll("select")
+        // Estabelecimento ID, criadoDe, criadoAte, Origem = 4 inputs
+        expect(inputs.length).toBeGreaterThanOrEqual(4)
+        // Status + Onda = 2 selects
+        expect(selects.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it("CA67 — limpar filtros reseta e chama carregar", async () => {
+        const wrapper = mount(MigracoesListView)
+        await wrapper.vm.$nextTick()
+        // Clica no botão Limpar
+        const botoes = wrapper.findAll("button")
+        const botaoLimpar = botoes.find(b => b.text().includes("Limpar"))
+        expect(botaoLimpar).toBeDefined()
+        await botaoLimpar!.trigger("click")
+        await wrapper.vm.$nextTick()
+        // carregar é chamado novamente após limpar (já foi chamado no mount, então >= 2)
+        expect(mockCarregar.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it("CA63 — mudar filtro de status chama carregar com page=1", async () => {
+        const wrapper = mount(MigracoesListView)
+        await wrapper.vm.$nextTick()
+        mockCarregar.mockReset()
+        const select = wrapper.find("select")
+        await select.setValue("migrando")
+        await select.trigger("change")
+        await wrapper.vm.$nextTick()
+        expect(mockCarregar).toHaveBeenCalled()
+        const chamada = mockCarregar.mock.calls[0][0]
+        expect(chamada.status).toBe("migrando")
+        expect(chamada.page).toBe(1)
     })
 })

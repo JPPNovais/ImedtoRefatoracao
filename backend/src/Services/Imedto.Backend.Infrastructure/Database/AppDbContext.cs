@@ -199,6 +199,8 @@ public class AppDbContext : DbContext
     public DbSet<MigracaoJob> MigracaoJobs => Set<MigracaoJob>();
     public DbSet<MigracaoRegistro> MigracaoRegistros => Set<MigracaoRegistro>();
     public DbSet<MigracaoMapa> MigracaoMapas => Set<MigracaoMapa>();
+    // Addendum 003 — trilha de transições de status do job (briefing 2026-06-15_004).
+    public DbSet<MigracaoJobEvento> MigracaoJobEventos => Set<MigracaoJobEvento>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

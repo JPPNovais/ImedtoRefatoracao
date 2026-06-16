@@ -6,6 +6,16 @@
 
 ---
 
+> **Evolução pós-entrega (2026-06-15, addendum 4 — `planejamentos/2026-06-15_005`):** o épico foi entregue assumindo **1 arquivo = 1 entidade tabular** e **detecção da entidade pelo nome do arquivo** (`pacientes.json` → "paciente"). Um caso real (job #11 — dump JSON aninhado de sistema desconhecido, com objeto raiz contendo `pacientes[]`, `agendamentos[]`, `prontuarios[]` etc., além de mojibake) quebrou esse modelo. A estratégia evoluiu para:
+> - **Decomposição de dump JSON aninhado em blocos-candidatos** — cada propriedade-array de objetos do objeto raiz vira um bloco (corrige o `EncontrarPrimeiroArray`, que só lia o primeiro array); objetos únicos de config (`estabelecimento{}`) são sinalizados, não migrados.
+> - **Classificação semântica da entidade pela IA** (lista canônica fechada **ou** `"sem_equivalente"`) **substitui** a detecção por nome de arquivo. A IA passa a ter **duas tarefas sobre os mesmos metadados** — classificar a entidade **e** mapear as colunas — em **1 chamada por bloco-candidato** (custo por entidade, não por linha). Para arquivos tabulares, o nome do arquivo vira **hint**, não decisão.
+> - **D1/D2 e D11 preservados:** a IA continua mapeando **schema** sobre **amostra mascarada por bloco** (nunca transforma registro a registro, nunca recebe o volume/PII real); id interno do dump **nunca** é gravado nem usado como chave (vínculo só por chave de negócio — agenda/prontuário sem paciente resolvível são rejeitados com motivo).
+> - **Normalização de encoding determinística** na ingestão (corrige mojibake UTF-8↔Latin-1 quando seguro; sinaliza quando ambíguo — nunca corrompe nem usa IA).
+> - **Backlog explícito:** XLSX multi-aba (o parser XLSX é stub hoje), resolução de FK por id interno do dump, auto-detecção de origem por fingerprint, explosão de sub-objetos em sub-registros.
+> Os D1–D14 abaixo permanecem válidos como fonte original; esta nota registra a evolução incremental.
+
+---
+
 ## 1. O problema
 
 Cliente novo, vindo de outro sistema (iClinic, Feegow, Clinicorp, Ninsaúde, planilha solta…), precisa trazer os dados dele para o Imedto com o **menor atrito possível**. Hoje cada sistema exporta num formato diferente (CSV, XLSX, JSON, XML, ZIP), com nomes de coluna e estruturas próprias. Escrever um parser dedicado por origem (estratégia original da FASE 2B) não escala — são dezenas de sistemas, e o formato muda sem aviso.

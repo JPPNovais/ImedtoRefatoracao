@@ -48,9 +48,14 @@ public class CarregarOnda2FalhaTests
         // - CA27: retorna cedo antes de listar registros (Onda 1 ativa).
         // - CA26: lança antes de chamar handlers de prontuário (ListarPorJob falha).
         // Passamos null — seguro porque o caminho de teste não os invoca.
+        var eventoRepo = new Mock<IMigracaoJobEventoRepository>();
+        eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                  .Returns(Task.CompletedTask);
+
         return new CarregarOnda2JobHandler(
             _jobRepo.Object,
             _registroRepo.Object,
+            eventoRepo.Object,
             _pacienteLookup.Object,
             _prontuarioRepo.Object,
             null!,  // IniciarProntuarioCommandHandler — não atingido nos testes

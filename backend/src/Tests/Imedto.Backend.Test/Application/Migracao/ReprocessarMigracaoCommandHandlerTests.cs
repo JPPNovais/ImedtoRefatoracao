@@ -12,7 +12,8 @@ namespace Imedto.Backend.Test.Application.Migracao;
 [TestFixture]
 public class ReprocessarMigracaoCommandHandlerTests
 {
-    private Mock<IMigracaoJobRepository> _jobRepo;
+    private Mock<IMigracaoJobRepository>       _jobRepo;
+    private Mock<IMigracaoJobEventoRepository> _eventoRepo;
     private static readonly Guid AdminId = Guid.NewGuid();
     private const long EstId = 42L;
     private const long JobId = 77L;
@@ -20,10 +21,13 @@ public class ReprocessarMigracaoCommandHandlerTests
     [SetUp]
     public void SetUp()
     {
-        _jobRepo = new Mock<IMigracaoJobRepository>();
+        _jobRepo    = new Mock<IMigracaoJobRepository>();
+        _eventoRepo = new Mock<IMigracaoJobEventoRepository>();
+        _eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
     }
 
-    private ReprocessarMigracaoCommandHandler CriarSut() => new(_jobRepo.Object);
+    private ReprocessarMigracaoCommandHandler CriarSut() => new(_jobRepo.Object, _eventoRepo.Object);
 
     private MigracaoJob CriarJobFalhou(string statusAntes = MigracaoJob.StatusAguardandoMapa)
     {

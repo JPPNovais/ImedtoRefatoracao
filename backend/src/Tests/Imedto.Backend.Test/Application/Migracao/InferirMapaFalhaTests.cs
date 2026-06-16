@@ -18,6 +18,7 @@ public class InferirMapaFalhaTests
     private Mock<IMapeadorDeMigracao> _mapeador;
     private Mock<IMigracaoMapaRepository> _mapaRepo;
     private Mock<IMigracaoTemplateRepository> _templateRepo;
+    private Mock<IMigracaoJobEventoRepository> _eventoRepo;
 
     private static readonly Guid UsuarioId = Guid.NewGuid();
     private const long EstabelecimentoId = 42L;
@@ -31,6 +32,9 @@ public class InferirMapaFalhaTests
         _mapeador     = new Mock<IMapeadorDeMigracao>();
         _mapaRepo     = new Mock<IMigracaoMapaRepository>();
         _templateRepo = new Mock<IMigracaoTemplateRepository>();
+        _eventoRepo   = new Mock<IMigracaoJobEventoRepository>();
+        _eventoRepo.Setup(r => r.Gravar(It.IsAny<MigracaoJobEvento>(), It.IsAny<CancellationToken>()))
+                   .Returns(Task.CompletedTask);
 
         _templateRepo.Setup(r => r.ListarPorNome(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -44,6 +48,7 @@ public class InferirMapaFalhaTests
             _mapeador.Object,
             _mapaRepo.Object,
             _templateRepo.Object,
+            _eventoRepo.Object,
             [],
             NullLogger<InferirMapaMigracaoJobHandler>.Instance);
     }

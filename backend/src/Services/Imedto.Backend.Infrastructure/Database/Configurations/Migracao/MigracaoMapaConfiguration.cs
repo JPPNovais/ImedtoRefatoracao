@@ -6,7 +6,8 @@ namespace Imedto.Backend.Infrastructure.Database.Configurations.Migracao;
 
 /// <summary>
 /// Mapping EF para migracao_mapas — mapeamento de campos por entidade por job.
-/// UNIQUE (migracao_job_id, entidade) — 1 mapa por entidade por job.
+/// UNIQUE (migracao_job_id, entidade, nome_bloco_origem) — permite múltiplos blocos
+/// do mesmo dump JSON classificados na mesma entidade canônica.
 /// CASCADE delete: mapas deletados quando job é excluído.
 /// </summary>
 public class MigracaoMapaConfiguration : IEntityTypeConfiguration<MigracaoMapa>
@@ -35,6 +36,12 @@ public class MigracaoMapaConfiguration : IEntityTypeConfiguration<MigracaoMapa>
             .HasColumnType("varchar(100)")
             .IsRequired();
 
+        builder.Property(m => m.NomeBlocoOrigem)
+            .HasColumnName("nome_bloco_origem")
+            .HasColumnType("text")
+            .IsRequired()
+            .HasDefaultValue(string.Empty);
+
         builder.Property(m => m.MapaJson)
             .HasColumnName("mapa_json")
             .HasColumnType("jsonb")
@@ -58,12 +65,17 @@ public class MigracaoMapaConfiguration : IEntityTypeConfiguration<MigracaoMapa>
             .HasColumnType("timestamp with time zone")
             .IsRequired();
 
-        // ── Índice ───────────────────────────────────────────────────────────
+        // ── Índices ──────────────────────────────────────────────────────────
 
-        // UNIQUE — 1 mapa por entidade por job.
-        builder.HasIndex(m => new { m.MigracaoJobId, m.Entidade })
+        // UNIQUE — 1 mapa por (job, entidade, bloco de origem).
+        // Permite múltiplos blocos do mesmo dump classificados na mesma entidade canônica.
+        builder.HasIndex(m => new { m.MigracaoJobId, m.Entidade, m.NomeBlocoOrigem })
             .IsUnique()
-            .HasDatabaseName("uq_migracao_mapas_job_entidade");
+            .HasDatabaseName("uq_migracao_mapas_job_entidade_bloco");
+
+        // Índice de suporte para filtro/ordenação por bloco no painel de revisão.
+        builder.HasIndex(m => new { m.MigracaoJobId, m.NomeBlocoOrigem })
+            .HasDatabaseName("ix_migracao_mapas_job_bloco");
 
         // ── FK ───────────────────────────────────────────────────────────────
 

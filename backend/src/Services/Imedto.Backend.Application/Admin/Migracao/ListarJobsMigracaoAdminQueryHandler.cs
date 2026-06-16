@@ -28,6 +28,10 @@ public sealed class ListarJobsMigracaoAdminQueryHandler
             query.Status,
             pagina,
             tamanho,
+            query.CriadoDe,
+            query.CriadoAte,
+            query.Onda,
+            query.Origem,
             ct);
 
         return new ListarJobsMigracaoAdminResult

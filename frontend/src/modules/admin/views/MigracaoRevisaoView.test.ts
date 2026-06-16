@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import MigracaoRevisaoView from "./MigracaoRevisaoView.vue"
 
@@ -16,16 +16,60 @@ const mockDesfazer = vi.fn()
 const mockCarregarRelatorio = vi.fn()
 const mockReprocessar = vi.fn()
 const mockAprovarAnalise = vi.fn()
+const mockCarregarEventos = vi.fn()
+const mockCarregarProgresso = vi.fn()
 
 let mockRelatorioDesfazimento: unknown = null
 let mockDesfazendo = false
 let mockReprocessando = false
 let mockAprovando = false
+let mockEventos: unknown[] = []
+let mockCarregandoEventos = false
+let mockProgresso: unknown = null
 
 const mapaJson = JSON.stringify({
     de_para: { nome: "nome", cpf: "cpf" },
     confianca: 0.85,
     duvidas: ["cpf"],
+})
+
+// Addendum 4 — helpers para montar mapas de dump aninhado
+const mapaJsonComClassificacao = (entidade: string, confiancaClass: number, ignorado = false) =>
+    JSON.stringify({
+        de_para: { nome: "nome", data: "data_nascimento" },
+        confianca: 0.9,
+        duvidas: [] as string[],
+        entidade_classificada: entidade,
+        confianca_classificacao: confiancaClass,
+        ignorado,
+        encoding_suspeito: false,
+    })
+
+const mapaJsonSemEquivalente = JSON.stringify({
+    de_para: {} as Record<string, string>,
+    confianca: 0,
+    duvidas: [] as string[],
+    entidade_classificada: "sem_equivalente",
+    confianca_classificacao: 0.4,
+    ignorado: true,
+    encoding_suspeito: false,
+})
+
+const mapaJsonConfig = JSON.stringify({
+    de_para: {} as Record<string, string>,
+    confianca: 0,
+    duvidas: [] as string[],
+    eh_config: true,
+    encoding_suspeito: false,
+})
+
+const mapaJsonEncodingSuspeito = JSON.stringify({
+    de_para: { especialidade: "Cirurgia PlÃ¡stica" },
+    confianca: 0.8,
+    duvidas: [] as string[],
+    entidade_classificada: "paciente",
+    confianca_classificacao: 0.9,
+    encoding_suspeito: true,
 })
 
 let mockJobAtual: unknown = null
@@ -43,6 +87,10 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         get disparando() { return false },
         get reprocessando() { return mockReprocessando },
         get aprovando() { return mockAprovando },
+        get eventos() { return mockEventos },
+        get carregandoEventos() { return mockCarregandoEventos },
+        get progresso() { return mockProgresso },
+        get carregandoProgresso() { return false },
         carregarJob: mockCarregarJob,
         salvarMapa: mockSalvarMapa,
         salvarTemplate: mockSalvarTemplate,
@@ -52,6 +100,8 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         gerarPreview: vi.fn(),
         reprocessar: mockReprocessar,
         aprovarAnalise: mockAprovarAnalise,
+        carregarEventos: mockCarregarEventos,
+        carregarProgresso: mockCarregarProgresso,
     }),
 }))
 
@@ -80,18 +130,23 @@ vi.mock("@/components/ui", () => ({
 describe("MigracaoRevisaoView", () => {
     beforeEach(() => {
         setActivePinia(createPinia())
-        mockCarregarJob.mockReset()
+        mockCarregarJob.mockReset().mockResolvedValue(undefined)
         mockSalvarMapa.mockReset()
         mockSalvarTemplate.mockReset()
         mockDesfazer.mockReset()
         mockCarregarRelatorio.mockReset()
         mockReprocessar.mockReset()
+        mockCarregarEventos.mockReset().mockResolvedValue(undefined)
+        mockCarregarProgresso.mockReset().mockResolvedValue(undefined)
         mockJobAtual = null
         mockCarregando = false
         mockRelatorioDesfazimento = null
         mockDesfazendo = false
         mockReprocessando = false
         mockAprovando = false
+        mockEventos = []
+        mockCarregandoEventos = false
+        mockProgresso = null
         mockAprovarAnalise.mockReset()
     })
 
@@ -105,7 +160,7 @@ describe("MigracaoRevisaoView", () => {
             id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
             origem: "iClinic", criadoPorUsuarioId: "abc",
             criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
-            mapas: [{ id: 1, entidade: "paciente", mapaJson, revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z" }],
+            mapas: [{ id: 1, entidade: "paciente", nomeBlocoOrigem: "", mapaJson, revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z" }],
         }
         const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
         await wrapper.vm.$nextTick()
@@ -119,7 +174,7 @@ describe("MigracaoRevisaoView", () => {
             id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
             origem: "iClinic", criadoPorUsuarioId: "abc",
             criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
-            mapas: [{ id: 1, entidade: "paciente", mapaJson, revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z" }],
+            mapas: [{ id: 1, entidade: "paciente", nomeBlocoOrigem: "", mapaJson, revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z" }],
         }
         const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
         await wrapper.vm.$nextTick()
@@ -344,5 +399,274 @@ describe("MigracaoRevisaoView", () => {
         const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
         await wrapper.vm.$nextTick()
         expect(wrapper.text()).not.toContain("Aprovar análise")
+    })
+
+    // ─── Addendum 003 — CA51/CA52 — Stepper ─────────────────────────────────
+
+    it("CA51 — stepper mostra passo 'migrando' como atual", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "migrando",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        // O passo "Migrando" deve ter class stepper-item--atual
+        const stepperItems = wrapper.findAll(".stepper-item--atual")
+        expect(stepperItems.some(el => el.text().includes("Migrando"))).toBe(true)
+    })
+
+    it("CA52 — stepper mostra 'Falhou' como terminal quando status é falhou", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "falhou",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: "erro",
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        // O passo terminal de erro deve existir no stepper
+        const erros = wrapper.findAll(".stepper-item--erro")
+        expect(erros.some(el => el.text().includes("Falhou"))).toBe(true)
+    })
+
+    // ─── Addendum 003 — CA56 — Eventos ──────────────────────────────────────
+
+    it("CA56 — lista de eventos vazia exibe mensagem honesta", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "concluido",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        mockEventos = []
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.text()).toContain("Histórico detalhado disponível a partir desta migração.")
+    })
+
+    it("CA53 — eventos são renderizados quando existem", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "concluido",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        mockEventos = [
+            { statusAnterior: null, statusNovo: "aguardando_aprovacao", usuarioId: null, criadoEm: "2026-06-15T10:00:00Z" },
+            { statusAnterior: "aguardando_aprovacao", statusNovo: "aguardando_mapa", usuarioId: "admin-1", criadoEm: "2026-06-15T11:00:00Z" },
+        ]
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        const items = wrapper.findAll(".evento-item")
+        expect(items.length).toBe(2)
+    })
+
+    // ─── Addendum 003 — CA60 — Polling ──────────────────────────────────────
+
+    it("CA60 — polling inicia quando status é migrando", async () => {
+        vi.useFakeTimers()
+        mockCarregarJob.mockResolvedValue(undefined)
+        mockCarregarProgresso.mockResolvedValue(undefined)
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "migrando",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await vi.runOnlyPendingTimersAsync()
+        // Polling dispara carregarJob após 4s
+        expect(mockCarregarJob.mock.calls.length).toBeGreaterThanOrEqual(2)
+        vi.useRealTimers()
+    })
+
+    it("CA60 — polling NÃO inicia quando status é aguardando_aprovacao", async () => {
+        vi.useFakeTimers()
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "aguardando_aprovacao",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        const chamadas = mockCarregarJob.mock.calls.length
+        await vi.runOnlyPendingTimersAsync()
+        // Sem polling, carregarJob não é chamado além do mount
+        expect(mockCarregarJob.mock.calls.length).toBe(chamadas)
+        vi.useRealTimers()
+    })
+
+    // ─── Addendum 4 — CA77: reclassificação de bloco pelo operador ──────────
+
+    it("CA77 — seletor de entidade aparece para bloco com entidade_classificada", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 1,
+                entidade: "paciente",
+                nomeBlocoOrigem: "clientes",
+                mapaJson: mapaJsonComClassificacao("paciente", 0.9),
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+        // Seletor de reclassificação deve estar presente
+        const selects = wrapper.findAll("select.classificacao-select")
+        expect(selects.length).toBeGreaterThan(0)
+    })
+
+    it("CA77 — salvarMapa passa entidadeReclassificada quando operador reclassifica", async () => {
+        mockSalvarMapa.mockResolvedValueOnce(undefined)
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 1,
+                entidade: "paciente",
+                nomeBlocoOrigem: "clientes",
+                mapaJson: mapaJsonComClassificacao("agendamento", 0.5),
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Seleciona "paciente" no select de reclassificação
+        const select = wrapper.find("select.classificacao-select")
+        await select.setValue("paciente")
+        await wrapper.vm.$nextTick()
+
+        // Clica salvar
+        const botaoSalvar = wrapper.findAll("button").find(b => b.text().includes("Salvar mapa"))
+        await botaoSalvar!.trigger("click")
+        await flushPromises()
+
+        // store.salvarMapa deve ter sido chamado com entidadeReclassificada = "paciente"
+        expect(mockSalvarMapa).toHaveBeenCalledWith(
+            10,
+            "paciente",
+            expect.any(Object),
+            "clientes",
+            "paciente",
+            expect.any(Boolean),
+        )
+    })
+
+    // ─── Addendum 4 — CA78: sem_equivalente ignorado por padrão ────────────
+
+    it("CA78 — bloco sem_equivalente exibe aviso e checkbox ignorar pré-marcado", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 2,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "dados_internos",
+                mapaJson: mapaJsonSemEquivalente,
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Aviso de sem_equivalente deve aparecer
+        expect(wrapper.text()).toContain("Nenhuma entidade equivalente foi identificada")
+
+        // Checkbox de ignorar deve estar marcado
+        const checkbox = wrapper.find("input.ignorar-checkbox")
+        expect((checkbox.element as HTMLInputElement).checked).toBe(true)
+    })
+
+    it("CA78 — bloco sem_equivalente não exibe tabela de de-para (ignorado por padrão)", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 2,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "dados_internos",
+                mapaJson: mapaJsonSemEquivalente,
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Tabela de-para NÃO deve aparecer (bloco ignorado)
+        expect(wrapper.find(".depara-table").exists()).toBe(false)
+    })
+
+    // ─── Addendum 4 — CA79: bloco de config não migrável ────────────────────
+
+    it("CA79 — bloco de config exibe badge e texto informativo, sem tabela editável", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 3,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "estabelecimento",
+                mapaJson: mapaJsonConfig,
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Badge "Configuração (não migrável)" deve aparecer
+        const badges = wrapper.findAll(".badge")
+        expect(badges.some(b => b.text().includes("Configuração"))).toBe(true)
+
+        // Texto informativo
+        expect(wrapper.text()).toContain("não será migrado")
+
+        // Tabela de-para NÃO deve aparecer
+        expect(wrapper.find(".depara-table").exists()).toBe(false)
+
+        // Botão Salvar NÃO deve aparecer
+        const botoes = wrapper.findAll("button")
+        expect(botoes.some(b => b.text().includes("Salvar mapa"))).toBe(false)
+    })
+
+    // ─── Addendum 4 — CA81: alerta de encoding suspeito ─────────────────────
+
+    it("CA81 — alerta de encoding suspeito aparece quando encoding_suspeito=true", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 4,
+                entidade: "paciente",
+                nomeBlocoOrigem: "especialidades",
+                mapaJson: mapaJsonEncodingSuspeito,
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        expect(wrapper.text()).toContain("Encoding suspeito detectado")
     })
 })

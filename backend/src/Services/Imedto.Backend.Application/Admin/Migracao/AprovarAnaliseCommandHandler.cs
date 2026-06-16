@@ -20,10 +20,14 @@ namespace Imedto.Backend.Application.Admin.Migracao;
 public sealed class AprovarAnaliseCommandHandler
 {
     private readonly IMigracaoJobRepository _jobRepo;
+    private readonly IMigracaoJobEventoRepository _eventoRepo;
 
-    public AprovarAnaliseCommandHandler(IMigracaoJobRepository jobRepo)
+    public AprovarAnaliseCommandHandler(
+        IMigracaoJobRepository jobRepo,
+        IMigracaoJobEventoRepository eventoRepo)
     {
-        _jobRepo = jobRepo;
+        _jobRepo    = jobRepo;
+        _eventoRepo = eventoRepo;
     }
 
     public async Task Handle(AprovarAnaliseCommand command, CancellationToken ct = default)
@@ -37,8 +41,12 @@ public sealed class AprovarAnaliseCommandHandler
 
         // Domínio valida: só aguardando_aprovacao pode ser aprovado (CA42).
         // Lança BusinessException → 422 automático pelo GlobalExceptionFilter.
+        var statusAnterior = job.Status;
         job.AprovarAnalise(command.AdminId);
 
         await _jobRepo.Salvar(job, ct);
+
+        var evt = MigracaoJobEvento.Criar(job.Id, job.EstabelecimentoId, statusAnterior, job.Status, command.AdminId);
+        await _eventoRepo.Gravar(evt, ct);
     }
 }

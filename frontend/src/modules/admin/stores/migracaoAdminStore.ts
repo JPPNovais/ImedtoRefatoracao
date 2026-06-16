@@ -7,6 +7,8 @@ import {
     type PreviewMigracaoResult,
     type RelatorioMigracaoResult,
     type RelatorioDesfazimentoResult,
+    type MigracaoEventoDto,
+    type ProgressoMigracaoDto,
 } from "../services/migracaoAdminService"
 
 export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
@@ -24,12 +26,20 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
     const relatorioDesfazimento = ref<RelatorioDesfazimentoResult | null>(null)
     const reprocessando = ref(false)
     const aprovando = ref(false)
+    const eventos = ref<MigracaoEventoDto[]>([])
+    const carregandoEventos = ref(false)
+    const progresso = ref<ProgressoMigracaoDto | null>(null)
+    const carregandoProgresso = ref(false)
 
     async function carregar(filtros: {
         estabelecimentoId?: number | null
         status?: string | null
         page?: number
         size?: number
+        criadoDe?: string | null
+        criadoAte?: string | null
+        onda?: string | null
+        origem?: string | null
     } = {}): Promise<void> {
         carregando.value = true
         erro.value = null
@@ -39,6 +49,10 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
                 status: filtros.status ?? null,
                 page: filtros.page ?? pagina.value,
                 size: filtros.size ?? tamanho.value,
+                criadoDe: filtros.criadoDe ?? null,
+                criadoAte: filtros.criadoAte ?? null,
+                onda: filtros.onda ?? null,
+                origem: filtros.origem ?? null,
             })
             jobs.value = result.itens
             total.value = result.total
@@ -68,8 +82,16 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         jobId: number,
         entidade: string,
         dePara: Record<string, string>,
+        nomeBlocoOrigem?: string,
+        entidadeReclassificada?: string | null,
+        ignorado?: boolean,
     ): Promise<void> {
-        await migracaoAdminService.salvarMapa(jobId, entidade, { dePara })
+        await migracaoAdminService.salvarMapa(jobId, entidade, {
+            dePara,
+            nomeBlocoOrigem,
+            entidadeReclassificada,
+            ignorado,
+        })
         // Recarrega o job para refletir revisão.
         if (jobAtual.value?.id === jobId) {
             await carregarJob(jobId)
@@ -147,6 +169,24 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         }
     }
 
+    async function carregarEventos(jobId: number): Promise<void> {
+        carregandoEventos.value = true
+        try {
+            eventos.value = await migracaoAdminService.obterEventos(jobId)
+        } finally {
+            carregandoEventos.value = false
+        }
+    }
+
+    async function carregarProgresso(jobId: number): Promise<void> {
+        carregandoProgresso.value = true
+        try {
+            progresso.value = await migracaoAdminService.obterProgresso(jobId)
+        } finally {
+            carregandoProgresso.value = false
+        }
+    }
+
     return {
         jobs,
         total,
@@ -162,6 +202,10 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         relatorioDesfazimento,
         reprocessando,
         aprovando,
+        eventos,
+        carregandoEventos,
+        progresso,
+        carregandoProgresso,
         carregar,
         carregarJob,
         salvarMapa,
@@ -172,5 +216,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         desfazer,
         reprocessar,
         aprovarAnalise,
+        carregarEventos,
+        carregarProgresso,
     }
 })
