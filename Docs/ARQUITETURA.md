@@ -715,12 +715,15 @@ O adapter concreto (Marco 2) implementará esta porta chamando `IaService` (já 
 
 ```
 aguardando_arquivo → aguardando_aprovacao → aguardando_mapa → mapa_em_revisao → preview_pronto
-                                                                              ↘ rejeitado
+                                                                  │           ↗  (materialização)
+                                                                  ↘ rejeitado
 migrando → concluido / concluido_com_erros / desfeito
 
 aguardando_mapa ──┐
 migrando ─────────┴→ falhou → (Reprocessar) → aguardando_mapa / migrando
 ```
+
+**Materialização na transição `mapa_em_revisao → preview_pronto` (addendum 2026-06-15_007):** a transição para `preview_pronto` dispara a **materialização** — passo de **escrita** (não Query) que relê as linhas reais dos blocos aceitos (via parser), aplica o de-para aprovado (`migracao_mapas` por `nome_bloco_origem`) e cria **N `MigracaoRegistro` pendentes** (com `payload_bruto` canônico). **Sem esse passo, `migracao_registros` ficava vazia e o job concluía com ZERO registros (bug do job #12)** — `MigracaoRegistro.Criar` tinha zero call-sites. Detalhe em "Materialização de registros" abaixo.
 
 **Gate de aprovação antes da IA (addendum 2026-06-15_003):** o upload **não** vai direto para `aguardando_mapa`. Ele para em `aguardando_aprovacao`, e a inferência por IA só roda **após aprovação manual do admin** (`aguardando_aprovacao --AprovarAnalise(admin)--> aguardando_mapa`). O recorrente `InferirMapaMigracaoJob` seleciona **exclusivamente** `aguardando_mapa` (`ObterMaisAntigoAguardandoMapaOuNulo`) — esse é o gate de custo/governança de IA: nenhum job não-aprovado é jamais inferido. Padrão reaproveitável: **aprovação humana por job antes de qualquer chamada de IA cara**.
 
@@ -799,6 +802,18 @@ A inferência por bloco (1 chamada de IA por bloco-candidato) é resiliente a li
 - **Reprocessar parcial**: reusa `Reprocessar` (addendum 002/003) + o upsert `(jobId, entidade, nome_bloco_origem)` (addendum 004) — a inferência **pula a chamada de IA** dos blocos com mapa bem-sucedido persistido (`bloco_com_erro != true`); só blocos com erro/pendentes voltam à IA.
 
 > **Risco residual (operação, não código):** conta Anthropic de tier muito baixo ainda pode degradar (vários blocos em erro mesmo após retry). Mitigado por degradação graciosa + espaçamento configurável + truncamento; resolvido a médio prazo subindo o tier ou integrando o `RateLimitedIaService` (backlog).
+
+### Materialização de registros (addendum 6 — CA102-118)
+
+**A etapa que faltava entre revisão do mapa e carga.** Até o addendum 6, a Central **nunca salvava registros**: a inferência criava só os `migracao_mapas` (de-para por bloco) e **descartava as linhas**; `MigracaoRegistro.Criar` tinha **zero call-sites de produção**; o preview e a carga achavam `migracao_registros` **vazia** → o job concluía com **ZERO registros** (bug confirmado no job #12 de produção). A peça do discovery "código aplica o mapa às N linhas" nunca havia sido implementada.
+
+A **materialização** é o passo de **escrita** (não Query) disparado na transição `mapa_em_revisao → preview_pronto`:
+
+- **Itera os blocos classificados** (`migracao_mapas` por `nome_bloco_origem`, addendum 004) — não por nome de arquivo. Relê as linhas reais de cada bloco aceito (via parser) e cria **1 `MigracaoRegistro` `pendente` por linha** (`MigracaoRegistro.Criar` — agora com call-site).
+- **De-para**: colunas marcadas `ignorar` são descartadas; as demais viram campos canônicos no `payload_bruto`. Usa o **valor real inteiro** da linha — **nunca** a amostra truncada a 500 chars (o truncamento do addendum 006 é exclusivo da chamada à IA). A **validação de obrigatório fica na CARGA** (`BusinessException` do command → `MarcarRejeitado`), não na materialização.
+- **Blocos não-materializáveis** (`sem_equivalente`, `ignorado`, `eh_config`, `bloco_com_erro: true`) **não geram registro** — só blocos aceitos com entidade classificada.
+- **Idempotência**: re-materializar (re-preview / editar mapa) faz `DELETE WHERE migracao_job_id=@job AND status='pendente'` e regera dos mapas atuais — registros `importado_*`/`rejeitado`/`pulado` **nunca** são tocados (sem duplicar nem desfazer importação). O índice `ix_migracao_registros_job_status` `(migracao_job_id, status)` já existe e cobre o DELETE — **sem migration**.
+- **CQRS**: a materialização é **escrita** (command/passo), não cabe no `PreviewOnda1QueryHandler` (Query não escreve). O preview passa a contar registros **reais**; a carga (`CarregarOnda1/2JobHandler`) continua criando entidades **só por commands** (ordem de FK + upsert por chave de negócio — D11 intacto). A materialização só popula o **staging** `migracao_registros`, nunca tabela de domínio.
 
 ### Schema (tabelas `migracao_*`)
 

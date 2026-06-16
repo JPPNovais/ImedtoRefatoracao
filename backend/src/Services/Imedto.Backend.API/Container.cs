@@ -415,6 +415,8 @@ public static class Container
         services.AddSingleton<Imedto.Backend.Domain.Migracao.IMigracaoCatalogoProdutoLookup,
                               Imedto.Backend.Infrastructure.Migracao.DapperCatalogoProdutoLookup>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DisparaMigracaoCommandHandler>();
+        // Addendum 6 — materialização de registros (CA102–CA115)
+        services.AddScoped<Imedto.Backend.Application.Admin.Migracao.MaterializarRegistrosCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.PreviewOnda1QueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.RelatorioMigracaoQueryHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Migracao.DesfazerMigracaoCommandHandler>();

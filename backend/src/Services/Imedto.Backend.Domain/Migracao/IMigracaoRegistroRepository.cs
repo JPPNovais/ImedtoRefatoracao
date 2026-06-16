@@ -12,6 +12,14 @@ public interface IMigracaoRegistroRepository
     /// Usado pelo rollback (CA17) para identificar o que reverter.
     /// </summary>
     Task<List<MigracaoRegistro>> ListarCriadosPorJob(long jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Addendum 6 — R-M7/CA110: deleta SOMENTE os registros com status <c>pendente</c> do job.
+    /// Registros importado_criado/importado_atualizado/rejeitado/pulado nunca são tocados.
+    /// Usado pela re-materialização idempotente antes de reger a partir dos mapas atuais.
+    /// Coberto pelo índice ix_migracao_registros_job_status (migracao_job_id, status).
+    /// </summary>
+    Task DeletarPendentesPorJob(long jobId, CancellationToken ct = default);
 }
 
 public class RelatorioMigracao

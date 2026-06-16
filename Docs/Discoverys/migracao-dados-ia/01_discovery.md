@@ -64,6 +64,8 @@ Arquivo do cliente (CSV/XLSX/JSON/XML)
 
 **Ganhos:** custo baixo (1 chamada por arquivo, não por linha); auditável (mapa revisável antes de gravar nada); LGPD-safe (PII mascarada e em amostra); determinístico na carga (reimportar dá o mesmo resultado); **zero risco de a IA alucinar um CPF ou um medicamento** — ela nunca escreve o dado, só diz *para onde ele vai*.
 
+> **Nota (addendum 6 — 2026-06-15_007):** o passo **"código aplica o mapa às N linhas (determinístico)"** — a **materialização** das linhas em `MigracaoRegistro` pendentes com payload canônico — **só foi de fato implementado no addendum 6**. Até então faltava: a inferência criava só os mapas e descartava as linhas, e o produto **concluía com zero registros** (bug confirmado no job #12). A materialização roda na transição `mapa_em_revisao → preview_pronto`, itera blocos classificados, aplica o de-para (valor real inteiro, não a amostra truncada da IA) e é idempotente (re-materializar limpa os `pendente`, preserva os já importados). Ver `Docs/ARQUITETURA.md §Materialização de registros`.
+
 ## 5. Arquitetura — reuso de infra existente (não construir do zero)
 
 As três peças que pareciam novas **já existem no projeto**:
