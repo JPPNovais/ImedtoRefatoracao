@@ -55,6 +55,6 @@ CREATE INDEX IF NOT EXISTS ix_migracao_jobs_estab_criado_em
 -- Confirmado via inspeção da migration original (linhas 173-176).
 
 -- Registro da migration aplicada (idempotente via ON CONFLICT).
-INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+INSERT INTO public.__ef_migrations_history ("MigrationId", "ProductVersion")
 VALUES ('20260615220000_CriarTabelaMigracaoJobEventos', '10.0.0')
 ON CONFLICT DO NOTHING;
