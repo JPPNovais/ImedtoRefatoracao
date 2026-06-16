@@ -59,6 +59,10 @@ services:
       Storage__BucketAnexosProntuario: ${S3_BUCKET_ANEXOS}
       Storage__BucketFotos: ${S3_BUCKET_FOTOS}
       AWS_REGION: sa-east-1
+      # IA (Anthropic/Claude) — inferência de mapa da Central de Migração.
+      # Vazio = "IA não configurada" (job de migração falha visivelmente). Setar o
+      # SSM /imedto/dev/ia/anthropic-api-key para habilitar.
+      Ia__AnthropicApiKey: ${IA_ANTHROPIC_API_KEY}
       Cors__AllowedOrigins__0: "https://app.imedto.com"
       Cors__AllowedOrigins__1: "https://imedto.com"
       Cors__AllowedOrigins__2: "https://www.imedto.com"

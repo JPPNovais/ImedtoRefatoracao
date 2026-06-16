@@ -27,6 +27,7 @@ JWT_PRIVATE_KEY_PEM=$priv_pem
 JWT_PUBLIC_KEY_PEM=$pub_pem
 BCRYPT_PEPPER=$(get "$PARAM_PREFIX/bcrypt/pepper")
 RESEND_API_KEY=$(get "$PARAM_PREFIX/resend/api-key")
+IA_ANTHROPIC_API_KEY=$(get "$PARAM_PREFIX/ia/anthropic-api-key" 2>/dev/null || echo "")
 S3_BUCKET_FOTOS=$(get "$PARAM_PREFIX/s3/bucket-fotos")
 S3_BUCKET_ANEXOS=$(get "$PARAM_PREFIX/s3/bucket-anexos")
 EMAIL_PROVIDER=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/email/provider" --query "Parameter.Value" --output text 2>/dev/null || echo "Resend")
