@@ -13,7 +13,7 @@ public class DapperCatalogoCirurgiaLookup : IMigracaoCatalogoCirurgiaLookup
     {
         await using var conn = new NpgsqlConnection(_cs.Value);
         return await conn.QueryFirstOrDefaultAsync<long?>(
-            "SELECT id FROM catalogo_cirurgias WHERE codigo_interno = @Codigo AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
+            "SELECT id FROM orcamento_catalogo_cirurgia WHERE codigo_interno = @Codigo AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
             new { Codigo = codigo, EstId = estabelecimentoId });
     }
 
@@ -21,7 +21,7 @@ public class DapperCatalogoCirurgiaLookup : IMigracaoCatalogoCirurgiaLookup
     {
         await using var conn = new NpgsqlConnection(_cs.Value);
         return await conn.QueryFirstOrDefaultAsync<long?>(
-            "SELECT id FROM catalogo_cirurgias WHERE lower(descricao) = lower(@Descricao) AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
+            "SELECT id FROM orcamento_catalogo_cirurgia WHERE lower(descricao) = lower(@Descricao) AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
             new { Descricao = descricao, EstId = estabelecimentoId });
     }
 }
@@ -35,7 +35,7 @@ public class DapperCatalogoProdutoLookup : IMigracaoCatalogoProdutoLookup
     {
         await using var conn = new NpgsqlConnection(_cs.Value);
         return await conn.QueryFirstOrDefaultAsync<long?>(
-            "SELECT id FROM catalogo_produtos WHERE codigo_sku = @Codigo AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
+            "SELECT id FROM orcamento_catalogo_produto WHERE codigo_sku = @Codigo AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
             new { Codigo = codigoSku, EstId = estabelecimentoId });
     }
 
@@ -43,7 +43,7 @@ public class DapperCatalogoProdutoLookup : IMigracaoCatalogoProdutoLookup
     {
         await using var conn = new NpgsqlConnection(_cs.Value);
         return await conn.QueryFirstOrDefaultAsync<long?>(
-            "SELECT id FROM catalogo_produtos WHERE lower(nome) = lower(@Nome) AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
+            "SELECT id FROM orcamento_catalogo_produto WHERE lower(nome) = lower(@Nome) AND estabelecimento_id = @EstId AND ativo = true LIMIT 1",
             new { Nome = nome, EstId = estabelecimentoId });
     }
 }

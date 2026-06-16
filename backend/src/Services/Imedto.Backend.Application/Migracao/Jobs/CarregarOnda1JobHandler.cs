@@ -216,7 +216,18 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
         {
             reg.MarcarRejeitado(ex.Message);
         }
-        // Exception inesperada sobe — não capturar aqui
+        catch (OperationCanceledException)
+        {
+            throw; // cancelamento/shutdown do job não vira rejeição de registro
+        }
+        catch (Exception ex)
+        {
+            // Resiliência: um registro problemático não derruba o job inteiro.
+            // O tenant vê motivo genérico (sem PII); o detalhe técnico fica só no log do servidor.
+            _logger.LogError(ex, "[Job:{Nome}] Erro inesperado ao processar registro {RegId} ({Entidade}).",
+                Nome, reg.Id, reg.Entidade);
+            reg.MarcarRejeitado("erro inesperado ao processar o registro");
+        }
     }
 
     private static Dictionary<string, string> ParsePayload(string payloadBruto)
@@ -476,7 +487,10 @@ public sealed class CarregarOnda1JobHandler : IJobHandler
     {
         // Chave canônica: "nome" (não "nome_completo" — corrigido bug #1).
         var nome = G(payload, "nome");
-        var cpf = G(payload, "cpf");
+        // CPF que não passa no dígito verificador é tratado como ausente: cai no fallback
+        // nome+telefone (regra do briefing). Não faz sentido persistir um CPF inválido.
+        var cpfBruto = G(payload, "cpf");
+        var cpf = cpfBruto != null && CpfValidator.EhValido(cpfBruto) ? cpfBruto : null;
         var docInt = G(payload, "documento_internacional");
         var telefone = G(payload, "telefone");
 

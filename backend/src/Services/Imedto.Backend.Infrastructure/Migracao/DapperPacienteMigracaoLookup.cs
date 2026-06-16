@@ -60,7 +60,7 @@ public class DapperPacienteMigracaoLookup : IMigracaoPacienteLookup
         // ILIKE = case-insensitive no Postgres; sem PII no log (CA4).
         var ids = await conn.QueryAsync<long>(
             @"SELECT id FROM pacientes
-              WHERE LOWER(nome) = LOWER(@Nome)
+              WHERE LOWER(nome_completo) = LOWER(@Nome)
                 AND estabelecimento_id = @EstId
                 AND deletado_em IS NULL
               LIMIT 2",
