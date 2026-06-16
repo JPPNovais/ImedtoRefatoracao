@@ -77,6 +77,26 @@ public class MigracaoMapaRepository : IMigracaoMapaRepository
     }
 
     /// <summary>
+    /// Addendum 5 — reprocessar parcial (CA97/R-R8):
+    /// Busca mapa por (jobId, nomeBlocoOrigem) sem filtrar por entidade.
+    /// </summary>
+    public async Task<MigracaoMapa?> ObterPorJobBlocoOuNulo(
+        long jobId,
+        string nomeBlocoOrigem,
+        long estabelecimentoId,
+        CancellationToken ct = default)
+    {
+        if (estabelecimentoId <= 0)
+            throw new InvalidOperationException("Tenant não definido — query bloqueada.");
+
+        return await _db.MigracaoMapas
+            .FirstOrDefaultAsync(m =>
+                m.MigracaoJobId == jobId &&
+                m.NomeBlocoOrigem == nomeBlocoOrigem &&
+                m.EstabelecimentoId == estabelecimentoId, ct);
+    }
+
+    /// <summary>
     /// Addendum 4: busca por bloco sem filtro de tenant — uso exclusivo do admin.
     /// Para CSV/JSON-array (nomeBlocoOrigem = ""), cai no método legado por compatibilidade.
     /// </summary>

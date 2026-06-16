@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -16,6 +17,11 @@ namespace Imedto.Backend.Infrastructure.Migracao;
 ///   - InferirBlocoAsync: 1 chamada por bloco que classifica a entidade E mapeia as colunas (D-N2).
 ///   - InferirMapaAsync: mantido para compatibilidade; internamente usa InferirBlocoAsync.
 ///
+/// Addendum 5 (CA86-CA89):
+///   - Retry com backoff exponencial + jitter, respeitando Retry-After.
+///   - Teto de 5 tentativas. 4xx≠429 é permanente (não retenta).
+///   - 429 e 529/overloaded e falhas de rede são transitórios.
+///
 /// Usa o client "Anthropic" já registrado no IHttpClientFactory.
 /// Configuração: Ia:AnthropicApiKey e Ia:Modelo em appsettings.
 /// </summary>
@@ -25,6 +31,10 @@ public sealed class AnthropicMapeadorDeMigracao : IMapeadorDeMigracao
     {
         PropertyNameCaseInsensitive = true,
     };
+
+    // Retry — espelha ResendEmailService (CA86-CA89/D-R1).
+    private const int TentativasMax = 5;
+    private const int BaseBackoffMs = 1000; // ~1s inicial (D-R1)
 
     private readonly IHttpClientFactory _httpFactory;
     private readonly string _apiKey;
@@ -77,23 +87,97 @@ public sealed class AnthropicMapeadorDeMigracao : IMapeadorDeMigracao
             messages = new[] { new { role = "user", content = prompt } }
         });
 
-        using var client = _httpFactory.CreateClient("Anthropic");
-        using var requestMsg = new HttpRequestMessage(HttpMethod.Post, "v1/messages");
-        requestMsg.Content = new StringContent(body, Encoding.UTF8, "application/json");
+        // Client criado fora do loop — não pode ser descartado entre tentativas.
+        // IHttpClientFactory gerencia o ciclo de vida do HttpClient internamente.
+        var client = _httpFactory.CreateClient("Anthropic");
 
-        using var response = await client.SendAsync(requestMsg, ct);
-
-        if (!response.IsSuccessStatusCode)
+        // Retry com backoff exponencial + jitter (CA86-CA89/D-R1).
+        // 4xx≠429 é permanente — não retenta. 429/529/rede = transitório.
+        for (var tentativa = 1; tentativa <= TentativasMax; tentativa++)
         {
-            var errBody = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogError(
-                "[Mapeador] Anthropic API erro {Status} ao classificar bloco '{Hint}'.",
-                response.StatusCode, hintNome);
-            throw new InvalidOperationException($"Erro na API de IA: {response.StatusCode}");
+            ct.ThrowIfCancellationRequested();
+
+            HttpResponseMessage? response = null;
+            try
+            {
+                using var requestMsg = new HttpRequestMessage(HttpMethod.Post, "v1/messages");
+                requestMsg.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+                response = await client.SendAsync(requestMsg, ct);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var respJson = await response.Content.ReadAsStringAsync(ct);
+                    return ParsearRespostaBloco(respJson);
+                }
+
+                var status = (int)response.StatusCode;
+
+                // 4xx que não seja 429 (TooManyRequests) ou 408 (RequestTimeout): permanente.
+                // 401/403 = chave inválida/sem permissão — retentativa não resolveria (CA88/R-R2).
+                if (status >= 400 && status < 500
+                    && response.StatusCode != HttpStatusCode.TooManyRequests
+                    && response.StatusCode != HttpStatusCode.RequestTimeout)
+                {
+                    _logger.LogError(
+                        "[Mapeador] Anthropic API erro permanente {Status} ao classificar bloco '{Hint}'. Nenhuma retentativa.",
+                        response.StatusCode, hintNome);
+                    throw new InvalidOperationException($"Erro permanente na API de IA: {response.StatusCode}");
+                }
+
+                // 429/529/5xx = transitório → retenta.
+                // Respeitar Retry-After quando presente (CA87/R-R1).
+                var delay = CalcularDelay(response, tentativa);
+
+                _logger.LogWarning(
+                    "[Mapeador] Anthropic status {Status} ao classificar bloco '{Hint}' (tentativa {T}/{Max}). Aguardando {DelayMs}ms.",
+                    response.StatusCode, hintNome, tentativa, TentativasMax, (int)delay.TotalMilliseconds);
+
+                if (tentativa < TentativasMax)
+                    await Task.Delay(delay, ct);
+            }
+            catch (InvalidOperationException)
+            {
+                // Erro permanente já categorizado — propagar imediatamente.
+                throw;
+            }
+            catch (HttpRequestException ex)
+            {
+                // Falha transitória de rede (CA86/R-R1).
+                _logger.LogWarning(ex,
+                    "[Mapeador] Erro de rede ao classificar bloco '{Hint}' (tentativa {T}/{Max}).",
+                    hintNome, tentativa, TentativasMax);
+
+                if (tentativa < TentativasMax)
+                {
+                    var delay = CalcularBackoffJitter(tentativa);
+                    await Task.Delay(delay, ct);
+                }
+            }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Timeout da requisição — transitório.
+                _logger.LogWarning(
+                    "[Mapeador] Timeout ao classificar bloco '{Hint}' (tentativa {T}/{Max}).",
+                    hintNome, tentativa, TentativasMax);
+
+                if (tentativa < TentativasMax)
+                {
+                    var delay = CalcularBackoffJitter(tentativa);
+                    await Task.Delay(delay, ct);
+                }
+            }
+            finally
+            {
+                response?.Dispose();
+            }
         }
 
-        var respJson = await response.Content.ReadAsStringAsync(ct);
-        return ParsearRespostaBloco(respJson);
+        // Esgotou todas as tentativas (CA89/R-R1).
+        _logger.LogError(
+            "[Mapeador] Anthropic: bloco '{Hint}' falhou após {Max} tentativas — será marcado como erro.",
+            hintNome, TentativasMax);
+        throw new InvalidOperationException($"limite_taxa_ia: bloco '{hintNome}' falhou após {TentativasMax} tentativas");
     }
 
     // ─── InferirMapaAsync (compatibilidade — chama InferirBlocoAsync internamente) ──
@@ -112,6 +196,43 @@ public sealed class AnthropicMapeadorDeMigracao : IMapeadorDeMigracao
             Confianca = proposta.Confianca,
             Duvidas = proposta.Duvidas,
         };
+    }
+
+    // ─── Backoff / Retry-After ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Calcula delay respeitando Retry-After quando presente; senão usa backoff exponencial + full jitter.
+    /// Retry-After: pode ser segundos (int) ou data HTTP (RFC 7231).
+    /// </summary>
+    private static TimeSpan CalcularDelay(HttpResponseMessage response, int tentativa)
+    {
+        if (response.Headers.RetryAfter is { } retryAfter)
+        {
+            // Retry-After: seconds
+            if (retryAfter.Delta.HasValue && retryAfter.Delta.Value.TotalSeconds > 0)
+                return retryAfter.Delta.Value;
+
+            // Retry-After: HTTP-date
+            if (retryAfter.Date.HasValue)
+            {
+                var espera = retryAfter.Date.Value - DateTimeOffset.UtcNow;
+                if (espera > TimeSpan.Zero)
+                    return espera;
+            }
+        }
+
+        return CalcularBackoffJitter(tentativa);
+    }
+
+    /// <summary>
+    /// Backoff exponencial com full jitter: delay ∈ [0, BaseBackoffMs * 2^(tentativa-1)].
+    /// Evita thundering herd em múltiplos jobs simultâneos.
+    /// </summary>
+    private static TimeSpan CalcularBackoffJitter(int tentativa)
+    {
+        var maxMs = BaseBackoffMs * Math.Pow(2, tentativa - 1);
+        var jitterMs = Random.Shared.NextDouble() * maxMs;
+        return TimeSpan.FromMilliseconds(jitterMs);
     }
 
     // ─── Prompts ──────────────────────────────────────────────────────────────

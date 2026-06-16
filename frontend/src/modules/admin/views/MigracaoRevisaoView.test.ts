@@ -669,4 +669,139 @@ describe("MigracaoRevisaoView", () => {
 
         expect(wrapper.text()).toContain("Encoding suspeito detectado")
     })
+
+    // ─── Addendum 5 — CA92/R-R7: bloco com erro de IA sinalizado no painel ──
+
+    const mapaJsonBlocoErro = (motivo = "limite_taxa_ia") => JSON.stringify({
+        de_para: {} as Record<string, string>,
+        confianca: 0,
+        duvidas: [] as string[],
+        entidade_classificada: "sem_equivalente",
+        confianca_classificacao: 0,
+        ignorado: false,
+        encoding_suspeito: false,
+        bloco_com_erro: true,
+        motivo_erro: motivo,
+    })
+
+    it("CA92 — bloco com erro exibe alerta de falha de classificação", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 5,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "entradas",
+                mapaJson: mapaJsonBlocoErro("limite_taxa_ia"),
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Deve exibir alerta de erro de classificação no bloco.
+        expect(wrapper.text()).toContain("Não foi possível classificar este bloco")
+        expect(wrapper.text()).toContain("limite de taxa da IA")
+    })
+
+    it("CA92 — badge 'Erro de classificação' aparece no bloco com erro", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 5,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "entradas",
+                mapaJson: mapaJsonBlocoErro(),
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        const badges = wrapper.findAll(".badge")
+        expect(badges.some(b => b.text().includes("Erro de classificação"))).toBe(true)
+    })
+
+    it("CA94 — banner agregado aparece quando há bloco com erro + bloco OK", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [
+                {
+                    id: 1,
+                    entidade: "paciente",
+                    nomeBlocoOrigem: "pacientes",
+                    mapaJson: mapaJsonComClassificacao("paciente", 0.9),
+                    revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+                },
+                {
+                    id: 2,
+                    entidade: "sem_equivalente",
+                    nomeBlocoOrigem: "entradas",
+                    mapaJson: mapaJsonBlocoErro("limite_taxa_ia"),
+                    revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+                },
+            ],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Banner agregado: "1 de 2 bloco(s) não foram classificados"
+        expect(wrapper.text()).toContain("1 de 2 bloco(s)")
+        expect(wrapper.text()).toContain("não foram classificados")
+    })
+
+    it("CA96 — botão Salvar mapa não aparece para bloco com erro", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 5,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "entradas",
+                mapaJson: mapaJsonBlocoErro(),
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        // Botão "Salvar mapa revisado" NÃO deve aparecer para bloco com erro (CA96).
+        const botoes = wrapper.findAll("button")
+        expect(botoes.some(b => b.text().includes("Salvar mapa revisado"))).toBe(false)
+    })
+
+    it("CA92 — bloco com erro provider_indisponivel exibe mensagem correta", async () => {
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "mapa_em_revisao",
+            origem: "dump.json", criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+            mapas: [{
+                id: 5,
+                entidade: "sem_equivalente",
+                nomeBlocoOrigem: "entradas",
+                mapaJson: mapaJsonBlocoErro("provider_indisponivel"),
+                revisadoPorUsuarioId: null, revisadoEm: null, criadoEm: "2026-01-01T00:00:00Z",
+            }],
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await flushPromises()
+        await wrapper.vm.$nextTick()
+
+        expect(wrapper.text()).toContain("provider de IA indisponível")
+    })
 })

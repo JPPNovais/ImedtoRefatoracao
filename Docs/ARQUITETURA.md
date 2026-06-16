@@ -788,6 +788,18 @@ A resposta é validada contra `EntidadesCanônicas.EhValida()` — fallback para
 - Compara "problem score" (chars de reposição, chars fora de BMP) entre original e corrigido.
 - Se corrigido tem score melhor e sem replacement chars → adota. Caso contrário → mantém original e sinaliza `encoding_suspeito = true`.
 
+### Resiliência da inferência por IA (addendum 5 — CA86-101)
+
+A inferência por bloco (1 chamada de IA por bloco-candidato) é resiliente a limite de taxa e sobrecarga do provider. **Sem mudança de schema** — tudo no `mapa_json` e nos estados de job existentes.
+
+- **Retry/backoff no adapter** (`AnthropicMapeadorDeMigracao`): em **429 (TooManyRequests)**, **529 (overloaded)** ou falha transitória de rede (timeout/`HttpRequestException`), retenta respeitando o header **`Retry-After`** quando presente; senão **backoff exponencial ~1s com jitter**, **teto de 5 tentativas**. **4xx≠429 (401/403 — chave inválida) é permanente, não retenta.** **Espelha `ResendEmailService`** (mesmo padrão de retry; o adapter é o dono da resiliência — ports & adapters: handler/domínio não conhecem status HTTP).
+- **Espaçamento entre blocos**: pausa fixa **~1s configurável** entre chamadas de bloco (sequencial, nunca paralelo). O mapeador **não** passa pelo `RateLimitedIaService` — por isso o espaçamento é explícito aqui.
+- **Truncamento de valor na amostra**: cada valor é truncado a **500 caracteres** (`…[truncado]`) **após** a máscara de PII e antes do provider — corta `conteudo_html`/base64 que estouravam o TPM. D1/D2 preservados (mascara antes; trunca só comprimento).
+- **Degradação graciosa por bloco**: falha de IA em um bloco (após esgotar retry) vira **mapa de erro** (`bloco_com_erro: true` + `motivo_erro` categoria genérica sem PII no `mapa_json`) e a inferência **continua** os demais blocos — os blocos OK são preservados (corrige o bug do job #12, que perdia 5 blocos bons por um 429 no 6º). Com **≥1 sucesso** → `mapa_em_revisao` com aviso de blocos falhos; **zero sucesso** → `falhou` (`MarcarFalhou` do addendum 002).
+- **Reprocessar parcial**: reusa `Reprocessar` (addendum 002/003) + o upsert `(jobId, entidade, nome_bloco_origem)` (addendum 004) — a inferência **pula a chamada de IA** dos blocos com mapa bem-sucedido persistido (`bloco_com_erro != true`); só blocos com erro/pendentes voltam à IA.
+
+> **Risco residual (operação, não código):** conta Anthropic de tier muito baixo ainda pode degradar (vários blocos em erro mesmo após retry). Mitigado por degradação graciosa + espaçamento configurável + truncamento; resolvido a médio prazo subindo o tier ou integrando o `RateLimitedIaService` (backlog).
+
 ### Schema (tabelas `migracao_*`)
 
 5 tabelas geradas pelo `imedto-database`:

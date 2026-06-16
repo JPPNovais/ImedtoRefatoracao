@@ -105,6 +105,9 @@ function parsedMapa(mapaJson: string) {
             ignorado?: boolean
             encoding_suspeito?: boolean
             eh_config?: boolean
+            // Addendum 5 (CA92/R-R5): bloco que falhou na IA após esgotar retry.
+            bloco_com_erro?: boolean
+            motivo_erro?: string
         }
     } catch {
         return {
@@ -114,6 +117,11 @@ function parsedMapa(mapaJson: string) {
         }
     }
 }
+
+// Addendum 5 — banner de blocos com erro (CA94/R-R7).
+const bancosComErro = computed(() =>
+    store.jobAtual?.mapas?.filter(m => parsedMapa(m.mapaJson).bloco_com_erro) ?? []
+)
 
 function confiancaVariant(c: number): "success" | "warning" | "error" {
     if (c >= 0.8) return "success"
@@ -386,6 +394,29 @@ async function aprovarAnalise() {
 
         <!-- Mapas por entidade/bloco (addendum 4: cada bloco do dump é um card) -->
         <template v-if="temMapas">
+            <!-- Addendum 5 — Banner agregado de blocos com erro de IA (CA94/R-R7) -->
+            <div
+                v-if="bancosComErro.length > 0"
+                class="banner-blocos-erro"
+                role="alert"
+            >
+                <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
+                <span>
+                    <strong>{{ bancosComErro.length }} de {{ store.jobAtual!.mapas.length }} bloco(s)</strong>
+                    não foram classificados pela IA.
+                    Você pode reprocessar os pendentes ou ignorar esses blocos e continuar com os demais.
+                </span>
+                <AppButton
+                    variant="secondary"
+                    size="sm"
+                    :loading="store.reprocessando"
+                    @click="reprocessar"
+                >
+                    <i class="fa-solid fa-rotate-right" aria-hidden="true" />
+                    Reprocessar pendentes
+                </AppButton>
+            </div>
+
             <!-- CA18 — Banner de template pré-preenchido -->
             <div v-if="store.jobAtual?.nomeTemplate" class="banner-template" role="status">
                 <i class="fa-solid fa-circle-info" aria-hidden="true" />
@@ -402,8 +433,15 @@ async function aprovarAnalise() {
                         {{ mapa.nomeBlocoOrigem || mapa.entidade }}
                     </h2>
                     <div class="mapa-badges">
-                        <!-- Badge de confiança do de-para -->
-                        <AppBadge :variant="confiancaVariant(parsedMapa(mapa.mapaJson).confianca)">
+                        <!-- Addendum 5 — badge de bloco com erro de IA (CA92) -->
+                        <AppBadge v-if="parsedMapa(mapa.mapaJson).bloco_com_erro" variant="error">
+                            Erro de classificação
+                        </AppBadge>
+                        <!-- Badge de confiança do de-para (omitido se bloco com erro) -->
+                        <AppBadge
+                            v-else
+                            :variant="confiancaVariant(parsedMapa(mapa.mapaJson).confianca)"
+                        >
                             Mapeamento {{ Math.round(parsedMapa(mapa.mapaJson).confianca * 100) }}%
                         </AppBadge>
                         <AppBadge v-if="mapa.revisadoEm" variant="success">
@@ -424,6 +462,28 @@ async function aprovarAnalise() {
                 >
                     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" />
                     Encoding suspeito detectado neste bloco. Verifique os valores antes de confirmar.
+                </div>
+
+                <!-- Addendum 5 — Alerta de bloco com erro de IA (CA92/R-R7) -->
+                <div
+                    v-if="parsedMapa(mapa.mapaJson).bloco_com_erro"
+                    class="bloco-alerta bloco-alerta--erro"
+                    role="alert"
+                >
+                    <i class="fa-solid fa-circle-xmark" aria-hidden="true" />
+                    <span>
+                        Não foi possível classificar este bloco
+                        <template v-if="parsedMapa(mapa.mapaJson).motivo_erro === 'limite_taxa_ia'">
+                            — limite de taxa da IA atingido.
+                        </template>
+                        <template v-else-if="parsedMapa(mapa.mapaJson).motivo_erro === 'provider_indisponivel'">
+                            — provider de IA indisponível.
+                        </template>
+                        <template v-else>
+                            — falha na classificação.
+                        </template>
+                        Reprocesse os pendentes ou ignore este bloco para continuar.
+                    </span>
                 </div>
 
                 <!-- Addendum 4 — Bloco de classificação de entidade por IA (CA77/CA78) -->
@@ -483,8 +543,8 @@ async function aprovarAnalise() {
                     </div>
                 </div>
 
-                <!-- Tabela de-para editável (oculta se bloco é config ou ignorado) -->
-                <template v-if="!parsedMapa(mapa.mapaJson).eh_config && !ignoradoBloco[chaveBloco(mapa)]">
+                <!-- Tabela de-para editável (oculta se bloco é config, ignorado ou com erro de IA) -->
+                <template v-if="!parsedMapa(mapa.mapaJson).eh_config && !ignoradoBloco[chaveBloco(mapa)] && !parsedMapa(mapa.mapaJson).bloco_com_erro">
                     <table class="depara-table">
                         <thead>
                             <tr>
@@ -527,8 +587,8 @@ async function aprovarAnalise() {
 
                 <div v-if="erros[chaveBloco(mapa)]" class="erro-msg">{{ erros[chaveBloco(mapa)] }}</div>
 
-                <!-- Botão Salvar: omitido para blocos de config -->
-                <div v-if="!parsedMapa(mapa.mapaJson).eh_config" class="mapa-acoes">
+                <!-- Botão Salvar: omitido para blocos de config e blocos com erro de IA (CA96) -->
+                <div v-if="!parsedMapa(mapa.mapaJson).eh_config && !parsedMapa(mapa.mapaJson).bloco_com_erro" class="mapa-acoes">
                     <AppButton
                         variant="primary"
                         :loading="salvando[chaveBloco(mapa)]"
@@ -915,6 +975,37 @@ async function aprovarAnalise() {
     background: hsl(var(--info, 210 100% 96%));
     border-left: 3px solid hsl(var(--info-border, 210 100% 85%));
     color: hsl(var(--foreground));
+}
+
+/* Addendum 5 — alerta de bloco com erro de IA */
+.bloco-alerta--erro {
+    background: hsl(var(--destructive) / 0.07);
+    border-left: 3px solid hsl(var(--destructive));
+    color: hsl(var(--foreground));
+}
+
+/* Addendum 5 — banner agregado de blocos com erro */
+.banner-blocos-erro {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    background: hsl(var(--destructive) / 0.07);
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: var(--text-sm);
+    color: hsl(var(--foreground));
+}
+
+.banner-blocos-erro > i {
+    color: hsl(var(--destructive));
+    flex-shrink: 0;
+}
+
+.banner-blocos-erro > span {
+    flex: 1;
 }
 
 /* Addendum 4 — painel de classificação de entidade por IA */

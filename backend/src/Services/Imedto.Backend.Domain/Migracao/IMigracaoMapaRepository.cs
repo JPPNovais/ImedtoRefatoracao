@@ -50,4 +50,15 @@ public interface IMigracaoMapaRepository
         string entidade,
         string nomeBlocoOrigem,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Addendum 5 — reprocessar parcial (CA97/R-R8):
+    /// Busca mapa apenas por (jobId, nomeBlocoOrigem, estabelecimentoId), sem filtrar por entidade.
+    /// Necessário porque ao reprocessar não sabemos a entidade prévia do bloco com erro.
+    /// </summary>
+    Task<MigracaoMapa?> ObterPorJobBlocoOuNulo(
+        long jobId,
+        string nomeBlocoOrigem,
+        long estabelecimentoId,
+        CancellationToken ct = default);
 }
