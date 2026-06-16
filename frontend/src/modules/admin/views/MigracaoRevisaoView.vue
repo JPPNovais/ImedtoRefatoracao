@@ -259,9 +259,10 @@ function iniciarPolling() {
     pararPolling()
     if (!STATUS_ATIVOS.has(statusJob.value)) return
     pollingTimer = setTimeout(async () => {
-        await store.carregarJob(Number(props.jobId))
+        // Refresh silencioso: não zera jobAtual nem ativa carregando — scroll preservado.
+        await store.carregarJob(Number(props.jobId), true)
         if (STATUS_ATIVOS.has(statusJob.value)) {
-            await store.carregarProgresso(Number(props.jobId))
+            await store.carregarProgresso(Number(props.jobId), true)
         }
         iniciarPolling()
     }, 4000)
@@ -362,11 +363,17 @@ async function aprovarAnalise() {
             </template>
         </AppPageHeader>
 
-        <!-- Carregando -->
+        <!-- Carregando (apenas no montagem inicial — polling é silencioso) -->
         <div v-if="store.carregando" class="loading-msg">Carregando...</div>
 
         <!-- Erro -->
         <div v-else-if="store.erro" class="erro-msg">{{ store.erro }}</div>
+
+        <!-- Indicador discreto de atualização em background (polling a cada 4s) -->
+        <div v-if="store.atualizandoEmBackground && !store.carregando" class="polling-indicator" aria-live="polite" aria-label="Atualizando status">
+            <span class="polling-dot" aria-hidden="true" />
+            Atualizando...
+        </div>
 
         <!-- Bloco A — Stepper de status (CA51/CA52) -->
         <div v-else-if="store.jobAtual" class="stepper" role="list" aria-label="Progresso da migração">
@@ -928,6 +935,30 @@ async function aprovarAnalise() {
     font-size: var(--text-sm);
     color: hsl(var(--muted-foreground));
     padding: 1rem 0;
+}
+
+/* Indicador discreto de polling em background — não desloca layout */
+.polling-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
+    margin-bottom: 0.5rem;
+}
+
+.polling-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    animation: polling-pulse 1.2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes polling-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
 }
 
 .erro-msg {

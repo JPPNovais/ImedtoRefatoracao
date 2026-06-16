@@ -26,6 +26,7 @@ let mockAprovando = false
 let mockEventos: unknown[] = []
 let mockCarregandoEventos = false
 let mockProgresso: unknown = null
+let mockAtualizandoEmBackground = false
 
 const mapaJson = JSON.stringify({
     de_para: { nome: "nome", cpf: "cpf" },
@@ -91,6 +92,7 @@ vi.mock("../stores/migracaoAdminStore", () => ({
         get carregandoEventos() { return mockCarregandoEventos },
         get progresso() { return mockProgresso },
         get carregandoProgresso() { return false },
+        get atualizandoEmBackground() { return mockAtualizandoEmBackground },
         carregarJob: mockCarregarJob,
         salvarMapa: mockSalvarMapa,
         salvarTemplate: mockSalvarTemplate,
@@ -147,6 +149,7 @@ describe("MigracaoRevisaoView", () => {
         mockEventos = []
         mockCarregandoEventos = false
         mockProgresso = null
+        mockAtualizandoEmBackground = false
         mockAprovarAnalise.mockReset()
     })
 
@@ -782,6 +785,63 @@ describe("MigracaoRevisaoView", () => {
         // Botão "Salvar mapa revisado" NÃO deve aparecer para bloco com erro (CA96).
         const botoes = wrapper.findAll("button")
         expect(botoes.some(b => b.text().includes("Salvar mapa revisado"))).toBe(false)
+    })
+
+    // ─── Fix UX — polling silencioso preserva scroll ─────────────────────────
+
+    it("polling silencioso — carregarJob chamado com silencioso=true NÃO seta store.carregando", async () => {
+        // Simula o comportamento do store ao chamar carregarJob(id, true):
+        // carregando deve permanecer false durante a atualização em background.
+        vi.useFakeTimers()
+        mockCarregarJob.mockResolvedValue(undefined)
+        mockCarregarProgresso.mockResolvedValue(undefined)
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "migrando",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await vi.runOnlyPendingTimersAsync()
+        // Polling chamou carregarJob com silencioso=true — carregando nunca deve ter sido true durante o polling
+        const chamadas = mockCarregarJob.mock.calls.filter(c => c[1] === true)
+        expect(chamadas.length).toBeGreaterThan(0)
+        // mockCarregando permanece false (o store real não é executado — apenas verificamos que o argumento silencioso foi passado)
+        expect(mockCarregando).toBe(false)
+        vi.useRealTimers()
+    })
+
+    it("carregamento inicial NÃO passa silencioso — usa loading normal", () => {
+        mockJobAtual = null
+        mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        // onMounted chama carregarJob(10) sem segundo argumento — silencioso = false (default)
+        expect(mockCarregarJob).toHaveBeenCalledWith(10)
+        const primeiraChamada = mockCarregarJob.mock.calls[0]
+        expect(primeiraChamada[1]).toBeUndefined()
+    })
+
+    it("indicador de background aparece quando atualizandoEmBackground=true e carregando=false", async () => {
+        mockAtualizandoEmBackground = true
+        mockCarregando = false
+        mockJobAtual = {
+            id: 10, estabelecimentoId: 42, status: "migrando",
+            origem: null, criadoPorUsuarioId: "abc",
+            criadoEm: "2026-01-01T00:00:00Z", atualizadoEm: "2026-01-01T00:00:00Z",
+            mapas: [], templateOrigemId: null, nomeTemplate: null, motivoFalha: null,
+        }
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.find(".polling-indicator").exists()).toBe(true)
+        expect(wrapper.text()).toContain("Atualizando")
+    })
+
+    it("indicador de background NÃO aparece quando carregando inicial está ativo", async () => {
+        mockAtualizandoEmBackground = true
+        mockCarregando = true
+        mockJobAtual = null
+        const wrapper = mount(MigracaoRevisaoView, { props: { jobId: "10" } })
+        await wrapper.vm.$nextTick()
+        expect(wrapper.find(".polling-indicator").exists()).toBe(false)
     })
 
     it("CA92 — bloco com erro provider_indisponivel exibe mensagem correta", async () => {

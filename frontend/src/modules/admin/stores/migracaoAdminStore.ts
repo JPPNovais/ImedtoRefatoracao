@@ -30,6 +30,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
     const carregandoEventos = ref(false)
     const progresso = ref<ProgressoMigracaoDto | null>(null)
     const carregandoProgresso = ref(false)
+    const atualizandoEmBackground = ref(false)
 
     async function carregar(filtros: {
         estabelecimentoId?: number | null
@@ -65,7 +66,18 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         }
     }
 
-    async function carregarJob(jobId: number): Promise<void> {
+    async function carregarJob(jobId: number, silencioso = false): Promise<void> {
+        if (silencioso) {
+            atualizandoEmBackground.value = true
+            try {
+                jobAtual.value = await migracaoAdminService.obter(jobId)
+            } catch {
+                // Falha silenciosa no polling — não exibe erro para não interromper a revisão
+            } finally {
+                atualizandoEmBackground.value = false
+            }
+            return
+        }
         carregando.value = true
         erro.value = null
         jobAtual.value = null
@@ -178,12 +190,18 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         }
     }
 
-    async function carregarProgresso(jobId: number): Promise<void> {
-        carregandoProgresso.value = true
+    async function carregarProgresso(jobId: number, silencioso = false): Promise<void> {
+        if (!silencioso) {
+            carregandoProgresso.value = true
+        }
         try {
             progresso.value = await migracaoAdminService.obterProgresso(jobId)
+        } catch {
+            // Falha silenciosa no polling — progresso continuará com valor anterior
         } finally {
-            carregandoProgresso.value = false
+            if (!silencioso) {
+                carregandoProgresso.value = false
+            }
         }
     }
 
@@ -206,6 +224,7 @@ export const useMigracaoAdminStore = defineStore("adminMigracao", () => {
         carregandoEventos,
         progresso,
         carregandoProgresso,
+        atualizandoEmBackground,
         carregar,
         carregarJob,
         salvarMapa,
