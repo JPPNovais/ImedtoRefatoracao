@@ -101,7 +101,7 @@ export const dashboardService = {
                 adminId: filtros.adminId || undefined,
                 periodo: filtros.periodo ?? "7d",
                 pagina: filtros.pagina ?? 1,
-                tamanhoPagina: filtros.tamanhoPagina ?? 20,
+                tamanhoPagina: filtros.tamanhoPagina ?? 10,
             },
         })
         return data

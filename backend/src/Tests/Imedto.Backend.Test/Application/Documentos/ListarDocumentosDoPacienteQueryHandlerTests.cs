@@ -64,7 +64,7 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         EstabelecimentoId = EstabelecimentoId,
         SolicitanteUsuarioId = _solicitanteId,
         Pagina = 1,
-        TamanhoPagina = 20,
+        TamanhoPagina = 10,
         Busca = busca,
         Tipo = tipo,
     };
@@ -74,7 +74,7 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         Itens = Enumerable.Empty<DocumentoResumoDto>(),
         Total = 0,
         Pagina = 1,
-        TamanhoPagina = 20,
+        TamanhoPagina = 10,
     };
 
     // ── Caminho feliz ──────────────────────────────────────────────────────
@@ -89,10 +89,10 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         var paginaEsperada = new PaginaDocumentosDto
         {
             Itens = new[] { new DocumentoResumoDto { Tipo = "Receita", Id = 1, Titulo = "Receita Comum", Data = DateTime.UtcNow } },
-            Total = 1, Pagina = 1, TamanhoPagina = 20,
+            Total = 1, Pagina = 1, TamanhoPagina = 10,
         };
         _queryRepo.Setup(r => r.ListarDoPaciente(
-            PacienteId, EstabelecimentoId, 1, 20,
+            PacienteId, EstabelecimentoId, 1, 10,
             null, null, null, null))
             .ReturnsAsync(paginaEsperada);
 

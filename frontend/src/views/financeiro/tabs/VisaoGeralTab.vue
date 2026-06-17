@@ -101,7 +101,7 @@ const modoVencidos = ref(route.query.filtro === "vencidos")
 const itens = ref<LancamentoExtrato[]>([])
 const total = ref(0)
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 const carregandoExtrato = ref(false)
 const erroExtrato = ref<string | null>(null)
 

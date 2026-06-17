@@ -124,7 +124,7 @@ public class ExameFisicoController : ControllerBase
     public async Task<IActionResult> Listar(
         long pacienteId,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var dto = await _requestBus.Query<ListarExamesFisicosDoPacienteQuery, PaginaExamesFisicosDto>(
             new ListarExamesFisicosDoPacienteQuery

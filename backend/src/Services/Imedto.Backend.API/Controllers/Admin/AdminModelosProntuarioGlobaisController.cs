@@ -38,7 +38,7 @@ public class AdminModelosProntuarioGlobaisController : ControllerBase
         [FromQuery] bool incluirInativos = false,
         [FromQuery] string? busca = null,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanhoPagina = 20,
+        [FromQuery] int tamanhoPagina = 10,
         CancellationToken ct = default)
     {
         var (itens, total) = await _listar.Handle(incluirInativos, busca, pagina, tamanhoPagina, ct);

@@ -36,7 +36,7 @@ export const acessoService = {
             {
                 params: {
                     pagina: params.pagina ?? 1,
-                    tamanho: params.tamanho ?? 20,
+                    tamanho: params.tamanho ?? 10,
                 },
             },
         )

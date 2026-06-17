@@ -72,7 +72,7 @@ public class AdminDashboardController : ControllerBase
         [FromQuery] Guid? adminId,
         [FromQuery] string periodo = "7d",
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanhoPagina = 20,
+        [FromQuery] int tamanhoPagina = 10,
         CancellationToken ct = default)
     {
         var query = new ListarAuditLogDashboardQuery

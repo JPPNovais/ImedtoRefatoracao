@@ -34,7 +34,7 @@ const ordenacaoStr = ref<string>("recente")
 const ordenacao = computed(() => ordenacaoStr.value as Ordenacao)
 
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 
 const TABS: { valor: TabKey; label: string; statuses: OrcamentoStatus[] }[] = [
     { valor: "todos",     label: "Todos",     statuses: [] },

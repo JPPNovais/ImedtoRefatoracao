@@ -42,7 +42,7 @@ public class PacienteController : ControllerBase
     public async Task<IActionResult> Listar(
         [FromQuery] string busca = null,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var pagina1 = await _requestBus.Query<ListarPacientesQuery, PaginaPacientesDto>(
             new ListarPacientesQuery
@@ -211,7 +211,7 @@ public class PacienteController : ControllerBase
     public async Task<IActionResult> ListarAcessos(
         long id,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var dto = await _requestBus.Query<Contracts.Pacientes.Queries.ListarAcessosDoPacienteQuery,
                                           Contracts.Pacientes.Queries.Results.PaginaAcessosDto>(
@@ -241,7 +241,7 @@ public class PacienteController : ControllerBase
         [FromQuery] DateTime? dataFim = null,
         [FromQuery] string? busca = null,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var dto = await _requestBus.Query<ListarDocumentosDoPacienteQuery, PaginaDocumentosDto>(
             new ListarDocumentosDoPacienteQuery

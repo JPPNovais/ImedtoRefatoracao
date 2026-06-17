@@ -82,7 +82,7 @@ export const pacienteService = {
         return data
     },
 
-    async listar(busca?: string, pagina = 1, tamanho = 20): Promise<PaginaPacientes> {
+    async listar(busca?: string, pagina = 1, tamanho = 10): Promise<PaginaPacientes> {
         const { data } = await httpClient.get<PaginaPacientes>("/paciente", {
             params: {
                 busca: busca || undefined,

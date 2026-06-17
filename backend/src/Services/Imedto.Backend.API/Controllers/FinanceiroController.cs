@@ -38,7 +38,7 @@ public class FinanceiroController : ControllerBase
         [FromQuery] DateOnly? dataInicio,
         [FromQuery] DateOnly? dataFim,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var result = await _query.Query<ListarLancamentosQuery, PaginaLancamentosDto>(
             new ListarLancamentosQuery
@@ -332,7 +332,7 @@ public class FinanceiroController : ControllerBase
         [FromQuery] string? formaPagamento,
         [FromQuery] string? origem,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20,
+        [FromQuery] int tamanho = 10,
         // Modo vencidos (R4): quando true, ignora dataInicio/dataFim e lista
         // somente lançamentos Pendente com data_vencimento < hoje.
         [FromQuery] bool somenteVencidos = false)

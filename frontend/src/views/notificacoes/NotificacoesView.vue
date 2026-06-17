@@ -11,7 +11,7 @@ const router = useRouter()
 const store = useNotificacoesStore()
 
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 const total = ref(0)
 const itens = ref<Notificacao[]>([])
 const carregando = ref(false)

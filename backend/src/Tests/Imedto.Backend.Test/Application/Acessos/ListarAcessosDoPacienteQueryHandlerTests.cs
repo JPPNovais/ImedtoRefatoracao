@@ -51,13 +51,13 @@ public class ListarAcessosDoPacienteQueryHandlerTests
         EstabelecimentoId = EstabelecimentoId,
         SolicitanteUsuarioId = _solicitanteId,
         Pagina = 1,
-        TamanhoPagina = 20,
+        TamanhoPagina = 10,
     };
 
     private PaginaAcessosDto PaginaVazia() => new()
     {
         Itens = Enumerable.Empty<AcessoPacienteResumoDto>(),
-        Total = 0, Pagina = 1, TamanhoPagina = 20,
+        Total = 0, Pagina = 1, TamanhoPagina = 10,
     };
 
     // ── Caminho feliz ──────────────────────────────────────────────────────
@@ -79,9 +79,9 @@ public class ListarAcessosDoPacienteQueryHandlerTests
                     Acao = "Visualizou os dados",
                 },
             },
-            Total = 1, Pagina = 1, TamanhoPagina = 20,
+            Total = 1, Pagina = 1, TamanhoPagina = 10,
         };
-        _queryRepo.Setup(r => r.ListarDoPaciente(PacienteId, EstabelecimentoId, 1, 20))
+        _queryRepo.Setup(r => r.ListarDoPaciente(PacienteId, EstabelecimentoId, 1, 10))
                   .ReturnsAsync(paginaEsperada);
 
         var resultado = await _sut.Handle(Query());

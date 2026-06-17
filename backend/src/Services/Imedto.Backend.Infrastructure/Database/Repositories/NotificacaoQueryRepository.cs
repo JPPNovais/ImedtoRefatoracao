@@ -17,7 +17,7 @@ public class NotificacaoQueryRepository
     public async Task<PaginaNotificacoesDto> Listar(Guid usuarioId, bool? lidas, int pagina, int tamanho)
     {
         if (pagina < 1) pagina = 1;
-        if (tamanho < 1 || tamanho > 100) tamanho = 20;
+        if (tamanho < 1 || tamanho > 100) tamanho = 10;
         var offset = (pagina - 1) * tamanho;
 
         await using var conn = new NpgsqlConnection(_connStr);

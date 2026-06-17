@@ -26,7 +26,7 @@ public class ListarExamesFisicosDoPacienteQuery : IQuery<PaginaExamesFisicosDto>
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
     public int Pagina { get; set; } = 1;
-    public int Tamanho { get; set; } = 20;
+    public int Tamanho { get; set; } = 10;
 }
 
 /// <summary>Timeline curta dos N últimos exames físicos (versão leve).</summary>

@@ -89,7 +89,7 @@ public class ProntuarioController : ControllerBase
     public async Task<IActionResult> ListarEvolucoes(
         long pacienteId,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var dto = await _requestBus.Query<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto>(
             new ListarEvolucoesProntuarioPacienteQuery

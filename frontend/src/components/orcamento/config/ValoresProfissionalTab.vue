@@ -27,7 +27,7 @@ const profissionais = ref<ProfissionalPublico[]>([])
 const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 
 const drawerAberto = ref(false)
 const idEditando = ref<number | null>(null)

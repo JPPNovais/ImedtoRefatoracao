@@ -26,7 +26,7 @@ export const useNotificacoesStore = defineStore("notificacoes", () => {
         try {
             const pagina = await notificacaoService.listar({
                 pagina: params.pagina ?? 1,
-                tamanho: params.tamanho ?? 20,
+                tamanho: params.tamanho ?? 10,
                 lidas: params.lidas,
             })
             notificacoes.value = pagina.itens

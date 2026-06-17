@@ -12,5 +12,5 @@ public class ListarAgendamentosQuery : IQuery<PaginaAgendamentosDto>
     public long? PacienteId { get; set; }
     public string? Status { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }

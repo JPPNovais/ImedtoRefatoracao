@@ -4,7 +4,7 @@
  * W6-CA10 a CA18, CA14 (mapa PT-BR), CA15 (truncamento), CA16 (tenant), CA17 (admin).
  *
  * Filtros: ação, admin (dropdown), período (AppFilterPills, default 7d).
- * Paginação: AppPagination 20/pg.
+ * Paginação: AppPagination 10/pg.
  * Botão "Atualizar" mantém filtros.
  */
 import { ref, watch, onMounted } from "vue"
@@ -67,7 +67,7 @@ const acaoFiltro = ref("")
 const adminIdFiltro = ref("")
 const periodoFiltro = ref("7d")
 const pagina = ref(1)
-const tamanhoPagina = 20
+const tamanhoPagina = 10
 
 const periodoOpcoes = [
     { valor: "hoje", label: "Hoje" },

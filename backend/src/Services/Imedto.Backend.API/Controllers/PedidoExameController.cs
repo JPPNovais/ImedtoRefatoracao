@@ -59,7 +59,7 @@ public class PedidoExameController : ControllerBase
     public async Task<IActionResult> ListarDoPaciente(
         long pacienteId,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var dto = await _requestBus.Query<ListarPedidosExameDoPacienteQuery, PaginaPedidosExameDto>(
             new ListarPedidosExameDoPacienteQuery

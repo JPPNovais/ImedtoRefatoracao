@@ -45,7 +45,7 @@ public class CadastrosEstoqueController : ControllerBase
         [FromQuery] string? busca,
         [FromQuery] bool? apenasAtivos,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var res = await _query.Query<ListarCategoriasEstoqueQuery, PaginaCategoriasEstoqueDto>(
             new ListarCategoriasEstoqueQuery
@@ -128,7 +128,7 @@ public class CadastrosEstoqueController : ControllerBase
         [FromQuery] string? busca,
         [FromQuery] bool? apenasAtivos,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var res = await _query.Query<ListarFabricantesEstoqueQuery, PaginaFabricantesEstoqueDto>(
             new ListarFabricantesEstoqueQuery
@@ -209,7 +209,7 @@ public class CadastrosEstoqueController : ControllerBase
         [FromQuery] string? busca,
         [FromQuery] bool? apenasAtivos,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var res = await _query.Query<ListarFornecedoresEstoqueQuery, PaginaFornecedoresEstoqueDto>(
             new ListarFornecedoresEstoqueQuery
@@ -302,7 +302,7 @@ public class CadastrosEstoqueController : ControllerBase
         [FromQuery] string? busca,
         [FromQuery] bool? apenasAtivos,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var res = await _query.Query<ListarLocaisEstoqueQuery, PaginaLocaisEstoqueDto>(
             new ListarLocaisEstoqueQuery

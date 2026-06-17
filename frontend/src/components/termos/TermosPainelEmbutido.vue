@@ -62,7 +62,7 @@ const categoriasOpcoes = computed(() => [
 const itens = ref<TermoModeloDto[]>([])
 const total = ref(0)
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 const carregando = ref(false)
 
 async function carregarMeus() {

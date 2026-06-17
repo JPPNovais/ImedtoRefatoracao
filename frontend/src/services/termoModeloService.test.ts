@@ -24,7 +24,7 @@ describe("termoModeloService", () => {
 
     describe("listarModelos", () => {
         it("envia filtros padrão e devolve pagina", async () => {
-            const resp = { itens: [], pagina: 1, tamanho: 20, total: 0 }
+            const resp = { itens: [], pagina: 1, tamanho: 10, total: 0 }
             vi.mocked(httpClient.get).mockResolvedValueOnce({ data: resp } as any)
 
             const r = await termoModeloService.listarModelos()
@@ -36,7 +36,7 @@ describe("termoModeloService", () => {
                     somenteAtivos: false,
                     incluirPadroes: false,
                     pagina: 1,
-                    tamanho: 20,
+                    tamanho: 10,
                 },
             })
             expect(r).toEqual(resp)

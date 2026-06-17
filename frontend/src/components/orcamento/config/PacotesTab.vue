@@ -31,7 +31,7 @@ const buscaInput = ref("")
 const busca = useDebouncedRef(buscaInput)
 const filtroStatus = ref<"todos" | "ativos" | "inativos">("ativos")
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 
 const drawerAberto = ref(false)
 const idEditando = ref<number | null>(null)

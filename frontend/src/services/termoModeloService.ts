@@ -66,7 +66,7 @@ export const termoModeloService = {
                 somenteAtivos: filtros.somenteAtivos ?? false,
                 incluirPadroes: filtros.incluirPadroes ?? false,
                 pagina: filtros.pagina ?? 1,
-                tamanho: filtros.tamanho ?? 20,
+                tamanho: filtros.tamanho ?? 10,
             },
         })
         return data

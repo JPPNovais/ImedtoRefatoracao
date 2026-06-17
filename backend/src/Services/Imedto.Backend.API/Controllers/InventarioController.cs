@@ -35,7 +35,7 @@ public class InventarioController : ControllerBase
         [FromQuery] bool? apenasAbaixoMinimo,
         [FromQuery] bool? apenasAtivos,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var result = await _query.Query<ListarItensInventarioQuery, PaginaItensInventarioDto>(
             new ListarItensInventarioQuery
@@ -116,7 +116,7 @@ public class InventarioController : ControllerBase
         [FromQuery] DateOnly? dataInicio,
         [FromQuery] DateOnly? dataFim,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var result = await _query.Query<ListarMovimentacoesQuery, PaginaMovimentacoesEstoqueDto>(
             new ListarMovimentacoesQuery

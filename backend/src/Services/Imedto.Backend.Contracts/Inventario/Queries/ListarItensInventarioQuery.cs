@@ -10,5 +10,5 @@ public class ListarItensInventarioQuery : IQuery<PaginaItensInventarioDto>
     public bool? ApenasAbaixoMinimo { get; set; }
     public bool ApenasAtivos { get; set; } = true;
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }

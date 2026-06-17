@@ -41,7 +41,7 @@ public sealed class TermoModeloQueryRepository : ITermoModeloQueryRepository
         int tamanho)
     {
         if (pagina < 1) pagina = 1;
-        if (tamanho < 1) tamanho = 20;
+        if (tamanho < 1) tamanho = 10;
         if (tamanho > 100) tamanho = 100;
 
         const string sqlBase = """

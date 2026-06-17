@@ -8,5 +8,5 @@ public class BuscarProcedimentoCatalogoQuery : IQuery<IEnumerable<ProcedimentoCa
     public string? Termo { get; set; }
     public string? Origem { get; set; }
     public bool? Ativo { get; set; } = true;
-    public int Limit { get; set; } = 20;
+    public int Limit { get; set; } = 10;
 }

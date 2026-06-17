@@ -27,7 +27,7 @@ describe("documentoService.listarDoPaciente", () => {
         await documentoService.listarDoPaciente(42)
         expect(httpGet).toHaveBeenCalledWith(
             "/paciente/42/documentos",
-            expect.objectContaining({ params: expect.objectContaining({ pagina: 1, tamanho: 20 }) }),
+            expect.objectContaining({ params: expect.objectContaining({ pagina: 1, tamanho: 10 }) }),
         )
     })
 

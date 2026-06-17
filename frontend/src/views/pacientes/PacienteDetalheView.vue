@@ -80,7 +80,7 @@ const totalDocumentosPaciente = ref(0)
 // total da request atual — usado pela paginação; reflete o filtro corrente
 const totalDocumentosFiltrado = ref(0)
 const paginaDocumentos = ref(1)
-const tamDocumentos = ref(20)
+const tamDocumentos = ref(10)
 const carregandoDocs = ref(false)
 const erroDocumentos = ref<string | null>(null)
 
@@ -207,7 +207,7 @@ async function acionarDocumento(doc: DocumentoResumo, modo: "visualizar" | "down
 const acessos = ref<AcessoResumo[]>([])
 const totalAcessos = ref(0)
 const paginaAcessos = ref(1)
-const tamAcessos = ref(20)
+const tamAcessos = ref(10)
 const carregandoAcessos = ref(false)
 const erroAcessos = ref<string | null>(null)
 const gerandoPdfAcessos = ref(false)

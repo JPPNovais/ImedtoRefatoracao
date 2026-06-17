@@ -15,6 +15,6 @@ public class ListarModelosTermoQuery : IQuery<PaginaModelosTermoDto>
     public string Categoria { get; set; }
     public bool IncluirPadroes { get; set; } = true;
     public int Pagina { get; set; } = 1;
-    public int Tamanho { get; set; } = 20;
+    public int Tamanho { get; set; } = 10;
     public string Busca { get; set; }
 }

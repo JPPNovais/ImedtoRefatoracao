@@ -71,7 +71,7 @@ public class CatalogoController : ControllerBase
     public async Task<ActionResult<IEnumerable<ProcedimentoCatalogoDto>>> BuscarProcedimentos(
         [FromQuery] string? termo,
         [FromQuery] string? origem,
-        [FromQuery] int limit = 20)
+        [FromQuery] int limit = 10)
     {
         var result = await _query.Query<BuscarProcedimentoCatalogoQuery, IEnumerable<ProcedimentoCatalogoDto>>(
             new BuscarProcedimentoCatalogoQuery { Termo = termo, Origem = origem, Limit = limit });

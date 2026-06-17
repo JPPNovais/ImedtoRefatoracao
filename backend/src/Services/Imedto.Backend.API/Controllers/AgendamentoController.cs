@@ -38,7 +38,7 @@ public class AgendamentoController : ControllerBase
         [FromQuery] long? pacienteId,
         [FromQuery] string? status,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var result = await _query.Query<ListarAgendamentosQuery, PaginaAgendamentosDto>(
             new ListarAgendamentosQuery
@@ -222,7 +222,7 @@ public class AgendamentoController : ControllerBase
     [HttpGet("lista-espera")]
     public async Task<ActionResult<PaginaListaEsperaDto>> ListarListaEspera(
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var data = await _query.Query<ListarListaEsperaQuery, PaginaListaEsperaDto>(
             new ListarListaEsperaQuery

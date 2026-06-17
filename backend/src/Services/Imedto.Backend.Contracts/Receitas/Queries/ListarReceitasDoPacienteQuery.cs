@@ -9,5 +9,5 @@ public class ListarReceitasDoPacienteQuery : IQuery<PaginaReceitasDto>
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }

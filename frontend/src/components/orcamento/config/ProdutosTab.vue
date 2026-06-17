@@ -27,7 +27,7 @@ const busca = useDebouncedRef(buscaInput)
 type FiltroTipo = "todos" | TipoOrcamentoProduto
 const filtroTipo = ref<FiltroTipo>("todos")
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 
 const drawerAberto = ref(false)
 const idEditando = ref<number | null>(null)

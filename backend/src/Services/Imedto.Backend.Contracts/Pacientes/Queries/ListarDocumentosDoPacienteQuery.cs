@@ -14,7 +14,7 @@ public class ListarDocumentosDoPacienteQuery : IQuery<PaginaDocumentosDto>
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 
     /// <summary>Filtro por tipo: "Receita" | "Atestado" | "PedidoExame". Ausente = todos.</summary>
     public string? Tipo { get; set; }

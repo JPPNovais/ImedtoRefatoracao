@@ -10,5 +10,5 @@ public class ListarAuditLogDashboardQuery
     public Guid? AdminId { get; set; }
     public string Periodo { get; set; } = "7d";
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }

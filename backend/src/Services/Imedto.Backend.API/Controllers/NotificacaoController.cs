@@ -35,7 +35,7 @@ public class NotificacaoController : ControllerBase
     public async Task<IActionResult> Listar(
         [FromQuery] bool? lidas = null,
         [FromQuery] int pagina = 1,
-        [FromQuery] int tamanho = 20)
+        [FromQuery] int tamanho = 10)
     {
         var resultado = await _requestBus.Query<ListarNotificacoesQuery, PaginaNotificacoesDto>(
             new ListarNotificacoesQuery

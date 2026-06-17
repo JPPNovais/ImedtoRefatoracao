@@ -34,7 +34,7 @@ public class ListarExtratoQueryHandlerTests
         DataInicio = new DateOnly(2026, 1, 1),
         DataFim = new DateOnly(2026, 1, 31),
         Pagina = 1,
-        TamanhoPagina = 20
+        TamanhoPagina = 10
     };
 
     // ─── Validações ────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ public class ListarExtratoQueryHandlerTests
         _repo.RetornoVencidos = new PaginaLancamentosExtratoDto
         {
             Itens = new[] { itemVencido },
-            Total = 1, Pagina = 1, TamanhoPagina = 20
+            Total = 1, Pagina = 1, TamanhoPagina = 10
         };
 
         var q = QueryNormal();
@@ -150,12 +150,12 @@ public class ListarExtratoQueryHandlerTests
 
         public PaginaLancamentosExtratoDto RetornoNormal { get; set; } = new()
         {
-            Itens = Array.Empty<LancamentoExtratoDto>(), Total = 0, Pagina = 1, TamanhoPagina = 20
+            Itens = Array.Empty<LancamentoExtratoDto>(), Total = 0, Pagina = 1, TamanhoPagina = 10
         };
 
         public PaginaLancamentosExtratoDto RetornoVencidos { get; set; } = new()
         {
-            Itens = Array.Empty<LancamentoExtratoDto>(), Total = 0, Pagina = 1, TamanhoPagina = 20
+            Itens = Array.Empty<LancamentoExtratoDto>(), Total = 0, Pagina = 1, TamanhoPagina = 10
         };
 
         public override Task<PaginaLancamentosExtratoDto> ListarExtrato(

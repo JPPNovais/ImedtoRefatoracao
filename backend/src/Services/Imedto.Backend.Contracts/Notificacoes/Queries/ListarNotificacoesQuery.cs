@@ -10,7 +10,7 @@ public class ListarNotificacoesQuery : IQuery<PaginaNotificacoesDto>
     public bool? Lidas { get; set; }
 
     public int Pagina { get; set; } = 1;
-    public int Tamanho { get; set; } = 20;
+    public int Tamanho { get; set; } = 10;
 }
 
 public class ContadorNaoLidasQuery : IQuery<ContadorNaoLidasDto>

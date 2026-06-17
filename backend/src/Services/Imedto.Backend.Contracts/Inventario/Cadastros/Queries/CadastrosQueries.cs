@@ -9,7 +9,7 @@ public class ListarCategoriasEstoqueQuery : IQuery<PaginaCategoriasEstoqueDto>
     public string? Busca { get; set; }
     public bool? ApenasAtivos { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }
 
 public class ListarFabricantesEstoqueQuery : IQuery<PaginaFabricantesEstoqueDto>
@@ -18,7 +18,7 @@ public class ListarFabricantesEstoqueQuery : IQuery<PaginaFabricantesEstoqueDto>
     public string? Busca { get; set; }
     public bool? ApenasAtivos { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }
 
 public class ListarFornecedoresEstoqueQuery : IQuery<PaginaFornecedoresEstoqueDto>
@@ -27,7 +27,7 @@ public class ListarFornecedoresEstoqueQuery : IQuery<PaginaFornecedoresEstoqueDt
     public string? Busca { get; set; }
     public bool? ApenasAtivos { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }
 
 public class ListarLocaisEstoqueQuery : IQuery<PaginaLocaisEstoqueDto>
@@ -36,7 +36,7 @@ public class ListarLocaisEstoqueQuery : IQuery<PaginaLocaisEstoqueDto>
     public string? Busca { get; set; }
     public bool? ApenasAtivos { get; set; }
     public int Pagina { get; set; } = 1;
-    public int TamanhoPagina { get; set; } = 20;
+    public int TamanhoPagina { get; set; } = 10;
 }
 
 // ─── Queries leves para popular dropdowns ────────────────────────────────────

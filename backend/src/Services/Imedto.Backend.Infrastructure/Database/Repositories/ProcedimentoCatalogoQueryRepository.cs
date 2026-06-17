@@ -10,7 +10,7 @@ public class ProcedimentoCatalogoQueryRepository
 
     public ProcedimentoCatalogoQueryRepository(AppReadConnectionString conn) => _connStr = conn.Value;
 
-    public async Task<IEnumerable<ProcedimentoCatalogoDto>> Buscar(string? termo, string? origem, bool? ativo, int limit = 20)
+    public async Task<IEnumerable<ProcedimentoCatalogoDto>> Buscar(string? termo, string? origem, bool? ativo, int limit = 10)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 

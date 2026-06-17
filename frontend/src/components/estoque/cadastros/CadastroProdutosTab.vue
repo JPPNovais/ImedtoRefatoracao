@@ -20,7 +20,7 @@ import ModalNovoLocalRapido       from "./modais/ModalNovoLocalRapido.vue"
 const itens = ref<ItemInventario[]>([])
 const total = ref(0)
 const pagina = ref(1)
-const tamanho = ref(20)
+const tamanho = ref(10)
 const carregando = ref(false)
 const erro = ref<string | null>(null)
 

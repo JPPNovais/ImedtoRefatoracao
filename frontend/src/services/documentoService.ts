@@ -47,7 +47,7 @@ export const documentoService = {
                     dataFim: params.dataFim ?? undefined,
                     busca: params.busca ?? undefined,
                     pagina: params.pagina ?? 1,
-                    tamanho: params.tamanho ?? 20,
+                    tamanho: params.tamanho ?? 10,
                 },
             },
         )
