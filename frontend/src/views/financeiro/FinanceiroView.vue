@@ -205,9 +205,9 @@ function abrirModalLancamento() {
 .cf-tabs {
     display: flex;
     gap: 0;
+    flex-wrap: wrap;
     border-bottom: 2px solid hsl(var(--secondary) / 0.1);
     margin-bottom: 20px;
-    overflow-x: auto;
 }
 
 .cf-tab {

@@ -89,6 +89,12 @@ const novoPac = reactive({
     sexo: "",
 })
 
+// Data de hoje em ISO (UTC, espelhando DateTime.UtcNow.Date do backend). Espelho
+// da regra de Paciente.cs: nascimento não pode estar no futuro. Trava no Step 1
+// para o usuário não descobrir o 422 só ao confirmar no Step 3.
+const hojeIso = new Date().toISOString().slice(0, 10)
+const nascimentoFuturo = computed(() => !!novoPac.nascimento && novoPac.nascimento > hojeIso)
+
 // Busca server-side com debounce (LGPD: o endpoint retorna apenas {id, nome} —
 // sem CPF/telefone, espelhando o que o seletor exibe). Sem `q`, retorna os
 // últimos cadastrados; com `q`, faz search ILIKE indexado por trigram no nome.
@@ -299,6 +305,7 @@ const podeStep1 = computed(() => {
     if (modo.value === "new") {
         if (novoPac.nome.trim().length <= 2) return false
         if (novoPac.telefone.replace(/\D/g, "").length < 10) return false
+        if (nascimentoFuturo.value) return false
 
         // Documento eh OPCIONAL. Se preenchido, precisa ser valido (CPF com DV).
         // Detecção de duplicidade fica delegada ao backend (CadastrarPacienteCommand
@@ -560,7 +567,8 @@ const profSelecionado = computed(() =>
                         </div>
                         <div class="field-group">
                             <label>Data de nascimento <span class="opt">opcional</span></label>
-                            <AppDatePicker v-model="novoPac.nascimento" placeholder="DD/MM/AAAA" />
+                            <AppDatePicker v-model="novoPac.nascimento" :max="hojeIso" placeholder="DD/MM/AAAA" />
+                            <span v-if="nascimentoFuturo" class="field-error">Data de nascimento não pode estar no futuro.</span>
                         </div>
                         <div class="field-group">
                             <label>Sexo <span class="opt">opcional</span></label>
@@ -830,7 +838,7 @@ const profSelecionado = computed(() =>
                                 <span>Paciente</span>
                                 <b>
                                     {{ pacienteEfetivo.nome }}
-                                    <em v-if="pacienteEfetivo.novo" class="new-tag">novo cadastro</em>
+                                    <em v-if="pacienteEfetivo.novo" class="new-tag">Novo cadastro</em>
                                 </b>
                             </div>
                             <div v-if="pacienteEfetivo.documento" class="kv">
@@ -880,22 +888,24 @@ const profSelecionado = computed(() =>
                         </div>
                     </div>
 
-                    <div v-if="detalhes.listaEspera" class="confirm-info wait">
-                        <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
-                        <div>
-                            <b>Será adicionado à lista de espera.</b>
-                            Quando surgir um encaixe compatível com a preferência do paciente, a secretaria
-                            será notificada para entrar em contato.
+                    <template v-if="!erro">
+                        <div v-if="detalhes.listaEspera" class="confirm-info wait">
+                            <i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>
+                            <div>
+                                <b>Será adicionado à lista de espera.</b>
+                                Quando surgir um encaixe compatível com a preferência do paciente, a secretaria
+                                será notificada para entrar em contato.
+                            </div>
                         </div>
-                    </div>
-                    <div v-else class="confirm-info">
-                        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                        Tudo pronto. Ao confirmar, o agendamento será adicionado à agenda{{
-                            detalhes.lembreteEmail
-                                ? " e o lembrete será disparado 24h antes."
-                                : " sem envio de lembrete automático."
-                        }}
-                    </div>
+                        <div v-else class="confirm-info">
+                            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                            Tudo pronto. Ao confirmar, o agendamento será adicionado à agenda{{
+                                detalhes.lembreteEmail
+                                    ? " e o lembrete será disparado 24h antes."
+                                    : " sem envio de lembrete automático."
+                            }}
+                        </div>
+                    </template>
 
                     <div v-if="erro" class="erro-confirm">{{ erro }}</div>
                 </section>
@@ -1342,6 +1352,9 @@ const profSelecionado = computed(() =>
 .field-group select,
 .field-group textarea {
     height: 40px;
+    /* ancora o input na base da celula: alinha com o input do Documento,
+       cujo cabecalho (label + toggle CPF/Internacional) eh mais alto */
+    margin-top: auto;
     padding: 0 12px;
     border: 1px solid hsl(var(--foreground) / 0.12);
     border-radius: 10px;
@@ -1362,6 +1375,11 @@ const profSelecionado = computed(() =>
 .field-group textarea:focus {
     border-color: hsl(var(--primary, 254 56% 38%));
     box-shadow: 0 0 0 3px hsl(var(--primary, 254 56% 38%) / 0.12);
+}
+.field-error {
+    font-size: var(--text-xs);
+    color: hsl(0 84% 50%);
+    margin-top: 2px;
 }
 
 /* ─── Step 2 helpers ─── */

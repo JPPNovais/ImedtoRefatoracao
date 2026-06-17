@@ -507,7 +507,7 @@ function origemMeta(origem: string) {
                                                     <i class="fa-solid fa-rotate-left"></i>
                                                 </button>
                                             </template>
-                                            <span v-else-if="pagamento.estornado" class="lr-voided-tag">estornado</span>
+                                            <span v-else-if="pagamento.estornado" class="lr-voided-tag">Estornado</span>
                                         </div>
                                     </div>
 

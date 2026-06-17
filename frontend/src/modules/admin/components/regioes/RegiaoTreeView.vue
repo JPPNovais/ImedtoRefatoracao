@@ -56,7 +56,7 @@ const nivelAtual = props.nivel ?? 0
 
                 <!-- Info badges -->
                 <span v-if="no.vista" class="badge-vista">{{ no.vista }}</span>
-                <span v-if="no.lateralidade" class="badge-lat">bilateral</span>
+                <span v-if="no.lateralidade" class="badge-lat">Bilateral</span>
                 <AppBadge v-if="!no.ativo" variant="muted" label="Inativo" />
 
                 <!-- Contagem de filhos -->
