@@ -323,13 +323,36 @@ async function exportarPdfEvolucao(payload: { evolucao: Evolucao, modo: PdfSaida
     }
 }
 
-// Identifica a evolução mais recente (para destaque "Mais recente" no card).
-const idEvolucaoMaisRecente = computed(() => {
-    const lista = prontuario.value?.evolucoes ?? []
-    if (!lista.length) return null
-    return [...lista].sort((a, b) =>
-        new Date(b.criadaEm).getTime() - new Date(a.criadaEm).getTime(),
-    )[0]!.id
+// ─── Aba Prontuário — timeline paginada ───────────────────────────────────
+const evolucoesPaginadas = ref<Evolucao[]>([])
+const totalEvolucoes = ref(0)
+const paginaEvolucoes = ref(1)
+const tamEvolucoes = ref(10)
+const carregandoEvolucoes = ref(false)
+const erroEvolucoes = ref<string | null>(null)
+
+// Destaque "mais recente" → primeiro item da página 1 (backend ordena DESC).
+const idMaisRecenteTimeline = computed(() => evolucoesPaginadas.value[0]?.id ?? null)
+
+async function carregarEvolucoes() {
+    carregandoEvolucoes.value = true
+    erroEvolucoes.value = null
+    try {
+        const r = await prontuarioService.listarEvolucoes(pacienteId.value, {
+            pagina: paginaEvolucoes.value, tamanho: tamEvolucoes.value,
+        })
+        evolucoesPaginadas.value = r.itens
+        totalEvolucoes.value = r.total
+    } catch (e: any) {
+        erroEvolucoes.value = e?.response?.data?.mensagem ?? "Erro ao carregar evoluções."
+    } finally {
+        carregandoEvolucoes.value = false
+    }
+}
+
+watch([paginaEvolucoes, tamEvolucoes], () => {
+    if (aba.value !== "prontuario") return
+    void carregarEvolucoes()
 })
 
 const proximaConsulta = ref<Agendamento | null>(null)
@@ -374,13 +397,12 @@ async function carregarProntuario() {
     carregandoProntuario.value = true
     try {
         prontuario.value = await prontuarioService.obter(pacienteId.value)
-        if (prontuario.value) {
-            totalProntuarios.value = prontuario.value.evolucoes.length
-        }
     } catch { /* sem prontuário */ }
     finally { carregandoProntuario.value = false }
     abasCarregadas.add("prontuario")
     abasCarregadas.add("anamnese")
+    // Carga inicial da timeline paginada (só na primeira abertura da aba prontuário)
+    void carregarEvolucoes()
 }
 
 async function carregarOrcamentos() {
@@ -728,7 +750,7 @@ function orcStatusClass(s: string): string {
                     </div>
                 </section>
 
-                <!-- Prontuário (timeline) -->
+                <!-- Prontuário (timeline paginada) -->
                 <section v-else-if="aba === 'prontuario'">
                     <div class="prontuario-head">
                         <div>
@@ -740,10 +762,11 @@ function orcStatusClass(s: string): string {
                         </AppButton>
                     </div>
 
-                    <p v-if="carregandoProntuario" class="msg-info">Carregando…</p>
+                    <p v-if="carregandoEvolucoes" class="msg-info">Carregando…</p>
+                    <p v-else-if="erroEvolucoes" class="msg-erro">{{ erroEvolucoes }}</p>
 
                     <AppEmptyState
-                        v-else-if="!prontuario || prontuario.evolucoes.length === 0"
+                        v-else-if="totalEvolucoes === 0"
                         icone="📋"
                         titulo="Sem evoluções registradas"
                         descricao="Abra o prontuário do paciente para iniciar uma evolução clínica."
@@ -755,18 +778,26 @@ function orcStatusClass(s: string): string {
                         </template>
                     </AppEmptyState>
 
-                    <div v-else class="ht-timeline-full" role="list">
-                        <EvolucaoTimelineItem
-                            v-for="ev in prontuario.evolucoes"
-                            :key="ev.id"
-                            :evolucao="ev"
-                            :destaque="ev.id === idEvolucaoMaisRecente"
-                            :gerando-pdf="evolucaoSendoBaixada === ev.id"
-                            :pode-ver="podeVerEvolucao(ev)"
-                            @gerar-pdf="exportarPdfEvolucao"
-                            @ver-evolucao="abrirDrawer"
+                    <template v-else>
+                        <div class="ht-timeline-full" role="list">
+                            <EvolucaoTimelineItem
+                                v-for="ev in evolucoesPaginadas"
+                                :key="ev.id"
+                                :evolucao="ev"
+                                :destaque="paginaEvolucoes === 1 && ev.id === idMaisRecenteTimeline"
+                                :gerando-pdf="evolucaoSendoBaixada === ev.id"
+                                :pode-ver="podeVerEvolucao(ev)"
+                                @gerar-pdf="exportarPdfEvolucao"
+                                @ver-evolucao="abrirDrawer"
+                            />
+                        </div>
+                        <AppPagination
+                            v-model:pagina="paginaEvolucoes"
+                            v-model:tamanho="tamEvolucoes"
+                            :total="totalEvolucoes"
+                            rotulo-itens="evolução(ões)"
                         />
-                    </div>
+                    </template>
                 </section>
 
                 <!-- Anamnese -->
