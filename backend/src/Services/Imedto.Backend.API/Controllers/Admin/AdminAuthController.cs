@@ -7,6 +7,7 @@ using Imedto.Backend.Domain.Admin;
 using Imedto.Backend.Domain.Auth;
 using Imedto.Backend.Infrastructure.Admin;
 using Imedto.Backend.Infrastructure.Database;
+using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.API.Controllers.Admin;
 
@@ -209,9 +210,15 @@ public class AdminAuthController : ControllerBase
     /// <summary>
     /// Altera a própria senha. Aceita tokens com <c>must_reset_password = true</c>
     /// (policy <c>ImedtoAdminChangePassword</c> — mais permissiva que <c>ImedtoAdmin</c>).
+    ///
+    /// Dois fluxos sob a mesma rota:
+    /// 1. Força-reset (<c>must_reset_password = true</c>): <c>SenhaAtual</c> ignorada; audit RESET_SENHA_PROPRIA.
+    /// 2. Troca voluntária (token regular): <c>SenhaAtual</c> obrigatória e validada; audit ALTERAR_SENHA_PROPRIA.
+    /// A distinção é por claim — não por presença do campo no body.
     /// </summary>
     [HttpPost("change-password")]
     [Authorize(Policy = "ImedtoAdminChangePassword")]
+    [EnableRateLimiting("auth-sensitive")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> ChangePassword([FromBody] AdminChangePasswordRequest request, CancellationToken ct)
@@ -222,7 +229,24 @@ public class AdminAuthController : ControllerBase
         var admin = await _adminRepo.ObterPorIdAsync(adminId.Value, ct);
         if (admin is null || !admin.Ativo) return Unauthorized();
 
-        // Valida política de senha (lança BusinessException → 422 via GlobalExceptionFilter).
+        // Determina o fluxo pela claim must_reset_password (não pela presença de SenhaAtual).
+        var isForceReset = User.FindFirst(ImedtoAdminTokenIssuer.MustResetPasswordClaim)?.Value == "true";
+
+        if (!isForceReset)
+        {
+            // Troca voluntária — SenhaAtual é obrigatória.
+            if (string.IsNullOrWhiteSpace(request.SenhaAtual))
+                throw new BusinessException("Informe sua senha atual.");
+
+            if (!_hasher.Verificar(request.SenhaAtual, admin.SenhaHash))
+                throw new BusinessException("Senha inválida.");
+
+            // Nova senha não pode ser igual à atual (R4).
+            if (request.NovaSenha == request.SenhaAtual)
+                throw new BusinessException("A nova senha precisa ser diferente da atual.");
+        }
+
+        // Valida política de senha em ambos os fluxos (lança BusinessException → 422).
         AdminSenhaPolicy.Validar(request.NovaSenha, _env.IsDevelopment());
 
         var novoHash = _hasher.Hash(request.NovaSenha);
@@ -240,8 +264,10 @@ public class AdminAuthController : ControllerBase
         _refreshRepo.Adicionar(ImedtoAdminRefreshToken.Criar(admin.Id, novoHash2, novaExpira, ip, ua));
         await _db.SaveChangesAsync(ct);
 
+        // Audit distinto: AlterarSenhaPropria (voluntária) × ResetSenhaPropria (força-reset).
+        var acaoAudit = isForceReset ? AcoesAuditAdmin.ResetSenhaPropria : AcoesAuditAdmin.AlterarSenhaPropria;
         await _audit.RegistrarAsync(
-            AcoesAuditAdmin.ResetSenhaPropria,
+            acaoAudit,
             adminId: adminId,
             recursoTipo: "admin",
             recursoId: adminId.ToString(),

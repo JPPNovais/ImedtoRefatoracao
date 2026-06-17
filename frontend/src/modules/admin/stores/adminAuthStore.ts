@@ -85,8 +85,14 @@ export const useAdminAuthStore = defineStore("adminAuth", () => {
         admin.value = data
     }
 
-    async function changePassword(novaSenha: string) {
-        await adminApi.post("/auth/change-password", { novaSenha })
+    /**
+     * Troca a própria senha.
+     *
+     * - Troca voluntária (admin regular): fornecer senhaAtual — obrigatória no backend.
+     * - Força-reset (must_reset_password = true): omitir senhaAtual (backend ignora se fornecida).
+     */
+    async function changePassword(novaSenha: string, senhaAtual?: string) {
+        await adminApi.post("/auth/change-password", { novaSenha, senhaAtual })
         // Após troca, os cookies são renovados pelo backend — reidrata.
         await recarregarMe()
     }

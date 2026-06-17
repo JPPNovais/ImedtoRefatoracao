@@ -173,9 +173,13 @@ Módulo separado para operação interna do Imedto (não é tenant/usuário fina
 - **`ImedtoAdminTokenIssuer`** — emite JWT admin com claims `imedto_admin = "true"`, `sub`, `email`. Nunca carrega `estabelecimento_id`. Usa a mesma chave ECDSA P-256 do app (`Auth:Jwt:PrivateKeyPem`).
 - **`ImedtoAdminAuditWriter`** — caminho único de auditoria. Salva via `db.SaveChangesAsync()` direto (independente de UnitOfWork). Captura IP por X-Forwarded-For > RemoteIpAddress.
 - **`AdminAuthController`** — endpoints em `/api/admin/auth/*` (login, refresh, logout, me, change-password). Cookies: `admin-access-token` (path `/api/admin`) e `admin-refresh-token` (path `/api/admin/auth/refresh`).
+- **`POST /api/admin/auth/change-password`** — atende **dois fluxos** sob a mesma rota e policy (`ImedtoAdminChangePassword`); rate limit `auth-sensitive` (3 req/janela):
+  1. **Força-reset** (`must_reset_password = true` no token): `SenhaAtual` ignorada mesmo se enviada; audit `RESET_SENHA_PROPRIA`.
+  2. **Troca voluntária** (token regular, sem `must_reset_password`): `SenhaAtual` obrigatória e validada via `IPasswordHasher.Verificar`; nova ≠ atual obrigatório; audit `ALTERAR_SENHA_PROPRIA`.
+  Em ambos os fluxos: revoga todas as sessões (`RevogarTodosDoAdminAsync`) e reemite access + refresh atualizados (admin permanece logado). A distinção é feita **no handler pela claim** — nunca pela policy nem pela presença do campo `SenhaAtual` no body.
 - **Políticas de autorização**:
   - `ImedtoAdmin` — requer `imedto_admin = "true"` **e** ausência de `must_reset_password = "true"`.
-  - `ImedtoAdminChangePassword` — requer `imedto_admin = "true"` (permite `must_reset_password`).
+  - `ImedtoAdminChangePassword` — requer `imedto_admin = "true"` (permite `must_reset_password`). Rota `change-password` permanece aqui para aceitar ambos os fluxos.
 - **`AdminBlindagemFilter`** — filtro MVC global. Se rota não começa com `/api/admin/` e JWT tem `imedto_admin = "true"` → 403. Impede que admin acesse endpoints de tenant.
 - **`SeedAdminCommand`** — CLI interceptado antes de `WebApplication.Build`. Uso: `dotnet run -- seed-admin --email <email>`. Cria admin com senha temporária de 20 chars e `force_password_reset = true`.
 - **`AdminSenhaPolicy`** — dev: ≥ 6 chars. Prod: ≥ 10 chars + maiúscula + minúscula + número + especial.

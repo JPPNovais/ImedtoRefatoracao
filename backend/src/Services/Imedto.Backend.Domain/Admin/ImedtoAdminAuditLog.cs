@@ -124,4 +124,8 @@ public static class AcoesAuditAdmin
     public const string CriarModeloPermissaoPadraoSistema = "CRIAR_MODELO_PERMISSAO_PADRAO_SISTEMA";
     public const string AtualizarModeloPermissaoPadraoSistema = "ATUALIZAR_MODELO_PERMISSAO_PADRAO_SISTEMA";
     public const string ExcluirModeloPermissaoPadraoSistema = "EXCLUIR_MODELO_PERMISSAO_PADRAO_SISTEMA";
+
+    // Briefing 2026-06-16_002 — Troca voluntária da própria senha (admin regular, sem force-reset)
+    // Distinto de ResetSenhaPropria (RESET_SENHA_PROPRIA) que é usado no força-reset de primeiro login.
+    public const string AlterarSenhaPropria = "ALTERAR_SENHA_PROPRIA";
 }

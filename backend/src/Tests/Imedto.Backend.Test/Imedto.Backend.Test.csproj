@@ -19,6 +19,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\Core\Imedto.Backend.SharedKernel\Imedto.Backend.SharedKernel.csproj" />
+        <ProjectReference Include="..\..\Services\Imedto.Backend.API\Imedto.Backend.API.csproj" />
         <ProjectReference Include="..\..\Services\Imedto.Backend.Application\Imedto.Backend.Application.csproj" />
         <ProjectReference Include="..\..\Services\Imedto.Backend.Contracts\Imedto.Backend.Contracts.csproj" />
         <ProjectReference Include="..\..\Services\Imedto.Backend.Domain\Imedto.Backend.Domain.csproj" />

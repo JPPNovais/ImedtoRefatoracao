@@ -143,7 +143,46 @@ describe("adminAuthStore", () => {
     // ── changePassword() ──────────────────────────────────────────────────────
 
     describe("changePassword()", () => {
-        it("chama /auth/change-password e reidrata me", async () => {
+        it("força-reset: chama /auth/change-password SEM senhaAtual (parâmetro omitido)", async () => {
+            const adminData = criarAdmin({ forcePasswordReset: true })
+            vi.mocked(adminApi.post).mockResolvedValueOnce({ data: { admin: adminData } }) // login
+            vi.mocked(adminApi.post).mockResolvedValueOnce({}) // change-password
+            vi.mocked(adminApi.get).mockResolvedValueOnce({
+                data: { ...adminData, forcePasswordReset: false },
+            }) // me pós-troca
+
+            const store = useAdminAuthStore()
+            await store.login("admin@imedto.com", "Senha@123!")
+            // CA6 — força-reset: omite senhaAtual (undefined → não enviado no body ou enviado como undefined)
+            await store.changePassword("NovaSenha@456!")
+
+            expect(vi.mocked(adminApi.post)).toHaveBeenCalledWith(
+                "/auth/change-password",
+                { novaSenha: "NovaSenha@456!", senhaAtual: undefined },
+            )
+            expect(store.admin?.forcePasswordReset).toBe(false)
+        })
+
+        it("troca voluntária: chama /auth/change-password COM senhaAtual", async () => {
+            const adminData = criarAdmin()
+            vi.mocked(adminApi.post).mockResolvedValueOnce({ data: { admin: adminData } }) // login
+            vi.mocked(adminApi.post).mockResolvedValueOnce({}) // change-password
+            vi.mocked(adminApi.get).mockResolvedValueOnce({
+                data: { ...adminData },
+            }) // me pós-troca
+
+            const store = useAdminAuthStore()
+            await store.login("admin@imedto.com", "Senha@123!")
+            // CA1 / CA7 — troca voluntária: passa senhaAtual
+            await store.changePassword("NovaSenha@456!", "SenhaAtual@123!")
+
+            expect(vi.mocked(adminApi.post)).toHaveBeenCalledWith(
+                "/auth/change-password",
+                { novaSenha: "NovaSenha@456!", senhaAtual: "SenhaAtual@123!" },
+            )
+        })
+
+        it("reidrata me após troca bem-sucedida", async () => {
             const adminData = criarAdmin()
             vi.mocked(adminApi.post).mockResolvedValueOnce({ data: { admin: adminData } }) // login
             vi.mocked(adminApi.post).mockResolvedValueOnce({}) // change-password
@@ -153,13 +192,9 @@ describe("adminAuthStore", () => {
 
             const store = useAdminAuthStore()
             await store.login("admin@imedto.com", "Senha@123!")
-            await store.changePassword("NovaSenha@456!")
+            await store.changePassword("NovaSenha@456!", "SenhaAtual@123!")
 
-            expect(vi.mocked(adminApi.post)).toHaveBeenCalledWith(
-                "/auth/change-password",
-                { novaSenha: "NovaSenha@456!" },
-            )
-            expect(store.admin?.forcePasswordReset).toBe(false)
+            expect(vi.mocked(adminApi.get)).toHaveBeenCalledWith("/auth/me")
         })
     })
 

@@ -7,15 +7,17 @@
  * Timer de inatividade reseta a cada click/keydown (mantido da Wave 2).
  * Faixa banner "Área administrativa" e acento 2px warning são as únicas CSS custom (W3-CA18).
  */
-import { onMounted, onUnmounted } from "vue"
+import { onMounted, onUnmounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { AppTopBar, AppSidebar, AppBadge, AppButton } from "@/components/ui"
 import { useAdminAuthStore } from "../stores/adminAuthStore"
+import AdminAlterarSenhaModal from "../components/AdminAlterarSenhaModal.vue"
 
 const router = useRouter()
 const store = useAdminAuthStore()
 
 const isProd = import.meta.env.PROD
+const modalAlterarSenhaAberto = ref(false)
 
 const menuItems = [
     { name: "AdminDashboard",       label: "Dashboard",              icon: "fa-solid fa-gauge-high",   to: { name: "AdminDashboard" } },
@@ -73,7 +75,11 @@ onUnmounted(() => {
 
                 <template #perfil="{ fechar }">
                     <div style="padding:0.75rem 1rem;display:flex;flex-direction:column;gap:0.5rem;">
-                        <span style="font-size:0.8125rem;color:hsl(var(--muted-foreground));">{{ store.admin?.email }}</span>
+                        <span style="font-size:var(--text-sm);color:hsl(var(--muted-foreground));">{{ store.admin?.email }}</span>
+                        <AppButton variant="ghost" @click="() => { fechar(); modalAlterarSenhaAberto = true }">
+                            <i class="fa-solid fa-key" aria-hidden="true"></i>
+                            Alterar senha
+                        </AppButton>
                         <AppButton variant="danger" @click="() => { fechar(); handleLogout() }">
                             <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
                             Sair
@@ -92,6 +98,13 @@ onUnmounted(() => {
                 <router-view />
             </main>
         </div>
+
+        <!-- Modal de troca voluntária de senha (acessível pelo dropdown de perfil) -->
+        <AdminAlterarSenhaModal
+            :aberto="modalAlterarSenhaAberto"
+            @fechar="modalAlterarSenhaAberto = false"
+            @alterada="modalAlterarSenhaAberto = false"
+        />
     </div>
 </template>
 

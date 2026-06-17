@@ -96,7 +96,9 @@ Shell do módulo:
 - `AdminLayout.vue` — `AppTopBar` (slot `#brand` + slot `#perfil`) + `AppSidebar` (items estáticos). Sem `AppLayout` do app principal — o admin tem seu próprio shell.
 - Todas as views usam `<main class="app-page">` (ou `--narrow` para formulários) como raiz.
 
-Modais internos (assinatura, reset, revelar CPF) usam `AppModal` — sem `Teleport` manual nem overlay customizado.
+Modais internos (assinatura, reset, revelar CPF, troca de senha) usam `AppModal` — sem `Teleport` manual nem overlay customizado.
+
+Slot `#perfil` do `AppTopBar` no `AdminLayout` expõe ações de sessão do admin logado: botão "Alterar senha" (abre `AdminAlterarSenhaModal` no shell, acima do "Sair") e botão "Sair" (logout). Padrão: botão `ghost` para ações neutras, `danger` para logout.
 
 O isolamento físico do módulo é mantido: só importa de `@/components/ui/`, `@/composables/` e `@/assets/main.css`. Nenhum import cruzado com outros módulos do app. Decisão consciente para preservar extração futura (briefing 2026-05-30_001 §10).
 

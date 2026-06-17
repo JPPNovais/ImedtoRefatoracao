@@ -23,5 +23,12 @@ public record AdminMeResult(
     bool ForcePasswordReset,
     DateTimeOffset? UltimoLoginEm);
 
-/// <summary>Payload de change-password.</summary>
-public record AdminChangePasswordRequest(string NovaSenha);
+/// <summary>
+/// Payload de change-password.
+///
+/// <see cref="SenhaAtual"/> é opcional no contrato:
+/// - Troca voluntária (token regular, sem <c>must_reset_password</c>): obrigatória — validada no handler.
+/// - Força-reset (token com <c>must_reset_password = true</c>): ignorada mesmo se enviada.
+/// A distinção é feita no handler pela claim, não pela presença do campo.
+/// </summary>
+public record AdminChangePasswordRequest(string NovaSenha, string? SenhaAtual = null);

@@ -62,6 +62,9 @@ public static class AuditLogRetencao
         [AcoesAuditAdmin.CriarModeloPermissaoPadraoSistema]    = 365,
         [AcoesAuditAdmin.AtualizarModeloPermissaoPadraoSistema] = 365,
         [AcoesAuditAdmin.ExcluirModeloPermissaoPadraoSistema]  = 365,
+
+        // Briefing 2026-06-16_002 — Troca voluntária de senha (evento de segurança, TTL = ResetSenhaPropria)
+        [AcoesAuditAdmin.AlterarSenhaPropria] = 365,
     };
 
     /// <summary>
