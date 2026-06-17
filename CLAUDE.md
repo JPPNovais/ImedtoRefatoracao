@@ -128,7 +128,8 @@ Discoveries (investigações de viabilidade antes de cravar arquitetura) vão em
 - **Reuso > duplicação**: antes de criar endpoint, query, DTO, service, store, componente, helper → `grep`/`Glob` por equivalente existente. Estender > duplicar. Detalhes em [Docs/DESIGN.md §Reuso](Docs/DESIGN.md#reuso--duplicação).
 - **Design system primeiro**: antes de escrever HTML/CSS scoped, confira `frontend/src/components/ui/`. Componente reutilizável vai pro design system primeiro.
 - **Performance e foco**: buscar só o necessário do momento — aba não clicada não dispara consulta. Páginas centralizadas via `.app-page`. Debounce em busca via `useDebouncedRef`.
-- **1 push por sessão**: agrupa commits locais, push uma vez no fim. Pipeline de deploy custa 3-5 min.
+- **Branch por feature + aprovação humana antes da `main`**: nenhum agente faz push direto para `origin/main`. Todo trabalho vai para uma branch de feature (`feature/<slug-do-briefing>`, `fix/<slug>` para bugfix); ao fim de **todos os testes locais**, o agente **sempre pergunta** ao usuário se pode mergear na `main`. Só com o "sim" explícito é que faz merge + push (que dispara o deploy). Após o merge, **deleta a branch de feature** (local e remota, se houver) para não poluir o repositório com branches mortas. Sem confirmação, a branch fica disponível para o usuário testar por conta própria. Premissa para todos os agentes.
+- **1 push por sessão**: agrupa commits locais na branch, push uma vez no fim (após a aprovação do merge). Pipeline de deploy custa 3-5 min.
 
 ### Agents Disponíveis
 
@@ -150,24 +151,25 @@ USUÁRIO → imedto-business-analyst → planejamentos/YYYY-MM-DD_NNN_titulo.md 
    (Tipo B) │              imedto-developer ──schema?──► imedto-database
             │                        │                          │
             │                        ▼                          ▼
-            └────── Tipo A/B ── imedto-qa ── commit + push → CI/CD → deploy
+            └─ Tipo A/B ─ imedto-qa ─ commit na branch → PERGUNTA ao usuário → (com OK) merge main + push → CI/CD → deploy
 ```
 
 1. **`imedto-business-analyst`** entende a demanda, faz perguntas via `AskUserQuestion` até destravar ambiguidade (permissionamento, multi-tenant, conflito de regra, LGPD), valida com o usuário e produz briefing imutável em `planejamentos/`. Quando a demanda altera arquitetura/infra/design, atualiza `Docs/` no mesmo briefing.
 2. **`imedto-developer`** executa fielmente os CAs do briefing. Frontend + backend + testes. Aciona `imedto-database` se schema mudou.
 3. **`imedto-database`** (quando chamado) modela schema, gera migration EF + SQL idempotente em `db/migrations/`, valida via MCP/psql, devolve ao dev.
-4. **`imedto-qa`** valida cada CA com evidência, classifica bugs em Tipo A (volta ao dev) vs Tipo B (escala ao BA para addendum imutável). Se OK, commita com referência ao briefing e empurra. Loop fecha aqui.
+4. **`imedto-qa`** valida cada CA com evidência, classifica bugs em Tipo A (volta ao dev) vs Tipo B (escala ao BA para addendum imutável). Se OK, commita na branch de feature com referência ao briefing e **pergunta ao usuário** se pode mergear na `main`; só com o "sim" explícito faz merge + push. Loop fecha aqui.
 
 ### Regras dos Pipelines
 
 - **OBRIGATÓRIO: Validar ANTES de commitar** — apenas o `imedto-qa` commita. Dev e DB nunca empurram. Quality gate único.
 - **OBRIGATÓRIO: Validação local ANTES do push — nunca validar em produção depois do deploy** — o QA sobe o ambiente com `./dev.sh` (túnel SSH + backend :5050 + front :3000) e valida **cada CA com o app rodando localmente** antes de qualquer push. Vale para UI (chrome-devtools MCP, login em `.claude/qa-credentials.local.json`, gitignored) **e para fluxos sem tela — jobs em background, migração, handlers assíncronos**: dispara o fluxo local e confere o efeito real no banco (registros gravados, status, logs) antes de subir. Suíte verde NÃO basta: bug de SQL/Dapper, coluna/tabela inexistente, lifetime de DI e CSS de runtime só aparecem com o app rodando. **O deploy é consequência de já ter validado local — não é ambiente de teste; validar em prod pós-deploy é proibido como etapa de validação.** Para jobs do `JobScheduler` (advisory lock compartilhado com o backend de prod no mesmo banco da EC2), isole o smoke local: pare o backend de prod durante o teste (fase de testes permite) ou use job/tenant de teste, confirmando nos logs locais que foi o backend local que processou. Nada sobe sem esse smoke local.
+- **OBRIGATÓRIO: Branch por feature + aprovação humana antes da `main`** — nenhum agente faz push para `origin/main` sem o usuário mandar. O trabalho vai para uma branch de feature (`feature/<slug-do-briefing>`, `fix/<slug>` para bugfix). Depois de validar **todos os testes locais**, o QA commita na branch e **sempre pergunta**: "Validado localmente — posso mergear na `main` e fazer push (dispara o deploy)?". Só com confirmação explícita é que faz `git checkout main` + merge + push. Após o merge, deleta a branch de feature (local + remota) para não acumular branches mortas. Sem confirmação, a feature fica na branch para o usuário testar por conta própria.
 - **Briefing antes de código** — demanda crua sempre passa pelo BA. Trivialidades (ajuste de padding, fix de typo isolado) ficam fora da pipeline e podem ir direto pelo orquestrador.
 - **Briefing é imutável** — mudou? Cria addendum (`*-addendum.md`). Nunca edita o original.
 - **CA é Dado/Quando/Então** — sem CA testável, briefing é inválido. Multi-tenant + RBAC + LGPD + estados + performance são CAs obrigatórios.
 - **QA classifica antes de devolver** — Tipo A vai pro dev; Tipo B escala pro BA. Sem classificação, a pipeline trava em loop de patch de sintoma.
 - **QA nunca corrige bug sozinho** — mesmo typo. Devolve com diagnóstico estruturado. A pipeline aprende devolvendo.
-- **1 push por sessão** — agrupa commits localmente, push uma vez no fim. CI/CD pesado (~3-5 min por deploy).
+- **1 push por sessão** — agrupa commits localmente na branch, push uma vez no fim (após o usuário aprovar o merge). CI/CD pesado (~3-5 min por deploy).
 - **Documentação viva** — se a entrega muda arquitetura/infra/design/regra cross-cutting, o doc em `Docs/` é atualizado no mesmo PR. O QA valida.
 - **Sempre anunciar** qual agent está sendo chamado antes de invocá-lo.
 - **Parar e reportar** se um agent encontrar problema crítico.

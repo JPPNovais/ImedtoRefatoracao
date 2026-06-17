@@ -41,8 +41,10 @@ Pipeline de 4 agentes especializados com **separação clara de papéis**, **bri
                                               └──────────┬───────────┘
                                                          │
                                                          ▼
-                                                    git push origin main
-                                                  (CI/CD → deploy automático)
+                                            commit na branch de feature
+                                       → PERGUNTA ao usuário → (só com OK)
+                                       merge na main + git push origin main
+                                              (CI/CD → deploy automático)
 ```
 
 **Legenda dos retornos**:
@@ -96,7 +98,7 @@ Configuração de MCPs locais fica em `.mcp.json` (gitignored — templates em `
 3. **Garantir `appsettings.Development.json`** em `backend/src/Services/Imedto.Backend.API/` (connection strings + JWT PEM + buckets S3 + Resend key).
 4. **Garantir túnel SSH ao RDS** (ou MCP AWS RDS) funcional para o `imedto-database`.
 5. **Garantir Chrome + chrome-devtools MCP** funcional para o `imedto-qa`.
-6. **Garantir `git` configurado** com credenciais para push (o QA empurra direto pra `main` em features pequenas, ou cria PR em mudanças maiores — o critério é o tamanho da feature e a estabilidade da `main` no momento).
+6. **Garantir `git` configurado** com credenciais para push. O QA **nunca** empurra direto pra `main`: commita na branch de feature, valida tudo localmente e **pergunta ao usuário** antes de mergear na `main`. Só com o "sim" explícito faz merge + push (1 deploy).
 
 ## Como você dispara a pipeline
 
@@ -132,7 +134,7 @@ Pula o BA porque o briefing já existe e foi aprovado. Vai direto ao dev.
 
 Aciona **`imedto-business-analyst`** em Modo B. Ele lê o briefing original + relato do QA, decide entre addendum ou briefing novo, valida com você, e despacha ao dev.
 
-## Regras de ouro do fluxo (8 não-negociáveis)
+## Regras de ouro do fluxo (9 não-negociáveis)
 
 1. **Briefing antes de código.** Demanda crua não vira commit. Tudo passa pelo BA primeiro (exceto trivialidades documentadas em CLAUDE.md).
 2. **Briefing é imutável.** Mudou? Cria addendum. Nunca edita o original.
@@ -141,7 +143,8 @@ Aciona **`imedto-business-analyst`** em Modo B. Ele lê o briefing original + re
 5. **Único commit point é o QA.** Dev nem DB committam. Isso garante que nada sobe sem passar pela validação completa.
 6. **QA classifica bug antes de devolver.** Tipo A → dev. Tipo B → BA. Sem essa classificação, a pipeline trava em loop de patch.
 7. **QA nunca corrige bug.** Mesmo typo. Devolve com diagnóstico. A pipeline aprende devolvendo.
-8. **1 push por sessão.** Agrupa commits locais; faz `git push` uma vez no fim. Pipeline CI/CD da `main` é pesada (~3-5 min).
+8. **1 push por sessão.** Agrupa commits locais na branch; faz `git push` uma vez no fim, depois de o usuário aprovar o merge. Pipeline CI/CD da `main` é pesada (~3-5 min).
+9. **Branch por feature + aprovação humana antes da `main`.** Nenhum agente faz push direto para `origin/main`. Todo trabalho vai para uma branch de feature (`feature/<slug>`, `fix/<slug>`). Ao fim de **todos os testes locais**, o QA commita na branch e **sempre pergunta** ao usuário se pode mergear na `main`. Só com o "sim" explícito faz merge + push. Após o merge, **deleta a branch de feature** (local + remota) — branch mergeada não fica viva. Sem isso, a branch fica disponível para o usuário testar.
 
 ## Exemplo concreto — ponta a ponta
 
@@ -182,16 +185,18 @@ Aciona **`imedto-business-analyst`** em Modo B. Ele lê o briefing original + re
 
 **7. `imedto-qa`** *(re-validação)*:
 - Suíte ✓. CA3 ✓. Todos os CAs ✓.
-- Commit: `feat(agenda): adicionar bloqueio de horário por profissional` + body com `Briefing: planejamentos/2026-05-25_001_*` + `Co-Authored-By`.
-- Push → CI/CD aplica migration no RDS → deploy automático → smoke test.
+- Commit na branch `feature/bloqueio-agenda-profissional`: `feat(agenda): adicionar bloqueio de horário por profissional` + body com `Briefing: planejamentos/2026-05-25_001_*` + `Co-Authored-By`.
+- **Pergunta ao usuário**: "Validado localmente — posso mergear na `main` e fazer push (dispara o deploy)?" → usuário testa a branch e responde "sim".
+- Só então: `git checkout main` + `git merge --no-ff feature/...` + push → CI/CD aplica migration no RDS → deploy automático → smoke test.
+- Pós-merge: deleta a branch — `git branch -d feature/...` (+ `git push origin --delete feature/...` se tiver sido enviada ao remoto).
 
-Total: 1 push, 1 deploy, briefing imutável arquivado, testes de regressão presentes.
+Total: 1 branch testável (e deletada após o merge), 1 aprovação humana, 1 push, 1 deploy, briefing imutável arquivado, testes de regressão presentes.
 
 ## Quando NÃO usar a pipeline
 
 - **Spike / exploração de viabilidade técnica** — não muda código de produção. Vai direto no main (orquestrador humano) ou em branch descartável.
 - **Refator interno puro** sem mudança observável para o usuário — pode pular o BA, mas ainda passa pelo QA (que valida ausência de regressão).
-- **Hotfix urgente trivial** (1 linha, óbvio, sem regra de negócio) — descreva no commit message; QA valida e empurra.
+- **Hotfix urgente trivial** (1 linha, óbvio, sem regra de negócio) — descreva no commit message; QA valida e, mesmo aqui, pergunta antes de mergear na `main` (a menos que você diga "sobe direto").
 - **Mudanças exclusivas em documentação** (`Docs/`, `README.md`) — direto, sem pipeline. QA opcional pra revisar texto.
 - **Mudanças de configuração de infra** (`infra/aws-resources.md`, `.github/workflows/`) — vai pelo orquestrador humano com cuidado, fora do escopo da pipeline de features.
 
