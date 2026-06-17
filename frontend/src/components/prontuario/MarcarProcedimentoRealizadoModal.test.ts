@@ -107,7 +107,7 @@ describe("MarcarProcedimentoRealizadoModal", () => {
 
         expect(wrapper.text()).toContain("não serão baixados automaticamente")
         expect(wrapper.text()).toContain("Curativo X")
-        expect(wrapper.text()).toContain("sem estoque vinculado")
+        expect(wrapper.text()).toContain("Sem estoque vinculado")
     })
 
     it("não exibe aviso quando todos os produtos têm vínculo de estoque", async () => {

@@ -168,7 +168,7 @@ function formatarQtd(q: number): string {
                     >
                         <span class="prod-nome">{{ prod.produtoNome }}</span>
                         <span class="prod-qtd">{{ formatarQtd(prod.quantidade) }} un</span>
-                        <span v-if="prod.semVinculo" class="prod-tag-sem-vinculo">sem estoque vinculado</span>
+                        <span v-if="prod.semVinculo" class="prod-tag-sem-vinculo">Sem estoque vinculado</span>
                         <span v-else class="prod-tag-item">{{ prod.itemInventarioNome }}</span>
                     </li>
                 </ul>
