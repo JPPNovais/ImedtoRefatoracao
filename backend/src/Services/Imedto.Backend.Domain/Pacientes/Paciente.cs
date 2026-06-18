@@ -58,6 +58,11 @@ public class Paciente : Entity, ISoftDeletable
 
     public virtual bool EstaAnonimizado => AnonimizadoEm.HasValue;
 
+    // Consentimento WhatsApp (LGPD — base: consentimento explícito do titular, Art. 7º I).
+    public virtual bool WhatsappLembreteOptIn { get; protected set; }
+    public virtual DateTime? WhatsappLembreteOptInEm { get; protected set; }
+    public virtual Guid? WhatsappLembreteOptInPorUsuarioId { get; protected set; }
+
     protected Paciente() { }
 
     public static Paciente Cadastrar(
@@ -144,6 +149,21 @@ public class Paciente : Entity, ISoftDeletable
         Observacoes = SanitizeOpt(observacoes, digitsOnly: false);
         Tags = NormalizarLista(tags, TagMaxLen, TagsMaxCount, "Tags");
         Alertas = NormalizarLista(alertas, AlertaMaxLen, AlertasMaxCount, "Alertas");
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Registra ou revoga o consentimento explícito do paciente para receber lembretes via WhatsApp.
+    /// Grava data/hora e quem registrou (audit trail LGPD — R4 do briefing 2026-06-18_005).
+    /// </summary>
+    public virtual void AtualizarConsentimentoWhatsapp(bool optIn, Guid registradoPorUsuarioId)
+    {
+        if (EstaDeletado)
+            throw new BusinessException("Paciente deletado não pode ser editado.");
+
+        WhatsappLembreteOptIn = optIn;
+        WhatsappLembreteOptInEm = DateTime.UtcNow;
+        WhatsappLembreteOptInPorUsuarioId = registradoPorUsuarioId;
         AtualizadoEm = DateTime.UtcNow;
     }
 

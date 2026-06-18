@@ -77,6 +77,21 @@ A Fase 2 introduz um novo ponto de coleta de dado operacional para o fluxo públ
 
 **Referência cruzada**: padrão idêntico ao já documentado para Termos (`termo_emitido_acesso_log`). Se a política de retenção for alterada para Termos, aplicar o mesmo ajuste aqui.
 
+## Lembrete por WhatsApp — consentimento e envio a terceiro (briefing 2026-06-18_005)
+
+O lembrete de consulta ganha um canal WhatsApp complementar ao e-mail (mesmo job recorrente). Isso introduz **(a)** um novo dado pessoal — o **consentimento explícito (opt-in)** do titular — e **(b)** o **uso do telefone do paciente em compartilhamento com terceiro** (Meta / WhatsApp Cloud API).
+
+| Dado | Tabela / campo | Classificação | Regra |
+|---|---|---|---|
+| Opt-in de lembrete WhatsApp | `pacientes.whatsapp_lembrete_opt_in`, `..._opt_in_em`, `..._opt_in_por_usuario_id` | Consentimento do titular (Art. 7º I / Art. 11 I LGPD) | **Base legal = consentimento explícito.** Sem opt-in marcado, o sistema **nunca** envia WhatsApp — mesmo com telefone válido e canal habilitado. Marcar/desmarcar grava data/hora + `usuario_id` de quem registrou. |
+| Telefone do paciente (uso para envio) | `pacientes.telefone` (já existente) | Dado pessoal | **Compartilhamento com terceiro** (Meta): o telefone só é normalizado a E.164 e enviado ao provedor **quando** há opt-in + canal habilitado + telefone válido. Minimização: nenhum outro dado do paciente vai ao provedor além do necessário para o template (nome, tipo de serviço, profissional, data/hora — corpo identifica o estabelecimento). |
+
+- **Audit do consentimento**: marcar/desmarcar o opt-in registra 1 linha de **Escrita** em `paciente_acesso_log` via `IPacienteAcessoLogService.RegistrarAsync(paciente_id, usuario_id, estabelecimento_id, TipoAcessoPaciente.Escrita)` — reuso do serviço existente, best-effort (falha do audit não bloqueia o salvar). **Sem tabela/serviço de audit novo.**
+- **Sem PII em log de envio**: o adapter/handler de WhatsApp loga **apenas o hash SHA-256 truncado do destinatário** — espelho exato de `ResendEmailService`/`NoOpEmailService`. Nunca telefone, nome, e-mail ou corpo da mensagem, em sucesso ou falha. Falha de entrega → `LogWarning` sem PII, não marca enviado, não relança.
+- **Sem log de delivery/leitura no MVP**: o MVP não grava tabela de envios/entregas WhatsApp (webhooks de status são fase futura). O único audit do MVP é o do **consentimento** (acima).
+- **Interação com anonimização LGPD**: o job `anonimizar-pacientes-inativos` zera `pacientes.telefone`; consentimento sem telefone é inerte (nada é enviado por R2 do briefing). Avaliar resetar o opt-in junto à anonimização — comportamento decidido no PR da entrega, sem schema adicional.
+- **Multi-tenant**: o corpo do template **sempre** identifica o estabelecimento de origem (`{{nome_estabelecimento}}`); o envio só ocorre sobre agendamentos já filtrados por `estabelecimento_id`. Nenhum dado de outro tenant transita.
+
 ## Pool de variáveis do prontuário — minimização de dados (briefing 2026-06-05_001)
 
 A tabela `prontuario_variaveis_pool` guarda nomes genéricos de itens clínicos (ex.: "Dipirona", "Hipertensão") — **não é PII de paciente**. Regras de uso:

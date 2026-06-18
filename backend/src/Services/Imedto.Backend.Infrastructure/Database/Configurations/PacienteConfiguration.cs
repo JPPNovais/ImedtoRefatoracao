@@ -47,6 +47,11 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.Property(p => p.AnonimizadoEm).HasColumnName("anonimizado_em");
         builder.Property(p => p.AnonimizadoPorUsuarioId).HasColumnName("anonimizado_por_usuario_id");
 
+        // Consentimento WhatsApp (LGPD — base: consentimento explícito, Art. 7º I).
+        builder.Property(p => p.WhatsappLembreteOptIn).HasColumnName("whatsapp_lembrete_opt_in").IsRequired().HasDefaultValue(false);
+        builder.Property(p => p.WhatsappLembreteOptInEm).HasColumnName("whatsapp_lembrete_opt_in_em");
+        builder.Property(p => p.WhatsappLembreteOptInPorUsuarioId).HasColumnName("whatsapp_lembrete_opt_in_por_usuario_id");
+
         // Listagens ativas sempre filtram por estabelecimento + não-deletado.
         builder.HasIndex(p => new { p.EstabelecimentoId, p.DeletadoEm }).HasDatabaseName("ix_pacientes_estabelecimento");
 

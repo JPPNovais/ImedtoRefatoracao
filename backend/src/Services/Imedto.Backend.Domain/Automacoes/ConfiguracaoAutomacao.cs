@@ -6,6 +6,7 @@ public class ConfiguracaoAutomacao : Entity
 {
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual bool LembretesHabilitados { get; protected set; }
+    public virtual bool LembretesWhatsappHabilitados { get; protected set; }
     public virtual int HorasAntecedenciaLembrete { get; protected set; }
     public virtual bool ExpiracaoOrcamentosHabilitada { get; protected set; }
     public virtual string? EmailRemetente { get; protected set; }
@@ -22,12 +23,13 @@ public class ConfiguracaoAutomacao : Entity
         AtualizadoEm = DateTime.UtcNow
     };
 
-    public void Atualizar(bool lembretesHabilitados, int horasAntecedencia, bool expiracaoHabilitada, string? emailRemetente)
+    public void Atualizar(bool lembretesHabilitados, bool lembretesWhatsappHabilitados, int horasAntecedencia, bool expiracaoHabilitada, string? emailRemetente)
     {
         if (horasAntecedencia < 1 || horasAntecedencia > 72)
             throw new BusinessException("Horas de antecedência deve ser entre 1 e 72.");
 
         LembretesHabilitados = lembretesHabilitados;
+        LembretesWhatsappHabilitados = lembretesWhatsappHabilitados;
         HorasAntecedenciaLembrete = horasAntecedencia;
         ExpiracaoOrcamentosHabilitada = expiracaoHabilitada;
         EmailRemetente = string.IsNullOrWhiteSpace(emailRemetente) ? null : emailRemetente.Trim();

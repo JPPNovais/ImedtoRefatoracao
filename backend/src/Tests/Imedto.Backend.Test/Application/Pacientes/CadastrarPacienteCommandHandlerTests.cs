@@ -16,6 +16,7 @@ public class CadastrarPacienteCommandHandlerTests
     private Mock<IPacienteRepository> _repo;
     private Mock<IEventBus> _eventBus;
     private Mock<IAssinaturaService> _assinatura;
+    private Mock<IPacienteAcessoLogService> _acessoLog;
     private CadastrarPacienteCommandHandler _sut;
 
     private const long EstabelecimentoId = 1;
@@ -26,7 +27,8 @@ public class CadastrarPacienteCommandHandlerTests
         _repo = new Mock<IPacienteRepository>();
         _eventBus = new Mock<IEventBus>();
         _assinatura = new Mock<IAssinaturaService>();
-        _sut = new CadastrarPacienteCommandHandler(_repo.Object, _eventBus.Object, _assinatura.Object);
+        _acessoLog = new Mock<IPacienteAcessoLogService>();
+        _sut = new CadastrarPacienteCommandHandler(_repo.Object, _eventBus.Object, _assinatura.Object, _acessoLog.Object);
 
         // Default: limite NAO atingido (caminho feliz).
         _assinatura.Setup(s => s.LimiteAtingidoAsync(EstabelecimentoId, "pacientes", default))

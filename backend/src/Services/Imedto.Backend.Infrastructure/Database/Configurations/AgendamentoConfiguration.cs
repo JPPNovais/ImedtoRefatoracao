@@ -33,6 +33,8 @@ public class AgendamentoConfiguration : IEntityTypeConfiguration<Agendamento>
         builder.Property(a => a.CheckInEm).HasColumnName("check_in_em");
         builder.Property(a => a.LembretePorEmailEnviado).HasColumnName("lembrete_por_email_enviado")
             .IsRequired().HasDefaultValue(false);
+        builder.Property(a => a.LembretePorWhatsappEnviado).HasColumnName("lembrete_por_whatsapp_enviado")
+            .IsRequired().HasDefaultValue(false);
         builder.Property(a => a.SalaId).HasColumnName("sala_id");
 
         // Fase 2 — confirmação por link público

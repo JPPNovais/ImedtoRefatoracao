@@ -55,6 +55,8 @@ interface Form {
     observacoes: string
     tags: string[]
     alertas: string[]
+    /** Consentimento explícito para WhatsApp (LGPD — opt-in). */
+    whatsappLembreteOptIn: boolean
 }
 
 function novaForm(): Form {
@@ -77,6 +79,7 @@ function novaForm(): Form {
         observacoes: "",
         tags: [],
         alertas: [],
+        whatsappLembreteOptIn: false,
     }
 }
 
@@ -128,6 +131,7 @@ function popularComPaciente(p: Paciente) {
     form.observacoes = p.observacoes ?? ""
     form.tags = [...(p.tags ?? [])]
     form.alertas = [...(p.alertas ?? [])]
+    form.whatsappLembreteOptIn = p.whatsappLembreteOptIn ?? false
     parseEndereco(p.endereco)
     // Previne disparo automático de busca ao montar em modo edição (CA12):
     // o composable ignora o próximo disparo debounced com este valor.
@@ -245,6 +249,7 @@ async function salvar() {
             observacoes:            form.observacoes || undefined,
             tags:                   form.tags.length    ? [...form.tags]    : [],
             alertas:                form.alertas.length ? [...form.alertas] : [],
+            whatsappLembreteOptIn:  form.whatsappLembreteOptIn,
         }
 
         if (props.paciente?.id) {
@@ -431,6 +436,21 @@ const subtitulo = computed(() =>
                             placeholder="paciente@exemplo.com" :disabled="salvando"
                         />
                     </AppField>
+
+                    <div class="opt-in-whatsapp full">
+                        <label class="opt-in-label">
+                            <input
+                                type="checkbox"
+                                v-model="form.whatsappLembreteOptIn"
+                                :disabled="salvando"
+                                data-testid="checkbox-whatsapp-opt-in"
+                            />
+                            <div class="opt-in-texto">
+                                <span>Autoriza receber lembretes por WhatsApp</span>
+                                <small>Com a autorização e um telefone válido (com DDD), o paciente recebe os lembretes de consulta também pelo WhatsApp.</small>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </section>
 
@@ -658,6 +678,38 @@ const subtitulo = computed(() =>
 }
 .tag-pick:disabled { opacity: 0.5; cursor: not-allowed; }
 .tag-pick i { font-size: 11px; }
+
+/* Opt-in WhatsApp */
+.opt-in-whatsapp { margin-top: 4px; }
+.opt-in-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+.opt-in-label input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+.opt-in-label input[type="checkbox"]:disabled { cursor: not-allowed; }
+.opt-in-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.opt-in-texto span {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--text);
+}
+.opt-in-texto small {
+    font-size: var(--text-xs);
+    color: hsl(var(--secondary) / 0.65);
+    line-height: 1.4;
+}
 
 /* Alertas */
 .alertas-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }

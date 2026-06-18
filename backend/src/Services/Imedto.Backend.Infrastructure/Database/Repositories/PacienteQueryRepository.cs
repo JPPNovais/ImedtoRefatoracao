@@ -201,19 +201,20 @@ public class PacienteQueryRepository
         // Minimizado (LGPD): sem estabelecimento_id (front nao usa, amplia IDOR)
         // e sem atualizado_em (sem uso no front).
         const string sql = """
-            SELECT  id                                  AS Id,
-                    nome_completo                       AS NomeCompleto,
-                    cpf                                 AS Cpf,
-                    documento_internacional             AS DocumentoInternacional,
-                    data_nascimento                     AS DataNascimento,
-                    genero                              AS Genero,
-                    telefone                            AS Telefone,
-                    email                               AS Email,
-                    endereco                            AS Endereco,
-                    observacoes                         AS Observacoes,
-                    COALESCE(tags, ARRAY[]::text[])     AS Tags,
-                    COALESCE(alertas, ARRAY[]::text[])  AS Alertas,
-                    criado_em                           AS CriadoEm
+            SELECT  id                                      AS Id,
+                    nome_completo                           AS NomeCompleto,
+                    cpf                                     AS Cpf,
+                    documento_internacional                 AS DocumentoInternacional,
+                    data_nascimento                         AS DataNascimento,
+                    genero                                  AS Genero,
+                    telefone                                AS Telefone,
+                    email                                   AS Email,
+                    endereco                                AS Endereco,
+                    observacoes                             AS Observacoes,
+                    COALESCE(tags, ARRAY[]::text[])         AS Tags,
+                    COALESCE(alertas, ARRAY[]::text[])      AS Alertas,
+                    criado_em                               AS CriadoEm,
+                    whatsapp_lembrete_opt_in                AS WhatsappLembreteOptIn
             FROM    public.pacientes
             WHERE   id = @PacienteId
               AND   estabelecimento_id = @EstabelecimentoId

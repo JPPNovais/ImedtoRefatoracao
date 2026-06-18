@@ -19,6 +19,7 @@ public class Agendamento : Entity
     public virtual DateTime CriadoEm { get; protected set; }
     public virtual DateTime? AtualizadoEm { get; protected set; }
     public virtual bool LembretePorEmailEnviado { get; protected set; }
+    public virtual bool LembretePorWhatsappEnviado { get; protected set; }
     public virtual DateTime? CheckInEm { get; protected set; }
     public virtual long? SalaId { get; protected set; }
 
@@ -31,6 +32,9 @@ public class Agendamento : Entity
 
     public virtual void MarcarLembretePorEmailEnviado()
         => LembretePorEmailEnviado = true;
+
+    public virtual void MarcarLembretePorWhatsappEnviado()
+        => LembretePorWhatsappEnviado = true;
 
     public static Agendamento Criar(
         long estabelecimentoId,
@@ -213,17 +217,21 @@ public class Agendamento : Entity
             || fimPrevisto != FimPrevisto;
 
         // R1: Confirmado com mudança de horário/profissional → volta a Agendado.
-        // R3: zerar lembrete ao resetar.
+        // R3/R6: zerar ambos os lembretes ao resetar (email + WhatsApp — CA13 briefing 2026-06-18_005).
         if (Status == AgendamentoStatus.Confirmado && mudouHorarioProfissional)
         {
             Status = AgendamentoStatus.Agendado;
             LembretePorEmailEnviado = false;
+            LembretePorWhatsappEnviado = false;
         }
 
-        // R6: Agendado com mudança de horário/profissional → zerar lembrete
-        // (lembrete antigo pode estar marcado para horário desatualizado).
+        // R6: Agendado com mudança de horário/profissional → zerar lembretes
+        // (lembretes antigos podem estar marcados para horário desatualizado).
         if (Status == AgendamentoStatus.Agendado && mudouHorarioProfissional)
+        {
             LembretePorEmailEnviado = false;
+            LembretePorWhatsappEnviado = false;
+        }
 
         ProfissionalUsuarioId = profissionalUsuarioId;
         InicioPrevisto = inicioPrevisto;

@@ -10,6 +10,7 @@ public class ObterConfiguracaoAutomacaoQuery : IQuery<ConfiguracaoAutomacaoDto>
 public class ConfiguracaoAutomacaoDto
 {
     public bool LembretesHabilitados { get; set; }
+    public bool LembretesWhatsappHabilitados { get; set; }
     public int HorasAntecedenciaLembrete { get; set; }
     public bool ExpiracaoOrcamentosHabilitada { get; set; }
     public string? EmailRemetente { get; set; }

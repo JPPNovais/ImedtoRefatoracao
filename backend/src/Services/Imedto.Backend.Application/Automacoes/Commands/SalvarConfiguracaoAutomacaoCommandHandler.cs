@@ -18,6 +18,7 @@ public class SalvarConfiguracaoAutomacaoCommandHandler : ICommandHandler<SalvarC
 
         config.Atualizar(
             command.LembretesHabilitados,
+            command.LembretesWhatsappHabilitados,
             command.HorasAntecedenciaLembrete,
             command.ExpiracaoOrcamentosHabilitada,
             command.EmailRemetente);

@@ -15,6 +15,7 @@ public class ConfiguracaoAutomacaoConfiguration : IEntityTypeConfiguration<Confi
 
         builder.Property(c => c.EstabelecimentoId).HasColumnName("estabelecimento_id").IsRequired();
         builder.Property(c => c.LembretesHabilitados).HasColumnName("lembretes_habilitados").IsRequired();
+        builder.Property(c => c.LembretesWhatsappHabilitados).HasColumnName("lembretes_whatsapp_habilitados").IsRequired().HasDefaultValue(false);
         builder.Property(c => c.HorasAntecedenciaLembrete).HasColumnName("horas_antecedencia_lembrete").IsRequired();
         builder.Property(c => c.ExpiracaoOrcamentosHabilitada).HasColumnName("expiracao_orcamentos_habilitada").IsRequired();
         builder.Property(c => c.EmailRemetente).HasColumnName("email_remetente").HasMaxLength(320);

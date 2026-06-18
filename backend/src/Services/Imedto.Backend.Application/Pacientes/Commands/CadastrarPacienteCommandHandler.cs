@@ -12,15 +12,18 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
     private readonly IPacienteRepository _repository;
     private readonly IEventBus _eventBus;
     private readonly IAssinaturaService _assinaturaService;
+    private readonly IPacienteAcessoLogService _acessoLog;
 
     public CadastrarPacienteCommandHandler(
         IPacienteRepository repository,
         IEventBus eventBus,
-        IAssinaturaService assinaturaService)
+        IAssinaturaService assinaturaService,
+        IPacienteAcessoLogService acessoLog)
     {
         _repository = repository;
         _eventBus = eventBus;
         _assinaturaService = assinaturaService;
+        _acessoLog = acessoLog;
     }
 
     public async Task Handle(CadastrarPacienteCommand command)
@@ -59,6 +62,10 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
             command.Tags,
             command.Alertas);
 
+        // R4/CA8: consentimento WhatsApp marcado no cadastro — registra com quem registrou.
+        if (command.WhatsappLembreteOptIn == true && command.SolicitanteUsuarioId != Guid.Empty)
+            paciente.AtualizarConsentimentoWhatsapp(true, command.SolicitanteUsuarioId);
+
         await _repository.Salvar(paciente);
         paciente.MarcarComoCadastrado();
 
@@ -66,5 +73,10 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
             await _eventBus.Publish(evt);
 
         paciente.ClearDomainEvents();
+
+        // Audit LGPD: cadastro é considerado operação de escrita. Best-effort.
+        if (command.SolicitanteUsuarioId != Guid.Empty)
+            await _acessoLog.RegistrarAsync(
+                paciente.Id, command.SolicitanteUsuarioId, command.EstabelecimentoId, TipoAcessoPaciente.Edicao);
     }
 }

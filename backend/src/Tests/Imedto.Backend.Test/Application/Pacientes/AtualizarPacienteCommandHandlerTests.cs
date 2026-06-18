@@ -159,4 +159,46 @@ public class AtualizarPacienteCommandHandlerTests
 
         Assert.That(paciente.Genero, Is.EqualTo(GeneroPaciente.NaoInformado));
     }
+
+    // ── Consentimento WhatsApp (CA8/R4/R3) ──────────────────────────────────
+
+    [Test]
+    public async Task Handle_WhatsappOptInTrue_AtualizaConsentimentoERegistraAudit(
+        [Values(true, false)] bool novoOptIn)
+    {
+        var paciente = CriarPaciente();
+        _repo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(paciente);
+        _repo.Setup(r => r.ExisteCpfNoEstabelecimento(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<long>()))
+             .ReturnsAsync(false);
+
+        var cmd = Cmd();
+        cmd.WhatsappLembreteOptIn = novoOptIn;
+        await _sut.Handle(cmd);
+
+        Assert.That(paciente.WhatsappLembreteOptIn, Is.EqualTo(novoOptIn));
+        Assert.That(paciente.WhatsappLembreteOptInEm, Is.Not.Null);
+        Assert.That(paciente.WhatsappLembreteOptInPorUsuarioId, Is.EqualTo(_solicitanteId));
+        // CA8: audit é registrado (Edicao)
+        _acessoLog.Verify(a => a.RegistrarAsync(
+            PacienteId, _solicitanteId, EstabelecimentoId, TipoAcessoPaciente.Edicao),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_WhatsappOptInNulo_NaoAlteraConsentimentoExistente()
+    {
+        var paciente = CriarPaciente();
+        // Opt-in já marcado antes
+        paciente.AtualizarConsentimentoWhatsapp(true, Guid.NewGuid());
+        _repo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(paciente);
+        _repo.Setup(r => r.ExisteCpfNoEstabelecimento(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<long>()))
+             .ReturnsAsync(false);
+
+        var cmd = Cmd();
+        cmd.WhatsappLembreteOptIn = null; // não alterado
+        await _sut.Handle(cmd);
+
+        // Consentimento deve permanecer true
+        Assert.That(paciente.WhatsappLembreteOptIn, Is.True);
+    }
 }

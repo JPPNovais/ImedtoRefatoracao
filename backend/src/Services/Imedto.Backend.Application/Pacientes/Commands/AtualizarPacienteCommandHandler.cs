@@ -56,6 +56,10 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
             command.Tags,
             command.Alertas);
 
+        // R4/CA8: consentimento WhatsApp — só atualiza quando o campo veio no request.
+        if (command.WhatsappLembreteOptIn.HasValue)
+            paciente.AtualizarConsentimentoWhatsapp(command.WhatsappLembreteOptIn.Value, command.SolicitanteUsuarioId);
+
         await _repository.Salvar(paciente);
 
         // Audit LGPD: edicao de dados pessoais. SolicitanteUsuarioId vem do JWT

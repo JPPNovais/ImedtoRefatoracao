@@ -207,6 +207,7 @@ using Imedto.Backend.Domain.Ia;
 using Imedto.Backend.Domain.Idempotency;
 using Imedto.Backend.Domain.Jobs;
 using Imedto.Backend.Infrastructure.Email;
+using Imedto.Backend.Infrastructure.Whatsapp;
 using Imedto.Backend.Infrastructure.Ia;
 using Imedto.Backend.Infrastructure.Jobs;
 using Imedto.Backend.Infrastructure.Jobs.Handlers;
@@ -943,6 +944,22 @@ public static class Container
                     ? ActivatorUtilities.CreateInstance<NoOpEmailService>(sp)
                     : ActivatorUtilities.CreateInstance<ResendEmailService>(sp);
             }
+        });
+
+        // WhatsApp provider configurável via Whatsapp:Provider:
+        //   - "meta"  → MetaWhatsappService (Graph API; exige AccessToken + PhoneNumberId)
+        //   - vazio   → NoOpWhatsappService (loga, não envia — default em dev sem credenciais)
+        services.AddScoped<IWhatsappService>(sp =>
+        {
+            var cfg = sp.GetRequiredService<IConfiguration>();
+            var provider = (cfg["Whatsapp:Provider"] ?? "").Trim().ToLowerInvariant();
+            var token    = cfg["Whatsapp:AccessToken"];
+            var phoneId  = cfg["Whatsapp:PhoneNumberId"];
+
+            if (provider == "meta" && !string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(phoneId))
+                return ActivatorUtilities.CreateInstance<MetaWhatsappService>(sp);
+
+            return ActivatorUtilities.CreateInstance<NoOpWhatsappService>(sp);
         });
 
         // Item 2.2 — Engine de automações (regras + worker + executor)

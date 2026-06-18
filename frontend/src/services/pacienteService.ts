@@ -39,6 +39,8 @@ export interface Paciente {
     alertas: string[]
     criadoEm: string
     atualizadoEm: string | null
+    /** Consentimento do paciente para receber lembretes via WhatsApp (LGPD — opt-in explícito). */
+    whatsappLembreteOptIn: boolean
 }
 
 export interface PacientePayload {
@@ -53,6 +55,8 @@ export interface PacientePayload {
     observacoes?: string
     tags?: string[]
     alertas?: string[]
+    /** Consentimento para WhatsApp. Null = não alterar em PUT; false é o padrão em POST. */
+    whatsappLembreteOptIn?: boolean | null
 }
 
 export interface PacienteStats {

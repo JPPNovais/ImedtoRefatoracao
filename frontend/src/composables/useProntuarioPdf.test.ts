@@ -130,6 +130,7 @@ const pacienteCompleto: Paciente = {
     alertas: [],
     criadoEm: "2026-01-01T00:00:00Z",
     atualizadoEm: null,
+    whatsappLembreteOptIn: false,
 }
 
 describe("useProntuarioPdf — redesign institucional", () => {

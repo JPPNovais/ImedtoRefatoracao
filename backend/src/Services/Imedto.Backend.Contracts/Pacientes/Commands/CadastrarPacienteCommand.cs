@@ -16,4 +16,13 @@ public class CadastrarPacienteCommand : ICommand
     public string Observacoes { get; set; }
     public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> Alertas { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Consentimento explícito do paciente para receber lembretes via WhatsApp (LGPD — R4).
+    /// Opcional no cadastro: null = false (sem consentimento no cadastro).
+    /// </summary>
+    public bool? WhatsappLembreteOptIn { get; set; }
+
+    /// <summary>Audit LGPD: quem registrou o consentimento no cadastro.</summary>
+    public Guid SolicitanteUsuarioId { get; set; }
 }

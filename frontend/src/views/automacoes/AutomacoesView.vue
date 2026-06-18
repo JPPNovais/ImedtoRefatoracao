@@ -5,6 +5,7 @@ import { AppButton, AppPageHeader } from "@/components/ui"
 
 const config = ref<ConfiguracaoAutomacao>({
     lembretesHabilitados: false,
+    lembretesWhatsappHabilitados: false,
     horasAntecedenciaLembrete: 24,
     expiracaoOrcamentosHabilitada: true,
     emailRemetente: null,
@@ -115,6 +116,20 @@ async function enviarLembretes() {
                         />
                         <small>Deixe em branco para usar o padrão do sistema</small>
                     </label>
+                    <div class="campo-toggle">
+                        <label class="toggle" aria-label="Enviar lembretes também por WhatsApp">
+                            <input
+                                type="checkbox"
+                                v-model="config.lembretesWhatsappHabilitados"
+                                data-testid="toggle-whatsapp"
+                            />
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div class="toggle-label">
+                            <span>Enviar lembretes também por WhatsApp</span>
+                            <small>Pacientes recebem por e-mail e, se autorizarem o WhatsApp e tiverem telefone válido, também por WhatsApp.</small>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -233,6 +248,30 @@ async function enviarLembretes() {
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     font-size: 0.88em;
+}
+
+/* Toggle inline com label */
+.campo-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.toggle-label span {
+    font-weight: var(--font-weight-medium);
+    color: var(--text);
+    font-size: var(--text-sm);
+}
+
+.toggle-label small {
+    color: var(--text-faint);
+    font-size: var(--text-xs);
 }
 
 /* Toggle switch */

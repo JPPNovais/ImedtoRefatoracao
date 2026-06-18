@@ -2,6 +2,7 @@ import httpClient from "./httpClient"
 
 export interface ConfiguracaoAutomacao {
     lembretesHabilitados: boolean
+    lembretesWhatsappHabilitados: boolean
     horasAntecedenciaLembrete: number
     expiracaoOrcamentosHabilitada: boolean
     emailRemetente: string | null

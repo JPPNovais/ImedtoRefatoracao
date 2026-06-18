@@ -116,6 +116,7 @@ public class PacienteController : ControllerBase
         await _commandBus.Send(new CadastrarPacienteCommand
         {
             EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId,
             NomeCompleto = request.NomeCompleto,
             Cpf = request.Cpf,
             DocumentoInternacional = request.DocumentoInternacional,
@@ -127,6 +128,7 @@ public class PacienteController : ControllerBase
             Observacoes = request.Observacoes,
             Tags = request.Tags ?? Array.Empty<string>(),
             Alertas = request.Alertas ?? Array.Empty<string>(),
+            WhatsappLembreteOptIn = request.WhatsappLembreteOptIn,
         });
 
         return Created(string.Empty, null);
@@ -157,6 +159,7 @@ public class PacienteController : ControllerBase
             Observacoes = request.Observacoes,
             Tags = request.Tags ?? Array.Empty<string>(),
             Alertas = request.Alertas ?? Array.Empty<string>(),
+            WhatsappLembreteOptIn = request.WhatsappLembreteOptIn,
         });
 
         return NoContent();
@@ -272,4 +275,9 @@ public record PacienteRequest(
     string Endereco,
     string Observacoes,
     IReadOnlyList<string> Tags = null,
-    IReadOnlyList<string> Alertas = null);
+    IReadOnlyList<string> Alertas = null,
+    /// <summary>
+    /// Consentimento explícito do paciente para receber lembretes via WhatsApp (LGPD — R4).
+    /// Null = não alterar (em PUT) ou false (em POST).
+    /// </summary>
+    bool? WhatsappLembreteOptIn = null);

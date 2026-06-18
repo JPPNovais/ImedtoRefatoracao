@@ -54,7 +54,8 @@ public class PacientesIntegrationTests : IntegrationTestBase
         return new CadastrarPacienteCommandHandler(
             new PacienteRepository(ctx),
             new Mock<IEventBus>().Object,
-            assinatura.Object);
+            assinatura.Object,
+            new Mock<IPacienteAcessoLogService>().Object);
     }
 
     private DeletarPacienteCommandHandler DeletarSut(AppDbContext ctx) =>

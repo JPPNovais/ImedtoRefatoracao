@@ -32,6 +32,12 @@ public class PacienteDto
     public string[] Alertas { get; set; } = Array.Empty<string>();
 
     public DateTime CriadoEm { get; set; }
+
+    /// <summary>
+    /// Consentimento do paciente para receber lembretes via WhatsApp (LGPD — R4).
+    /// Exibido no form de edição para permitir marcar/desmarcar.
+    /// </summary>
+    public bool WhatsappLembreteOptIn { get; set; }
 }
 
 public class PacienteListaItemDto

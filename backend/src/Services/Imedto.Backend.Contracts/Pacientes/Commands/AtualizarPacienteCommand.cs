@@ -19,4 +19,10 @@ public class AtualizarPacienteCommand : ICommand
     public string Observacoes { get; set; }
     public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
     public IReadOnlyList<string> Alertas { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Consentimento explícito do paciente para receber lembretes via WhatsApp (LGPD — R4).
+    /// Null = não alterar o opt-in existente; true/false = gravar consentimento com audit.
+    /// </summary>
+    public bool? WhatsappLembreteOptIn { get; set; }
 }

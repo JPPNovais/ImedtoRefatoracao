@@ -19,10 +19,11 @@ public class ObterConfiguracaoAutomacaoQueryHandlers : IRequestHandler<ObterConf
         var row = await conn.QuerySingleOrDefaultAsync<ConfiguracaoAutomacaoDto>(
             """
             SELECT
-                lembretes_habilitados AS LembretesHabilitados,
-                horas_antecedencia_lembrete AS HorasAntecedenciaLembrete,
+                lembretes_habilitados           AS LembretesHabilitados,
+                lembretes_whatsapp_habilitados  AS LembretesWhatsappHabilitados,
+                horas_antecedencia_lembrete     AS HorasAntecedenciaLembrete,
                 expiracao_orcamentos_habilitada AS ExpiracaoOrcamentosHabilitada,
-                email_remetente AS EmailRemetente
+                email_remetente                 AS EmailRemetente
             FROM configuracoes_automacao
             WHERE estabelecimento_id = @EstabelecimentoId
             """,
@@ -31,6 +32,7 @@ public class ObterConfiguracaoAutomacaoQueryHandlers : IRequestHandler<ObterConf
         return row ?? new ConfiguracaoAutomacaoDto
         {
             LembretesHabilitados = false,
+            LembretesWhatsappHabilitados = false,
             HorasAntecedenciaLembrete = 24,
             ExpiracaoOrcamentosHabilitada = true
         };
