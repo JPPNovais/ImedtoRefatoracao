@@ -16,6 +16,7 @@
 import { type ComputedRef, computed, defineAsyncComponent, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
+import type { MaskInputOptions } from "maska"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
 import { auth2faService } from "@/services/auth2faService"
 import { redimensionarImagem } from "@/services/imageUtils"
@@ -199,6 +200,15 @@ const telefone     = ref("")
 const endereco     = ref("")
 const cidade       = ref("")
 const estado       = ref("")
+
+// Máscara inteligente CNPJ alfanumérico (IN RFB 2.229/2024):
+// posições 1-12 aceitam [A-Z0-9] com uppercase; posições 13-14 (DV) só dígitos.
+const cnpjMaskaOpts: MaskInputOptions = {
+    mask: "XX.XXX.XXX/XXXX-##",
+    tokens: {
+        X: { pattern: /[A-Z0-9]/i, transform: (c: string) => c.toUpperCase() },
+    },
+}
 
 const UFS_BRASIL = [
     { value: "", label: "—" },
@@ -432,7 +442,7 @@ onMounted(async () => {
                                 <label class="field-label">CNPJ</label>
                                 <input
                                     v-model="cnpj"
-                                    v-maska="'##.###.###/####-##'"
+                                    v-maska="cnpjMaskaOpts"
                                     class="input-field"
                                     placeholder="00.000.000/0000-00"
                                     :disabled="!podeEditar"

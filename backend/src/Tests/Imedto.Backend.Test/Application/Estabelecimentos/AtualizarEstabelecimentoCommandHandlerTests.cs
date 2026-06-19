@@ -47,13 +47,17 @@ public class AtualizarEstabelecimentoCommandHandlerTests
     private Estabelecimento Estab() =>
         Estabelecimento.Criar(_donoId, "Original", null, null, null, null);
 
+    // CNPJ válido usado nos testes (DV correto: 11222333000181 = 11.222.333/0001-81).
+    private const string CnpjTesteFormatado = "11.222.333/0001-81";
+    private const string CnpjTesteCanonico  = "11222333000181";
+
     private AtualizarEstabelecimentoCommand Cmd(Guid? solicitante = null) => new()
     {
         EstabelecimentoId = EstabelecimentoId,
         UsuarioSolicitanteId = solicitante ?? _donoId,
         NomeFantasia = "Atualizado",
         RazaoSocial = "Imedto LTDA",
-        Cnpj = "98.765.432/0001-10",
+        Cnpj = CnpjTesteFormatado,
         Telefone = "11888887777",
         Endereco = "Rua B",
     };
@@ -63,12 +67,12 @@ public class AtualizarEstabelecimentoCommandHandlerTests
     {
         var estab = Estab();
         _repo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(estab);
-        _repo.Setup(r => r.ExisteCnpj("98765432000110", estab.Id)).ReturnsAsync(false);
+        _repo.Setup(r => r.ExisteCnpj(CnpjTesteCanonico, estab.Id)).ReturnsAsync(false);
 
         await _sut.Handle(Cmd());
 
         Assert.That(estab.NomeFantasia, Is.EqualTo("Atualizado"));
-        Assert.That(estab.Cnpj, Is.EqualTo("98765432000110"));
+        Assert.That(estab.Cnpj, Is.EqualTo(CnpjTesteCanonico));
         _repo.Verify(r => r.Salvar(estab), Times.Once);
     }
 
@@ -78,7 +82,7 @@ public class AtualizarEstabelecimentoCommandHandlerTests
         // Admin (não-dono) com `config_estabelecimento` também consegue atualizar.
         var estab = Estab();
         _repo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(estab);
-        _repo.Setup(r => r.ExisteCnpj("98765432000110", estab.Id)).ReturnsAsync(false);
+        _repo.Setup(r => r.ExisteCnpj(CnpjTesteCanonico, estab.Id)).ReturnsAsync(false);
 
         await _sut.Handle(Cmd(solicitante: _adminComPermissao));
 
@@ -111,7 +115,7 @@ public class AtualizarEstabelecimentoCommandHandlerTests
     {
         var estab = Estab();
         _repo.Setup(r => r.ObterPorIdOuNulo(EstabelecimentoId)).ReturnsAsync(estab);
-        _repo.Setup(r => r.ExisteCnpj("98765432000110", estab.Id)).ReturnsAsync(true);
+        _repo.Setup(r => r.ExisteCnpj(CnpjTesteCanonico, estab.Id)).ReturnsAsync(true);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("CNPJ"));

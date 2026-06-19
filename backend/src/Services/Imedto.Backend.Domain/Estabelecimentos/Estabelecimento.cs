@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Imedto.Backend.Domain.Estabelecimentos.Events;
+using Imedto.Backend.Domain.Inventario.Cadastros;
 using Imedto.Backend.SharedKernel.Domain;
 
 namespace Imedto.Backend.Domain.Estabelecimentos;
@@ -95,16 +96,16 @@ public class Estabelecimento : Entity
         if (string.IsNullOrWhiteSpace(nomeFantasia))
             throw new BusinessException("Nome fantasia é obrigatório.");
 
-        var cnpjDigitos = string.IsNullOrWhiteSpace(cnpj) ? null : SomenteDigitos(cnpj);
-        if (cnpjDigitos is { Length: > 0 and not 14 })
-            throw new BusinessException("CNPJ deve conter 14 dígitos.");
+        var cnpjCanônico = string.IsNullOrWhiteSpace(cnpj) ? null : CnpjValidator.Normalizar(cnpj);
+        if (cnpjCanônico is { Length: > 0 } && !CnpjValidator.EhValido(cnpjCanônico))
+            throw new BusinessException("CNPJ inválido.");
 
         return new Estabelecimento
         {
             DonoUsuarioId = donoUsuarioId,
             NomeFantasia = nomeFantasia.Trim(),
             RazaoSocial = string.IsNullOrWhiteSpace(razaoSocial) ? null : razaoSocial.Trim(),
-            Cnpj = cnpjDigitos,
+            Cnpj = cnpjCanônico,
             Telefone = string.IsNullOrWhiteSpace(telefone) ? null : SomenteDigitos(telefone),
             Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim(),
             Status = EstabelecimentoStatus.Ativo,
@@ -142,13 +143,13 @@ public class Estabelecimento : Entity
         if (string.IsNullOrWhiteSpace(nomeFantasia))
             throw new BusinessException("Nome fantasia é obrigatório.");
 
-        var cnpjDigitos = string.IsNullOrWhiteSpace(cnpj) ? null : SomenteDigitos(cnpj);
-        if (cnpjDigitos is { Length: > 0 and not 14 })
-            throw new BusinessException("CNPJ deve conter 14 dígitos.");
+        var cnpjCanônico = string.IsNullOrWhiteSpace(cnpj) ? null : CnpjValidator.Normalizar(cnpj);
+        if (cnpjCanônico is { Length: > 0 } && !CnpjValidator.EhValido(cnpjCanônico))
+            throw new BusinessException("CNPJ inválido.");
 
         NomeFantasia = nomeFantasia.Trim();
         RazaoSocial = string.IsNullOrWhiteSpace(razaoSocial) ? null : razaoSocial.Trim();
-        Cnpj = cnpjDigitos;
+        Cnpj = cnpjCanônico;
         Telefone = string.IsNullOrWhiteSpace(telefone) ? null : SomenteDigitos(telefone);
         Endereco = string.IsNullOrWhiteSpace(endereco) ? null : endereco.Trim();
         AtualizadoEm = DateTime.UtcNow;

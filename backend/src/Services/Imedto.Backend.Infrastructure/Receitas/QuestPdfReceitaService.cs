@@ -736,7 +736,8 @@ public class QuestPdfReceitaService : IReceitaPdfService
     private static string FormatarCnpj(string cnpj)
     {
         if (string.IsNullOrWhiteSpace(cnpj)) return null;
-        var d = new string(cnpj.Where(char.IsDigit).ToArray());
+        // Preserva [A-Z0-9] para suportar CNPJ alfanumérico (IN RFB 2.229/2024).
+        var d = new string(cnpj.ToUpperInvariant().Where(char.IsAsciiLetterOrDigit).ToArray());
         if (d.Length != 14) return cnpj;
         return $"{d[..2]}.{d[2..5]}.{d[5..8]}/{d[8..12]}-{d[12..]}";
     }

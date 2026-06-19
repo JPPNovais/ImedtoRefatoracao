@@ -9,13 +9,24 @@
  * espelha o `CnpjValidator` do domínio — backend é fonte da verdade).
  */
 import { ref, watch, computed } from "vue"
+import { vMaska } from "maska/vue"
+import type { MaskInputOptions } from "maska"
 import { AppModal, AppButton, AppField, AppInput, AppPillToggle } from "@/components/ui"
 import {
     estoqueCadastrosService,
     type CadastroOpcao,
     type FornecedorPayload,
 } from "@/services/estoqueCadastrosService"
-import { apenasDigitos, validateCnpj } from "@/utils/validateCnpj"
+import { normalizarCnpj, validateCnpj } from "@/utils/validateCnpj"
+
+// Máscara inteligente CNPJ alfanumérico (IN RFB 2.229/2024):
+// posições 1-12 aceitam [A-Z0-9] com uppercase; posições 13-14 (DV) só dígitos.
+const cnpjMaskaOpts: MaskInputOptions = {
+    mask: "XX.XXX.XXX/XXXX-##",
+    tokens: {
+        X: { pattern: /[A-Z0-9]/i, transform: (c: string) => c.toUpperCase() },
+    },
+}
 
 const props = defineProps<{ aberto: boolean }>()
 const emit  = defineEmits<{ criada: [opcao: CadastroOpcao]; fechar: [] }>()
@@ -56,7 +67,7 @@ async function salvar() {
 
     salvando.value = true
     try {
-        const cnpj = apenasDigitos(form.value.cnpj) || null
+        const cnpj = normalizarCnpj(form.value.cnpj) || null
         const nomeFantasia = form.value.nomeFantasia?.trim() || null
         const { id } = await estoqueCadastrosService.fornecedores.criar({
             razaoSocial,
@@ -93,7 +104,7 @@ async function salvar() {
 
         <div class="grid-2">
             <AppField label="CNPJ" :hint="form.cnpj && !cnpjValido ? 'CNPJ inválido' : undefined">
-                <AppInput v-model="form.cnpj" placeholder="00.000.000/0000-00" />
+                <AppInput v-model="form.cnpj" v-maska="cnpjMaskaOpts" placeholder="00.000.000/0000-00" />
             </AppField>
 
             <AppField label="Prazo de entrega (dias)" required>

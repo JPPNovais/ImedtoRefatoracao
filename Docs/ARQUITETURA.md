@@ -44,6 +44,7 @@ Controller recebe DTO → `ICommandBus.Send` ou `IRequestBus.Query`. **Os buses 
 - Aggregates: `virtual` + `protected set` + ctor `protected` + fábrica estática que adiciona `DomainEvent` via `AddDomainEvent`.
 - Após salvar o aggregate, handler itera `produto.DomainEvents` → `IEventBus.Publish` → `ClearDomainEvents`.
 - Nomes de tabela/coluna no Postgres em `snake_case`; `EntityTypeConfiguration` faz o mapeamento.
+- **CNPJ alfanumérico (IN RFB 2.229/2024)**: use `CnpjValidator.Normalizar` (backend) e `normalizarCnpj` (frontend) para CNPJ — preservam `[A-Z0-9]`. Não use `TextSanitizer.SomenteDigitos`/`apenasDigitos` para CNPJ (esses são digits-only, para CPF/CEP/telefone). `CnpjValidator.EhValido` valida DV independente de o canônico ter letras ou não (ASCII−48).
 
 #### Padrão: event handler com fan-out por permissão (notificar grupo)
 

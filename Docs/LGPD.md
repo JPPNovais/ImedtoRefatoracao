@@ -86,11 +86,21 @@ O lembrete de consulta ganha um canal WhatsApp complementar ao e-mail (mesmo job
 | Opt-in de lembrete WhatsApp | `pacientes.whatsapp_lembrete_opt_in`, `..._opt_in_em`, `..._opt_in_por_usuario_id` | Consentimento do titular (Art. 7º I / Art. 11 I LGPD) | **Base legal = consentimento explícito.** Sem opt-in marcado, o sistema **nunca** envia WhatsApp — mesmo com telefone válido e canal habilitado. Marcar/desmarcar grava data/hora + `usuario_id` de quem registrou. |
 | Telefone do paciente (uso para envio) | `pacientes.telefone` (já existente) | Dado pessoal | **Compartilhamento com terceiro** (Meta): o telefone só é normalizado a E.164 e enviado ao provedor **quando** há opt-in + canal habilitado + telefone válido. Minimização: nenhum outro dado do paciente vai ao provedor além do necessário para o template (nome, tipo de serviço, profissional, data/hora — corpo identifica o estabelecimento). |
 
-- **Audit do consentimento**: marcar/desmarcar o opt-in registra 1 linha de **Escrita** em `paciente_acesso_log` via `IPacienteAcessoLogService.RegistrarAsync(paciente_id, usuario_id, estabelecimento_id, TipoAcessoPaciente.Escrita)` — reuso do serviço existente, best-effort (falha do audit não bloqueia o salvar). **Sem tabela/serviço de audit novo.**
+- **Audit do consentimento**: marcar/desmarcar o opt-in registra 1 linha de **Edição** em `paciente_acesso_log` via `IPacienteAcessoLogService.RegistrarAsync(paciente_id, usuario_id, estabelecimento_id, TipoAcessoPaciente.Edicao)` — reuso do serviço existente, best-effort (falha do audit não bloqueia o salvar). **Sem tabela/serviço de audit novo.**
 - **Sem PII em log de envio**: o adapter/handler de WhatsApp loga **apenas o hash SHA-256 truncado do destinatário** — espelho exato de `ResendEmailService`/`NoOpEmailService`. Nunca telefone, nome, e-mail ou corpo da mensagem, em sucesso ou falha. Falha de entrega → `LogWarning` sem PII, não marca enviado, não relança.
 - **Sem log de delivery/leitura no MVP**: o MVP não grava tabela de envios/entregas WhatsApp (webhooks de status são fase futura). O único audit do MVP é o do **consentimento** (acima).
 - **Interação com anonimização LGPD**: o job `anonimizar-pacientes-inativos` zera `pacientes.telefone`; consentimento sem telefone é inerte (nada é enviado por R2 do briefing). Avaliar resetar o opt-in junto à anonimização — comportamento decidido no PR da entrega, sem schema adicional.
 - **Multi-tenant**: o corpo do template **sempre** identifica o estabelecimento de origem (`{{nome_estabelecimento}}`); o envio só ocorre sobre agendamentos já filtrados por `estabelecimento_id`. Nenhum dado de outro tenant transita.
+
+## CNPJ alfanumérico — PII e redação de log (briefing 2026-06-19_002)
+
+CNPJ agora inclui letras (IN RFB 2.229/2024): primeiros 12 positions `[A-Z0-9]`, últimos 2 (DV) numéricos.
+
+- **Regex PII atualizada**: `PiiSanitizer.cs` e `RemovePIIEnricher.cs` usam `[A-Z0-9]{2}\.?[A-Z0-9]{3}\.?[A-Z0-9]{3}/?[A-Z0-9]{4}-?\d{2}` com `RegexOptions.IgnoreCase` — cobre tanto o formato numérico legado quanto o alfanumérico novo.
+- **Sem PII em log de CNPJ**: a regra anterior de nunca logar CNPJ em formato de log estruturado se mantém — o campo `Cnpj` (canônico, 14 chars) nunca entra em `_logger.*`.
+- **Normalização dedicada**: `CnpjValidator.Normalizar` (backend) e `normalizarCnpj` (frontend) são distintos de `SomenteDigitos`/`apenasDigitos` (que ficam digits-only para CPF/CEP/telefone). Trocar de lugar as funções criaria risco de vazar letras em campos que não as esperam.
+- **DV sempre numérico**: posições 13–14 do canônico são `IsAsciiDigit`. Qualquer letra nas posições de DV é rejeitada por `CnpjValidator.EhValido` com `BusinessException("CNPJ inválido.")`.
+- **Retrocompatibilidade**: CNPJs 100% numéricos continuam válidos. Nenhuma migração de dado necessária — campo `TEXT` no Postgres aceita os dois formatos.
 
 ## Expiração automática de agendamentos — log sem PII (briefing 2026-06-19_001)
 

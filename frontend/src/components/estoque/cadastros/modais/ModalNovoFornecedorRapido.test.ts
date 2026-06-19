@@ -119,4 +119,26 @@ describe("ModalNovoFornecedorRapido", () => {
         expect(estoqueCadastrosService.fornecedores.criar).not.toHaveBeenCalled()
         expect(w.text()).toContain("CNPJ inválido.")
     })
+
+    // CA4 — regressão máscara CNPJ alfanumérico
+    // Sem o fix: form.cnpj ficaria "12abc34501de35" (sem formatação/uppercase) e
+    // normalizarCnpj retornaria lixo ou null, impedindo o submit válido.
+    // Com o fix: v-maska no AppInput converte para "12.ABC.345/01DE-35" ao vivo;
+    // normalizarCnpj("12.ABC.345/01DE-35") → "12ABC34501DE35" (canônico p/ backend).
+    it("normaliza CNPJ alfanumérico corretamente ao submeter (CA4 — regressão máscara)", async () => {
+        vi.mocked(estoqueCadastrosService.fornecedores.criar).mockResolvedValueOnce({ id: 99 })
+        const w = montar()
+
+        await w.findAll("input")[0].setValue("Empresa Alfa Ltda")
+        // Simula o valor que v-maska produziria após digitar "12abc34501de35":
+        // a máscara formata e converte para uppercase → "12.ABC.345/01DE-35"
+        // Verificamos que normalizarCnpj transforma isso em "12ABC34501DE35" (canônico).
+        await w.findAll("input")[2].setValue("12.ABC.345/01DE-35")
+        await botaoCriar(w).trigger("click")
+        await flushPromises()
+
+        expect(estoqueCadastrosService.fornecedores.criar).toHaveBeenCalledWith(
+            expect.objectContaining({ cnpj: "12ABC34501DE35" })
+        )
+    })
 })

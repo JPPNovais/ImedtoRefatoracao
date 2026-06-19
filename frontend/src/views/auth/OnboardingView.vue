@@ -14,6 +14,7 @@
 import { computed, onMounted, reactive, ref, toRef, watch } from "vue"
 import { useRouter } from "vue-router"
 import { vMaska } from "maska/vue"
+import type { MaskInputOptions } from "maska"
 import { useAuthStore } from "@/stores/authStore"
 import { useTenantStore } from "@/stores/tenantStore"
 import { onboardingService } from "@/services/onboardingService"
@@ -24,6 +25,7 @@ import { estabelecimentoService } from "@/services/estabelecimentoService"
 import { vinculoService } from "@/services/vinculoService"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { useCepAutofill } from "@/composables/useCepAutofill"
+import { validateCnpj, normalizarCnpj } from "@/utils/validateCnpj"
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -144,38 +146,29 @@ const cnpjMensagem = ref<string | null>(null)
 const cnpjRef = computed(() => clinica.cnpj)
 const cnpjDebounced = useDebouncedRef(cnpjRef, 350)
 
-function cnpjFormatoValido(digitos: string): boolean {
-    if (digitos.length !== 14) return false
-    if (/^(\d)\1{13}$/.test(digitos)) return false
-    const nums = [...digitos].map(Number)
-    const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    let s1 = 0
-    for (let i = 0; i < 12; i++) s1 += nums[i] * pesos1[i]
-    let dv1 = s1 % 11
-    dv1 = dv1 < 2 ? 0 : 11 - dv1
-    if (dv1 !== nums[12]) return false
-    let s2 = 0
-    for (let i = 0; i < 13; i++) s2 += nums[i] * pesos2[i]
-    let dv2 = s2 % 11
-    dv2 = dv2 < 2 ? 0 : 11 - dv2
-    return dv2 === nums[13]
+// Opções de máscara inteligente para CNPJ alfanumérico (IN RFB 2.229/2024):
+// posições 1-12 aceitam [A-Z0-9] com uppercase ao vivo; posições 13-14 (DV) só dígitos.
+const cnpjMaskaOpts: MaskInputOptions = {
+    mask: "XX.XXX.XXX/XXXX-##",
+    tokens: {
+        X: { pattern: /[A-Z0-9]/i, transform: (c: string) => c.toUpperCase() },
+    },
 }
 
 let cnpjReqId = 0
 watch(cnpjDebounced, async (valor) => {
-    const digitos = valor.replace(/\D/g, "")
-    if (digitos.length === 0) {
+    const canonico = normalizarCnpj(valor)
+    if (canonico.length === 0) {
         cnpjStatus.value = "vazio"
         cnpjMensagem.value = null
         return
     }
-    if (digitos.length < 14) {
+    if (canonico.length < 14) {
         cnpjStatus.value = "incompleto"
         cnpjMensagem.value = null
         return
     }
-    if (!cnpjFormatoValido(digitos)) {
+    if (!validateCnpj(canonico)) {
         cnpjStatus.value = "invalido"
         cnpjMensagem.value = "CNPJ inválido."
         return
@@ -184,7 +177,7 @@ watch(cnpjDebounced, async (valor) => {
     cnpjMensagem.value = null
     const reqId = ++cnpjReqId
     try {
-        const r = await estabelecimentoService.verificarCnpjDisponivel(digitos)
+        const r = await estabelecimentoService.verificarCnpjDisponivel(canonico)
         if (reqId !== cnpjReqId) return
         if (!r.valido) {
             cnpjStatus.value = "invalido"
@@ -420,7 +413,7 @@ async function finalizar() {
             estabelecimento: conta.tipo === "owner" && clinica.nome.trim()
                 ? {
                     nomeFantasia: clinica.nome.trim(),
-                    cnpj: clinica.cnpj.replace(/\D/g, "") || undefined,
+                    cnpj: normalizarCnpj(clinica.cnpj) || undefined,
                     telefone: clinica.telefone || undefined,
                     endereco: enderecoCompleto || undefined,
                 }
@@ -694,7 +687,7 @@ const stepperPassos = computed(() => [
                                 <i class="fa-regular fa-id-card" aria-hidden="true"></i>
                                 <input
                                     v-model="clinica.cnpj"
-                                    v-maska="'##.###.###/####-##'"
+                                    v-maska="cnpjMaskaOpts"
                                     type="text"
                                     placeholder="00.000.000/0000-00"
                                 />

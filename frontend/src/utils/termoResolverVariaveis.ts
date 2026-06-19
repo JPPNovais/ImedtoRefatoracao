@@ -154,6 +154,12 @@ function somenteDigitos(s: string | null | undefined): string {
     return s.replace(/\D+/g, "")
 }
 
+// Preserva [A-Z0-9] para CNPJ alfanumérico (IN RFB 2.229/2024).
+function normalizarCnpj(s: string | null | undefined): string {
+    if (!s) return ""
+    return s.toUpperCase().replace(/[^A-Z0-9]/g, "")
+}
+
 export function formatarCpf(cpf: string | null | undefined): { valor: string; fallback: boolean } {
     const d = somenteDigitos(cpf)
     if (d.length !== 11) return { valor: FB.CPF, fallback: true }
@@ -161,7 +167,7 @@ export function formatarCpf(cpf: string | null | undefined): { valor: string; fa
 }
 
 export function formatarCnpj(cnpj: string | null | undefined): { valor: string; fallback: boolean } {
-    const d = somenteDigitos(cnpj)
+    const d = normalizarCnpj(cnpj)
     if (d.length !== 14) return { valor: FB.VAZIO, fallback: true }
     return { valor: `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`, fallback: false }
 }
