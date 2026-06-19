@@ -108,16 +108,32 @@ Provider escolhido em runtime via `Email:Provider` (lido de SSM `/imedto/dev/ema
 | Provider | Quando usar | Limitação |
 |---|---|---|
 | **Resend** (atual) | Default, dev e prod | Free tier 3.000 e-mails/mês, 100/dia. Sem sandbox. |
-| **SES** (alternativo) | Quando volume crescer | Free tier 62.000/mês via EC2; **sandbox** por default — pedir production access no Console SES (24-48h). |
+| **SES** (alternativo) | Quando volume crescer | Free tier 62.000/mês via EC2; **sandbox** por default — exige production access (ver status abaixo). |
 | `NoOp` | Auto se nenhuma key configurada | Só loga, não envia |
 
 DKIM dos dois providers já configurado no Route 53 (`resend._domainkey`, `<token>._domainkey` SES).
 
-**Trocar provider em prod:**
+### Status SES (sa-east-1) — atualizado 2026-06-19
+
+Infra do SES **pronta para produção**, exceto sair do sandbox:
+
+- Identidades verificadas: domínio `imedto.com` (DKIM SUCCESS) e `contato@imedto.com`.
+- Role da EC2 `imedto-ec2-role`: statement `SesSend` (`ses:SendEmail` + `ses:SendRawEmail`), least-privilege escopado às identidades `imedto.com` e `contato@imedto.com`.
+- Lista de supressão de conta habilitada para `BOUNCE` + `COMPLAINT`.
+- Configuration set `imedto-prod` (supressão + métricas de reputação) — usar via `Email:Ses:ConfigurationSet`.
+- Smoke test de envio real (`aws sesv2 send-email`) OK — entrega confirmada dentro do sandbox.
+
+⚠️ **Bloqueio: conta em SANDBOX.** Em sandbox o SES só entrega para destinatários verificados (limite 200/dia, 1/s) — trocar prod para SES agora **quebraria** o e-mail. O pedido de production access anterior (**caso de suporte `176684893100483`**, dez/2025) foi **NEGADO** pela Trust & Safety. Reenviar a apelação pelo AWS Support Center endereçando: frequência de envio, origem das listas (só usuários/pacientes opt-in), tratamento de bounce/complaint (supressão automática já ativa) e exemplos de conteúdo transacional. `put-account-details` via CLI retorna `ConflictException` enquanto o caso estiver `DENIED` — a reapelação é manual no console.
+
+**Trocar provider em prod (só após production access aprovado):**
 ```bash
 aws ssm put-parameter --name /imedto/dev/email/provider --value "Ses" --type String --overwrite
+# opcional, recomendado: associar o configuration set imedto-prod (supressão + métricas)
+aws ssm put-parameter --name /imedto/dev/email/ses/configuration-set --value "imedto-prod" --type String --overwrite
 ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136 'cd ~/imedto && ./scripts/pull-secrets.sh && docker compose up -d --force-recreate backend'
 ```
+
+> Nota: o parâmetro `/imedto/dev/email/provider` **ainda não existe** no SSM (por isso prod usa o default `Resend` do `appsettings.json`). O `put-parameter` acima o cria. Para o config set ser lido, o `pull-secrets.sh` precisa mapear `email/ses/configuration-set` → `Email__Ses__ConfigurationSet` (segue a convenção de path do script).
 
 > ⚠️ **Use `up -d --force-recreate`, não `restart`, ao trocar um segredo/variável no SSM.** O `docker compose restart` reinicia o mesmo container e **não relê o `.env`** (env vars são resolvidas na criação do container). Só `up -d --force-recreate` (ou `down && up`) recria o container carregando o `.env` regenerado pelo `pull-secrets.sh`. Vale para qualquer rotação de secret: `resend/api-key`, `bcrypt/pepper`, `jwt/*`, `db-password` etc.
 
