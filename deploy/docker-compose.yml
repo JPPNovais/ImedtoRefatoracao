@@ -55,6 +55,11 @@ services:
       Email__ResendApiKey: ${RESEND_API_KEY}
       Email__ApiKey: ${RESEND_API_KEY}
       Email__Ses__Region: sa-east-1
+      Whatsapp__Provider: ${WHATSAPP_PROVIDER:-}
+      Whatsapp__AccessToken: ${WHATSAPP_ACCESS_TOKEN:-}
+      Whatsapp__PhoneNumberId: ${WHATSAPP_PHONE_NUMBER_ID:-}
+      Whatsapp__TemplateName: ${WHATSAPP_TEMPLATE_NAME:-lembrete_consulta}
+      Whatsapp__BaseUrl: ${WHATSAPP_BASE_URL:-https://graph.facebook.com/v19.0}
       Storage__Region: sa-east-1
       Storage__BucketAnexosProntuario: ${S3_BUCKET_ANEXOS}
       Storage__BucketFotos: ${S3_BUCKET_FOTOS}

@@ -31,6 +31,11 @@ IA_ANTHROPIC_API_KEY=$(get "$PARAM_PREFIX/ia/anthropic-api-key" 2>/dev/null || e
 S3_BUCKET_FOTOS=$(get "$PARAM_PREFIX/s3/bucket-fotos")
 S3_BUCKET_ANEXOS=$(get "$PARAM_PREFIX/s3/bucket-anexos")
 EMAIL_PROVIDER=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/email/provider" --query "Parameter.Value" --output text 2>/dev/null || echo "Resend")
+WHATSAPP_PROVIDER=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/whatsapp/provider" --query "Parameter.Value" --output text 2>/dev/null || echo "")
+WHATSAPP_ACCESS_TOKEN=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/whatsapp/access-token" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+WHATSAPP_PHONE_NUMBER_ID=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/whatsapp/phone-number-id" --query "Parameter.Value" --output text 2>/dev/null || echo "")
+WHATSAPP_TEMPLATE_NAME=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/whatsapp/template-name" --query "Parameter.Value" --output text 2>/dev/null || echo "lembrete_consulta")
+WHATSAPP_BASE_URL=$(aws ssm get-parameter --region "$REGION" --name "$PARAM_PREFIX/whatsapp/base-url" --query "Parameter.Value" --output text 2>/dev/null || echo "https://graph.facebook.com/v19.0")
 GHCR_OWNER=${GHCR_OWNER:-jppnovais}
 IMAGE_TAG=${IMAGE_TAG:-latest}
 EOF
