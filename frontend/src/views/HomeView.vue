@@ -61,6 +61,7 @@ const statusCor: Record<string, string> = {
     Confirmado: "#10b981",
     Cancelado: "#ef4444",
     Concluido: "#6b7280",
+    Expirado: "#9ca3af",
 }
 
 // Catálogo de cards do dashboard. Cada item declara explicitamente a rota

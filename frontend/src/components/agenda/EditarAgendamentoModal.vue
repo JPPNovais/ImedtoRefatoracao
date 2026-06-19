@@ -113,6 +113,7 @@ const STATUS_META: Record<Agendamento["status"], { label: string; bg: string; fg
     Confirmado: { label: "Confirmado", bg: "hsl(160 79% 39% / 0.12)", fg: "hsl(160 79% 28%)" },
     Concluido: { label: "Concluído", bg: "hsl(var(--foreground) / 0.06)", fg: "hsl(var(--foreground) / 0.6)" },
     Cancelado: { label: "Cancelado", bg: "hsl(0 84% 60% / 0.10)", fg: "hsl(0 84% 60%)" },
+    Expirado: { label: "Expirado", bg: "hsl(var(--status-expirado-bg, 220 9% 60% / 0.12))", fg: "hsl(var(--status-expirado-fg, 220 9% 42%))" },
 }
 
 const statusMeta = computed(() => props.agendamento ? STATUS_META[props.agendamento.status] : null)

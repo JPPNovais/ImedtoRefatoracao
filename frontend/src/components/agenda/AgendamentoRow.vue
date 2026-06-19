@@ -5,7 +5,7 @@
  * Layout: hora grande à esquerda + stripe colorido + corpo (paciente, status,
  * profissional, tipo, observações) + ações contextuais por status.
  *
- * Status mapeados ao backend (Agendado | Confirmado | Cancelado | Concluido).
+ * Status mapeados ao backend (Agendado | Confirmado | Cancelado | Concluido | Expirado).
  */
 import { computed } from "vue"
 import type { Agendamento } from "@/services/agendaService"
@@ -58,6 +58,13 @@ const STATUS_META: Record<Agendamento["status"], {
         cor: "hsl(0 84% 60%)",
         pillBg: "hsl(0 84% 60% / 0.10)",
         pillFg: "hsl(0 84% 60%)",
+    },
+    // Expirado: estado neutro automático (job noturno D-1) — token --status-expirado-* registrado no DS.
+    Expirado: {
+        label: "Expirado",
+        cor: "hsl(var(--status-expirado-cor, 220 9% 60%))",
+        pillBg: "hsl(var(--status-expirado-bg, 220 9% 60% / 0.12))",
+        pillFg: "hsl(var(--status-expirado-fg, 220 9% 42%))",
     },
 }
 
@@ -511,6 +518,17 @@ function clicarBadge() {
 }
 .appt.cancelado .time {
     color: hsl(var(--foreground) / 0.4);
+}
+
+/* Estado expirado: visual neutro/acinzentado, distinto de cancelado e concluido. */
+.appt.expirado .pat-name {
+    color: hsl(var(--foreground) / 0.5);
+}
+.appt.expirado .time {
+    color: hsl(var(--foreground) / 0.38);
+}
+.appt.expirado .stripe {
+    opacity: 0.5;
 }
 
 /* ── Painel inline de detalhes ── */

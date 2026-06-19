@@ -34,7 +34,7 @@ export interface Agendamento {
     fimPrevisto: string
     tipoServico: string
     observacoes: string | null
-    status: "Agendado" | "Confirmado" | "Cancelado" | "Concluido"
+    status: "Agendado" | "Confirmado" | "Cancelado" | "Concluido" | "Expirado"
     motivoCancelamento: string | null
     criadoEm: string
     atualizadoEm: string | null

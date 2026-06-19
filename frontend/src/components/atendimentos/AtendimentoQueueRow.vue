@@ -6,7 +6,7 @@
 import { computed } from "vue"
 import type { Agendamento } from "@/services/agendaService"
 
-type StatusVisual = "em-atendimento" | "concluido" | "em-espera" | "confirmado" | "agendado" | "cancelado"
+type StatusVisual = "em-atendimento" | "concluido" | "em-espera" | "confirmado" | "agendado" | "cancelado" | "expirado"
 
 const props = defineProps<{
     agendamento: Agendamento
@@ -29,6 +29,7 @@ const statusVisual = computed<StatusVisual>(() => {
         case "Cancelado":  return "cancelado"
         case "Confirmado": return props.agendamento.checkInEm ? "em-espera" : "confirmado"
         case "Agendado":   return "agendado"
+        case "Expirado":   return "expirado"
         default:           return "agendado"
     }
 })
@@ -75,6 +76,9 @@ const isEncaixe = computed(() => (props.agendamento.tipoServico ?? "").toLowerCa
             </span>
             <span v-else-if="statusVisual === 'agendado'" class="status-pill neutral">
                 <i class="fa-solid fa-calendar"></i> Agendado
+            </span>
+            <span v-else-if="statusVisual === 'expirado'" class="status-pill expirado">
+                <i class="fa-solid fa-clock-rotate-left"></i> Expirado
             </span>
             <span v-else class="status-pill error">
                 <i class="fa-solid fa-ban"></i> Cancelado
@@ -158,6 +162,7 @@ const isEncaixe = computed(() => (props.agendamento.tipoServico ?? "").toLowerCa
 .q-em-atendimento { background: hsl(155 60% 50% / 0.05); border-left: 3px solid hsl(155 60% 50%); padding-left: 17px; }
 .q-em-espera     { background: hsl(38 92% 50% / 0.04); }
 .q-cancelado     { opacity: 0.55; background: hsl(0 75% 60% / 0.03); }
+.q-expirado      { opacity: 0.6; background: hsl(var(--status-expirado-cor, 220 9% 60%) / 0.03); }
 
 .q-time { text-align: center; }
 .time-big {

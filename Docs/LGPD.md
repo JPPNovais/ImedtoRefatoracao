@@ -92,6 +92,15 @@ O lembrete de consulta ganha um canal WhatsApp complementar ao e-mail (mesmo job
 - **Interação com anonimização LGPD**: o job `anonimizar-pacientes-inativos` zera `pacientes.telefone`; consentimento sem telefone é inerte (nada é enviado por R2 do briefing). Avaliar resetar o opt-in junto à anonimização — comportamento decidido no PR da entrega, sem schema adicional.
 - **Multi-tenant**: o corpo do template **sempre** identifica o estabelecimento de origem (`{{nome_estabelecimento}}`); o envio só ocorre sobre agendamentos já filtrados por `estabelecimento_id`. Nenhum dado de outro tenant transita.
 
+## Expiração automática de agendamentos — log sem PII (briefing 2026-06-19_001)
+
+O job `ExpirarAgendamentosNaoFinalizadosJob` (diário, 03:00 BRT) aplica o status `Expirado` a agendamentos não finalizados do dia anterior. Regras LGPD:
+
+- **Sem PII em log**: o handler loga apenas `{ estabelecimento_id, quantidade, timestamp }` por estabelecimento. Nunca nome do paciente, `paciente_id`, CPF ou motivo individual.
+- **Mensagem de domínio genérica**: `Agendamento.ExpirarPorFimDoDia(motivo)` grava `MotivoCancelamento` com a string fixa `"Não finalizado até o fim do dia."` — nenhum dado do paciente entra no motivo.
+- **Sem notificação ao paciente**: R3 do briefing: o job é silencioso, não publica `AgendamentoCanceladoEvent`, não envia e-mail/WhatsApp ao paciente. Expiração é evento operacional, não comunicação ao titular.
+- **Cross-tenant controlado**: o job varre todos os estabelecimentos (sem filtro `estabelecimento_id` na query de IDs) porque é uma operação administrativa global. Porém, cada agendamento mantém seu próprio `estabelecimento_id` intocado — não há cross-tenant de dados, apenas cross-tenant de operação de manutenção. O mesmo padrão de `ExpirarAssinaturasPendentesJob` e `LimparAuditAdminJob`.
+
 ## Pool de variáveis do prontuário — minimização de dados (briefing 2026-06-05_001)
 
 A tabela `prontuario_variaveis_pool` guarda nomes genéricos de itens clínicos (ex.: "Dipirona", "Hipertensão") — **não é PII de paciente**. Regras de uso:

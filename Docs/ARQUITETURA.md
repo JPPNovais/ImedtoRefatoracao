@@ -465,6 +465,10 @@ A assinatura em nuvem é inerentemente assíncrona: o BirdID dispara PUSH no cel
 
 **Webhook sem `[Authorize]`**: único endpoint no sistema sem autenticação JWT de usuário. Segurança é feita pelo handler via validação de assinatura HMAC/JWT do payload do BirdID. Receita de tenant inativo → descarte silencioso (sem mutação, resposta 200 para evitar retry infinito do provedor).
 
+### Job: expirar-agendamentos-nao-finalizados
+
+`ExpirarAgendamentosNaoFinalizadosJob` — `Nome = "expirar-agendamentos-nao-finalizados"`, intervalo `86400` (1×/dia, 03:00 BRT / 06:00 UTC). Varre cross-tenant (global) os agendamentos em status `Agendado` ou `Confirmado` cujo `inicio_previsto` caia na janela de ontem 00:00 BRT até hoje 00:00 BRT (D-1, calculada via `TimeZoneInfo "America/Sao_Paulo"`). Para cada item chama `Agendamento.ExpirarPorFimDoDia(motivo)` — **método de domínio silencioso (sem evento)**, diferente de `Cancelar()`. Processa em lotes de 200. Log agregado por `{ estabelecimento_id, quantidade, timestamp }` sem PII. Janela estritamente D-1: se o job falhar num dia, os registros daquele dia não são varridos em execuções futuras (risco aceito em produto — §8 briefing 2026-06-19_001).
+
 ### Job: expirar-assinaturas-pendentes
 
 `ExpirarAssinaturasPendentesJob` — `Nome = "expirar-assinaturas-pendentes"`, intervalo `3600` (1×/hora). Marca como `AssinaturaExpirada` todas as receitas com `status_assinatura = 'AssinaturaPendente'` e `assinatura_solicitada_em < UtcNow - 30 min`. Registro em `assinatura_audit_log` com `acao = 'EXPIRAR_PENDENTE'`.

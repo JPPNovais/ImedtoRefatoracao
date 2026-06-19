@@ -29,6 +29,7 @@ const iconesPorRotulo: Record<string, string> = {
     'Cancelados':   'fa-circle-xmark',
     'No-show':      'fa-user-xmark',
     'Concluídos':   'fa-check',
+    'Expirado':     'fa-clock-rotate-left',
 }
 
 const dadosBarras = computed(() =>

@@ -176,6 +176,24 @@ public class Agendamento : Entity
         AtualizadoEm = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Expira o agendamento por não ter recebido baixa manual até o fim do dia (job noturno D-1).
+    /// Grava <paramref name="motivo"/> em <c>MotivoCancelamento</c> para rastreabilidade.
+    /// Não publica evento — varredura em massa não deve disparar notificações (R3 briefing 2026-06-19_001).
+    /// Guard: só transiciona a partir de Agendado ou Confirmado; estados terminais são no-op seguro.
+    /// </summary>
+    public virtual void ExpirarPorFimDoDia(string motivo)
+    {
+        // Guard: estados terminais são no-op — idempotência (R7/CA10).
+        if (Status != AgendamentoStatus.Agendado && Status != AgendamentoStatus.Confirmado)
+            return;
+
+        Status = AgendamentoStatus.Expirado;
+        MotivoCancelamento = motivo;
+        AtualizadoEm = DateTime.UtcNow;
+        // Deliberadamente sem AddDomainEvent — ver R3 do briefing.
+    }
+
     public virtual void AlocarSala(long? salaId)
     {
         if (Status == AgendamentoStatus.Cancelado)

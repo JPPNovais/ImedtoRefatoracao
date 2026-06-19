@@ -119,7 +119,7 @@ const iniciais = (nome: string) => {
 const ocupacao = computed(() => {
     const cap = props.capacidadeDia ?? 18
     const usados = props.agendamentosDoDia.filter(
-        a => a.status !== "Cancelado",
+        a => a.status !== "Cancelado" && a.status !== "Expirado",
     ).length
     const pct = cap > 0 ? Math.min(100, Math.round(usados * 100 / cap)) : 0
     return { usados, cap, pct }

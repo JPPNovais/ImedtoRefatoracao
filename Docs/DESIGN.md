@@ -548,6 +548,25 @@ Views standalone **sem `AppLayout`**, no mesmo padrão de `views/legal/` (`Priva
 - **Links de entrada**: rodapé da `LandingView` (colunas "Produto" e "Suporte") e footer do `AppSidebar` (junto a Configurações/Ajuda).
 - **Sem uptime medido**: status é declarado manualmente até F0-E1 (infra de monitoramento externo).
 
+## Estados de agendamento — label, cor e token (briefing 2026-06-19_001)
+
+Mapa canônico de `AgendamentoStatus` → label PT-BR + cor. Implementado em `STATUS_META` em `AgendamentoRow.vue` e `EditarAgendamentoModal.vue`, e nas classes globais `.status-pill.*` em `main.css`.
+
+| Status     | Label PT-BR | Token / cor                                | Semântica                                   |
+|------------|-------------|---------------------------------------------|---------------------------------------------|
+| `Agendado` | Agendado    | `hsl(45 96% 47%)` (âmbar)                  | Aguardando confirmação                      |
+| `Confirmado` | Confirmado | `hsl(160 79% 39%)` (verde)                 | Paciente confirmou presença                 |
+| `Concluido` | Concluído  | `hsl(var(--foreground) / 0.6)` (neutro)    | Atendimento realizado e finalizado          |
+| `Cancelado` | Cancelado  | `hsl(0 84% 60%)` (vermelho)                | Cancelamento deliberado (com motivo)        |
+| `Expirado` | Expirado    | `hsl(var(--status-expirado-cor, 220 9% 60%))` (acinzentado) | Não finalizado até o fim do dia (job D-1) |
+
+**Tokens do estado Expirado** (definidos em `main.css :root`):
+- `--status-expirado-cor: 220 9% 60%` — cor da stripe/borda
+- `--status-expirado-bg: 220 9% 60% / 0.12` — fundo da pílula
+- `--status-expirado-fg: 220 9% 42%` — texto da pílula
+
+**Regra de negócio**: `Expirado` é estado terminal aplicado automaticamente pelo job noturno (`expirar-agendamentos-nao-finalizados`, 03:00 BRT). Não é cancelamento deliberado — **nunca** somar `Expirado` com `Cancelado` em relatórios; cada um é sua própria categoria. Sem fluxo de desfazer nesta entrega.
+
 ## Documentos relacionados
 
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — referência completa de componentes do design system, tokens, e variantes.

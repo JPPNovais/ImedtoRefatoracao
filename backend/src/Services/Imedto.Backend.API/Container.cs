@@ -272,6 +272,7 @@ public static class Container
         services.AddScoped<IJobHandler, LimparAuditAdminJob>(); // Wave 7 — retenção audit admin
         // ExpirarTrialsJob removido (F6 — 2026-06-11_003): trials expiram pela estrutura nova (imedto_assinaturas.expira_em).
         services.AddScoped<IJobHandler, LimparCacheIaJob>(); // item 3.8
+        services.AddScoped<IJobHandler, ExpirarAgendamentosNaoFinalizadosJob>(); // briefing 2026-06-19_001
 
         // Central de Migração (briefing 2026-06-15_001 — Marco 1)
         services.AddScoped<Imedto.Backend.Domain.Migracao.IMigracaoJobRepository,

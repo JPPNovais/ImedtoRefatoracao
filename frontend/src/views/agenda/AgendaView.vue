@@ -175,7 +175,8 @@ const stats = computed(() => {
     const confirmado = arr.filter(a => a.status === "Confirmado").length
     const concluido = arr.filter(a => a.status === "Concluido").length
     const cancelado = arr.filter(a => a.status === "Cancelado").length
-    return { total, agendado, confirmado, concluido, cancelado }
+    const expirado = arr.filter(a => a.status === "Expirado").length
+    return { total, agendado, confirmado, concluido, cancelado, expirado }
 })
 
 const tituloDia = computed(() => {
@@ -639,6 +640,16 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
                 :legenda="stats.cancelado ? 'no dia' : 'sem cancelamentos'"
                 :ativo="filtroStatus === 'Cancelado'"
                 @click="filtroStatus = filtroStatus === 'Cancelado' ? null : 'Cancelado'"
+            />
+            <AppStatCard
+                v-if="stats.expirado > 0"
+                label="Expirados"
+                :valor="stats.expirado"
+                icone="fa-solid fa-clock-rotate-left"
+                cor="muted"
+                :legenda="stats.expirado ? 'não finalizados (D-1)' : '—'"
+                :ativo="filtroStatus === 'Expirado'"
+                @click="filtroStatus = filtroStatus === 'Expirado' ? null : 'Expirado'"
             />
         </div>
 

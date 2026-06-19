@@ -54,5 +54,9 @@ public static class JobsRegistrados
         // Central de Migração — Marco 3 (briefing 2026-06-15_001) — carga onda 1 (entidades base).
         // Poll a cada 30s; processa 1 job por rodada em lotes de 100. Idempotente.
         new("carregar-onda1-migracao", IntervaloSeg: 30),
+
+        // Expiração de agendamentos não finalizados (briefing 2026-06-19_001).
+        // Roda 1×/dia às 03:00 BRT (06:00 UTC). Varre D-1 cross-tenant em lotes de 200.
+        new("expirar-agendamentos-nao-finalizados", IntervaloSeg: 86400),
     };
 }
