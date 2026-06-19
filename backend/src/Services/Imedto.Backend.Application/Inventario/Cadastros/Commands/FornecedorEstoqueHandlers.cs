@@ -17,11 +17,9 @@ public class CriarFornecedorEstoqueCommandHandler : ICommandHandler<CriarFornece
             throw new BusinessException("Já existe um fornecedor com esta razão social.");
 
         // Pré-valida CNPJ duplicado (se informado) — mensagem específica antes do INSERT.
-        var cnpjDigitos = string.IsNullOrWhiteSpace(cmd.Cnpj)
-            ? null
-            : new string(cmd.Cnpj.Where(char.IsDigit).ToArray());
-        if (!string.IsNullOrEmpty(cnpjDigitos) &&
-            await _repo.ExisteComCnpjNoEstabelecimento(cnpjDigitos, cmd.EstabelecimentoId))
+        var cnpjCanônico = CnpjValidator.Normalizar(cmd.Cnpj);
+        if (!string.IsNullOrEmpty(cnpjCanônico) &&
+            await _repo.ExisteComCnpjNoEstabelecimento(cnpjCanônico, cmd.EstabelecimentoId))
             throw new BusinessException("Já existe um fornecedor com este CNPJ.");
 
         var forn = FornecedorEstoque.Criar(
@@ -47,11 +45,9 @@ public class AtualizarFornecedorEstoqueCommandHandler : ICommandHandler<Atualiza
         if (await _repo.ExisteComNomeNoEstabelecimento(cmd.RazaoSocial, cmd.EstabelecimentoId, ignorarId: cmd.FornecedorId))
             throw new BusinessException("Já existe um fornecedor com esta razão social.");
 
-        var cnpjDigitos = string.IsNullOrWhiteSpace(cmd.Cnpj)
-            ? null
-            : new string(cmd.Cnpj.Where(char.IsDigit).ToArray());
-        if (!string.IsNullOrEmpty(cnpjDigitos) &&
-            await _repo.ExisteComCnpjNoEstabelecimento(cnpjDigitos, cmd.EstabelecimentoId, ignorarId: cmd.FornecedorId))
+        var cnpjCanônico = CnpjValidator.Normalizar(cmd.Cnpj);
+        if (!string.IsNullOrEmpty(cnpjCanônico) &&
+            await _repo.ExisteComCnpjNoEstabelecimento(cnpjCanônico, cmd.EstabelecimentoId, ignorarId: cmd.FornecedorId))
             throw new BusinessException("Já existe um fornecedor com este CNPJ.");
 
         forn.Atualizar(

@@ -188,7 +188,9 @@ public sealed class TermoResolverDeVariaveis : ITermoResolverDeVariaveis
 
     private static string FormatarCnpj(string cnpj)
     {
-        var d = SomenteDigitos(cnpj);
+        if (string.IsNullOrWhiteSpace(cnpj)) return Fallbacks.Vazio;
+        // Preserva [A-Z0-9] para suportar CNPJ alfanumérico (IN RFB 2.229/2024).
+        var d = new string(cnpj.ToUpperInvariant().Where(char.IsAsciiLetterOrDigit).ToArray());
         if (d.Length != 14) return Fallbacks.Vazio;
         return $"{d.Substring(0, 2)}.{d.Substring(2, 3)}.{d.Substring(5, 3)}/{d.Substring(8, 4)}-{d.Substring(12, 2)}";
     }

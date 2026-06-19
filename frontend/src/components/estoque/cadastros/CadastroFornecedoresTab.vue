@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from "vue"
+import { vMaska } from "maska/vue"
+import type { MaskInputOptions } from "maska"
 import {
     AppSearchInput, AppButton, AppEmptyState, AppPagination, AppDrawer,
     AppField, AppInput, AppStatusPill, AppToast, AppConfirmDialog, AppPillToggle,
@@ -10,7 +12,16 @@ import {
     type FornecedorEstoque,
     type FornecedorPayload,
 } from "@/services/estoqueCadastrosService"
-import { validateCnpj, formatarCnpj, apenasDigitos } from "@/utils/validateCnpj"
+import { validateCnpj, formatarCnpj, normalizarCnpj } from "@/utils/validateCnpj"
+
+// Máscara inteligente CNPJ alfanumérico (IN RFB 2.229/2024):
+// posições 1-12 aceitam [A-Z0-9] com uppercase; posições 13-14 (DV) só dígitos.
+const cnpjMaskaOpts: MaskInputOptions = {
+    mask: "XX.XXX.XXX/XXXX-##",
+    tokens: {
+        X: { pattern: /[A-Z0-9]/i, transform: (c: string) => c.toUpperCase() },
+    },
+}
 
 const emit = defineEmits<{ "total-change": [total: number] }>()
 
@@ -86,11 +97,11 @@ async function salvar() {
     if (form.value.prazoEntregaDias < 0) { erroForm.value = "Prazo de entrega não pode ser negativo."; return }
     salvando.value = true
     try {
-        const cnpjDigitos = apenasDigitos(form.value.cnpj)
+        const cnpjCanônico = normalizarCnpj(form.value.cnpj)
         const payload: FornecedorPayload = {
             razaoSocial: form.value.razaoSocial,
             nomeFantasia: form.value.nomeFantasia?.trim() || null,
-            cnpj: cnpjDigitos || null,
+            cnpj: cnpjCanônico || null,
             contatoNome: form.value.contatoNome?.trim() || null,
             contatoTelefone: form.value.contatoTelefone?.trim() || null,
             contatoEmail: form.value.contatoEmail?.trim() || null,
@@ -282,7 +293,7 @@ onMounted(carregar)
                         label="CNPJ"
                         :erro="form.cnpj && !cnpjValido ? 'CNPJ inválido' : null"
                     >
-                        <AppInput v-model="form.cnpj" placeholder="00.000.000/0000-00" />
+                        <AppInput v-model="form.cnpj" v-maska="cnpjMaskaOpts" placeholder="00.000.000/0000-00" />
                     </AppField>
                     <AppField label="Prazo de entrega (dias)">
                         <AppInput v-model="form.prazoEntregaDias" type="number" :min="0" />

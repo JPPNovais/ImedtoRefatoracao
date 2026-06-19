@@ -36,9 +36,11 @@ public sealed class RemovePIIEnricher : ILogEventEnricher
         @"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b",
         RegexOptions.Compiled);
 
+    // CNPJ alfanumérico (IN RFB 2.229/2024): 12 primeiras posições [A-Z0-9], 2 DVs numéricos.
+    // Casa tanto o formato numérico clássico quanto o novo alfanumérico, com ou sem máscara.
     private static readonly Regex CnpjRegex = new(
-        @"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b",
-        RegexOptions.Compiled);
+        @"\b[A-Z0-9]{2}\.?[A-Z0-9]{3}\.?[A-Z0-9]{3}/?[A-Z0-9]{4}-?\d{2}\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex TelefoneRegex = new(
         @"\(?\d{2}\)?\s?9?\d{4}-?\d{4}",

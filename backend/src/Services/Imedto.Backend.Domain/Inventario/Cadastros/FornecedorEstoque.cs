@@ -11,7 +11,7 @@ public class FornecedorEstoque : Entity
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual string RazaoSocial { get; protected set; } = string.Empty;
     public virtual string? NomeFantasia { get; protected set; }
-    /// <summary>CNPJ apenas dígitos (14 chars). Pode ser null para fornecedor sem PJ formal.</summary>
+    /// <summary>CNPJ canônico (14 chars, [A-Z0-9]). Pode ser null para fornecedor sem PJ formal.</summary>
     public virtual string? Cnpj { get; protected set; }
     public virtual string? ContatoNome { get; protected set; }
     public virtual string? ContatoTelefone { get; protected set; }
@@ -126,10 +126,8 @@ public class FornecedorEstoque : Entity
     {
         if (string.IsNullOrWhiteSpace(cnpj)) return null;
         var normalizado = CnpjValidator.Normalizar(cnpj);
-        if (normalizado is null || normalizado.Length != 14)
-            throw new BusinessException("CNPJ deve conter 14 dígitos.");
-        if (!CnpjValidator.EhValido(normalizado))
-            throw new BusinessException("CNPJ inválido (dígitos verificadores não conferem).");
+        if (normalizado is null || !CnpjValidator.EhValido(normalizado))
+            throw new BusinessException("CNPJ inválido.");
         return normalizado;
     }
 

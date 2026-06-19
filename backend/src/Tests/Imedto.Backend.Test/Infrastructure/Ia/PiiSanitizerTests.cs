@@ -122,6 +122,39 @@ public class PiiSanitizerTests
         Assert.That(resultado, Does.Contain("[CNPJ_REDACTED]"));
     }
 
+    /// <summary>
+    /// CNPJ alfanumérico (IN RFB 2.229/2024) com máscara deve ser redactado — CA9 LGPD.
+    /// Garante que a regex [A-Z0-9] cobre o formato novo, não só o numérico clássico.
+    /// </summary>
+    [Test]
+    public void Sanitize_CnpjAlfanumericoComMascara_ESubstituido()
+    {
+        // Arrange — CNPJ alfanumérico válido (DVs corretos, espelhado no CnpjValidatorTests).
+        const string entrada = "CNPJ alfanumérico: 12.ABC.345/01DE-35 — dados do fornecedor.";
+
+        // Act
+        var resultado = PiiSanitizer.Sanitize(entrada);
+
+        // Assert
+        Assert.That(resultado, Does.Not.Contain("12.ABC.345/01DE-35"));
+        Assert.That(resultado, Does.Contain("[CNPJ_REDACTED]"));
+        Assert.That(resultado, Does.Contain("dados do fornecedor."), "Texto adjacente deve ser preservado.");
+    }
+
+    [Test]
+    public void Sanitize_CnpjAlfanumericoSemMascara_ESubstituido()
+    {
+        // Arrange — forma canônica (sem pontuação) do CNPJ alfanumérico.
+        const string entrada = "Fornecedor: 12ABC34501DE35";
+
+        // Act
+        var resultado = PiiSanitizer.Sanitize(entrada);
+
+        // Assert
+        Assert.That(resultado, Does.Not.Contain("12ABC34501DE35"));
+        Assert.That(resultado, Does.Contain("[CNPJ_REDACTED]"));
+    }
+
     // ---- E-mail ----
 
     [Test]

@@ -159,7 +159,8 @@ function blobParaDataUrl(blob: Blob): Promise<string> {
 
 export function formatarCnpj(cnpj: string | null | undefined): string | null {
     if (!cnpj) return null
-    const d = cnpj.replace(/\D/g, "")
+    // Preserva [A-Z0-9] para suportar CNPJ alfanumérico (IN RFB 2.229/2024).
+    const d = cnpj.toUpperCase().replace(/[^A-Z0-9]/g, "")
     if (d.length !== 14) return cnpj
     return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
 }

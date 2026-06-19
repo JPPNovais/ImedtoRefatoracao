@@ -34,7 +34,7 @@ public class EstabelecimentoTests
     }
 
     [Test]
-    public void Criar_NormalizaCnpjETelefone_SomenteDigitos()
+    public void Criar_NormalizaCnpjETelefone_FormaCanonica()
     {
         var e = CriarValido();
         Assert.That(e.Cnpj, Is.EqualTo("12345678000195"));
@@ -66,11 +66,17 @@ public class EstabelecimentoTests
     }
 
     [Test]
-    public void Criar_CnpjComprimentoInvalido_LancaBusinessException()
+    public void Criar_CnpjInvalido_LancaBusinessException()
     {
-        var ex = Assert.Throws<BusinessException>(() =>
+        // CNPJ com comprimento inválido
+        var ex1 = Assert.Throws<BusinessException>(() =>
             Estabelecimento.Criar(Guid.NewGuid(), "Clinica", null, "12345", null, null));
-        Assert.That(ex.Message, Does.Contain("14 dígitos"));
+        Assert.That(ex1.Message, Does.Contain("inválido"));
+
+        // CNPJ com DV incorreto
+        var ex2 = Assert.Throws<BusinessException>(() =>
+            Estabelecimento.Criar(Guid.NewGuid(), "Clinica", null, "12.345.678/0001-00", null, null));
+        Assert.That(ex2.Message, Does.Contain("inválido"));
     }
 
     [Test]
@@ -108,11 +114,12 @@ public class EstabelecimentoTests
     public void AtualizarDados_Valido_AtualizaCampos()
     {
         var e = CriarValido();
-        e.AtualizarDados("Nova Clinica", "Nova LTDA", "98.765.432/0001-10", "11888887777", "Rua B");
+        // 11.222.333/0001-81 — CNPJ numérico com DV correto
+        e.AtualizarDados("Nova Clinica", "Nova LTDA", "11.222.333/0001-81", "11888887777", "Rua B");
 
         Assert.That(e.NomeFantasia, Is.EqualTo("Nova Clinica"));
         Assert.That(e.RazaoSocial, Is.EqualTo("Nova LTDA"));
-        Assert.That(e.Cnpj, Is.EqualTo("98765432000110"));
+        Assert.That(e.Cnpj, Is.EqualTo("11222333000181"));
         Assert.That(e.Telefone, Is.EqualTo("11888887777"));
         Assert.That(e.Endereco, Is.EqualTo("Rua B"));
         Assert.That(e.AtualizadoEm, Is.Not.Null);
@@ -131,9 +138,15 @@ public class EstabelecimentoTests
     public void AtualizarDados_CnpjInvalido_LancaBusinessException()
     {
         var e = CriarValido();
-        var ex = Assert.Throws<BusinessException>(() =>
+        // Comprimento errado
+        var ex1 = Assert.Throws<BusinessException>(() =>
             e.AtualizarDados("Clinica", null, "12345", null, null));
-        Assert.That(ex.Message, Does.Contain("14 dígitos"));
+        Assert.That(ex1.Message, Does.Contain("inválido"));
+
+        // DV incorreto
+        var ex2 = Assert.Throws<BusinessException>(() =>
+            e.AtualizarDados("Clinica", null, "12.345.678/0001-00", null, null));
+        Assert.That(ex2.Message, Does.Contain("inválido"));
     }
 
     // ----- AtualizarFuncionamento -----

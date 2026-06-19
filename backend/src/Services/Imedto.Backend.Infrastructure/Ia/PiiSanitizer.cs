@@ -19,9 +19,11 @@ public static class PiiSanitizer
     // Regexes compiladas — execução em hot path (toda chamada de IA).
     // Ordem importa: padrões mais longos primeiro para não serem comidos por padrões mais curtos.
 
+    // CNPJ alfanumérico (IN RFB 2.229/2024): 12 primeiras posições [A-Z0-9], 2 DVs numéricos.
+    // Casa tanto o formato numérico clássico quanto o novo alfanumérico, com ou sem máscara.
     private static readonly Regex CnpjRegex = new(
-        @"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b",
-        RegexOptions.Compiled);
+        @"\b[A-Z0-9]{2}\.?[A-Z0-9]{3}\.?[A-Z0-9]{3}/?[A-Z0-9]{4}-?\d{2}\b",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // Celular: DDD + dígito 9 obrigatório (regra ANATEL pós-2014) + 8 dígitos.
     // Casa "(11) 99999-8888" e "11999998888" mas NÃO casa "12345678909" (CPF cru sem 9 no 3º dígito).
