@@ -15,7 +15,7 @@
  *       ficam opcionais e aparecem campos de "Preferência de período" (Manhã /
  *       Tarde / Qualquer horário) e "Urgência" (Rotina / Prioritário / Urgente)
  *     - profissional, tipo, data, duração, slots de horário, convênio + plano,
- *       motivo, observações, lembretes (WhatsApp / E-mail)
+ *       motivo, observações
  *
  *   Step 3 — Confirmar:
  *     - card com resumo (variantes normal e lista de espera)
@@ -146,8 +146,6 @@ const detalhes = reactive({
     motivo: "",
     observacoes: "",
     salaId: null as number | null,
-    lembreteWA: true,
-    lembreteEmail: false,
     listaEspera: false,
     preferenciaPeriodo: "Qualquer" as ListaEsperaPreferenciaPeriodo,
     prioridade: "Rotina" as ListaEsperaPrioridade,
@@ -192,8 +190,6 @@ function reset() {
         motivo: props.motivoPreSelecionado ?? "",
         observacoes: "",
         salaId: null,
-        lembreteWA: true,
-        lembreteEmail: false,
         listaEspera: false,
         preferenciaPeriodo: "Qualquer",
         prioridade: "Rotina",
@@ -791,19 +787,11 @@ const profSelecionado = computed(() =>
 
                         <div class="field-group full reminder-row">
                             <label>Lembrete automático</label>
-                            <div class="reminder-toggles">
-                                <!-- CA14: WhatsApp desabilitado — sem integração de envio. NÃO remover do estado. -->
-                                <span title="em breve" class="reminder-wa-soon">
-                                    <AppCheckbox v-model="detalhes.lembreteWA" :disabled="true">
-                                        <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp
-                                    </AppCheckbox>
-                                    <span class="badge-soon">em breve</span>
-                                </span>
-                                <AppCheckbox v-model="detalhes.lembreteEmail">
-                                    <i class="fa-solid fa-envelope" aria-hidden="true"></i> E-mail
-                                </AppCheckbox>
-                            </div>
-                            <span class="hint">Enviado automaticamente 24h antes do atendimento.</span>
+                            <p class="reminder-info">
+                                Lembretes enviados automaticamente por e-mail e, se o paciente autorizou
+                                o WhatsApp, também por lá — conforme a configuração de Automações do
+                                estabelecimento.
+                            </p>
                         </div>
                     </div>
                 </section>
@@ -882,8 +870,7 @@ const profSelecionado = computed(() =>
                             </div>
                             <div class="kv">
                                 <span>Lembrete</span>
-                                <!-- CA14: WhatsApp não conta como canal ativo (sem integração). -->
-                                <b>{{ detalhes.lembreteEmail ? "E-mail" : "Não enviar" }}</b>
+                                <b>Automático conforme Automações</b>
                             </div>
                         </div>
                     </div>
@@ -899,11 +886,8 @@ const profSelecionado = computed(() =>
                         </div>
                         <div v-else class="confirm-info">
                             <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                            Tudo pronto. Ao confirmar, o agendamento será adicionado à agenda{{
-                                detalhes.lembreteEmail
-                                    ? " e o lembrete será disparado 24h antes."
-                                    : " sem envio de lembrete automático."
-                            }}
+                            Tudo pronto. Ao confirmar, o agendamento será adicionado à agenda e lembretes
+                            serão enviados conforme a configuração de Automações do estabelecimento.
                         </div>
                     </template>
 
@@ -1611,35 +1595,12 @@ const profSelecionado = computed(() =>
 .urgency-row .urg.warning.active { background: hsl(45 96% 47% / 0.1); border-color: hsl(45 96% 47%); }
 .urgency-row .urg.error.active { background: hsl(0 84% 60% / 0.1); border-color: hsl(0 84% 60%); }
 
-/* Reminder */
-.reminder-row .reminder-toggles {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-.reminder-row .hint {
-    font-size: 11px;
-    color: hsl(var(--foreground) / 0.55);
-    margin-top: 4px;
-}
-
-/* CA14: wrapper do checkbox WhatsApp desabilitado + badge "em breve" */
-.reminder-wa-soon {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.badge-soon {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: hsl(35 90% 30%);
-    background: hsl(45 96% 47% / 0.15);
-    border: 1px solid hsl(45 96% 47% / 0.35);
-    border-radius: 4px;
-    padding: 1px 5px;
-    line-height: 1.4;
+/* Reminder — nota informativa */
+.reminder-row .reminder-info {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: hsl(var(--foreground) / 0.65);
+    line-height: 1.5;
 }
 
 /* ─── Step 3 Confirm ─── */
