@@ -62,7 +62,9 @@ public class ProntuarioAnexoController : ControllerBase
     public async Task<IActionResult> Upload(
         long pacienteId,
         [FromForm] IFormFile arquivo,
-        [FromForm] long? evolucaoId = null)
+        [FromForm] long? evolucaoId = null,
+        [FromForm] string? regiaoAnatomica = null,
+        [FromForm] string? marcador = null)
     {
         if (arquivo is null || arquivo.Length == 0)
             return UnprocessableEntity(new { tipo = "ErroDeNegocio", mensagem = "Arquivo vazio." });
@@ -77,7 +79,9 @@ public class ProntuarioAnexoController : ControllerBase
             NomeOriginal = arquivo.FileName,
             MimeType = arquivo.ContentType,
             TamanhoBytes = arquivo.Length,
-            Conteudo = stream
+            Conteudo = stream,
+            RegiaoAnatomica = regiaoAnatomica,
+            Marcador = marcador
         };
 
         await _commandBus.Send(command);

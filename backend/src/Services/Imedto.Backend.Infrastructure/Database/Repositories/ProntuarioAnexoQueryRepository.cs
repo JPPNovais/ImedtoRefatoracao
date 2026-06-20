@@ -23,7 +23,9 @@ public class ProntuarioAnexoQueryRepository
                     a.mime_type         AS MimeType,
                     a.tamanho_bytes     AS TamanhoBytes,
                     a.criado_em         AS CriadoEm,
-                    u.nome_completo     AS AutorNome
+                    u.nome_completo     AS AutorNome,
+                    a.regiao_anatomica  AS RegiaoAnatomica,
+                    a.marcador          AS Marcador
             FROM    public.prontuario_anexos a
             LEFT JOIN public.usuarios u ON u.id = a.criado_por_usuario_id
             WHERE   a.prontuario_id = @ProntuarioId

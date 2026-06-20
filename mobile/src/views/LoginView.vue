@@ -46,7 +46,7 @@ async function entrarComBiometria() {
 
 function irProximaTela() {
   if (tenant.semEstabelecimento || !tenant.temTenantSelecionado) router.replace({ name: "seletor" })
-  else router.replace({ name: "agenda" })
+  else router.replace({ name: "inicio" })
 }
 </script>
 

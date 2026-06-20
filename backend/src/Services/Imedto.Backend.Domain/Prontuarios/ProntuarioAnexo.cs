@@ -24,6 +24,10 @@ public class ProntuarioAnexo : Entity, ISoftDeletable
     public virtual DateTime? ArquivadoEm { get; protected set; }
     public virtual Guid? ArquivadoPorUsuarioId { get; protected set; }
 
+    // Metadados de foto clínica — opcionais (nullable); ignorados para PDFs e docs genéricos.
+    public virtual string? RegiaoAnatomica { get; protected set; }
+    public virtual string? Marcador { get; protected set; }
+
     // Soft delete — separado de "arquivar". Arquivar é estado UX (anexo oculto, blob mantido);
     // deletado é estado LGPD (acionado por exclusão de prontuário/paciente, audit trail obrigatório).
     public virtual DateTime? DeletadoEm { get; protected set; }
@@ -41,7 +45,9 @@ public class ProntuarioAnexo : Entity, ISoftDeletable
         string nomeOriginal,
         string mimeType,
         long tamanhoBytes,
-        Guid criadoPorUsuarioId)
+        Guid criadoPorUsuarioId,
+        string? regiaoAnatomica = null,
+        string? marcador = null)
     {
         if (prontuarioId <= 0)
             throw new BusinessException("Prontuário é obrigatório.");
@@ -64,7 +70,9 @@ public class ProntuarioAnexo : Entity, ISoftDeletable
             MimeType = string.IsNullOrWhiteSpace(mimeType) ? "application/octet-stream" : mimeType,
             TamanhoBytes = tamanhoBytes,
             CriadoPorUsuarioId = criadoPorUsuarioId,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DateTime.UtcNow,
+            RegiaoAnatomica = string.IsNullOrWhiteSpace(regiaoAnatomica) ? null : regiaoAnatomica.Trim(),
+            Marcador = string.IsNullOrWhiteSpace(marcador) ? null : marcador.Trim()
         };
     }
 

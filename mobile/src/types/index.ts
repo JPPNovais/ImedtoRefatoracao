@@ -43,10 +43,12 @@ export interface BootstrapMe {
 export type StatusAgendamento =
   | "Agendado"
   | "Confirmado"
+  | "CheckIn"
   | "EmAtendimento"
   | "Concluido"
   | "Cancelado"
   | "Faltou"
+  | "Expirado"
 
 export interface Agendamento {
   id: number
@@ -191,9 +193,194 @@ export interface Orcamento {
   itens: OrcamentoLinha[]
 }
 
+// ─── Dashboard ──────────────────────────────────────────────────────────────
+
+export interface ProximoAgendamentoDto {
+  id: number
+  pacienteNome: string
+  profissionalNome: string
+  inicioPrevisto: string // ISO
+  tipoServico: string
+  status: string
+}
+
+export interface ItemAbaixoMinimoDto {
+  id: number
+  nome: string
+  quantidadeAtual: number
+  quantidadeMinima: number
+  unidadeMedida: string
+}
+
+export interface DashboardDto {
+  totalPacientesAtivos: number
+  agendamentosHoje: number
+  agendamentosSemana: number
+  receitasMes: number
+  despesasMes: number
+  saldoMes: number
+  itensAbaixoMinimo: number
+  orcamentosPendentes: number
+  lancamentosVencidos: number
+  vencidosAReceber: number
+  vencidosAPagar: number
+  proximosAgendamentos: ProximoAgendamentoDto[]
+  itensAbaixoMinimoLista: ItemAbaixoMinimoDto[]
+}
+
+// ─── Financeiro / Caixa ─────────────────────────────────────────────────────
+
+export interface ResumoCaixaFormaPagamentoDto {
+  formaPagamento: string
+  total: number
+}
+
+export interface CaixaDiarioDto {
+  id: number
+  data: string
+  status: string // "Aberto" | "Fechado"
+  totalDia: number
+  totalEstornos: number
+  resumoPorForma: ResumoCaixaFormaPagamentoDto[]
+}
+
 /** Erro de negócio normalizado (422 BusinessException) ou de rede. */
 export interface ApiError {
   status: number
   tipo?: string
   mensagem: string
+}
+
+// ─── Financeiro / Extrato ──────────────────────────────────────────────────
+export interface LancamentoExtratoDto {
+  id: number
+  descricao: string
+  pacienteNome?: string | null
+  categoria: string
+  formaPagamento?: string | null
+  valor: number
+  status: string
+  dataPagamento?: string | null
+  dataVencimento: string // "yyyy-MM-dd"
+  tipo: string // "Receita" | "Despesa"
+}
+
+export interface PaginaLancamentosExtratoDto {
+  itens: LancamentoExtratoDto[]
+  total: number
+  pagina: number
+  tamanhoPagina: number
+}
+
+// ─── Financeiro / Formas de pagamento ─────────────────────────────────────
+export interface FormaPagamentoDto {
+  id: number
+  nome: string
+  ativa: boolean
+  padrao: boolean
+}
+
+// ─── Cobranças ─────────────────────────────────────────────────────────────
+export interface CobrancaDetalheDto {
+  id: number
+  agendamentoId?: number | null
+  pacienteId: number
+  pacienteNome: string
+  valorCobrado: number
+  desconto: number
+  totalPago: number
+  status: string // "Aberto" | "Pago" | "Parcial" | "Estornado"
+}
+
+export interface ValorSugeridoCheckInDto {
+  valorSugerido?: number | null
+  profissionalNome?: string | null
+}
+
+// ─── Agendamento (estendido) ────────────────────────────────────────────────
+export interface AgendamentoDetalhe extends Agendamento {
+  checkInEm?: string | null // ISO — presença confirmada
+}
+
+// ─── Inventário / Estoque ───────────────────────────────────────────────────
+export interface ItemInventarioDto {
+  id: number
+  estabelecimentoId: number
+  codigo: string
+  nome: string
+  categoria: string
+  categoriaId?: number | null
+  categoriaCor?: string | null
+  categoriaIcone?: string | null
+  fabricanteId?: number | null
+  fabricanteNome?: string | null
+  fornecedorPadraoId?: number | null
+  fornecedorPadraoNome?: string | null
+  localPadraoId?: number | null
+  localPadraoNome?: string | null
+  unidadeMedida: string
+  quantidadeAtual: number
+  quantidadeMinima: number
+  custoMedio: number
+  custoUnitario?: number | null
+  estoqueAbaixoMinimo: boolean
+  ativo: boolean
+  criadoEm: string
+  atualizadoEm?: string | null
+}
+
+export interface PaginaItensInventarioDto {
+  itens: ItemInventarioDto[]
+  total: number
+  pagina: number
+  tamanhoPagina: number
+}
+
+export interface RegistrarMovimentacaoDto {
+  itemInventarioId: number
+  tipo: string // "Entrada" | "Saída" | "Ajuste"
+  quantidade: number
+  custoUnitario: number
+  observacao?: string | null
+}
+
+// ─── Automação ──────────────────────────────────────────────────────────────
+export interface ConfiguracaoAutomacaoDto {
+  lembretesHabilitados: boolean
+  lembretesWhatsappHabilitados: boolean
+  horasAntecedenciaLembrete: number
+  expiracaoOrcamentosHabilitada: boolean
+  emailRemetente?: string | null
+}
+
+// ─── Push — preferências por categoria (local ao device) ───────────────────
+export interface PreferenciasPushDto {
+  caixa: boolean
+  estoque: boolean
+  fotos: boolean
+  pagamento: boolean
+  automacao: boolean
+  avisos: boolean
+}
+
+// ─── Prontuário / Anexos (fotos clínicas) ──────────────────────────────────
+export interface AnexoDto {
+  id: number
+  evolucaoId?: number | null
+  nomeOriginal: string
+  mimeType: string
+  tamanhoBytes: number
+  criadoEm: string // ISO
+  autorNome: string
+  /** Metadados de foto clínica — null para docs antigos. */
+  regiaoAnatomica?: string | null
+  marcador?: string | null
+}
+
+export interface AnexoUrlDto {
+  id: number
+  nomeOriginal: string
+  mimeType: string
+  url: string
+  expiraEm: string // ISO
 }

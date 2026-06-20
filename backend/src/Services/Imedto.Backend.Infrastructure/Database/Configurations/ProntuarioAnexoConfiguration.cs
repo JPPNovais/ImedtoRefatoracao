@@ -27,6 +27,10 @@ public class ProntuarioAnexoConfiguration : IEntityTypeConfiguration<ProntuarioA
         builder.Property(a => a.DeletadoEm).HasColumnName("deletado_em");
         builder.Property(a => a.DeletadoPorUsuarioId).HasColumnName("deletado_por_usuario_id");
 
+        // Metadados de foto clínica — nullable; ignorados para docs genéricos.
+        builder.Property(a => a.RegiaoAnatomica).HasColumnName("regiao_anatomica").HasMaxLength(200);
+        builder.Property(a => a.Marcador).HasColumnName("marcador").HasMaxLength(50);
+
         builder.HasIndex(a => new { a.ProntuarioId, a.ArquivadoEm })
             .HasDatabaseName("ix_anexos_prontuario");
         builder.HasIndex(a => a.EvolucaoId).HasDatabaseName("ix_anexos_evolucao");
