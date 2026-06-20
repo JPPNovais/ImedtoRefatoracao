@@ -272,7 +272,7 @@ function formatarQtd(n: number) {
     </div>
 
     <!-- Sheet de ajuste de quantidade -->
-    <BottomSheet :open="sheetAberta" @close="sheetAberta = false">
+    <BottomSheet v-model:open="sheetAberta">
       <template v-if="itemSelecionado">
         <div class="sh-row">
           <div class="sh-title">{{ itemSelecionado.nome }}</div>
