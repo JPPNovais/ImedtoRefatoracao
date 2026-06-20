@@ -2,15 +2,28 @@
 import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { agendaService } from "@/services/agenda.service"
-import { pacienteService } from "@/services/paciente.service"
 import { salaService } from "@/services/sala.service"
 import type { SalaDto } from "@/services/sala.service"
 import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
 import { iniciais, toISODate } from "@/lib/format"
+
+/** Data de hoje em ISO local (sem shift UTC). */
+const hojeISO = toISODate(new Date())
+
+/**
+ * Retorna true se o horário (string "HH:MM") está no passado considerando a data
+ * selecionada. Usa hora LOCAL do dispositivo — espelho da regra do web (motivo: 'passado').
+ * Só bloqueia se a data selecionada for HOJE; datas futuras liberam todos os slots.
+ */
+function horarioNoPassado(h: string): boolean {
+  if (data.value !== hojeISO) return false
+  const [hh, mm] = h.split(":").map(Number)
+  const agora = new Date()
+  return hh < agora.getHours() || (hh === agora.getHours() && mm <= agora.getMinutes())
+}
 import { mensagemDeErro } from "@/lib/erros"
-import BottomSheet from "@/components/ui/BottomSheet.vue"
-import AppSearchInput from "@/components/ui/AppSearchInput.vue"
+import PacienteSeletorSheet from "@/components/ui/PacienteSeletorSheet.vue"
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -27,25 +40,40 @@ const salvando = ref(false)
 
 const HORARIOS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30", "15:00"]
 
-const pickerOpen = ref(false)
-const busca = ref("")
-const lista = ref<{ id: number; nomeCompleto: string }[]>([])
+// Sheet de seleção de paciente (busca + criar + editar)
+const seletorOpen = ref(false)
+
+// Quando o sheet abre no modo editar, passa o paciente selecionado
+const pacienteParaEditar = ref<{ id: number; nomeCompleto: string } | null>(null)
 
 onMounted(async () => {
-  const [pacientes, salasResp] = await Promise.all([
-    pacienteService.buscaRapida("", 20).catch(() => []),
-    salaService.listar().catch(() => []),
-  ])
-  lista.value = pacientes
+  const salasResp = await salaService.listar().catch(() => [])
   salas.value = salasResp
   if (salasResp.length) salaId.value = salasResp[0].id
 })
-async function buscar() {
-  lista.value = await pacienteService.buscaRapida(busca.value, 20).catch(() => [])
+
+function abrirSeletor() {
+  // Abre no modo busca (não edição)
+  pacienteParaEditar.value = null
+  seletorOpen.value = true
 }
-function escolher(p: { id: number; nomeCompleto: string }) {
+
+function abrirEdicaoPaciente() {
+  if (!paciente.value) return
+  // Passa o paciente atual para edição inline, sem sair do fluxo
+  pacienteParaEditar.value = paciente.value
+  seletorOpen.value = true
+}
+
+function onPacienteSelecionado(p: { id: number; nomeCompleto: string }) {
   paciente.value = p
-  pickerOpen.value = false
+  pacienteParaEditar.value = null
+}
+
+function onPacienteAtualizado(p: { id: number; nomeCompleto: string }) {
+  // Atualiza o nome exibido no card após edição rápida
+  paciente.value = { ...paciente.value, ...p }
+  pacienteParaEditar.value = null
 }
 
 async function salvar() {
@@ -89,16 +117,26 @@ async function salvar() {
 
     <div class="push-body">
       <div class="f-label">Paciente</div>
-      <button class="rc-patient" @click="pickerOpen = true">
+      <button class="rc-patient" @click="abrirSeletor">
         <span class="av" :style="!paciente ? 'background:var(--app-card-2);color:var(--app-text-faint)' : ''">
           <template v-if="paciente">{{ iniciais(paciente.nomeCompleto) }}</template>
           <i v-else class="fa-solid fa-user"></i>
         </span>
         <span class="rx">
           <b>{{ paciente?.nomeCompleto || "Selecionar paciente" }}</b>
-          <span>{{ paciente ? "Toque para trocar" : "Toque para escolher" }}</span>
+          <span>{{ paciente ? "Toque para trocar" : "Toque para escolher ou criar" }}</span>
         </span>
         <i class="fa-solid fa-chevron-right chev"></i>
+      </button>
+
+      <!-- Botão editar dados rápidos do paciente selecionado -->
+      <button
+        v-if="paciente"
+        class="rc-editar-pac"
+        @click="abrirEdicaoPaciente"
+      >
+        <i class="fa-regular fa-pen-to-square"></i>
+        Editar dados do paciente
       </button>
 
       <div class="f-label">Data</div>
@@ -109,7 +147,15 @@ async function salvar() {
 
       <div class="f-label">Horário</div>
       <div class="fav-chips">
-        <button v-for="h in HORARIOS" :key="h" class="fav-chip" :class="{ on: horario === h }" @click="horario = h">{{ h }}</button>
+        <button
+          v-for="h in HORARIOS"
+          :key="h"
+          class="fav-chip"
+          :class="{ on: horario === h, passado: horarioNoPassado(h) }"
+          :disabled="horarioNoPassado(h)"
+          :aria-label="horarioNoPassado(h) ? `${h} — horário no passado` : h"
+          @click="horario = h"
+        >{{ h }}</button>
       </div>
 
       <div class="f-label">Tipo de atendimento</div>
@@ -139,13 +185,42 @@ async function salvar() {
       </button>
     </div>
 
-    <BottomSheet v-model:open="pickerOpen" titulo="Selecionar paciente" tall>
-      <AppSearchInput v-model="busca" placeholder="Buscar paciente…" @update:model-value="buscar" />
-      <div class="med-row" v-for="p in lista" :key="p.id" @click="escolher(p)">
-        <div class="mi">{{ iniciais(p.nomeCompleto) }}</div>
-        <b>{{ p.nomeCompleto }}</b>
-        <i class="fa-solid fa-chevron-right add-i"></i>
-      </div>
-    </BottomSheet>
+    <!-- Sheet de seleção/criação/edição de paciente -->
+    <PacienteSeletorSheet
+      v-model:open="seletorOpen"
+      :paciente-para-editar="pacienteParaEditar"
+      @selecionado="onPacienteSelecionado"
+      @atualizado="onPacienteAtualizado"
+    />
   </div>
 </template>
+
+<style scoped>
+/* Chip de horário no passado — desabilitado visualmente (cinza, sem cursor). */
+.fav-chip.passado,
+.fav-chip:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Botão de editar dados rápidos do paciente selecionado */
+.rc-editar-pac {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  color: var(--brand);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  margin: -4px 0 var(--space-5);
+  min-height: 44px;
+}
+.rc-editar-pac:active {
+  opacity: 0.7;
+}
+</style>

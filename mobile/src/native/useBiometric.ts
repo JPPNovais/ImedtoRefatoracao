@@ -34,11 +34,17 @@ export function useBiometric() {
 
   /** Pede confirmação de identidade.
    *  Retorna false imediatamente se o usuário desativou a biometria nas preferências.
-   *  Na web (dev) resolve true (se preferência ativa) para fluxo demonstrável. */
+   *  Na web (dev) resolve true para fluxo demonstrável.
+   *  No nativo: se a biometria não estiver disponível/cadastrada no aparelho, permite
+   *  seguir mesmo assim (o acesso é auditado no backend via /dados-sensiveis — a
+   *  autorização real é do lado do servidor, não do sensor). Se disponível, exige. */
   async function confirmar(motivo: string): Promise<boolean> {
     const prefAtiva = await habilitadaPeloUsuario()
     if (!prefAtiva) return false
     if (!Capacitor.isNativePlatform()) return true
+    const bioDisp = await disponivel()
+    // Biometria não cadastrada/disponível no aparelho → libera (backend audita).
+    if (!bioDisp) return true
     try {
       await NativeBiometric.verifyIdentity({
         reason: motivo,

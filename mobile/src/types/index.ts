@@ -123,6 +123,19 @@ export interface DadosSensiveisPaciente {
   telefone?: string | null
 }
 
+/**
+ * Payload mínimo para criar ou atualizar um paciente pelo app mobile.
+ * Campos opcionais: só enviar o que o usuário preencheu (LGPD: minimização).
+ * nomeCompleto é obrigatório — o backend retorna 422 se ausente.
+ */
+export interface PacientePayloadRapido {
+  nomeCompleto: string
+  telefone?: string
+  email?: string
+  dataNascimento?: string // ISO "YYYY-MM-DD"
+  cpf?: string
+}
+
 export interface Evolucao {
   id: number
   prontuarioId: number
