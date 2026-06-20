@@ -414,3 +414,17 @@ export interface AnexoUrlDto {
   url: string
   expiraEm: string // ISO
 }
+
+// ─── Catálogo clínico (global, referência) ──────────────────────────────────
+
+export interface Cid10Dto {
+  codigo: string
+  descricao: string
+  categoria?: string | null
+}
+
+export interface ExameCatalogoDto {
+  id: number
+  nome: string
+  tipo: string
+}
