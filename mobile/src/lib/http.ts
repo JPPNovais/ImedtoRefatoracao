@@ -256,6 +256,7 @@ export const http = {
     request<T>(path, { params, signal }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
+  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   /** Envia FormData (multipart) com refresh, tenant e normalização de erro — sem fetch cru nas views. */
   postForm,
