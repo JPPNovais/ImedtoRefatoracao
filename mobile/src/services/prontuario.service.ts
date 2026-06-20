@@ -1,5 +1,25 @@
+import { Capacitor } from "@capacitor/core"
 import { http, getBlob } from "@/lib/http"
 import type { AnexoUrlDto, PaginaAnexosDto, ProntuarioCompleto } from "@/types"
+
+/**
+ * Converte um Blob para base64 puro (sem prefixo "data:...;base64,").
+ * Usado no nativo: CapacitorHttp carrega o cookie jar mas não suporta FormData
+ * multipart autenticado — o upload via JSON/base64 contorna o problema.
+ */
+async function blobParaBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Remove o prefixo "data:<mime>;base64," mantendo só o conteúdo base64.
+      const base64 = result.split(",")[1] ?? result
+      resolve(base64)
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
 
 export const prontuarioService = {
   async obter(pacienteId: number, timeline = 50): Promise<ProntuarioCompleto> {
@@ -44,14 +64,23 @@ export const prontuarioService = {
   async obterUrlAnexo(pacienteId: number, anexoId: number): Promise<AnexoUrlDto> {
     return http.get(`/paciente/${pacienteId}/prontuario/anexos/${anexoId}/url`)
   },
-  /** Upload de anexo (multipart) — backend grava no S3 (ProntuarioAnexo).
-      Inclui regiaoAnatomica e marcador (Antes/Depois/Evolução) para fotos clínicas. */
+  /** Upload de anexo — no nativo usa JSON/base64 (cookie jar do CapacitorHttp);
+      na web usa multipart (proxy do Vite cuida do CORS + cookie). */
   async uploadAnexo(
     pacienteId: number,
     file: Blob,
     nome: string,
     evolucaoId?: number,
   ): Promise<{ anexoId: number; storagePath: string }> {
+    if (Capacitor.isNativePlatform()) {
+      const arquivoBase64 = await blobParaBase64(file)
+      return http.post(`/paciente/${pacienteId}/prontuario/anexos/base64`, {
+        arquivoBase64,
+        nomeOriginal: nome,
+        mimeType: file.type || "application/octet-stream",
+        evolucaoId: evolucaoId ?? null,
+      })
+    }
     const form = new FormData()
     form.append("arquivo", file, nome)
     if (evolucaoId) form.append("evolucaoId", String(evolucaoId))
@@ -61,7 +90,8 @@ export const prontuarioService = {
   async baixarPdf(pacienteId: number): Promise<Blob> {
     return getBlob(`/paciente/${pacienteId}/prontuario/pdf`)
   },
-  /** Upload de foto clínica com região anatômica e marcador (Antes/Depois/Evolução). */
+  /** Upload de foto clínica com região anatômica e marcador (Antes/Depois/Evolução).
+      No nativo usa JSON/base64; na web usa multipart. */
   async uploadFotoClinica(
     pacienteId: number,
     file: Blob,
@@ -69,6 +99,16 @@ export const prontuarioService = {
     regiaoAnatomica: string,
     marcador: string,
   ): Promise<{ anexoId: number; storagePath: string }> {
+    if (Capacitor.isNativePlatform()) {
+      const arquivoBase64 = await blobParaBase64(file)
+      return http.post(`/paciente/${pacienteId}/prontuario/anexos/base64`, {
+        arquivoBase64,
+        nomeOriginal: nome,
+        mimeType: file.type || "image/jpeg",
+        regiaoAnatomica,
+        marcador,
+      })
+    }
     const form = new FormData()
     form.append("arquivo", file, nome)
     form.append("regiaoAnatomica", regiaoAnatomica)

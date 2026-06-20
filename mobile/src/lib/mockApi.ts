@@ -175,13 +175,38 @@ export async function mockRoute(
       : pacienteLista.itens
     return { status: 200, data: await delay({ ...pacienteLista, itens, total: itens.length }) }
   }
+  if (p === "/paciente" && method === "POST") {
+    // Mock: registra o novo paciente na lista em memória para busca-rápida retornar
+    const body = params as Record<string, unknown>
+    const novoId = 900 + pacienteLista.itens.length
+    const nomeCompleto = String(body?.nomeCompleto || "Novo Paciente")
+    pacienteLista.itens.push({ id: novoId, nomeCompleto, qtdAlertas: 0 })
+    pacientes[novoId] = { id: novoId, nomeCompleto, tags: [], alertas: [] }
+    return { status: 201, data: null }
+  }
   if (p === "/paciente/busca-rapida") {
-    return { status: 200, data: await delay(pacienteLista.itens.map((x) => ({ id: x.id, nomeCompleto: x.nomeCompleto }))) }
+    const q = String(params?.q || "").toLowerCase()
+    const todos = pacienteLista.itens.map((x) => ({ id: x.id, nomeCompleto: x.nomeCompleto }))
+    const itens = q ? todos.filter((x) => x.nomeCompleto.toLowerCase().includes(q)) : todos
+    const limite = Number(params?.limite || 10)
+    return { status: 200, data: await delay(itens.slice(0, limite)) }
   }
   const pacId = p.match(/^\/paciente\/(\d+)$/)
   if (pacId && method === "GET") {
     const pac = pacientes[Number(pacId[1])]
     return { status: pac ? 200 : 404, data: pac ? await delay(pac) : null }
+  }
+  if (pacId && method === "PUT") {
+    // Mock: atualiza nome se enviado
+    const id = Number(pacId[1])
+    const body = params as Record<string, unknown>
+    if (pacientes[id] && body?.nomeCompleto) {
+      const nome = String(body.nomeCompleto)
+      pacientes[id] = { ...pacientes[id], nomeCompleto: nome }
+      const item = pacienteLista.itens.find((x) => x.id === id)
+      if (item) item.nomeCompleto = nome
+    }
+    return { status: 204, data: null }
   }
   const prontId = p.match(/^\/paciente\/(\d+)\/prontuario$/)
   if (prontId && method === "GET") {

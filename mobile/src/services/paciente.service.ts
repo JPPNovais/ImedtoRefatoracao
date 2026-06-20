@@ -1,5 +1,5 @@
 import { http } from "@/lib/http"
-import type { DadosSensiveisPaciente, Paciente, PaginaPacientes } from "@/types"
+import type { DadosSensiveisPaciente, Paciente, PaginaPacientes, PacientePayloadRapido } from "@/types"
 
 export const pacienteService = {
   async listar(busca?: string, pagina = 1, tamanho = 20): Promise<PaginaPacientes> {
@@ -22,5 +22,23 @@ export const pacienteService = {
    */
   async obterDadosSensiveis(id: number): Promise<DadosSensiveisPaciente> {
     return http.get(`/paciente/${id}/dados-sensiveis`)
+  },
+  /**
+   * Cria um novo paciente no estabelecimento ativo.
+   * Backend: POST /api/paciente → 201 Created (sem body de retorno).
+   * Exige papel Profissional ou Dono ([RequiresPapel]).
+   * Validação real vive no backend — 422 é a fonte de verdade.
+   */
+  async criar(payload: PacientePayloadRapido): Promise<void> {
+    return http.post("/paciente", payload)
+  },
+  /**
+   * Atualiza dados básicos de um paciente existente.
+   * Backend: PUT /api/paciente/{id} → 204 No Content.
+   * Exige papel Profissional ou Dono ([RequiresPapel]).
+   * Enviar apenas os campos que o formulário expõe (LGPD: minimização).
+   */
+  async atualizar(id: number, payload: PacientePayloadRapido): Promise<void> {
+    return http.put(`/paciente/${id}`, payload)
   },
 }
