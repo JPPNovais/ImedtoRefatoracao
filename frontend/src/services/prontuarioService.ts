@@ -143,11 +143,13 @@ export const prontuarioService = {
     },
 
     async listarAnexos(pacienteId: number, evolucaoId?: number): Promise<Anexo[]> {
-        const { data } = await httpClient.get<Anexo[]>(
+        // O endpoint passou a responder paginado ({ itens, total, ... }); mantemos o
+        // retorno como Anexo[] desembrulhando .itens (tolerante a ambos os formatos).
+        const { data } = await httpClient.get<Anexo[] | { itens: Anexo[] }>(
             `/paciente/${pacienteId}/prontuario/anexos`,
             { params: { evolucaoId } },
         )
-        return data
+        return Array.isArray(data) ? data : (data?.itens ?? [])
     },
 
     async uploadAnexo(
