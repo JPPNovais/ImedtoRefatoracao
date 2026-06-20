@@ -14,6 +14,7 @@ import { useDownload } from "@/native/useDownload"
 import { iniciais, idade, dataCurta, renderConteudoEvolucao } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
+import PacienteSeletorSheet from "@/components/ui/PacienteSeletorSheet.vue"
 
 const menuFichaOpen = ref(false)
 
@@ -30,6 +31,14 @@ const podePrescrever = computed(() => permissoes.pode("prescricao"))
 const podeOrcamento = computed(() => permissoes.pode("orcamento.ver"))
 // Fotos clínicas: restrito a Profissional/Dono via prontuario.ver (mesmo guarda do backend)
 const podeFotos = computed(() => permissoes.pode("prontuario.ver"))
+// Editar dados do paciente: mesmo guarda do backend (RequiresPapel Profissional/Dono = "pacientes")
+const podeEditarPaciente = computed(() => permissoes.pode("pacientes"))
+
+// Sheet de edição de dados do paciente (FIX 3)
+const sheetEditarPaciente = ref(false)
+const pacienteParaEditar = computed(() =>
+  paciente.value ? { id: paciente.value.id, nomeCompleto: paciente.value.nomeCompleto } : null,
+)
 
 const id = Number(route.params.id)
 const paciente = ref<Paciente | null>(null)
@@ -63,17 +72,26 @@ const temAlerta = computed(() => (paciente.value?.alertas.length ?? 0) > 0)
 /**
  * Exibe telefone: após reveal usa o valor completo do backend (dadosSensiveis).
  * Antes do reveal: usa o valor já mascarado que vem do backend (?contato=mascarado).
- * Fallback para placeholder se campo não cadastrado.
+ * Trata string vazia/whitespace como ausente (backend pode retornar "" para não cadastrado).
+ * Após reveal, campo genuinamente ausente mostra "Não informado" (não os pontinhos).
  */
 function exibirTelefone(): string {
-  if (piiRevelado.value && dadosSensiveis.value) return dadosSensiveis.value.telefone ?? "(••) •••••-••••"
-  return paciente.value?.telefone ?? "(••) •••••-••••"
+  if (piiRevelado.value && dadosSensiveis.value) {
+    const v = dadosSensiveis.value.telefone?.trim()
+    return v || "Não informado"
+  }
+  const mascarado = paciente.value?.telefone?.trim()
+  return mascarado || "(••) •••••-••••"
 }
 
 /** Exibe CPF: lógica análoga a exibirTelefone(). */
 function exibirCpf(): string {
-  if (piiRevelado.value && dadosSensiveis.value) return dadosSensiveis.value.cpf ?? "•••.•••.•••-••"
-  return paciente.value?.cpf ?? "•••.•••.•••-••"
+  if (piiRevelado.value && dadosSensiveis.value) {
+    const v = dadosSensiveis.value.cpf?.trim()
+    return v || "Não informado"
+  }
+  const mascarado = paciente.value?.cpf?.trim()
+  return mascarado || "•••.•••.•••-••"
 }
 
 onMounted(async () => {
@@ -207,6 +225,22 @@ async function exportarProntuarioPdf() {
     ui.toast("Não foi possível exportar o prontuário", "error")
   } finally {
     baixandoProntuario.value = false
+  }
+}
+
+// ── Editar dados do paciente (FIX 3) ────────────────────────────────────────
+
+function abrirEdicaoPaciente() {
+  menuFichaOpen.value = false
+  sheetEditarPaciente.value = true
+}
+
+async function aoAtualizarPaciente(p: { id: number; nomeCompleto: string }) {
+  // Recarrega a ficha para refletir os novos dados (nome pode ter mudado)
+  try {
+    paciente.value = await pacienteService.obter(p.id)
+  } catch {
+    // toast já foi exibido pelo PacienteSeletorSheet; falha silenciosa aqui
   }
 }
 </script>
@@ -435,8 +469,12 @@ async function exportarProntuarioPdf() {
       </template>
     </BottomSheet>
 
-    <!-- Menu "..." — exportar prontuário PDF -->
+    <!-- Menu "..." — ações da ficha -->
     <BottomSheet v-model:open="menuFichaOpen" titulo="Ações" closable>
+      <div v-if="podeEditarPaciente" class="med-row" @click="abrirEdicaoPaciente">
+        <div class="mi"><i class="fa-solid fa-user-pen"></i></div>
+        <b>Editar dados do paciente</b>
+      </div>
       <div class="med-row" @click="exportarProntuarioPdf">
         <div class="mi">
           <i v-if="baixandoProntuario" class="fa-solid fa-spinner fa-spin"></i>
@@ -445,6 +483,15 @@ async function exportarProntuarioPdf() {
         <b>{{ baixandoProntuario ? "Exportando…" : "Exportar prontuário PDF" }}</b>
       </div>
     </BottomSheet>
+
+    <!-- Sheet de edição de dados do paciente (FIX 3) -->
+    <PacienteSeletorSheet
+      v-if="pacienteParaEditar"
+      :open="sheetEditarPaciente"
+      :paciente-para-editar="pacienteParaEditar"
+      @update:open="sheetEditarPaciente = $event"
+      @atualizado="aoAtualizarPaciente"
+    />
 
     <!-- Detalhe de atestado ou pedido de exame (sem PDF — item 5) -->
     <BottomSheet v-model:open="docDetalheOpen" :titulo="docTipo === 'atestado' ? 'Atestado' : 'Pedido de exame'" tall>

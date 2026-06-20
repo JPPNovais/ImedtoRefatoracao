@@ -238,6 +238,19 @@ export async function mockRoute(
     const pac = pacientes[Number(pacId[1])]
     return { status: pac ? 200 : 404, data: pac ? await delay(pac) : null }
   }
+  const pacBasicos = p.match(/^\/paciente\/(\d+)\/dados-basicos$/)
+  if (pacBasicos && method === "PATCH") {
+    // Mock: atualização parcial — só altera o nome se enviado (demais campos preservados)
+    const id = Number(pacBasicos[1])
+    const body = params as Record<string, unknown>
+    if (pacientes[id] && body?.nomeCompleto) {
+      const nome = String(body.nomeCompleto)
+      pacientes[id] = { ...pacientes[id], nomeCompleto: nome }
+      const item = pacienteLista.itens.find((x) => x.id === id)
+      if (item) item.nomeCompleto = nome
+    }
+    return { status: 204, data: null }
+  }
   if (pacId && method === "PUT") {
     // Mock: atualiza nome se enviado
     const id = Number(pacId[1])

@@ -11,7 +11,8 @@ import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import AppLoadMore from "@/components/ui/AppLoadMore.vue"
 import { dataCurta, iniciais, idade } from "@/lib/format"
-import type { AnexoDto, AnexoUrlDto, Paciente } from "@/types"
+import { mensagemDeErro } from "@/lib/erros"
+import type { AnexoDto, AnexoUrlDto, ApiError, Paciente } from "@/types"
 
 const route = useRoute()
 const router = useRouter()
@@ -98,20 +99,40 @@ async function capturarEEnviar() {
     const regiaoFinal = regiao.value.trim() || "Região clínica"
     const ts = Date.now()
     const nome = `foto-clinica_${ts}.jpg`
-    await prontuarioService.uploadFotoClinica(
-      pacienteId,
-      foto.blob,
-      nome,
-      regiaoFinal,
-      marcador.value,
-    )
+
+    await tentarUploadFoto(foto.blob, nome, regiaoFinal, marcador.value)
     // Recarrega a lista paginada do início após upload bem-sucedido
     await listaFotos.recarregar()
     ui.toast("Foto registrada com sucesso")
-  } catch {
-    ui.toast("Não foi possível salvar a foto. Tente novamente.", "error")
+  } catch (err) {
+    // Distingue erro de rede (sem status) de 422 com mensagem real do backend
+    ui.toast(mensagemDeErro(err, "Não foi possível salvar a foto. Tente novamente."), "error")
   } finally {
     uploadando.value = false
+  }
+}
+
+/**
+ * Faz o upload da foto clínica. Se o backend retornar 422 indicando que o
+ * prontuário ainda não foi iniciado, inicia-o automaticamente e repete o upload
+ * uma vez. Essa situação ocorre quando é a primeira foto de um paciente novo.
+ */
+async function tentarUploadFoto(blob: Blob, nome: string, regiao: string, marc: string) {
+  try {
+    await prontuarioService.uploadFotoClinica(pacienteId, blob, nome, regiao, marc)
+  } catch (err) {
+    const apiErr = err as ApiError
+    // 422 indicando ausência de prontuário → inicia e repete uma vez
+    if (
+      apiErr?.status === 422 &&
+      apiErr?.mensagem &&
+      /prontu[aá]rio/i.test(apiErr.mensagem)
+    ) {
+      await prontuarioService.iniciarProntuario(pacienteId)
+      await prontuarioService.uploadFotoClinica(pacienteId, blob, nome, regiao, marc)
+    } else {
+      throw err
+    }
   }
 }
 

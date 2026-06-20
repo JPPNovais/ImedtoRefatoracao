@@ -153,6 +153,66 @@ public class Paciente : Entity, ISoftDeletable
     }
 
     /// <summary>
+    /// Atualização parcial dos campos básicos de identificação — uso exclusivo do app mobile
+    /// (edição rápida). Cada parâmetro com valor null significa "manter o valor atual".
+    /// Preserva: genero, endereco, observacoes, tags, alertas, consentimento WhatsApp,
+    /// documentoInternacional e todos os demais campos do aggregate.
+    /// </summary>
+    public virtual void AtualizarDadosBasicos(
+        string nomeCompleto,
+        string telefone,
+        string email,
+        DateTime? dataNascimento,
+        bool dataNascimentoFoiEnviada,
+        string cpf,
+        bool cpfFoiEnviado)
+    {
+        if (EstaDeletado)
+            throw new BusinessException("Paciente deletado não pode ser editado.");
+
+        if (nomeCompleto is not null)
+        {
+            if (string.IsNullOrWhiteSpace(nomeCompleto))
+                throw new BusinessException("Nome do paciente é obrigatório.");
+            NomeCompleto = nomeCompleto.Trim();
+        }
+
+        if (telefone is not null)
+            Telefone = SanitizeOpt(telefone, digitsOnly: true);
+
+        if (email is not null)
+            Email = SanitizeOpt(email, digitsOnly: false)?.ToLowerInvariant();
+
+        if (dataNascimentoFoiEnviada)
+        {
+            if (dataNascimento.HasValue && dataNascimento.Value > DateTime.UtcNow.Date)
+                throw new BusinessException("Data de nascimento não pode estar no futuro.");
+            DataNascimento = dataNascimento;
+        }
+
+        if (cpfFoiEnviado)
+        {
+            // String vazia ou somente espaços = limpar CPF (sem definir DocumentoInternacional)
+            if (string.IsNullOrWhiteSpace(cpf))
+            {
+                Cpf = null;
+            }
+            else
+            {
+                // CPF e DocumentoInternacional não podem coexistir
+                if (!string.IsNullOrWhiteSpace(DocumentoInternacional))
+                    throw new BusinessException("Paciente possui documento internacional — remova-o antes de informar o CPF.");
+                var razao = CpfValidator.RazaoInvalidez(cpf);
+                if (razao is not null)
+                    throw new BusinessException(razao);
+                Cpf = TextSanitizer.SomenteDigitos(cpf);
+            }
+        }
+
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Registra ou revoga o consentimento explícito do paciente para receber lembretes via WhatsApp.
     /// Grava data/hora e quem registrou (audit trail LGPD — R4 do briefing 2026-06-18_005).
     /// </summary>

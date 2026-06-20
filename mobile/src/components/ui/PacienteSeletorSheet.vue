@@ -236,6 +236,11 @@ const tituloSheet = computed(() => {
         <i class="fa-solid fa-arrow-left"></i> Voltar
       </button>
 
+      <p v-if="editando" class="sps-edit-hint">
+        <i class="fa-solid fa-circle-info"></i>
+        Deixe um campo em branco para manter o valor atual.
+      </p>
+
       <div class="f-label">Nome completo *</div>
       <input
         v-model="form.nomeCompleto"
@@ -353,6 +358,14 @@ const tituloSheet = computed(() => {
 }
 
 /* Botão voltar no formulário */
+.sps-edit-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--app-text-dim);
+  margin: 0 0 var(--space-3);
+}
 .sps-back {
   display: flex;
   align-items: center;

@@ -33,12 +33,14 @@ export const pacienteService = {
     return http.post("/paciente", payload)
   },
   /**
-   * Atualiza dados básicos de um paciente existente.
-   * Backend: PUT /api/paciente/{id} → 204 No Content.
+   * Atualização PARCIAL de dados básicos de um paciente existente.
+   * Backend: PATCH /api/paciente/{id}/dados-basicos → 204. Semântica de merge:
+   * só os campos enviados (não-vazios) são alterados; os demais (incl. alertas,
+   * observações, endereço, tags) são PRESERVADOS. NÃO usar o PUT total aqui — ele
+   * é substituição completa e apagaria os campos não enviados pelo form rápido.
    * Exige papel Profissional ou Dono ([RequiresPapel]).
-   * Enviar apenas os campos que o formulário expõe (LGPD: minimização).
    */
   async atualizar(id: number, payload: PacientePayloadRapido): Promise<void> {
-    return http.put(`/paciente/${id}`, payload)
+    return http.patch(`/paciente/${id}/dados-basicos`, payload)
   },
 }

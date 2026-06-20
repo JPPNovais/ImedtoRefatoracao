@@ -576,6 +576,7 @@ public static class Container
         // Pacientes
         services.AddScoped<CadastrarPacienteCommandHandler>();
         services.AddScoped<AtualizarPacienteCommandHandler>();
+        services.AddScoped<AtualizarDadosBasicosPacienteCommandHandler>();
         services.AddScoped<DeletarPacienteCommandHandler>();
         services.AddSingleton<ListarPacientesQueryHandlers>();
         services.AddSingleton<BuscaRapidaPacientesQueryHandler>();
@@ -1158,6 +1159,7 @@ public static class Container
             bus.Register<CancelarSolicitacaoVinculoCommand, CancelarSolicitacaoVinculoCommandHandler>();
             bus.Register<CadastrarPacienteCommand, CadastrarPacienteCommandHandler>();
             bus.Register<AtualizarPacienteCommand, AtualizarPacienteCommandHandler>();
+            bus.Register<AtualizarDadosBasicosPacienteCommand, AtualizarDadosBasicosPacienteCommandHandler>();
             bus.Register<DeletarPacienteCommand, DeletarPacienteCommandHandler>();
             bus.Register<CriarModeloDeProntuarioCommand, CriarModeloDeProntuarioCommandHandler>();
             bus.Register<AtualizarModeloDeProntuarioCommand, AtualizarModeloDeProntuarioCommandHandler>();
