@@ -23,7 +23,7 @@ const CIDS = [
 const pacienteId = Number(route.query.pacienteId || 1)
 const pacienteNome = ref("Paciente")
 const dias = ref(2)
-const data = ref(new Date("2026-06-05").toISOString().slice(0, 10))
+const data = ref(new Date().toISOString().slice(0, 10))
 const cid = ref<{ cod: string; desc: string } | null>(null)
 const obs = ref("")
 

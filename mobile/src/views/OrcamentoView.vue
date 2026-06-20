@@ -72,9 +72,10 @@ function recusar() {
     <div v-if="orc" class="push-body">
       <AppStatusPill :status="orc.status" style="margin-bottom: 16px; display: inline-flex" />
 
-      <button class="rc-patient">
+      <button class="rc-patient" @click="router.push(`/paciente/${orc.pacienteId}`)">
         <span class="av">{{ iniciais(orc.pacienteNome) }}</span>
         <span class="rx"><b>{{ orc.pacienteNome }}</b><span>Paciente</span></span>
+        <i class="fa-solid fa-chevron-right chev"></i>
       </button>
 
       <div class="f-label">Procedimento</div>
