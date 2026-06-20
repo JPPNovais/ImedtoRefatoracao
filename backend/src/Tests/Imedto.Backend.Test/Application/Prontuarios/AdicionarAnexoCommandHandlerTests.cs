@@ -61,7 +61,11 @@ public class AdicionarAnexoCommandHandlerTests
         return p;
     }
 
-    private AdicionarAnexoCommand Cmd(string mime = "image/png", long tamanho = 1024) => new()
+    private AdicionarAnexoCommand Cmd(
+        string mime = "image/png",
+        long tamanho = 1024,
+        string? regiaoAnatomica = null,
+        string? marcador = null) => new()
     {
         PacienteId = PacienteId,
         EstabelecimentoId = EstabelecimentoId,
@@ -70,6 +74,8 @@ public class AdicionarAnexoCommandHandlerTests
         MimeType = mime,
         TamanhoBytes = tamanho,
         Conteudo = new MemoryStream(Encoding.UTF8.GetBytes("bytes")),
+        RegiaoAnatomica = regiaoAnatomica,
+        Marcador = marcador,
     };
 
     [Test]
@@ -155,5 +161,44 @@ public class AdicionarAnexoCommandHandlerTests
         _storage.Verify(s => s.UploadAsync(It.IsAny<string>(),
             It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Test]
+    public async Task Handle_ComRegiaoEMarcador_PersisteCamposNoAnexo()
+    {
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
+        _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
+                       .ReturnsAsync(ProntuarioJaIniciado());
+
+        ProntuarioAnexo? anexoSalvo = null;
+        _anexoRepo.Setup(r => r.Salvar(It.IsAny<ProntuarioAnexo>()))
+                  .Callback<ProntuarioAnexo>(a => anexoSalvo = a)
+                  .Returns(Task.CompletedTask);
+
+        await _sut.Handle(Cmd(regiaoAnatomica: "Face", marcador: "Antes"));
+
+        Assert.That(anexoSalvo, Is.Not.Null);
+        Assert.That(anexoSalvo!.RegiaoAnatomica, Is.EqualTo("Face"));
+        Assert.That(anexoSalvo.Marcador, Is.EqualTo("Antes"));
+    }
+
+    [Test]
+    public async Task Handle_SemRegiaoNemMarcador_AnexoAntigoSegueFuncionando()
+    {
+        // Retrocompatibilidade: anexo genérico (PDF, doc) sem metadados de foto clínica.
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
+        _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
+                       .ReturnsAsync(ProntuarioJaIniciado());
+
+        ProntuarioAnexo? anexoSalvo = null;
+        _anexoRepo.Setup(r => r.Salvar(It.IsAny<ProntuarioAnexo>()))
+                  .Callback<ProntuarioAnexo>(a => anexoSalvo = a)
+                  .Returns(Task.CompletedTask);
+
+        await _sut.Handle(Cmd(mime: "application/pdf"));
+
+        Assert.That(anexoSalvo, Is.Not.Null);
+        Assert.That(anexoSalvo!.RegiaoAnatomica, Is.Null);
+        Assert.That(anexoSalvo.Marcador, Is.Null);
     }
 }

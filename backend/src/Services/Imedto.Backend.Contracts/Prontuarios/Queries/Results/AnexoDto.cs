@@ -10,6 +10,10 @@ public class AnexoDto
     public long TamanhoBytes { get; set; }
     public DateTime CriadoEm { get; set; }
     public string AutorNome { get; set; }
+
+    // Metadados de foto clínica — nullable para docs antigos sem esses campos.
+    public string? RegiaoAnatomica { get; set; }
+    public string? Marcador { get; set; }
 }
 
 public class AnexoUrlDto

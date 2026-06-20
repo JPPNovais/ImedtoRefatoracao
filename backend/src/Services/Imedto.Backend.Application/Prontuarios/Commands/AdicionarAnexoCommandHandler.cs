@@ -71,7 +71,9 @@ public class AdicionarAnexoCommandHandler : ICommandHandler<AdicionarAnexoComman
             command.NomeOriginal,
             command.MimeType,
             command.TamanhoBytes,
-            command.AutorUsuarioId);
+            command.AutorUsuarioId,
+            command.RegiaoAnatomica,
+            command.Marcador);
 
         await _anexoRepo.Salvar(anexo);
 

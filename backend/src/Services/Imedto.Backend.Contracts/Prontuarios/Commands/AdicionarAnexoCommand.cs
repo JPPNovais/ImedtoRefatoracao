@@ -19,4 +19,8 @@ public class AdicionarAnexoCommand : ICommand
     public Stream Conteudo { get; set; }
     public long AnexoIdCriado { get; set; } // preenchido pelo handler — devolvido ao controller
     public string StoragePath { get; set; }
+
+    // Metadados de foto clínica — opcionais (nullable).
+    public string? RegiaoAnatomica { get; set; }
+    public string? Marcador { get; set; }
 }
