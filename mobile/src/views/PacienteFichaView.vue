@@ -69,8 +69,24 @@ const baixandoPdf = ref<number | null>(null)
 
 const temAlerta = computed(() => (paciente.value?.alertas.length ?? 0) > 0)
 
+/** Formata telefone só-dígitos para exibição: "31987654321" -> "(31) 98765-4321". */
+function formatarTelefone(valor: string): string {
+  const d = valor.replace(/\D/g, "")
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return valor
+}
+
+/** Formata CPF só-dígitos para exibição: "31245678900" -> "312.456.789-00". */
+function formatarCpf(valor: string): string {
+  const d = valor.replace(/\D/g, "")
+  if (d.length === 11) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+  return valor
+}
+
 /**
- * Exibe telefone: após reveal usa o valor completo do backend (dadosSensiveis).
+ * Exibe telefone: após reveal usa o valor completo do backend (dadosSensiveis),
+ * formatado para leitura (o backend devolve só dígitos).
  * Antes do reveal: usa o valor já mascarado que vem do backend (?contato=mascarado).
  * Trata string vazia/whitespace como ausente (backend pode retornar "" para não cadastrado).
  * Após reveal, campo genuinamente ausente mostra "Não informado" (não os pontinhos).
@@ -78,7 +94,7 @@ const temAlerta = computed(() => (paciente.value?.alertas.length ?? 0) > 0)
 function exibirTelefone(): string {
   if (piiRevelado.value && dadosSensiveis.value) {
     const v = dadosSensiveis.value.telefone?.trim()
-    return v || "Não informado"
+    return v ? formatarTelefone(v) : "Não informado"
   }
   const mascarado = paciente.value?.telefone?.trim()
   return mascarado || "(••) •••••-••••"
@@ -88,7 +104,7 @@ function exibirTelefone(): string {
 function exibirCpf(): string {
   if (piiRevelado.value && dadosSensiveis.value) {
     const v = dadosSensiveis.value.cpf?.trim()
-    return v || "Não informado"
+    return v ? formatarCpf(v) : "Não informado"
   }
   const mascarado = paciente.value?.cpf?.trim()
   return mascarado || "•••.•••.•••-••"
@@ -309,10 +325,15 @@ async function aoAtualizarPaciente(p: { id: number; nomeCompleto: string }) {
             @click="abrirDetalhe(e)"
             @keydown.enter="abrirDetalhe(e)"
           >
-            <div class="eh"><b>{{ e.modeloNome || "Evolução" }}</b><span class="dt">{{ dataCurta(e.criadaEm) }}</span></div>
+            <div class="eh">
+              <b>{{ e.modeloNome || "Evolução" }}</b>
+              <span class="dt-chev">
+                <span class="dt">{{ dataCurta(e.criadaEm) }}</span>
+                <i class="fa-solid fa-chevron-right evo-chev"></i>
+              </span>
+            </div>
             <div class="who2">{{ e.autorNome }}</div>
             <div v-if="e.qtdAnexos" class="att"><i class="fa-solid fa-paperclip"></i> {{ e.qtdAnexos }} {{ e.qtdAnexos! > 1 ? "anexos" : "anexo" }}</div>
-            <i class="fa-solid fa-chevron-right evo-chev"></i>
           </div>
         </template>
         <div v-else class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>Sem evoluções registradas.</p></div>
@@ -537,16 +558,17 @@ async function aoAtualizarPaciente(p: { id: number; nomeCompleto: string }) {
 <style scoped>
 .evo-card--clicavel {
   cursor: pointer;
-  position: relative;
 }
 .evo-card--clicavel:active {
   opacity: 0.75;
 }
+.dt-chev {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
 .evo-chev {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
   color: var(--app-text-faint);
   font-size: var(--fs-xs);
 }
