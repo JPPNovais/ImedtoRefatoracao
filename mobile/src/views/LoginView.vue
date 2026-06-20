@@ -14,7 +14,7 @@ const tenant = useTenantStore()
 const ui = useUiStore()
 const biometric = useBiometric()
 
-const email = ref("marina.castro@imedto.com")
+const email = ref("")
 const senha = ref("")
 const mostrarSenha = ref(false)
 const erro = ref(false)
@@ -67,7 +67,7 @@ function irProximaTela() {
       <div class="lfield">
         <label class="f-label">E-mail</label>
         <div class="linput-wrap">
-          <input v-model="email" class="linput" type="email" placeholder="seu@email.com" autocomplete="username" />
+          <input v-model="email" class="linput" type="email" placeholder="exemplo@exemplo.com" autocomplete="username" />
         </div>
       </div>
       <div class="lfield">
