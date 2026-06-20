@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest"
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest"
 import {
   iniciais,
   idade,
@@ -37,6 +37,10 @@ describe("iniciais", () => {
 // ─── idade ───────────────────────────────────────────────────────────────────
 
 describe("idade", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -53,26 +57,46 @@ describe("idade", () => {
     expect(idade("não-é-data")).toBeNull()
   })
 
+  it("retorna null para formato sem YYYY-MM-DD", () => {
+    expect(idade("20/06/1990")).toBeNull()
+  })
+
   it("calcula a idade corretamente para um adulto", () => {
-    // Fixa 2026-06-20 como 'hoje'
-    vi.setSystemTime(new Date("2026-06-20T12:00:00.000Z"))
+    // Fixa 2026-06-20 como 'hoje' (via componentes locais, fuso não importa)
+    vi.setSystemTime(new Date(2026, 5, 20, 12, 0, 0)) // 20/06/2026 12:00 local
     expect(idade("1990-06-20")).toBe(36)
   })
 
-  it("ainda não completou aniversário no mesmo ano — borda antes do dia", () => {
-    vi.setSystemTime(new Date("2026-06-19T23:59:59.000Z"))
-    // Nasceu em 20/06/1990 — ainda não fez 36 neste momento
+  it("ainda não completou aniversário — borda: dia anterior ao aniversário", () => {
+    vi.setSystemTime(new Date(2026, 5, 19, 23, 59, 59)) // 19/06/2026 local
+    // Nasceu em 20/06/1990 — ainda não fez 36
     expect(idade("1990-06-20")).toBe(35)
   })
 
-  it("completa aniversário exatamente no dia — borda no dia", () => {
-    vi.setSystemTime(new Date("2026-06-20T00:00:01.000Z"))
+  it("completa aniversário exatamente no dia — borda: dia do aniversário", () => {
+    vi.setSystemTime(new Date(2026, 5, 20, 0, 0, 1)) // 20/06/2026 local
+    expect(idade("1990-06-20")).toBe(36)
+  })
+
+  it("dia posterior ao aniversário no mesmo ano — retorna idade correta", () => {
+    vi.setSystemTime(new Date(2026, 5, 21, 10, 0, 0)) // 21/06/2026 local
     expect(idade("1990-06-20")).toBe(36)
   })
 
   it("retorna 0 para recém-nascido no mesmo dia", () => {
-    vi.setSystemTime(new Date("2026-06-20T15:00:00.000Z"))
+    vi.setSystemTime(new Date(2026, 5, 20, 15, 0, 0)) // 20/06/2026 local
     expect(idade("2026-06-20")).toBe(0)
+  })
+
+  it("ano bissexto — aniversário em 29/02, hoje é 28/02 (ainda não fez anos)", () => {
+    // Hoje é 28/02/2028 (2028 é bissexto) — nasceu em 29/02/2000
+    vi.setSystemTime(new Date(2028, 1, 28, 12, 0, 0)) // 28/02/2028 local
+    expect(idade("2000-02-29")).toBe(27)
+  })
+
+  it("ano bissexto — aniversário em 29/02, hoje é o próprio dia (faz anos)", () => {
+    vi.setSystemTime(new Date(2028, 1, 29, 12, 0, 0)) // 29/02/2028 local
+    expect(idade("2000-02-29")).toBe(28)
   })
 })
 
@@ -267,10 +291,28 @@ describe("dataCurta", () => {
     expect(dataCurta("invalida")).toBe("—")
   })
 
-  it("formata data ISO como dd/MM", () => {
-    // Usando um ISO que tem hora para garantir parse
+  it("YYYY-MM-DD sem hora — não pula dia (parse local, sem shift UTC)", () => {
+    // new Date("2026-03-15") seria UTC meia-noite → em UTC-3 viraria 14/03
+    // Com parse local, deve retornar 15/03 independente do fuso
+    expect(dataCurta("2026-03-15")).toBe("15/03")
+  })
+
+  it("YYYY-MM-DD — 01/01 retorna 01/01 sem shift", () => {
+    expect(dataCurta("2026-01-01")).toBe("01/01")
+  })
+
+  it("YYYY-MM-DD — 31/12 retorna 31/12 sem shift", () => {
+    expect(dataCurta("2026-12-31")).toBe("31/12")
+  })
+
+  it("ISO com hora UTC — parse normal, formato dd/MM", () => {
+    // Com hora explícita o resultado depende do fuso do runner; verifica apenas o formato
     const result = dataCurta("2026-03-15T12:00:00Z")
-    // O resultado depende do fuso local — só verifica o formato dd/MM
+    expect(result).toMatch(/^\d{2}\/\d{2}$/)
+  })
+
+  it("ISO com hora e offset local — parse normal, formato dd/MM", () => {
+    const result = dataCurta("2026-06-20T10:30:00-03:00")
     expect(result).toMatch(/^\d{2}\/\d{2}$/)
   })
 })
