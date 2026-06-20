@@ -1,8 +1,8 @@
 /**
- * Testes do NovoAgendamentoModal — CA14: checkbox WhatsApp desabilitado.
+ * Testes do NovoAgendamentoModal — seção de lembrete automático.
  *
- * Foco: verificar que o checkbox de WhatsApp está desabilitado e que o resumo
- * de canais no step 3 não conta WhatsApp como canal ativo.
+ * Foco: verificar que a seção exibe a nota informativa correta
+ * (checkboxes interativos foram substituídos pela decisão do produto).
  */
 import { describe, it, expect, vi } from "vitest"
 import { mount } from "@vue/test-utils"
@@ -81,29 +81,8 @@ function criarWrapper() {
     })
 }
 
-describe("NovoAgendamentoModal — CA14: checkbox WhatsApp desabilitado", () => {
-    it("o AppCheckbox de WhatsApp tem prop disabled=true no step 2", async () => {
-        const w = criarWrapper()
-        await w.vm.$nextTick()
-
-        // Avança para o step 2 (detalhes) usando refs internas do componente
-        const vm = w.vm as any
-        // Selecionar paciente via ref interna (pacienteSel é o ref que controla pacienteEfetivo)
-        vm.pacienteSel = { id: 1, nomeCompleto: "Maria Silva", cpfMascarado: "" }
-        vm.step = 2
-        await w.vm.$nextTick()
-
-        // O wrapper .reminder-wa-soon deve existir no step 2
-        expect(w.find(".reminder-wa-soon").exists()).toBe(true)
-
-        // O checkbox input de WhatsApp deve estar disabled
-        const reminderWaSoon = w.find(".reminder-wa-soon")
-        const input = reminderWaSoon.find("input[type='checkbox']")
-        expect(input.exists()).toBe(true)
-        expect(input.attributes("disabled")).toBeDefined()
-    })
-
-    it("badge 'em breve' aparece ao lado do checkbox de WhatsApp", async () => {
+describe("NovoAgendamentoModal — seção de lembrete automático", () => {
+    it("exibe nota informativa no step 2 (sem checkboxes interativos)", async () => {
         const w = criarWrapper()
         await w.vm.$nextTick()
 
@@ -112,42 +91,47 @@ describe("NovoAgendamentoModal — CA14: checkbox WhatsApp desabilitado", () => 
         vm.step = 2
         await w.vm.$nextTick()
 
-        expect(w.find(".badge-soon").exists()).toBe(true)
-        expect(w.find(".badge-soon").text()).toBe("em breve")
+        // Nota informativa deve existir
+        expect(w.find(".reminder-info").exists()).toBe(true)
+        expect(w.find(".reminder-info").text()).toContain("Automações do estabelecimento")
+
+        // Checkboxes interativos e badge "em breve" não devem mais existir
+        expect(w.find(".badge-soon").exists()).toBe(false)
+        expect(w.find(".reminder-wa-soon").exists()).toBe(false)
+        expect(w.find(".reminder-toggles").exists()).toBe(false)
     })
 
-    it("no step 3, com lembreteEmail=false, resumo mostra 'Nao enviar' (WhatsApp nao conta)", async () => {
+    it("no step 3, resumo de lembrete exibe texto de automação (sem depender de estado do checkbox)", async () => {
         const w = criarWrapper()
         await w.vm.$nextTick()
 
         const vm = w.vm as any
         vm.pacienteSel = { id: 1, nomeCompleto: "Maria Silva", cpfMascarado: "" }
-        vm.detalhes.lembreteEmail = false
-        vm.detalhes.lembreteWA = false
         vm.step = 3
         await w.vm.$nextTick()
 
         const kvLembrete = w.findAll(".kv").find(el => el.find("span").text() === "Lembrete")
         if (kvLembrete) {
-            expect(kvLembrete.find("b").text()).toBe("Não enviar")
+            expect(kvLembrete.find("b").text()).toContain("Automático")
+            expect(kvLembrete.find("b").text()).not.toContain("E-mail")
+            expect(kvLembrete.find("b").text()).not.toContain("WhatsApp")
         }
     })
 
-    it("no step 3, com lembreteEmail=true, mostra somente 'E-mail' (sem WhatsApp)", async () => {
+    it("no step 3, texto de confirmação menciona automações do estabelecimento", async () => {
         const w = criarWrapper()
         await w.vm.$nextTick()
 
         const vm = w.vm as any
         vm.pacienteSel = { id: 1, nomeCompleto: "Maria Silva", cpfMascarado: "" }
-        vm.detalhes.lembreteEmail = true
-        vm.detalhes.lembreteWA = false
+        vm.detalhes.data = new Date().toISOString().slice(0, 10)
+        vm.detalhes.hora = "10:00"
         vm.step = 3
         await w.vm.$nextTick()
 
-        const kvLembrete = w.findAll(".kv").find(el => el.find("span").text() === "Lembrete")
-        if (kvLembrete) {
-            expect(kvLembrete.find("b").text()).toBe("E-mail")
-            expect(kvLembrete.find("b").text()).not.toContain("WhatsApp")
+        const confirmInfo = w.find(".confirm-info")
+        if (confirmInfo.exists()) {
+            expect(confirmInfo.text()).toContain("Automações do estabelecimento")
         }
     })
 })
