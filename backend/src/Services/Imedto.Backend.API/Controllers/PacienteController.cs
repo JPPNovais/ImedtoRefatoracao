@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Imedto.Backend.API.Filters;
 using Imedto.Backend.Contracts.Pacientes.Commands;
+using System.Text.Json.Serialization;
 using Imedto.Backend.Contracts.Pacientes.Queries;
 using Imedto.Backend.Contracts.Pacientes.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
@@ -171,6 +172,37 @@ public class PacienteController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Atualização parcial dos dados básicos de identificação — uso do app mobile (edição rápida).
+    /// Campos omitidos ou null no JSON são ignorados (valor atual preservado). Preserva: genero,
+    /// endereco, observacoes, tags, alertas, consentimento WhatsApp, documentoInternacional.
+    /// Para atualização completa (web), usar <c>PUT /api/paciente/{id}</c>.
+    /// </summary>
+    [HttpPatch("{id:long}/dados-basicos")]
+    [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AtualizarDadosBasicos(long id, [FromBody] PacienteDadosBasicosRequest request)
+    {
+        await _commandBus.Send(new AtualizarDadosBasicosPacienteCommand
+        {
+            PacienteId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId,
+            NomeCompleto = request.NomeCompleto,
+            Telefone = request.Telefone,
+            Email = request.Email,
+            DataNascimento = request.DataNascimento,
+            DataNascimentoFoiEnviada = request.DataNascimentoFoiEnviada,
+            Cpf = request.Cpf,
+            CpfFoiEnviado = request.CpfFoiEnviado,
+        });
+
+        return NoContent();
+    }
+
     /// <summary>Soft delete (LGPD). Mantém registro marcado por retenção legal. Apenas Profissional ou Dono.</summary>
     [HttpDelete("{id:long}")]
     [RequiresPapel(TenantPapel.Profissional, TenantPapel.Dono)]
@@ -313,3 +345,19 @@ public record PacienteRequest(
     /// Null = não alterar (em PUT) ou false (em POST).
     /// </summary>
     bool? WhatsappLembreteOptIn = null);
+
+/// <summary>
+/// Payload de atualização parcial para o app mobile (PATCH /api/paciente/{id}/dados-basicos).
+/// Campos omitidos no JSON são null → valor atual do paciente é preservado.
+/// Para distinguir "dataNascimento não enviada" de "dataNascimento enviada como null" (limpar),
+/// use a flag <see cref="DataNascimentoFoiEnviada"/>. Idem para CPF via <see cref="CpfFoiEnviado"/>.
+/// </summary>
+public record PacienteDadosBasicosRequest(
+    string NomeCompleto = null,
+    string Telefone = null,
+    string Email = null,
+    [property: JsonConverter(typeof(Imedto.Backend.SharedKernel.Json.DateOnlyAsYmdJsonConverter))]
+    DateTime? DataNascimento = null,
+    bool DataNascimentoFoiEnviada = false,
+    string Cpf = null,
+    bool CpfFoiEnviado = false);
