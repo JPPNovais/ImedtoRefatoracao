@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/auth"
 import { useTenantStore } from "@/stores/tenant"
@@ -19,6 +19,12 @@ const senha = ref("")
 const mostrarSenha = ref(false)
 const erro = ref(false)
 const carregando = ref(false)
+const biometriaHabilitada = ref(false)
+
+// Lê a preferência ao montar — oculta o botão se o usuário desativou
+onMounted(async () => {
+  biometriaHabilitada.value = await biometric.habilitadaPeloUsuario()
+})
 
 async function entrar() {
   if (carregando.value) return
@@ -93,10 +99,12 @@ function irProximaTela() {
         {{ carregando ? "Entrando…" : "Entrar" }}
       </button>
 
-      <div class="ldiv">ou</div>
-      <button class="bio-btn" @click="entrarComBiometria">
-        <i class="fa-solid fa-fingerprint"></i> Entrar com biometria
-      </button>
+      <template v-if="biometriaHabilitada">
+        <div class="ldiv">ou</div>
+        <button class="bio-btn" @click="entrarComBiometria">
+          <i class="fa-solid fa-fingerprint"></i> Entrar com biometria
+        </button>
+      </template>
     </div>
   </div>
 </template>

@@ -22,10 +22,11 @@ export function usePush(router: Router) {
     })
 
     // Tocar na push → deep-link pra tela certa.
+    // Valida que o link é rota interna (começa com "/" e não tem esquema externo).
     PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const link = (action.notification.data as { link?: string })?.link
-      if (link) router.push(link).catch(() => {})
-      else router.push("/avisos").catch(() => {})
+      const rotaInterna = link && link.startsWith("/") && !link.startsWith("//") && !/^\/[a-z]+:/i.test(link)
+      router.push(rotaInterna ? link : "/avisos").catch(() => {})
     })
   }
 

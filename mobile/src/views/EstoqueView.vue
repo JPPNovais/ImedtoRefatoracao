@@ -5,6 +5,7 @@ import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import { useListaPaginada } from "@/composables/useListaPaginada"
 import { inventarioService } from "@/services/inventario.service"
 import { useUiStore } from "@/stores/ui"
+import { mensagemDeErro } from "@/lib/erros"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import AppLoadMore from "@/components/ui/AppLoadMore.vue"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
@@ -117,8 +118,8 @@ async function salvarQuantidade() {
     }
     sheetAberta.value = false
     ui.toast("Estoque atualizado")
-  } catch {
-    ui.toast("Não foi possível atualizar o estoque", "error")
+  } catch (err) {
+    ui.toast(mensagemDeErro(err, "Não foi possível atualizar o estoque"), "error")
   } finally {
     salvando.value = false
   }

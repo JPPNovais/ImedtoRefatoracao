@@ -110,6 +110,26 @@ export function tempoRelativo(iso: string): string {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`
 }
 
+/** Converte valor aninhado de conteúdo de evolução para string legível.
+ *  Array → itens separados por vírgula; objeto → pares "chave: valor"; primitivo → String(). */
+export function valorLegivel(v: unknown): string {
+  if (Array.isArray(v)) return v.map((item) => valorLegivel(item)).join(", ")
+  if (v !== null && typeof v === "object") {
+    return Object.entries(v as Record<string, unknown>)
+      .filter(([, val]) => val !== null && val !== undefined && val !== "")
+      .map(([k, val]) => `${k}: ${valorLegivel(val)}`)
+      .join("; ")
+  }
+  return String(v)
+}
+
+/** Renderiza conteúdo estruturado de evolução como pares chave/valor legíveis. */
+export function renderConteudoEvolucao(conteudo: Record<string, unknown>): Array<{ chave: string; valor: string }> {
+  return Object.entries(conteudo)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => ({ chave: k, valor: valorLegivel(v) }))
+}
+
 export function grupoNotif(iso: string): "Hoje" | "Ontem" | "Anteriores" {
   const d = new Date(iso)
   const hoje = new Date()

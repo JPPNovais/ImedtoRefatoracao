@@ -20,5 +20,8 @@ public enum TipoAcessoPaciente
     Export,
 
     /// <summary>LGPD Art. 18 — direito ao esquecimento (anonimizacao irreversivel de PII).</summary>
-    Anonimizacao
+    Anonimizacao,
+
+    /// <summary>Acesso explícito a campo de PII sensível (CPF/telefone completo) via endpoint dedicado.</summary>
+    RevelacaoDadosSensiveis
 }

@@ -10,7 +10,7 @@ import { useVoice } from "@/native/useVoice"
 import { useCamera } from "@/native/useCamera"
 import { useDownload } from "@/native/useDownload"
 import { localDb } from "@/lib/db"
-import { iniciais, idade, dataCurta } from "@/lib/format"
+import { iniciais, idade, dataCurta, renderConteudoEvolucao } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 
 const route = useRoute()
@@ -158,7 +158,8 @@ async function abrirDetalhe(e: Evolucao) {
   if (e.qtdAnexos) {
     detalheCarregandoAnexos.value = true
     try {
-      detalheAnexos.value = await prontuarioService.listarAnexos(pacienteId, e.id)
+      const pagina = await prontuarioService.listarAnexos(pacienteId, { evolucaoId: e.id })
+      detalheAnexos.value = pagina.itens
     } catch {
       // silencioso; a lista ficará vazia
     } finally {
@@ -170,7 +171,7 @@ async function abrirDetalhe(e: Evolucao) {
 async function abrirAnexo(anexoId: number) {
   try {
     const urlDto = await prontuarioService.obterUrlAnexo(pacienteId, anexoId)
-    window.open(urlDto.url, "_blank")
+    window.open(urlDto.url, "_blank", "noopener,noreferrer")
   } catch {
     ui.toast("Não foi possível abrir o anexo", "error")
   }
@@ -191,25 +192,8 @@ async function exportarPdf() {
   }
 }
 
-/** Converte um valor de conteúdo de evolução para string legível.
- *  Array → itens separados por vírgula; objeto → pares "chave: valor"; primitivo → String(). */
-function valorLegivel(v: unknown): string {
-  if (Array.isArray(v)) return v.map((item) => valorLegivel(item)).join(", ")
-  if (v !== null && typeof v === "object") {
-    return Object.entries(v as Record<string, unknown>)
-      .filter(([, val]) => val !== null && val !== undefined && val !== "")
-      .map(([k, val]) => `${k}: ${valorLegivel(val)}`)
-      .join("; ")
-  }
-  return String(v)
-}
-
-// Renderiza conteúdo estruturado da evolução como pares chave/valor legíveis
 function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
-  const c = e.conteudo as Record<string, unknown>
-  return Object.entries(c)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([k, v]) => ({ chave: k, valor: valorLegivel(v) }))
+  return renderConteudoEvolucao(e.conteudo as Record<string, unknown>)
 }
 </script>
 

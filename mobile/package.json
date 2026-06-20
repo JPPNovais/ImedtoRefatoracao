@@ -11,7 +11,9 @@
     "typecheck": "vue-tsc --noEmit",
     "cap:sync": "cap sync",
     "cap:ios": "cap run ios",
-    "cap:android": "cap run android"
+    "cap:android": "cap run android",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^6.0.0",
@@ -34,8 +36,11 @@
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^15.11.7",
     "typescript": "~5.6.3",
     "vite": "^6.0.3",
+    "vitest": "^2.1.9",
     "vue-tsc": "^2.1.10"
   }
 }

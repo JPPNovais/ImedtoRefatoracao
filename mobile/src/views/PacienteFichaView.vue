@@ -6,12 +6,12 @@ import { prontuarioService } from "@/services/prontuario.service"
 import { orcamentoService } from "@/services/orcamento.service"
 import { receitaService, atestadoService, exameService } from "@/services/documentos.service"
 import type { ReceitaResumoDto, AtestadoDto, PedidoExameDto } from "@/services/documentos.service"
-import type { Evolucao, Orcamento, Paciente, AnexoDto } from "@/types"
+import type { DadosSensiveisPaciente, Evolucao, Orcamento, Paciente, AnexoDto } from "@/types"
 import { useUiStore } from "@/stores/ui"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { useBiometric } from "@/native/useBiometric"
 import { useDownload } from "@/native/useDownload"
-import { iniciais, idade, dataCurta } from "@/lib/format"
+import { iniciais, idade, dataCurta, renderConteudoEvolucao } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 
@@ -37,7 +37,9 @@ const evolucoes = ref<Evolucao[]>([])
 const orcamentos = ref<Orcamento[]>([])
 const carregando = ref(true)
 const tab = ref<"hist" | "pront" | "docs" | "orc" | "fotos">("hist")
+// piiRevelado: controla exibição após chamada auditada ao backend (nunca client-side)
 const piiRevelado = ref(false)
+const dadosSensiveis = ref<DadosSensiveisPaciente | null>(null)
 
 // Detalhe de evolução (item 1 — aba Histórico)
 const evolucaoDetalhe = ref<Evolucao | null>(null)
@@ -58,10 +60,20 @@ const baixandoPdf = ref<number | null>(null)
 
 const temAlerta = computed(() => (paciente.value?.alertas.length ?? 0) > 0)
 
-function mascarar(valor: string | null | undefined, tipo: "tel" | "cpf"): string {
-  if (!valor) return tipo === "tel" ? "(••) •••••-••••" : "•••.•••.•••-••"
-  if (piiRevelado.value) return valor
-  return tipo === "tel" ? "(••) •••••-" + valor.slice(-4) : "•••.•••." + valor.slice(-6)
+/**
+ * Exibe telefone: após reveal usa o valor completo do backend (dadosSensiveis).
+ * Antes do reveal: usa o valor já mascarado que vem do backend (?contato=mascarado).
+ * Fallback para placeholder se campo não cadastrado.
+ */
+function exibirTelefone(): string {
+  if (piiRevelado.value && dadosSensiveis.value) return dadosSensiveis.value.telefone ?? "(••) •••••-••••"
+  return paciente.value?.telefone ?? "(••) •••••-••••"
+}
+
+/** Exibe CPF: lógica análoga a exibirTelefone(). */
+function exibirCpf(): string {
+  if (piiRevelado.value && dadosSensiveis.value) return dadosSensiveis.value.cpf ?? "•••.•••.•••-••"
+  return paciente.value?.cpf ?? "•••.•••.•••-••"
 }
 
 onMounted(async () => {
@@ -108,9 +120,14 @@ const totalDocs = computed(() => receitas.value.length + atestados.value.length 
 async function revelarPii() {
   if (piiRevelado.value) return
   const ok = await biometric.confirmar("Revelar dados sensíveis do paciente")
-  if (ok) {
+  if (!ok) return
+  try {
+    // Chamada auditada: backend registra RevelacaoDadosSensiveis e retorna PII completa
+    dadosSensiveis.value = await pacienteService.obterDadosSensiveis(id)
     piiRevelado.value = true
     ui.toast("Dados revelados — acesso registrado")
+  } catch {
+    ui.toast("Não foi possível revelar os dados", "error")
   }
 }
 
@@ -132,7 +149,9 @@ async function abrirDetalhe(e: Evolucao) {
   if (e.qtdAnexos) {
     detalheCarregandoAnexos.value = true
     try {
-      detalheAnexos.value = await prontuarioService.listarAnexos(id, e.id)
+      // listarAnexos retorna paginado — exibe a 1ª página (suficiente para o detalhe)
+      const pagina = await prontuarioService.listarAnexos(id, { evolucaoId: e.id })
+      detalheAnexos.value = pagina.itens
     } catch {
       // silencioso
     } finally {
@@ -144,17 +163,14 @@ async function abrirDetalhe(e: Evolucao) {
 async function abrirAnexo(anexoId: number) {
   try {
     const urlDto = await prontuarioService.obterUrlAnexo(id, anexoId)
-    window.open(urlDto.url, "_blank")
+    window.open(urlDto.url, "_blank", "noopener,noreferrer")
   } catch {
     ui.toast("Não foi possível abrir o anexo", "error")
   }
 }
 
 function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
-  const c = e.conteudo as Record<string, unknown>
-  return Object.entries(c)
-    .filter(([, v]) => v !== null && v !== undefined && v !== "")
-    .map(([k, v]) => ({ chave: k, valor: String(v) }))
+  return renderConteudoEvolucao(e.conteudo as Record<string, unknown>)
 }
 
 // ── Documentos — receita PDF (item 5) ───────────────────────────────────────
@@ -213,10 +229,10 @@ async function exportarProntuarioPdf() {
         </div>
         <div class="pii-row">
           <button class="pii" :class="{ revealed: piiRevelado }" @click="revelarPii">
-            <i class="fa-solid fa-phone"></i><span>{{ mascarar(paciente.telefone, "tel") }}</span>
+            <i class="fa-solid fa-phone"></i><span>{{ exibirTelefone() }}</span>
           </button>
           <button class="pii" :class="{ revealed: piiRevelado }" @click="revelarPii">
-            <i class="fa-solid fa-id-card"></i><span>CPF {{ mascarar(paciente.cpf, "cpf") }}</span>
+            <i class="fa-solid fa-id-card"></i><span>CPF {{ exibirCpf() }}</span>
           </button>
         </div>
         <div class="reveal-hint" @click="revelarPii">

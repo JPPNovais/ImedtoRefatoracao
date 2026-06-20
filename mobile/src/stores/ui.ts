@@ -75,13 +75,19 @@ export const useUiStore = defineStore("ui", () => {
     toastT = setTimeout(() => (toastVisible.value = false), 2600)
   }
 
-  function setOffline(v: boolean) {
+  /** Define estado offline. Quando `v=true`, `horario` é o HH:MM do dado mais recente em cache.
+   *  Se omitido, usa a hora atual. */
+  function setOffline(v: boolean, horario?: string) {
     offline.value = v
     if (v) {
-      const now = new Date()
-      lastSyncLabel.value = `${String(now.getHours()).padStart(2, "0")}:${String(
-        now.getMinutes(),
-      ).padStart(2, "0")}`
+      if (horario) {
+        lastSyncLabel.value = horario
+      } else {
+        const now = new Date()
+        lastSyncLabel.value = `${String(now.getHours()).padStart(2, "0")}:${String(
+          now.getMinutes(),
+        ).padStart(2, "0")}`
+      }
     }
   }
 

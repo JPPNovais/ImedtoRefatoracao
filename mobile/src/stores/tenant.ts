@@ -3,6 +3,8 @@ import { computed, ref } from "vue"
 import { Preferences } from "@capacitor/preferences"
 import type { Estabelecimento } from "@/types"
 import { usePermissoesStore } from "./permissoes"
+import { localDb } from "@/lib/db"
+import { useNotificacoesStore } from "./notificacoes"
 
 const STORAGE_KEY = "imedto.estabelecimentoAtivo"
 
@@ -24,6 +26,10 @@ export const useTenantStore = defineStore("tenant", () => {
   }
 
   async function selecionar(e: Estabelecimento) {
+    // Invalida cache do tenant anterior antes de trocar — premissa multi-tenant.
+    await localDb.cacheClear().catch(() => {})
+    // Reseta notificações: são por tenant; recarregarão ao montar o TabsLayout no novo tenant.
+    useNotificacoesStore().limpar()
     ativo.value = e
     aplicarPermissoes(e)
     await Preferences.set({ key: STORAGE_KEY, value: JSON.stringify({ id: e.id }) })

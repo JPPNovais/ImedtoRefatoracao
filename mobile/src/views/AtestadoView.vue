@@ -3,13 +3,15 @@ import { computed, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { atestadoService } from "@/services/documentos.service"
 import { pacienteService } from "@/services/paciente.service"
-import { iniciais } from "@/lib/format"
+import { useUiStore } from "@/stores/ui"
+import { iniciais, toISODate } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppSearchInput from "@/components/ui/AppSearchInput.vue"
 import AssinaturaFlow from "@/components/AssinaturaFlow.vue"
 
 const route = useRoute()
 const router = useRouter()
+const ui = useUiStore()
 
 const CIDS = [
   { cod: "J06.9", desc: "Infecção aguda das vias aéreas superiores" },
@@ -20,10 +22,15 @@ const CIDS = [
   { cod: "K29.7", desc: "Gastrite não especificada" },
 ]
 
-const pacienteId = Number(route.query.pacienteId || 1)
+const pacienteIdRaw = Number(route.query.pacienteId)
+if (!pacienteIdRaw || pacienteIdRaw <= 0) {
+  ui.toast("Paciente não identificado", "error")
+  router.back()
+}
+const pacienteId = pacienteIdRaw
 const pacienteNome = ref("Paciente")
 const dias = ref(2)
-const data = ref(new Date().toISOString().slice(0, 10))
+const data = ref(toISODate(new Date()))
 const cid = ref<{ cod: string; desc: string } | null>(null)
 const obs = ref("")
 

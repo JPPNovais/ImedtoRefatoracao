@@ -20,7 +20,9 @@ export function useCamera() {
     }
     try {
       const photo = await Camera.getPhoto({
-        quality: 80,
+        quality: 75,
+        width: 1600,
+        correctOrientation: true,
         resultType: CameraResultType.DataUrl,
         source: source === "foto" ? CameraSource.Camera : CameraSource.Photos,
         allowEditing: false,

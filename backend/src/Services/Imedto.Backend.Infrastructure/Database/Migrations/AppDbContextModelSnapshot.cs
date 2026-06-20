@@ -5392,8 +5392,8 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
 
                     b.Property<string>("TipoAcesso")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("tipo_acesso");
 
                     b.Property<Guid>("UsuarioId")

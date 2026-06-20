@@ -1,7 +1,5 @@
 import { http, getBlob } from "@/lib/http"
-import { API_BASE } from "@/lib/config"
-import { useTenantStore } from "@/stores/tenant"
-import type { AnexoDto, AnexoUrlDto, ProntuarioCompleto } from "@/types"
+import type { AnexoUrlDto, PaginaAnexosDto, ProntuarioCompleto } from "@/types"
 
 export const prontuarioService = {
   async obter(pacienteId: number, timeline = 50): Promise<ProntuarioCompleto> {
@@ -17,11 +15,32 @@ export const prontuarioService = {
   ): Promise<{ evolucaoId: number }> {
     return http.post(`/paciente/${pacienteId}/prontuario/evolucoes`, payload)
   },
-  /** Lista anexos do prontuário. Chame sem evolucaoId para obter todos (fotos clínicas). */
-  async listarAnexos(pacienteId: number, evolucaoId?: number): Promise<AnexoDto[]> {
-    return http.get(`/paciente/${pacienteId}/prontuario/anexos`, evolucaoId ? { evolucaoId } : undefined)
+  /**
+   * Lista anexos do prontuário paginados.
+   * Sem evolucaoId: todos os anexos (fotos clínicas). Com evolucaoId: só da evolução.
+   * Backend retrocompat: sem pagina/tamanho retorna página 1 com 50 itens.
+   */
+  async listarAnexos(
+    pacienteId: number,
+    opcoes?: { evolucaoId?: number; pagina?: number; tamanho?: number },
+  ): Promise<PaginaAnexosDto> {
+    const params: Record<string, string | number | boolean | null | undefined> = {}
+    if (opcoes?.evolucaoId) params.evolucaoId = opcoes.evolucaoId
+    if (opcoes?.pagina) params.pagina = opcoes.pagina
+    if (opcoes?.tamanho) params.tamanho = opcoes.tamanho
+    return http.get(
+      `/paciente/${pacienteId}/prontuario/anexos`,
+      Object.keys(params).length ? params : undefined,
+    )
   },
-  /** URL assinada temporária (~5min) para exibir o anexo. */
+  /**
+   * Batch de URLs assinadas para múltiplos anexos em uma só chamada (elimina N+1).
+   * POST /api/paciente/{id}/prontuario/anexos/urls — body: { anexoIds: number[] }
+   */
+  async obterUrlsAnexos(pacienteId: number, anexoIds: number[]): Promise<AnexoUrlDto[]> {
+    return http.post(`/paciente/${pacienteId}/prontuario/anexos/urls`, { anexoIds })
+  },
+  /** URL assinada temporária (~5min) para exibir um único anexo. */
   async obterUrlAnexo(pacienteId: number, anexoId: number): Promise<AnexoUrlDto> {
     return http.get(`/paciente/${pacienteId}/prontuario/anexos/${anexoId}/url`)
   },
@@ -36,18 +55,7 @@ export const prontuarioService = {
     const form = new FormData()
     form.append("arquivo", file, nome)
     if (evolucaoId) form.append("evolucaoId", String(evolucaoId))
-    // FormData precisa de fetch direto (sem Content-Type json).
-    const tenantId = useTenantStore().estabelecimentoAtivoId
-    const headers: Record<string, string> = {}
-    if (tenantId) headers["X-Estabelecimento-Id"] = String(tenantId)
-    const res = await fetch(`${API_BASE}/paciente/${pacienteId}/prontuario/anexos`, {
-      method: "POST",
-      credentials: "include",
-      headers,
-      body: form,
-    })
-    if (!res.ok) throw new Error("Falha no upload do anexo")
-    return res.json()
+    return http.postForm(`/paciente/${pacienteId}/prontuario/anexos`, form)
   },
   /** Baixa o PDF do prontuário completo — retorna Blob (backend audita LGPD). */
   async baixarPdf(pacienteId: number): Promise<Blob> {
@@ -65,21 +73,6 @@ export const prontuarioService = {
     form.append("arquivo", file, nome)
     form.append("regiaoAnatomica", regiaoAnatomica)
     form.append("marcador", marcador)
-    const tenantId = useTenantStore().estabelecimentoAtivoId
-    const headers: Record<string, string> = {}
-    if (tenantId) headers["X-Estabelecimento-Id"] = String(tenantId)
-    const res = await fetch(`${API_BASE}/paciente/${pacienteId}/prontuario/anexos`, {
-      method: "POST",
-      credentials: "include",
-      headers,
-      body: form,
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => "")
-      let msg = "Falha no upload da foto"
-      try { msg = JSON.parse(text)?.mensagem || msg } catch { /* ignora */ }
-      throw new Error(msg)
-    }
-    return res.json()
+    return http.postForm(`/paciente/${pacienteId}/prontuario/anexos`, form)
   },
 }

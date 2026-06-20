@@ -15,8 +15,14 @@ public interface IReceitaQueryRepository
     Task<PaginaReceitasDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
     Task<ReceitaDto?> ObterCompleta(long receitaId, long estabelecimentoId);
     Task<ConfiguracaoReceitaDto?> ObterConfiguracao(long estabelecimentoId);
-    // ListarFavoritos removido — endpoint GET /api/receitas/medicamentos-favoritos
-    // nao tinha consumidor no front. Decisao Fase 1.
+    /// <summary>
+    /// Favoritos de medicamento do profissional no estabelecimento, ordenados por
+    /// frequência de uso (UsoCount DESC). Multi-tenant: filtra (profissional, estab).
+    /// </summary>
+    Task<IEnumerable<MedicamentoFavoritoDto>> ListarFavoritos(
+        Guid profissionalUsuarioId,
+        long estabelecimentoId,
+        int limite);
     Task<int> ContarEmitidasNoMes(long estabelecimentoId, int ano, int mes);
 }
 
@@ -178,6 +184,37 @@ public class ReceitaQueryRepository : IReceitaQueryRepository
         return await conn.QuerySingleOrDefaultAsync<ConfiguracaoReceitaDto>(sql, new
         {
             EstabelecimentoId = estabelecimentoId
+        });
+    }
+
+    public async Task<IEnumerable<MedicamentoFavoritoDto>> ListarFavoritos(
+        Guid profissionalUsuarioId,
+        long estabelecimentoId,
+        int limite)
+    {
+        // Multi-tenant: filtro duplo (profissional + estabelecimento) — um profissional
+        // pode atuar em múltiplos estabelecimentos; favoritos são por vínculo.
+        var lim = Math.Clamp(limite, 1, 100);
+        const string sql = """
+            SELECT  id                  AS Id,
+                    medicamento         AS Medicamento,
+                    posologia           AS Posologia,
+                    via_administracao   AS ViaAdministracao,
+                    uso_count           AS UsoCount,
+                    ultimo_uso          AS UltimoUso
+            FROM    public.medicamentos_favoritos
+            WHERE   profissional_usuario_id = @ProfissionalUsuarioId
+              AND   estabelecimento_id = @EstabelecimentoId
+            ORDER BY uso_count DESC, ultimo_uso DESC
+            LIMIT  @Limite
+            """;
+
+        await using var conn = new NpgsqlConnection(_connStr);
+        return await conn.QueryAsync<MedicamentoFavoritoDto>(sql, new
+        {
+            ProfissionalUsuarioId = profissionalUsuarioId,
+            EstabelecimentoId = estabelecimentoId,
+            Limite = lim
         });
     }
 

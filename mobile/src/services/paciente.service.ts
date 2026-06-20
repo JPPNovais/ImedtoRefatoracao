@@ -1,5 +1,5 @@
 import { http } from "@/lib/http"
-import type { Paciente, PaginaPacientes } from "@/types"
+import type { DadosSensiveisPaciente, Paciente, PaginaPacientes } from "@/types"
 
 export const pacienteService = {
   async listar(busca?: string, pagina = 1, tamanho = 20): Promise<PaginaPacientes> {
@@ -8,8 +8,19 @@ export const pacienteService = {
   async buscaRapida(q?: string, limite = 10): Promise<{ id: number; nomeCompleto: string }[]> {
     return http.get("/paciente/busca-rapida", { q, limite })
   },
-  /** Abrir o detalhe dispara o log de acesso no backend (PacienteAcessoLog). */
+  /**
+   * Abre a ficha do paciente com CPF e telefone já mascarados pelo backend
+   * (ex.: "•••.•••.•••-09" / "(••) •••••-1234"). Dispara PacienteAcessoLog.
+   * Nunca use sem o param contato=mascarado no mobile — PII completa não sai para o device.
+   */
   async obter(id: number): Promise<Paciente> {
-    return http.get(`/paciente/${id}`)
+    return http.get(`/paciente/${id}`, { contato: "mascarado" })
+  },
+  /**
+   * Revelação auditada de CPF e telefone completos (LGPD).
+   * Só chame após biometria confirmada. Registra trilha RevelacaoDadosSensiveis no backend.
+   */
+  async obterDadosSensiveis(id: number): Promise<DadosSensiveisPaciente> {
+    return http.get(`/paciente/${id}/dados-sensiveis`)
   },
 }

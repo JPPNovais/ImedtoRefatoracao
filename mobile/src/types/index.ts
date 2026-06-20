@@ -101,15 +101,26 @@ export interface PaginaPacientes {
 export interface Paciente {
   id: number
   nomeCompleto: string
+  /** No mobile: sempre mascarado (obter() usa ?contato=mascarado). Completo só via obterDadosSensiveis(). */
   cpf?: string | null
   dataNascimento?: string | null
   genero?: string | null
+  /** No mobile: sempre mascarado (obter() usa ?contato=mascarado). Completo só via obterDadosSensiveis(). */
   telefone?: string | null
   email?: string | null
   observacoes?: string | null
   tags: string[]
   /** Conteúdo dos alertas clínicos — só no detalhe, cujo acesso é auditado. */
   alertas: string[]
+}
+
+/**
+ * Resultado de GET /api/paciente/{id}/dados-sensiveis — PII completa auditada (LGPD).
+ * Só disponível após biometria confirmada e chamada explícita de obterDadosSensiveis().
+ */
+export interface DadosSensiveisPaciente {
+  cpf?: string | null
+  telefone?: string | null
 }
 
 export interface Evolucao {
@@ -175,6 +186,16 @@ export interface MedicamentoFavorito {
   id?: number
   medicamento: string
   posologia: string
+}
+
+/** Favorito real do backend — GET /api/receitas/favoritos (Item 13). */
+export interface MedicamentoFavoritoBackend {
+  id: number
+  medicamento: string
+  posologia?: string | null
+  viaAdministracao?: string | null
+  usoCount: number
+  ultimoUso?: string | null
 }
 
 export interface OrcamentoLinha {
@@ -364,6 +385,15 @@ export interface PreferenciasPushDto {
 }
 
 // ─── Prontuário / Anexos (fotos clínicas) ──────────────────────────────────
+
+/** Resposta paginada de GET /api/paciente/{id}/prontuario/anexos (Item 19). */
+export interface PaginaAnexosDto {
+  itens: AnexoDto[]
+  total: number
+  pagina: number
+  tamanhoPagina: number
+}
+
 export interface AnexoDto {
   id: number
   evolucaoId?: number | null

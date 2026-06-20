@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { receitaService } from "@/services/documentos.service"
 import { pacienteService } from "@/services/paciente.service"
-import type { ItemReceita, MedicamentoFavorito, TipoReceita } from "@/types"
+import type { ItemReceita, MedicamentoFavorito, MedicamentoFavoritoBackend, TipoReceita } from "@/types"
 import { useUiStore } from "@/stores/ui"
 import { iniciais } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
@@ -14,18 +14,42 @@ const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
 
-const FAVS: MedicamentoFavorito[] = [
+// Favoritos reais carregados do backend (GET /api/receitas/favoritos) — substituem o array hardcoded.
+// Nota: exames e CID continuam locais — o backend não expõe endpoint de exames/CID.
+const favoritosBackend = ref<MedicamentoFavoritoBackend[]>([])
+const favoritosCarregando = ref(false)
+
+// Fallback local usado apenas se o backend retornar vazio (profissional sem histórico ainda)
+const FAVS_FALLBACK: MedicamentoFavorito[] = [
   { medicamento: "Amoxicilina 500mg", posologia: "1 cápsula · 8/8h · 7 dias" },
   { medicamento: "Dipirona 1g", posologia: "1 comprimido · 6/6h se dor" },
   { medicamento: "Losartana 50mg", posologia: "1 comprimido · 1x/dia" },
   { medicamento: "Omeprazol 20mg", posologia: "1 cápsula · em jejum · 14 dias" },
 ]
+
+// Converte favoritos do backend para o shape da view; usa fallback local se lista vazia
+const FAVS = computed<MedicamentoFavorito[]>(() => {
+  if (favoritosBackend.value.length) {
+    return favoritosBackend.value.map((f) => ({
+      id: f.id,
+      medicamento: f.medicamento,
+      posologia: f.posologia ?? "1 comprimido",
+    }))
+  }
+  return FAVS_FALLBACK
+})
+
 const MEDS = ["Amoxicilina 500mg", "Dipirona 1g", "Losartana 50mg", "Omeprazol 20mg", "Ibuprofeno 600mg", "Azitromicina 500mg", "Metformina 850mg", "Prednisona 20mg", "Paracetamol 750mg", "Cefalexina 500mg"]
 
-const pacienteId = Number(route.query.pacienteId || 1)
+const pacienteIdRaw = Number(route.query.pacienteId)
+if (!pacienteIdRaw || pacienteIdRaw <= 0) {
+  ui.toast("Paciente não identificado", "error")
+  router.back()
+}
+const pacienteId = pacienteIdRaw
 const pacienteNome = ref("Paciente")
 const tipo = ref<TipoReceita>("Simples")
-const itens = ref<ItemReceita[]>([{ medicamento: FAVS[0].medicamento, posologia: FAVS[0].posologia }])
+const itens = ref<ItemReceita[]>([])
 
 const medSheet = ref(false)
 const buscaMed = ref("")
@@ -42,8 +66,20 @@ const medsFiltrados = computed(() =>
 )
 
 onMounted(async () => {
-  const p = await pacienteService.obter(pacienteId).catch(() => null)
+  // Carrega nome do paciente e favoritos reais em paralelo
+  favoritosCarregando.value = true
+  const [p, favs] = await Promise.all([
+    pacienteService.obter(pacienteId).catch(() => null),
+    receitaService.listarFavoritos().catch(() => [] as MedicamentoFavoritoBackend[]),
+  ])
   if (p) pacienteNome.value = p.nomeCompleto
+  favoritosBackend.value = favs
+  favoritosCarregando.value = false
+
+  // Pré-seleciona o favorito mais usado como 1º item (se houver)
+  if (FAVS.value.length && !itens.value.length) {
+    itens.value = [{ medicamento: FAVS.value[0].medicamento, posologia: FAVS.value[0].posologia }]
+  }
 })
 
 function addFav(f: MedicamentoFavorito) {

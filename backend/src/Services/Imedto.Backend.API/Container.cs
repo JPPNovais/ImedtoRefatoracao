@@ -580,8 +580,9 @@ public static class Container
         services.AddSingleton<ListarPacientesQueryHandlers>();
         services.AddSingleton<BuscaRapidaPacientesQueryHandler>();
         services.AddSingleton<ObterPacienteStatsQueryHandler>();
-        // Scoped: Obter/Export auditam acesso via IPacienteAcessoLogService (LGPD).
+        // Scoped: Obter/Export/DadosSensiveis auditam acesso via IPacienteAcessoLogService (LGPD).
         services.AddScoped<ObterPacienteQueryHandlers>();
+        services.AddScoped<ObterDadosSensiveisPacienteQueryHandler>();
         services.AddScoped<ExportarDadosPacienteQueryHandlers>();
         // Scoped: ListarDocumentos audita leitura ao prontuário via IProntuarioAcessoLogService.
         services.AddScoped<IDocumentoQueryRepository, DocumentoQueryRepository>();
@@ -655,10 +656,11 @@ public static class Container
         services.AddScoped<AtualizarRascunhoReceitaCommandHandler>();
         services.AddScoped<FinalizarReceitaCommandHandler>();
         services.AddScoped<AtualizarConfiguracaoReceitaCommandHandler>();
-        // Query handlers de receita são SCOPED — dependem de IProntuarioAcessoLogService (audit LGPD).
+        // Query handlers de receita — Scoped (injetam IReceitaQueryRepository, que é scoped).
         services.AddScoped<ListarReceitasDoPacienteQueryHandlers>();
         services.AddScoped<ObterReceitaQueryHandlers>();
         services.AddScoped<ObterConfiguracaoReceitaQueryHandlers>();
+        services.AddScoped<ListarFavoritosMedicamentosQueryHandler>();
 
         // Atestados (2026-05-18)
         services.AddScoped<IAtestadoRepository, AtestadoRepository>();
@@ -749,6 +751,7 @@ public static class Container
         services.AddScoped<AdicionarAnexoCommandHandler>();
         services.AddScoped<ListarAnexosDoProntuarioQueryHandlers>();
         services.AddScoped<ObterUrlAnexoQueryHandlers>();
+        services.AddScoped<ObterUrlsAnexosQueryHandler>();
         services.AddSingleton<ProntuarioAnexoQueryRepository>();
 
         // Exame físico (item 3.2)
@@ -1348,6 +1351,7 @@ public static class Container
             bus.Register<BuscaRapidaPacientesQuery, IReadOnlyList<PacienteBuscaRapidaDto>, BuscaRapidaPacientesQueryHandler>();
             bus.Register<ObterPacienteStatsQuery, PacienteStatsDto, ObterPacienteStatsQueryHandler>();
             bus.Register<ObterPacienteQuery, PacienteDto, ObterPacienteQueryHandlers>();
+            bus.Register<ObterDadosSensiveisPacienteQuery, DadosSensiveisPacienteDto, ObterDadosSensiveisPacienteQueryHandler>();
             bus.Register<ExportarDadosPacienteQuery, PacienteExportLgpdDto, ExportarDadosPacienteQueryHandlers>();
             bus.Register<ListarDocumentosDoPacienteQuery, PaginaDocumentosDto, ListarDocumentosDoPacienteQueryHandlers>();
             bus.Register<ListarAcessosDoPacienteQuery, PaginaAcessosDto, ListarAcessosDoPacienteQueryHandlers>();
@@ -1359,7 +1363,8 @@ public static class Container
             bus.Register<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto, ListarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto, ContarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<EmitirProntuarioPdfQuery, byte[], EmitirProntuarioPdfQueryHandler>();
-            bus.Register<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>, ListarAnexosDoProntuarioQueryHandlers>();
+            bus.Register<ListarAnexosDoProntuarioQuery, PaginaAnexosDto, ListarAnexosDoProntuarioQueryHandlers>();
+            bus.Register<ObterUrlsAnexosQuery, IEnumerable<AnexoUrlDto>, ObterUrlsAnexosQueryHandler>();
             bus.Register<ObterUrlAnexoQuery, AnexoUrlDto, ObterUrlAnexoQueryHandlers>();
             bus.Register<ListarModelosPermissaoQuery, IEnumerable<ModeloPermissaoDto>, ListarModelosPermissaoQueryHandlers>();
             bus.Register<ListarAgendamentosQuery, PaginaAgendamentosDto, ListarAgendamentosQueryHandlers>();
@@ -1434,6 +1439,7 @@ public static class Container
             bus.Register<ListarReceitasDoPacienteQuery, PaginaReceitasDto, ListarReceitasDoPacienteQueryHandlers>();
             bus.Register<ObterReceitaQuery, ReceitaDto, ObterReceitaQueryHandlers>();
             bus.Register<ObterConfiguracaoReceitaQuery, ConfiguracaoReceitaDto, ObterConfiguracaoReceitaQueryHandlers>();
+            bus.Register<ListarFavoritosMedicamentosQuery, IEnumerable<MedicamentoFavoritoDto>, ListarFavoritosMedicamentosQueryHandler>();
             // Item 3.2 — Exame físico (uma classe ObterExameFisicoQueryHandlers implementa as 4 queries; auditam acesso → scoped).
             bus.Register<ObterExameFisicoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();
             bus.Register<ObterExameFisicoPorEvolucaoQuery, ExameFisicoDto?, ObterExameFisicoQueryHandlers>();

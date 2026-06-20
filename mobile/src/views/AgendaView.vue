@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, onActivated, onMounted, ref } from "vue"
+import { computed, onActivated, onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { agendaService } from "@/services/agenda.service"
 import type { Agendamento } from "@/types"
 import { useUiStore } from "@/stores/ui"
 import { usePermissoesStore } from "@/stores/permissoes"
+import { useTenantStore } from "@/stores/tenant"
 import { norm, horaDe, toISODate } from "@/lib/format"
+import { useDebouncedRef } from "@/composables/useDebouncedRef"
+import { localDb } from "@/lib/db"
 import AppAvatar from "@/components/ui/AppAvatar.vue"
 import AppStatusPill from "@/components/ui/AppStatusPill.vue"
 import SwipeableRow from "@/components/ui/SwipeableRow.vue"
@@ -14,6 +17,7 @@ import BottomSheet from "@/components/ui/BottomSheet.vue"
 const router = useRouter()
 const ui = useUiStore()
 const permissoes = usePermissoesStore()
+const tenant = useTenantStore()
 
 // RBAC: só quem pode editar agenda vê as ações de atender/faltar.
 const podeEditarAgenda = computed(() => permissoes.pode("agenda.editar"))
@@ -35,17 +39,18 @@ const week = computed(() => {
 
 const appts = ref<Agendamento[]>([])
 const carregando = ref(true)
+// Guard de resposta obsoleta: ignora resultados de requests anteriores ao último.
+let requestSeq = 0
 
-// Stats do dia derivados da própria lista (robusto ao shape do DTO de contagem).
-const stats = computed(() => ({
-  agendados: appts.value.filter((a) => !["Cancelado"].includes(a.status)).length,
-  atendidos: appts.value.filter((a) => a.status === "Concluido").length,
-  faltas: appts.value.filter((a) => a.status === "Faltou").length,
-}))
+// Stats do dia via endpoint de contagem (não limitado à 1ª página carregada).
+const stats = ref({ agendados: 0, atendidos: 0, faltas: 0 })
 
 // Busca + filtro (top bar contextual)
 const searchOpen = ref(false)
-const query = ref("")
+// Debounce na busca para não refiltrar a cada tecla (filtro é local, mas evita renders desnecessários).
+const queryImediata = ref("")
+const query = useDebouncedRef("", 250)
+watch(queryImediata, (v) => (query.value = v))
 const filterOpen = ref(false)
 const fStatus = ref("todos")
 const fSala = ref("todas")
@@ -68,23 +73,79 @@ const resultados = computed(() => {
   })
 })
 
+// Chave de cache: prefixada com tenant (multi-tenant) + data. LGPD: só metadados
+// de agenda (nomes, horários, status) — não inclui conteúdo clínico.
+function cacheKey(data: string) {
+  return `${tenant.estabelecimentoAtivoId}:agenda:${data}`
+}
+
+interface AgendaCache {
+  itens: Agendamento[]
+  stats: { agendados: number; atendidos: number; faltas: number }
+}
+
 async function carregar() {
+  const seq = ++requestSeq
   carregando.value = true
   try {
-    const pagina = await agendaService.listar({
-      dataInicio: selectedISO.value,
-      dataFim: selectedISO.value,
-    })
+    const [pagina, contagem] = await Promise.all([
+      agendaService.listar({
+        dataInicio: selectedISO.value,
+        dataFim: selectedISO.value,
+      }),
+      agendaService.contagemPorDia(selectedISO.value, selectedISO.value).catch(() => []),
+    ])
+    // Descarta resposta se uma nova request já foi disparada
+    if (seq !== requestSeq) return
     appts.value = pagina.itens
-  } catch {
-    ui.toast("Não foi possível carregar a agenda", "error")
+    const c = contagem[0]
+    const statsCalculados = c
+      ? { agendados: c.agendados, atendidos: c.atendidos, faltas: c.faltas }
+      : {
+          agendados: pagina.itens.filter((a) => !["Cancelado"].includes(a.status)).length,
+          atendidos: pagina.itens.filter((a) => a.status === "Concluido").length,
+          faltas: pagina.itens.filter((a) => a.status === "Faltou").length,
+        }
+    stats.value = statsCalculados
+    // Persiste em cache (offline fallback) com prefixo de tenant
+    void localDb.cacheSet(cacheKey(selectedISO.value), { itens: pagina.itens, stats: statsCalculados } satisfies AgendaCache)
+  } catch (err) {
+    if (seq !== requestSeq) return
+    // Erro com status = negócio (422, 403 etc.) → propaga normalmente, sem cache.
+    if (err && typeof err === "object" && "status" in err) {
+      ui.toast("Não foi possível carregar a agenda", "error")
+      return
+    }
+    // Erro de rede → tenta servir do cache
+    const cached = await localDb.cacheGet<AgendaCache>(cacheKey(selectedISO.value))
+    if (cached) {
+      appts.value = cached.value.itens
+      stats.value = cached.value.stats
+      const hora = new Date(cached.savedAt)
+      ui.setOffline(true, `${String(hora.getHours()).padStart(2, "0")}:${String(hora.getMinutes()).padStart(2, "0")}`)
+    } else {
+      ui.toast("Sem conexão e sem dados salvos", "error")
+    }
   } finally {
-    carregando.value = false
+    if (seq === requestSeq) carregando.value = false
   }
 }
 
-onMounted(carregar)
-onActivated(carregar)
+let ultimaCarregadaEm = 0
+const FRESCOR_MS = 30_000
+
+async function carregarSeFechado() {
+  if (Date.now() - ultimaCarregadaEm < FRESCOR_MS) return
+  await carregar()
+  ultimaCarregadaEm = Date.now()
+}
+
+onMounted(async () => {
+  await carregar()
+  ultimaCarregadaEm = Date.now()
+})
+// onActivated não re-carrega na 1ª visita (onMounted já rodou) nem dentro do frescor de 30s.
+onActivated(carregarSeFechado)
 
 function selecionarDia(iso: string) {
   selectedISO.value = iso
@@ -126,6 +187,7 @@ function aplicarFiltros() {
   filterOpen.value = false
 }
 function limparTudo() {
+  queryImediata.value = ""
   query.value = ""
   searchOpen.value = false
   fStatus.value = "todos"
@@ -180,7 +242,7 @@ async function onTouchEnd() {
 
     <div v-if="searchOpen" class="psearch" style="margin-bottom: 14px">
       <i class="fa-solid fa-magnifying-glass"></i>
-      <input v-model="query" type="text" placeholder="Buscar paciente na agenda…" autocomplete="off" />
+      <input v-model="queryImediata" type="text" placeholder="Buscar paciente na agenda…" autocomplete="off" />
     </div>
 
     <!-- date strip -->
