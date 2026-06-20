@@ -10,35 +10,23 @@ namespace Imedto.Backend.Infrastructure.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "marcador",
-                schema: "public",
-                table: "prontuario_anexos",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "regiao_anatomica",
-                schema: "public",
-                table: "prontuario_anexos",
-                type: "character varying(200)",
-                maxLength: 200,
-                nullable: true);
+            // DDL idempotente via SQL raw (gotcha: AddColumn cru não é idempotente —
+            // o QA cria schema no mesmo Postgres da EC2 sem gravar __EFMigrationsHistory).
+            migrationBuilder.Sql("""
+                ALTER TABLE public.prontuario_anexos
+                    ADD COLUMN IF NOT EXISTS marcador character varying(50) NULL,
+                    ADD COLUMN IF NOT EXISTS regiao_anatomica character varying(200) NULL;
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "marcador",
-                schema: "public",
-                table: "prontuario_anexos");
-
-            migrationBuilder.DropColumn(
-                name: "regiao_anatomica",
-                schema: "public",
-                table: "prontuario_anexos");
+            migrationBuilder.Sql("""
+                ALTER TABLE public.prontuario_anexos
+                    DROP COLUMN IF EXISTS regiao_anatomica,
+                    DROP COLUMN IF EXISTS marcador;
+                """);
         }
     }
 }

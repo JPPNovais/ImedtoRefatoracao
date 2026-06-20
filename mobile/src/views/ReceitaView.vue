@@ -55,9 +55,9 @@ const medSheet = ref(false)
 const buscaMed = ref("")
 const posSheet = ref(false)
 const posIdx = ref<number | null>(null)
-const posQtd = ref("1 comprimido")
-const posFreq = ref("8/8h")
-const posDur = ref("7 dias")
+const posQtd = ref("")
+const posFreq = ref("")
+const posDur = ref("")
 
 const flow = ref<InstanceType<typeof AssinaturaFlow> | null>(null)
 
@@ -96,9 +96,9 @@ function removerItem(i: number) {
 function editarPos(i: number) {
   posIdx.value = i
   const pos = itens.value[i].posologia.split(" · ")
-  posQtd.value = pos[0] || "1 comprimido"
-  posFreq.value = pos[1] || "8/8h"
-  posDur.value = pos[2] || "7 dias"
+  posQtd.value = pos[0] || ""
+  posFreq.value = pos[1] || ""
+  posDur.value = pos[2] || ""
   posSheet.value = true
 }
 function aplicarPos() {
@@ -203,9 +203,9 @@ function concluir() {
     <!-- posologia sheet -->
     <BottomSheet v-model:open="posSheet" titulo="Posologia" sub="Ajuste a administração e a duração." closable>
       <div class="pos-grid">
-        <label><span class="field-label2">Quantidade e forma</span><input v-model="posQtd" type="text" /></label>
-        <label><span class="field-label2">Frequência</span><input v-model="posFreq" type="text" /></label>
-        <label><span class="field-label2">Duração</span><input v-model="posDur" type="text" /></label>
+        <label><span class="field-label2">Quantidade e forma</span><input v-model="posQtd" type="text" placeholder="Ex.: 1 comprimido" /></label>
+        <label><span class="field-label2">Frequência</span><input v-model="posFreq" type="text" placeholder="Ex.: 8/8h" /></label>
+        <label><span class="field-label2">Duração</span><input v-model="posDur" type="text" placeholder="Ex.: 7 dias" /></label>
       </div>
       <button class="btn-primary-lg" style="margin-top: 14px" @click="aplicarPos"><i class="fa-solid fa-check"></i> Aplicar</button>
     </BottomSheet>
