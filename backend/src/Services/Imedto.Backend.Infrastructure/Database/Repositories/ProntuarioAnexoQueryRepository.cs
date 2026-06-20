@@ -85,8 +85,11 @@ public class ProntuarioAnexoQueryRepository
         if (anexoIds.Count == 0) return Enumerable.Empty<(long, long, string, string, string)>();
 
         const string sql = """
-            SELECT a.id AS AnexoId, a.prontuario_id AS ProntuarioId,
-                   a.storage_path AS StoragePath, a.nome_original AS Nome, a.mime_type AS Mime
+            SELECT a.id            AS AnexoId,
+                   a.prontuario_id AS ProntuarioId,
+                   a.storage_path  AS StoragePath,
+                   a.nome_original AS Nome,
+                   a.mime_type     AS Mime
             FROM   public.prontuario_anexos a
             JOIN   public.prontuarios p
                    ON p.id = a.prontuario_id
@@ -99,15 +102,20 @@ public class ProntuarioAnexoQueryRepository
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
-        var rows = await conn.QueryAsync(sql, new
+        // QueryAsync<AnexoReferenciaRow> evita RuntimeBinderException que ocorre ao fazer
+        // (long)r.AnexoId sobre dynamic quando o Npgsql infere int32 para colunas bigint
+        // que cabem em 32 bits (comportamento do DLR — o cast dinâmico não alarga o tipo).
+        var rows = await conn.QueryAsync<AnexoReferenciaRow>(sql, new
         {
             AnexoIds = anexoIds.ToArray(),
             EstabelecimentoId = estabelecimentoId,
             PacienteId = pacienteId
         });
 
-        return rows.Select(r => ((long)r.AnexoId, (long)r.ProntuarioId, (string)r.StoragePath, (string)r.Nome, (string)r.Mime));
+        return rows.Select(r => (r.AnexoId, r.ProntuarioId, r.StoragePath, r.Nome, r.Mime));
     }
+
+    private sealed record AnexoReferenciaRow(long AnexoId, long ProntuarioId, string StoragePath, string Nome, string Mime);
 
     /// <summary>
     /// Carrega referencia do anexo filtrando por <paramref name="estabelecimentoId"/>
