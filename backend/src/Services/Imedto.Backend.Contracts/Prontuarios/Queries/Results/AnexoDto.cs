@@ -1,5 +1,14 @@
 namespace Imedto.Backend.Contracts.Prontuarios.Queries.Results;
 
+/// <summary>Resposta paginada da listagem de anexos do prontuário.</summary>
+public class PaginaAnexosDto
+{
+    public IEnumerable<AnexoDto> Itens { get; set; } = Array.Empty<AnexoDto>();
+    public int Total { get; set; }
+    public int Pagina { get; set; }
+    public int TamanhoPagina { get; set; }
+}
+
 public class AnexoDto
 {
     public long Id { get; set; }

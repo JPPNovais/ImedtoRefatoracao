@@ -87,18 +87,24 @@ public class PacienteController : ControllerBase
         return Ok(dto);
     }
 
-    /// <summary>Retorna os dados de um paciente.</summary>
+    /// <summary>
+    /// Retorna os dados de um paciente.
+    /// Aceite opcional <c>?contato=mascarado</c>: CPF e telefone retornam ofuscados
+    /// (ex.: "•••.•••.•••-09"), adequado para o app mobile (minimização LGPD).
+    /// Sem o parâmetro (default) — comportamento inalterado: PII completa (web).
+    /// </summary>
     [HttpGet("{id:long}")]
     [ProducesResponseType(typeof(PacienteDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Obter(long id)
+    public async Task<IActionResult> Obter(long id, [FromQuery] string contato = null)
     {
         var dto = await _requestBus.Query<ObterPacienteQuery, PacienteDto>(
             new ObterPacienteQuery
             {
                 PacienteId = id,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
-                SolicitanteUsuarioId = _tenant.UsuarioId
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                MascararContato = string.Equals(contato, "mascarado", StringComparison.OrdinalIgnoreCase)
             });
 
         if (dto is null) return NotFound();
@@ -180,6 +186,32 @@ public class PacienteController : ControllerBase
         });
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Revelação auditada de CPF e telefone completos (LGPD — acesso explícito a PII sensível).
+    /// Registra trilha de auditoria com motivo <c>RevelacaoDadosSensiveis</c>.
+    /// Mesmo RBAC/tenant da ficha; 404 genérico se paciente não pertence ao estabelecimento.
+    ///
+    /// Minimização: o DTO de detalhe (<c>GET /api/paciente/{id}</c>) mantém esses campos
+    /// por dependência do web (formulários de edição, PDFs, termos, agenda). Este endpoint
+    /// serve consumidores que precisam do valor completo com trilha de auditoria explícita.
+    /// </summary>
+    [HttpGet("{id:long}/dados-sensiveis")]
+    [ProducesResponseType(typeof(DadosSensiveisPacienteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ObterDadosSensiveis(long id)
+    {
+        var dto = await _requestBus.Query<ObterDadosSensiveisPacienteQuery, DadosSensiveisPacienteDto>(
+            new ObterDadosSensiveisPacienteQuery
+            {
+                PacienteId = id,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId
+            });
+
+        if (dto is null) return NotFound();
+        return Ok(dto);
     }
 
     /// <summary>LGPD Art. 18 — exporta todos os dados pessoais do paciente em JSON. Apenas Dono (acesso a TODA PII do titular).</summary>

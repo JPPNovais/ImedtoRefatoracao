@@ -38,20 +38,57 @@ public class ProntuarioAnexoController : ControllerBase
         _tenant = tenant;
     }
 
-    /// <summary>Lista os anexos do prontuário (opcionalmente filtrados pela evolução).</summary>
+    /// <summary>
+    /// Lista os anexos do prontuário paginados (opcionalmente filtrados pela evolução).
+    /// Retrocompatível: sem <c>pagina</c>/<c>tamanho</c> retorna a 1ª página com 50 itens
+    /// (comportamento equivalente ao anterior para quem não informa os parâmetros).
+    /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<AnexoDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Listar(long pacienteId, [FromQuery] long? evolucaoId = null)
+    [ProducesResponseType(typeof(PaginaAnexosDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Listar(
+        long pacienteId,
+        [FromQuery] long? evolucaoId = null,
+        [FromQuery] int pagina = 1,
+        [FromQuery] int tamanho = 50)
     {
-        var lista = await _requestBus.Query<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>>(
+        var dto = await _requestBus.Query<ListarAnexosDoProntuarioQuery, PaginaAnexosDto>(
             new ListarAnexosDoProntuarioQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
-                EvolucaoId = evolucaoId
+                EvolucaoId = evolucaoId,
+                Pagina = pagina,
+                TamanhoPagina = tamanho
             });
-        return Ok(lista);
+        return Ok(dto);
+    }
+
+    /// <summary>
+    /// Batch de URLs assinadas: gera URLs de download temporárias para múltiplos anexos em
+    /// uma única chamada. Elimina o N+1 de chamadas individuais ao baixar uma galeria de fotos.
+    /// Defense-in-depth: anexoIds de outro paciente/tenant são silenciosamente ignorados.
+    /// TTL igual ao endpoint individual (StorageOptions.TtlSignedUrlMinutos).
+    /// </summary>
+    [HttpPost("urls")]
+    [ProducesResponseType(typeof(IEnumerable<AnexoUrlDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ObterUrls(
+        long pacienteId,
+        [FromBody] AnexoIdsRequest request)
+    {
+        if (request?.AnexoIds is null || request.AnexoIds.Count == 0)
+            return Ok(Array.Empty<AnexoUrlDto>());
+
+        var dto = await _requestBus.Query<ObterUrlsAnexosQuery, IEnumerable<AnexoUrlDto>>(
+            new ObterUrlsAnexosQuery
+            {
+                AnexoIds = request.AnexoIds,
+                PacienteId = pacienteId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId
+            });
+        return Ok(dto);
     }
 
     /// <summary>Upload de um anexo (multipart). Retorna o Id do anexo criado.</summary>
@@ -110,3 +147,6 @@ public class ProntuarioAnexoController : ControllerBase
         return Ok(dto);
     }
 }
+
+/// <summary>Payload do endpoint de batch de URLs assinadas.</summary>
+public record AnexoIdsRequest(IReadOnlyList<long> AnexoIds);

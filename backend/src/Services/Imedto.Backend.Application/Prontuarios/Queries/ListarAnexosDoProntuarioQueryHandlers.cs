@@ -10,7 +10,7 @@ using Imedto.Backend.SharedKernel.Domain;
 namespace Imedto.Backend.Application.Prontuarios.Queries;
 
 public class ListarAnexosDoProntuarioQueryHandlers
-    : IRequestHandler<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>>
+    : IRequestHandler<ListarAnexosDoProntuarioQuery, PaginaAnexosDto>
 {
     private readonly ProntuarioAnexoQueryRepository _queryRepository;
     private readonly IProntuarioRepository _prontuarioRepo;
@@ -26,17 +26,30 @@ public class ListarAnexosDoProntuarioQueryHandlers
         _acessoLog = acessoLog;
     }
 
-    public async Task<IEnumerable<AnexoDto>> Handle(ListarAnexosDoProntuarioQuery query)
+    public async Task<PaginaAnexosDto> Handle(ListarAnexosDoProntuarioQuery query)
     {
         var prontuario = await _prontuarioRepo.ObterPorPaciente(query.PacienteId, query.EstabelecimentoId);
-        if (prontuario is null) return Array.Empty<AnexoDto>();
+        if (prontuario is null)
+            return new PaginaAnexosDto { Pagina = 1, TamanhoPagina = query.TamanhoPagina };
+
+        var pagina = Math.Max(query.Pagina, 1);
+        var tamanho = Math.Clamp(query.TamanhoPagina, 1, 100);
 
         // Audit LGPD: nomes de anexo podem indicar diagnostico ("Mamografia 2024.pdf").
         // Auditar mesmo se a lista vier vazia — saber que houve consulta eh informacao relevante.
         await _acessoLog.RegistrarAsync(
             prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
 
-        return await _queryRepository.ListarDoProntuario(prontuario.Id, query.EvolucaoId);
+        var (itens, total) = await _queryRepository.ListarDoProntuario(
+            prontuario.Id, query.EvolucaoId, pagina, tamanho);
+
+        return new PaginaAnexosDto
+        {
+            Itens = itens,
+            Total = total,
+            Pagina = pagina,
+            TamanhoPagina = tamanho
+        };
     }
 }
 

@@ -196,7 +196,7 @@ public class PacienteQueryRepository
         });
     }
 
-    public async Task<PacienteDto> ObterPorId(long pacienteId, long estabelecimentoId)
+    public virtual async Task<PacienteDto> ObterPorId(long pacienteId, long estabelecimentoId)
     {
         // Minimizado (LGPD): sem estabelecimento_id (front nao usa, amplia IDOR)
         // e sem atualizado_em (sem uso no front).
@@ -223,6 +223,32 @@ public class PacienteQueryRepository
 
         await using var conn = new NpgsqlConnection(_connectionString);
         return await conn.QuerySingleOrDefaultAsync<PacienteDto>(sql, new
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = estabelecimentoId
+        });
+    }
+
+    /// <summary>
+    /// Retorna CPF e telefone completos para o endpoint de revelação auditada.
+    /// Filtra por estabelecimento_id (multi-tenant) e deletado_em IS NULL.
+    /// Retorna null se não encontrado — handler converte em 404 genérico.
+    /// </summary>
+    public virtual async Task<(string? Cpf, string? Telefone)?> ObterDadosSensiveis(
+        long pacienteId,
+        long estabelecimentoId)
+    {
+        const string sql = """
+            SELECT  cpf       AS Cpf,
+                    telefone  AS Telefone
+            FROM    public.pacientes
+            WHERE   id = @PacienteId
+              AND   estabelecimento_id = @EstabelecimentoId
+              AND   deletado_em IS NULL
+            """;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        return await conn.QuerySingleOrDefaultAsync<(string?, string?)?>(sql, new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId

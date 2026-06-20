@@ -267,9 +267,26 @@ public class ReceitaController : ControllerBase
         return NoContent();
     }
 
-    // ListarFavoritos removido (decisao Fase 1): endpoint GET sem consumidor no front.
-    // A escrita (registrar uso de medicamento favorito) continua via EmitirReceitaCommandHandler
-    // -> IMedicamentoFavoritoRepository.RegistrarUso. Recriar o GET quando UI for implementada.
+    /// <summary>
+    /// Lista os medicamentos favoritos do profissional autenticado no estabelecimento ativo,
+    /// ordenados por frequência de uso (mais usados primeiro).
+    /// Multi-tenant: filtrado por (profissional, estabelecimento).
+    /// Sem audit: favoritos são dados operacionais do profissional, não PII do paciente.
+    /// </summary>
+    [HttpGet("api/receitas/favoritos")]
+    [ProducesResponseType(typeof(IEnumerable<MedicamentoFavoritoDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListarFavoritos([FromQuery] int limite = 50)
+    {
+        var dto = await _requestBus.Query<ListarFavoritosMedicamentosQuery,
+                                          IEnumerable<MedicamentoFavoritoDto>>(
+            new ListarFavoritosMedicamentosQuery
+            {
+                ProfissionalUsuarioId = _tenant.UsuarioId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                Limite = limite
+            });
+        return Ok(dto);
+    }
 }
 
 public record EmitirReceitaRequest(
