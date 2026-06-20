@@ -23,14 +23,16 @@ public class Prontuario : Entity, ISoftDeletable
 
     protected Prontuario() { }
 
-    public static Prontuario Iniciar(long pacienteId, long estabelecimentoId, long modeloDeProntuarioId)
+    /// <param name="modeloDeProntuarioId">
+    /// Id do modelo a usar. Quando null ou 0, o prontuário é iniciado sem modelo vinculado
+    /// (fluxo do app mobile que não trabalha com templates).
+    /// </param>
+    public static Prontuario Iniciar(long pacienteId, long estabelecimentoId, long modeloDeProntuarioId = 0)
     {
         if (pacienteId <= 0)
             throw new BusinessException("Paciente é obrigatório.");
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
-        if (modeloDeProntuarioId <= 0)
-            throw new BusinessException("Modelo de prontuário é obrigatório.");
 
         return new Prontuario
         {
