@@ -31,6 +31,7 @@ const ag = ref<AgendamentoDetalhe | null>(null)
 const carregando = ref(true)
 const acaoLoading = ref(false)
 const atendSheetOpen = ref(false)
+const menuOpen = ref(false)
 
 // Check-in: valor sugerido (busca antes de confirmar)
 const checkinSheetOpen = ref(false)
@@ -178,7 +179,7 @@ function concluirSemCobrar() {
     <div class="push-head">
       <button class="iconbtn" @click="voltar"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">Agendamento</div>
-      <button class="iconbtn"><i class="fa-solid fa-ellipsis"></i></button>
+      <button class="iconbtn" aria-label="Mais ações" @click="menuOpen = true"><i class="fa-solid fa-ellipsis"></i></button>
     </div>
 
     <div v-if="ag" class="push-body">
@@ -317,6 +318,22 @@ function concluirSemCobrar() {
       <button class="btn-outline" style="margin-bottom: 0;" @click="concluirSemCobrar">
         <i class="fa-solid fa-check"></i> Concluir sem cobrar
       </button>
+    </BottomSheet>
+
+    <!-- Menu "..." — ações reais do agendamento -->
+    <BottomSheet v-model:open="menuOpen" titulo="Ações" closable>
+      <div v-if="podeEditar" class="med-row" @click="marcarFaltou(); menuOpen = false">
+        <div class="mi"><i class="fa-regular fa-circle-xmark"></i></div>
+        <b>Registrar falta</b>
+      </div>
+      <div class="med-row" @click="enviarConfirmacao(); menuOpen = false">
+        <div class="mi"><i class="fa-brands fa-whatsapp"></i></div>
+        <b>Enviar confirmação</b>
+      </div>
+      <div v-if="podeProntuario && ag" class="med-row" @click="irFicha(); menuOpen = false">
+        <div class="mi"><i class="fa-solid fa-id-card"></i></div>
+        <b>Ver ficha do paciente</b>
+      </div>
     </BottomSheet>
   </div>
 </template>

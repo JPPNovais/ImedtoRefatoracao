@@ -138,6 +138,32 @@ public class ProntuarioController : ControllerBase
     }
 
     /// <summary>
+    /// Gera e retorna o PDF do histórico completo do prontuário do paciente.
+    /// Destinado ao app mobile (download/compartilhamento) e ao web (alternativa server-side).
+    /// Audit LGPD de Exportacao é registrado dentro do handler antes de gerar os bytes.
+    /// Multi-tenant: prontuário de outro estabelecimento → 422 genérico "Prontuário não encontrado".
+    /// LGPD: nome do arquivo sem PII do paciente.
+    /// </summary>
+    [HttpGet("pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> EmitirPdf(long pacienteId)
+    {
+        var pdfBytes = await _requestBus.Query<EmitirProntuarioPdfQuery, byte[]>(
+            new EmitirProntuarioPdfQuery
+            {
+                PacienteId = pacienteId,
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+            });
+
+        // Nome sem PII: usa apenas o identificador numérico opaco do paciente.
+        Response.Headers.Append("Content-Disposition", $"attachment; filename=\"prontuario-{pacienteId}.pdf\"");
+        return File(pdfBytes, "application/pdf");
+    }
+
+    /// <summary>
     /// Audit LGPD — registra que o histórico completo do prontuário foi exportado em PDF.
     /// O front chama este endpoint ANTES de gerar o doc; um 422 aqui impede a geração.
     /// </summary>
@@ -210,5 +236,9 @@ public class ProntuarioController : ControllerBase
     }
 }
 
-public record IniciarProntuarioRequest(long ModeloDeProntuarioId);
+/// <param name="ModeloDeProntuarioId">
+/// Opcional. Quando omitido (body {} ou null), o backend resolve o modelo padrão do estabelecimento.
+/// Mantém retrocompatibilidade com o web que envia o id explícito.
+/// </param>
+public record IniciarProntuarioRequest(long? ModeloDeProntuarioId = null);
 public record RegistrarEvolucaoRequest(string ConteudoJson, long? ModeloDeProntuarioId = null);

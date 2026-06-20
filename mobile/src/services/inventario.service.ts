@@ -12,6 +12,7 @@ export const inventarioService = {
       apenasAbaixoMinimo: params.apenasAbaixoMinimo,
       pagina: params.pagina ?? 1,
       tamanho: params.tamanho ?? 50,
+      busca: params.busca || undefined,
     })
   },
 

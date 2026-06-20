@@ -4,18 +4,21 @@ import { useRouter } from "vue-router"
 import { financeiroService } from "@/services/financeiro.service"
 import { useUiStore } from "@/stores/ui"
 import { useShare } from "@/native/useShare"
+import { useListaPaginada } from "@/composables/useListaPaginada"
 import { moeda, toISODate } from "@/lib/format"
 import type { CaixaDiarioDto, LancamentoExtratoDto } from "@/types"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
+import AppLoadMore from "@/components/ui/AppLoadMore.vue"
 
 const router = useRouter()
 const ui = useUiStore()
 const share = useShare()
 
 const caixa = ref<CaixaDiarioDto | null>(null)
-const movimentacoes = ref<LancamentoExtratoDto[]>([])
 const carregando = ref(true)
 const erro = ref(false)
+
+const dataHoje = toISODate(new Date())
 
 const hoje = new Date()
 const dataExibicao = computed(() => {
@@ -24,6 +27,22 @@ const dataExibicao = computed(() => {
   const m = (hoje.getMonth() + 1).toString().padStart(2, "0")
   return `${dias[hoje.getDay()]}, ${d}/${m}`
 })
+
+// Lista paginada — só receitas pagas do dia
+const listaMovimentos = useListaPaginada<LancamentoExtratoDto>(
+  async (pagina, tamanho) => {
+    const res = await financeiroService.listarExtrato({
+      dataInicio: dataHoje,
+      dataFim: dataHoje,
+      pagina,
+      tamanho,
+    })
+    // Filtra receitas pagas (mesma regra de antes)
+    const itensFiltrados = res.itens.filter((i) => i.tipo === "Receita" && i.status === "Pago")
+    return { itens: itensFiltrados, total: res.total }
+  },
+  { tamanho: 20 },
+)
 
 function totalPorForma(nome: string): number {
   if (!caixa.value) return 0
@@ -44,14 +63,13 @@ function iconeForma(formaPagamento?: string | null): string {
 async function carregar() {
   carregando.value = true
   erro.value = false
-  const dataHoje = toISODate(new Date())
   try {
-    const [cx, extrato] = await Promise.all([
+    // Caixa (card de totais) e 1ª página de movimentos em paralelo
+    const [cx] = await Promise.all([
       financeiroService.obterCaixa(),
-      financeiroService.listarExtrato({ dataInicio: dataHoje, dataFim: dataHoje, pagina: 1, tamanho: 50 }),
+      listaMovimentos.recarregar(),
     ])
     caixa.value = cx
-    movimentacoes.value = extrato.itens.filter((i) => i.tipo === "Receita" && i.status === "Pago")
   } catch {
     erro.value = true
     ui.toast("Erro ao carregar o caixa", "error")
@@ -126,8 +144,8 @@ onMounted(carregar)
         <div class="f-label">Movimentações</div>
 
         <!-- Lista de movimentações -->
-        <div v-if="movimentacoes.length > 0" class="caixa-list">
-          <div v-for="item in movimentacoes" :key="item.id" class="caixa-row">
+        <div v-if="listaMovimentos.itens.value.length > 0" class="caixa-list">
+          <div v-for="item in listaMovimentos.itens.value" :key="item.id" class="caixa-row">
             <div class="ci">
               <i class="fa-solid" :class="iconeForma(item.formaPagamento)"></i>
             </div>
@@ -135,7 +153,7 @@ onMounted(carregar)
               <b>{{ item.descricao }}</b>
               <span>{{ item.formaPagamento || "—" }} · {{ item.categoria }}</span>
             </div>
-            <div class="cv">+ {{ moeda(item.valor).replace("R$ ", "") }}</div>
+            <div class="cv">+ {{ moeda(item.valor).replace("R$ ", "") }}</div>
           </div>
         </div>
         <AppEmptyState
@@ -143,6 +161,12 @@ onMounted(carregar)
           icon="fa-money-bill-1"
           titulo="Nenhum recebimento"
           texto="Ainda não há recebimentos registrados hoje."
+        />
+
+        <AppLoadMore
+          :visivel="listaMovimentos.temMais.value"
+          :carregando="listaMovimentos.carregandoMais.value"
+          @carregar="listaMovimentos.carregarMais()"
         />
 
         <div class="audit-foot-cx">

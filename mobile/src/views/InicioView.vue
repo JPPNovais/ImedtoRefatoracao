@@ -6,8 +6,9 @@ import { usePermissoesStore } from "@/stores/permissoes"
 import { useUiStore } from "@/stores/ui"
 import { dashboardService } from "@/services/dashboard.service"
 import { financeiroService } from "@/services/financeiro.service"
+import { agendaService } from "@/services/agenda.service"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
-import { moeda, horaDe, iniciais } from "@/lib/format"
+import { moeda, horaDe, iniciais, toISODate } from "@/lib/format"
 import type { DashboardDto, CaixaDiarioDto } from "@/types"
 
 const router = useRouter()
@@ -62,20 +63,8 @@ const minutosParaProximo = computed(() => {
   return `em ${h}h`
 })
 
-// Stats do dia — derivados do DashboardDto
-// Backend não expõe atendidos/faltas no dashboard; usa AgendamentosHoje como total
-// Atendidos e faltas só existem na agenda; aqui exibimos o que o dashboard tem.
-const statsHoje = computed(() => {
-  const d = dashboard.value
-  if (!d) return null
-  return {
-    agendados: d.agendamentosHoje,
-    // Dashboard não tem contagem de atendidos/faltas separada; exibimos como 0 (os próximos
-    // agentes que implementam a agenda podem alimentar um store compartilhado).
-    atendidos: 0,
-    faltas: 0,
-  }
-})
+// Stats reais do dia via /agendamentos/contagem-por-dia
+const statsHoje = ref<{ agendados: number; atendidos: number; faltas: number } | null>(null)
 
 // Itens de atenção (derivados do DashboardDto)
 interface ItemAtencao {
@@ -101,7 +90,7 @@ const itensAtencao = computed<ItemAtencao[]>(() => {
       titulo: `${n} ${n > 1 ? "itens" : "item"} em baixo estoque`,
       subtitulo: sub,
       rotulo: "Repor",
-      acao: () => router.push("/mais"), // próximos agentes adicionam rota de estoque
+      acao: () => router.push({ name: "estoque" }),
     })
   }
 
@@ -113,7 +102,8 @@ const itensAtencao = computed<ItemAtencao[]>(() => {
       titulo: `${n} orçamento${n > 1 ? "s" : ""} aguardando`,
       subtitulo: "Toque para ver",
       rotulo: "Ver",
-      acao: () => router.push("/mais"),
+      // Sem tela de lista de orçamentos no mobile; mantém sem ação de rota
+      acao: () => {},
     })
   }
 
@@ -125,7 +115,7 @@ const itensAtencao = computed<ItemAtencao[]>(() => {
       titulo: `${n} lançamento${n > 1 ? "s" : ""} vencido${n > 1 ? "s" : ""}`,
       subtitulo: `A receber: ${moeda(d.vencidosAReceber)}`,
       rotulo: "Ver",
-      acao: () => router.push("/mais"),
+      acao: () => router.push({ name: "caixa" }),
     })
   }
 
@@ -136,12 +126,18 @@ async function carregar() {
   carregando.value = true
   erro.value = false
   try {
-    const [dash, cx] = await Promise.all([
+    const hoje = toISODate(new Date())
+    const [dash, cx, contagem] = await Promise.all([
       dashboardService.obter(),
       verFinanceiro.value ? financeiroService.obterCaixa() : Promise.resolve(null),
+      agendaService.contagemPorDia(hoje, hoje).catch(() => []),
     ])
     dashboard.value = dash
     caixa.value = cx
+    const c = contagem[0]
+    statsHoje.value = c
+      ? { agendados: c.agendados, atendidos: c.atendidos, faltas: c.faltas }
+      : { agendados: dash.agendamentosHoje, atendidos: 0, faltas: 0 }
   } catch {
     erro.value = true
     ui.toast("Erro ao carregar o painel", "error")

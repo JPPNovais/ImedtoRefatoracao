@@ -46,13 +46,18 @@ public class IniciarProntuarioCommandHandlerTests
     private static ModeloDeProntuario ModeloDoEstab(long estabId) =>
         ModeloDeProntuario.CriarDoEstabelecimento(estabId, "Modelo", null, "{}");
 
-    private IniciarProntuarioCommand Cmd() => new()
+    private IniciarProntuarioCommand Cmd(long? modeloId = ModeloId) => new()
     {
         PacienteId = PacienteId,
         EstabelecimentoId = EstabelecimentoId,
-        ModeloDeProntuarioId = ModeloId,
+        ModeloDeProntuarioId = modeloId,
         SolicitanteUsuarioId = _solicitanteId,
     };
+
+    private void SetupSalvarComId(long id = 999L) =>
+        _prontuarioRepo.Setup(r => r.Salvar(It.IsAny<Prontuario>()))
+            .Callback<Prontuario>(p => typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, id))
+            .Returns(Task.CompletedTask);
 
     [Test]
     public async Task Handle_TudoValido_IniciaProntuarioPersisteAuditEEvento()
@@ -62,10 +67,7 @@ public class IniciarProntuarioCommandHandlerTests
         _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(ModeloDoEstab(EstabelecimentoId));
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync((Prontuario)null);
-        _prontuarioRepo.Setup(r => r.Salvar(It.IsAny<Prontuario>()))
-                       .Callback<Prontuario>(p =>
-                           typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, 999L))
-                       .Returns(Task.CompletedTask);
+        SetupSalvarComId();
 
         await _sut.Handle(Cmd());
 
@@ -118,10 +120,7 @@ public class IniciarProntuarioCommandHandlerTests
         _modeloRepo.Setup(r => r.ObterVisivelOuNulo(ModeloId, EstabelecimentoId)).ReturnsAsync(modeloPadrao);
         _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId))
                        .ReturnsAsync((Prontuario)null);
-        _prontuarioRepo.Setup(r => r.Salvar(It.IsAny<Prontuario>()))
-                       .Callback<Prontuario>(p =>
-                           typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(p, 999L))
-                       .Returns(Task.CompletedTask);
+        SetupSalvarComId();
 
         await _sut.Handle(Cmd());
 
@@ -138,5 +137,63 @@ public class IniciarProntuarioCommandHandlerTests
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(Cmd()));
         Assert.That(ex.Message, Does.Contain("já possui"));
+    }
+
+    // --- Novos testes: fluxo mobile (ModeloDeProntuarioId omitido) ---
+
+    [Test]
+    public async Task Handle_SemModelo_ResolveModeloPadraoDoEstabelecimento()
+    {
+        // Cenário: mobile envia body {} → command com ModeloDeProntuarioId = null.
+        // Handler deve resolver o primeiro modelo ativo do estab e iniciar com ele.
+        var modeloPadrao = ModeloDoEstab(EstabelecimentoId);
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
+        _modeloRepo.Setup(r => r.ObterPrimeiroVisivelOuNulo(EstabelecimentoId)).ReturnsAsync(modeloPadrao);
+        _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId)).ReturnsAsync((Prontuario)null);
+        SetupSalvarComId();
+
+        await _sut.Handle(Cmd(modeloId: null));
+
+        _prontuarioRepo.Verify(r => r.Salvar(It.IsAny<Prontuario>()), Times.Once);
+        // ObterVisivelOuNulo NÃO deve ser chamado quando o caller não passou id.
+        _modeloRepo.Verify(r => r.ObterVisivelOuNulo(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+        _acessoLog.Verify(a => a.RegistrarAsync(999L, _solicitanteId, EstabelecimentoId, TipoAcessoProntuario.Escrita), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_SemModeloENenhumModeloNoEstab_IniciaSemModelo()
+    {
+        // Cenário: estab sem nenhum modelo cadastrado. Mobile ainda deve conseguir iniciar
+        // o prontuário (ModeloDeProntuarioId = 0 na entidade — fluxo funciona sem template).
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
+        _modeloRepo.Setup(r => r.ObterPrimeiroVisivelOuNulo(EstabelecimentoId)).ReturnsAsync((ModeloDeProntuario)null);
+        _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId)).ReturnsAsync((Prontuario)null);
+        SetupSalvarComId();
+
+        await _sut.Handle(Cmd(modeloId: null));
+
+        _prontuarioRepo.Verify(r => r.Salvar(
+            It.Is<Prontuario>(p => p.ModeloDeProntuarioId == 0)), Times.Once,
+            "Sem modelo disponivel, deve salvar com ModeloDeProntuarioId = 0.");
+        _acessoLog.Verify(a => a.RegistrarAsync(999L, _solicitanteId, EstabelecimentoId, TipoAcessoProntuario.Escrita), Times.Once);
+    }
+
+    [Test]
+    public async Task Handle_SemModeloMultiTenant_NaoVazaModelosDeOutroEstab()
+    {
+        // Garante que ObterPrimeiroVisivelOuNulo é chamado com o EstabelecimentoId do tenant
+        // (não com outro), mesmo quando o caller não especifica modelo.
+        _pacienteRepo.Setup(r => r.ObterPorIdOuNulo(PacienteId, EstabelecimentoId)).ReturnsAsync(PacienteAtivo());
+        _modeloRepo.Setup(r => r.ObterPrimeiroVisivelOuNulo(EstabelecimentoId)).ReturnsAsync((ModeloDeProntuario)null);
+        _modeloRepo.Setup(r => r.ObterPrimeiroVisivelOuNulo(OutroEstabId)).ReturnsAsync(ModeloDoEstab(OutroEstabId));
+        _prontuarioRepo.Setup(r => r.ObterPorPaciente(PacienteId, EstabelecimentoId)).ReturnsAsync((Prontuario)null);
+        SetupSalvarComId();
+
+        await _sut.Handle(Cmd(modeloId: null));
+
+        // Deve consultar APENAS o tenant correto, nunca OutroEstabId.
+        _modeloRepo.Verify(r => r.ObterPrimeiroVisivelOuNulo(EstabelecimentoId), Times.Once);
+        _modeloRepo.Verify(r => r.ObterPrimeiroVisivelOuNulo(OutroEstabId), Times.Never,
+            "Modelo de outro estabelecimento nao deve ser consultado.");
     }
 }

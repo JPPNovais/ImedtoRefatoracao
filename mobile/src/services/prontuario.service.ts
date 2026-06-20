@@ -1,4 +1,4 @@
-import { http } from "@/lib/http"
+import { http, getBlob } from "@/lib/http"
 import { API_BASE } from "@/lib/config"
 import { useTenantStore } from "@/stores/tenant"
 import type { AnexoDto, AnexoUrlDto, ProntuarioCompleto } from "@/types"
@@ -7,9 +7,13 @@ export const prontuarioService = {
   async obter(pacienteId: number, timeline = 50): Promise<ProntuarioCompleto> {
     return http.get(`/paciente/${pacienteId}/prontuario`, { timeline })
   },
+  /** Inicia o prontuário do paciente. ModeloDeProntuarioId é opcional (usa padrão do sistema). */
+  async iniciarProntuario(pacienteId: number, modeloDeProntuarioId?: number): Promise<void> {
+    await http.post(`/paciente/${pacienteId}/prontuario`, modeloDeProntuarioId ? { modeloDeProntuarioId } : {})
+  },
   async registrarEvolucao(
     pacienteId: number,
-    payload: { conteudoJson: unknown; modeloDeProntuarioId?: number },
+    payload: { conteudoJson: string; modeloDeProntuarioId?: number },
   ): Promise<{ evolucaoId: number }> {
     return http.post(`/paciente/${pacienteId}/prontuario/evolucoes`, payload)
   },
@@ -44,6 +48,10 @@ export const prontuarioService = {
     })
     if (!res.ok) throw new Error("Falha no upload do anexo")
     return res.json()
+  },
+  /** Baixa o PDF do prontuário completo — retorna Blob (backend audita LGPD). */
+  async baixarPdf(pacienteId: number): Promise<Blob> {
+    return getBlob(`/paciente/${pacienteId}/prontuario/pdf`)
   },
   /** Upload de foto clínica com região anatômica e marcador (Antes/Depois/Evolução). */
   async uploadFotoClinica(

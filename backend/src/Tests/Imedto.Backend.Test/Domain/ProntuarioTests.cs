@@ -33,11 +33,12 @@ public class ProntuarioTests
     }
 
     [Test]
-    public void Iniciar_ModeloZero_LancaBusinessException()
+    public void Iniciar_ModeloZero_CriaSemModelo()
     {
-        var ex = Assert.Throws<BusinessException>(() =>
-            Prontuario.Iniciar(1, 1, 0));
-        Assert.That(ex.Message, Does.Contain("Modelo de prontuário"));
+        // Modelo 0 (ausente) é permitido no Iniciar — fluxo do app mobile que não usa template.
+        // A resolução do modelo padrão ocorre no handler, não no aggregate.
+        var p = Prontuario.Iniciar(1, 1, 0);
+        Assert.That(p.ModeloDeProntuarioId, Is.EqualTo(0));
     }
 
     [Test]

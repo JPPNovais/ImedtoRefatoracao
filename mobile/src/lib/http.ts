@@ -173,10 +173,44 @@ async function tryRefresh(): Promise<boolean> {
   return refreshing
 }
 
+/** Baixa um recurso binário (PDF, etc.) respeitando cookie BFF + tenant header.
+    Web: fetch com credentials:'include'. Nativo: CapacitorHttp com responseType blob.
+    Lança ApiError em status >= 400. */
+export async function getBlob(path: string): Promise<Blob> {
+  const url = buildUrl(path)
+  const headers = baseHeaders()
+
+  if (Capacitor.isNativePlatform()) {
+    const res = await CapacitorHttp.request({
+      url,
+      method: "GET",
+      headers,
+      responseType: "blob",
+      webFetchExtra: { credentials: "include" },
+    })
+    if (res.status >= 400) throw toApiError(res.status, res.data)
+    // CapacitorHttp retorna base64 para blob no nativo; converte para Blob
+    const base64 = res.data as string
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return new Blob([bytes], { type: "application/pdf" })
+  }
+
+  const res = await fetch(url, { method: "GET", headers, credentials: "include" })
+  if (res.status >= 400) {
+    let data: unknown = null
+    try { data = await res.json() } catch { /* ignora */ }
+    throw toApiError(res.status, data)
+  }
+  return res.blob()
+}
+
 export const http = {
   get: <T>(path: string, params?: RequestOptions["params"]) => request<T>(path, { params }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   raw: rawRequest,
+  getBlob,
 }

@@ -81,8 +81,23 @@ async function assinar() {
       itens: itens.value,
     })
     await receitaService.assinar(receitaId)
-    const status = await receitaService.statusAssinatura(receitaId)
-    return { url: status.urlAssinada }
+
+    // Polling real: aguarda até AssinadaIcp / erro ou timeout ~30s
+    const TIMEOUT_MS = 30_000
+    const INTERVALO_MS = 2_000
+    const inicio = Date.now()
+    while (Date.now() - inicio < TIMEOUT_MS) {
+      await new Promise((r) => setTimeout(r, INTERVALO_MS))
+      const s = await receitaService.statusAssinatura(receitaId)
+      if (s.status === "AssinadaIcp" || s.status === "AssinadaMemed") {
+        return { url: s.pdfAssinadoUrl ?? undefined, pdfPath: receitaService.pdfUrl(receitaId) }
+      }
+      if (s.status === "FalhaAssinatura" || s.status === "Erro") {
+        throw new Error("Falha na assinatura digital")
+      }
+    }
+    // Timeout: retorna com pdfPath disponível (sem URL pré-assinada)
+    return { pdfPath: receitaService.pdfUrl(receitaId) }
   })
 }
 function concluir() {

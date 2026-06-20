@@ -8,6 +8,7 @@ import { useUiStore } from "@/stores/ui"
 import { moeda, toISODate } from "@/lib/format"
 import type { FormaPagamentoDto, CobrancaDetalheDto } from "@/types"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
+import BottomSheet from "@/components/ui/BottomSheet.vue"
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +33,7 @@ const formaSelecionadaId = ref<number | null>(null)
 const parcelas = ref(1)
 const observacoes = ref("")
 const semCobranca = ref(false)
+const sucessoOpen = ref(false)
 
 // Forma selecionada
 const formaSelecionada = computed(
@@ -173,8 +175,8 @@ async function salvar() {
         },
       ],
     })
-    ui.toast("Pagamento registrado com sucesso!")
-    router.back()
+    // Mostra confirmação com opção de voltar — recibo disponível pela Caixa
+    sucessoOpen.value = true
   } catch {
     ui.toast("Não foi possível registrar o pagamento", "error")
   } finally {
@@ -321,10 +323,38 @@ onMounted(carregar)
         {{ salvando ? "Salvando…" : "Receber" }}
       </button>
     </div>
+
+    <!-- Confirmação de sucesso (item 7) -->
+    <BottomSheet v-model:open="sucessoOpen" titulo="Pagamento registrado">
+      <div class="pay-ok-body">
+        <div class="pay-ok-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <p>Pagamento de <b>{{ moeda(valorNumerico) }}</b> registrado com sucesso.</p>
+        <p class="pay-ok-sub">O recibo fica disponível na aba Caixa.</p>
+      </div>
+      <div class="btn-row" style="margin: 0 0 12px;">
+        <button class="btn-outline" style="flex: 1" @click="() => { sucessoOpen = false; router.back() }">
+          <i class="fa-solid fa-arrow-left"></i> Voltar
+        </button>
+      </div>
+    </BottomSheet>
   </div>
 </template>
 
 <style scoped>
+.pay-ok-body {
+  text-align: center;
+  padding: 8px 0 16px;
+}
+.pay-ok-icon {
+  font-size: var(--fs-4xl);
+  color: hsl(var(--success));
+  margin-bottom: 10px;
+}
+.pay-ok-sub {
+  font-size: var(--fs-xs);
+  color: var(--app-text-faint);
+  margin-top: 4px;
+}
 .pay-av {
   width: 42px;
   height: 42px;

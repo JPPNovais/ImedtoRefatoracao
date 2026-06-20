@@ -215,6 +215,7 @@ using Imedto.Backend.Infrastructure.Automacoes;
 using Imedto.Backend.Infrastructure.Notificacoes;
 using Imedto.Backend.Infrastructure.Admin;
 using Imedto.Backend.Infrastructure.Receitas;
+using Imedto.Backend.Infrastructure.Prontuarios;
 using Imedto.Backend.Infrastructure.Lgpd;
 using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.API.Filters;
@@ -634,6 +635,8 @@ public static class Container
         services.AddScoped<ListarEvolucoesProntuarioPacienteQueryHandlers>(); // scoped — injeta IProntuarioAcessoLogService (scoped)
         services.AddSingleton<ContarEvolucoesProntuarioPacienteQueryHandlers>(); // só COUNT, sem audit — pode ser singleton
         services.AddSingleton<ProntuarioQueryRepository>();
+        services.AddScoped<IProntuarioPdfService, QuestPdfProntuarioService>(); // scoped — audit LGPD via IProntuarioAcessoLogService (scoped)
+        services.AddScoped<EmitirProntuarioPdfQueryHandler>();
         services.AddScoped<ProntuarioIniciadoEventHandler>();
         services.AddScoped<EvolucaoRegistradaEventHandler>();
 
@@ -1355,6 +1358,7 @@ public static class Container
             bus.Register<ObterProntuarioDoPacienteQuery, ProntuarioCompletoDto, ObterProntuarioDoPacienteQueryHandlers>();
             bus.Register<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto, ListarEvolucoesProntuarioPacienteQueryHandlers>();
             bus.Register<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto, ContarEvolucoesProntuarioPacienteQueryHandlers>();
+            bus.Register<EmitirProntuarioPdfQuery, byte[], EmitirProntuarioPdfQueryHandler>();
             bus.Register<ListarAnexosDoProntuarioQuery, IEnumerable<AnexoDto>, ListarAnexosDoProntuarioQueryHandlers>();
             bus.Register<ObterUrlAnexoQuery, AnexoUrlDto, ObterUrlAnexoQueryHandlers>();
             bus.Register<ListarModelosPermissaoQuery, IEnumerable<ModeloPermissaoDto>, ListarModelosPermissaoQueryHandlers>();

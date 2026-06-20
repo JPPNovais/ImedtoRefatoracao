@@ -37,19 +37,33 @@ public class IniciarProntuarioCommandHandler : ICommandHandler<IniciarProntuario
         if (paciente.EstaDeletado)
             throw new BusinessException("Paciente deletado — não é possível iniciar prontuário.");
 
-        // Valida que o modelo é visível para o tenant (padrão-sistema ou próprio).
-        // Defense-in-depth multi-tenant: filtro padrao-sistema OR estabelecimento ativo no proprio repo.
-        var modelo = await _modeloRepo.ObterVisivelOuNulo(command.ModeloDeProntuarioId, command.EstabelecimentoId)
-            ?? throw new BusinessException("Modelo não encontrado.");
-        if (!modelo.Ativo)
-            throw new BusinessException("Modelo inativo.");
+        // Resolve modelo: se o caller informou um id, valida; senão busca o primeiro disponível
+        // (padrão do estabelecimento ou padrão-sistema). Mobile envia body {} sem modelo.
+        long modeloIdResolvido;
+        if (command.ModeloDeProntuarioId is > 0)
+        {
+            // Valida que o modelo é visível para o tenant (padrão-sistema ou próprio).
+            // Defense-in-depth multi-tenant: filtro padrao-sistema OR estabelecimento ativo no proprio repo.
+            var modelo = await _modeloRepo.ObterVisivelOuNulo(command.ModeloDeProntuarioId.Value, command.EstabelecimentoId)
+                ?? throw new BusinessException("Modelo não encontrado.");
+            if (!modelo.Ativo)
+                throw new BusinessException("Modelo inativo.");
+            modeloIdResolvido = modelo.Id;
+        }
+        else
+        {
+            // Resolve server-side: primeiro modelo ativo visível ao estabelecimento.
+            // Se não houver nenhum, inicia sem modelo (id = 0) — mobile não usa template.
+            var modeloPadrao = await _modeloRepo.ObterPrimeiroVisivelOuNulo(command.EstabelecimentoId);
+            modeloIdResolvido = modeloPadrao?.Id ?? 0;
+        }
 
         // Já existe?
         var existente = await _prontuarioRepo.ObterPorPaciente(command.PacienteId, command.EstabelecimentoId);
         if (existente is not null)
             throw new BusinessException("Paciente já possui prontuário — use o existente.");
 
-        var prontuario = Prontuario.Iniciar(command.PacienteId, command.EstabelecimentoId, command.ModeloDeProntuarioId);
+        var prontuario = Prontuario.Iniciar(command.PacienteId, command.EstabelecimentoId, modeloIdResolvido);
 
         await _prontuarioRepo.Salvar(prontuario);
         prontuario.MarcarComoIniciado();

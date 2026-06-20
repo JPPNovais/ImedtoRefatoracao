@@ -3,6 +3,8 @@ import { onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { agendaService } from "@/services/agenda.service"
 import { pacienteService } from "@/services/paciente.service"
+import { salaService } from "@/services/sala.service"
+import type { SalaDto } from "@/services/sala.service"
 import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
 import { iniciais } from "@/lib/format"
@@ -14,10 +16,11 @@ const auth = useAuthStore()
 const ui = useUiStore()
 
 const paciente = ref<{ id: number; nomeCompleto: string } | null>(null)
-const data = ref(new Date("2026-06-05").toISOString().slice(0, 10))
+const data = ref(new Date().toISOString().slice(0, 10))
 const horario = ref("")
 const tipo = ref("Consulta")
-const sala = ref("Sala 1")
+const salas = ref<SalaDto[]>([])
+const salaId = ref<number | null>(null)
 const obs = ref("")
 const salvando = ref(false)
 
@@ -28,7 +31,13 @@ const busca = ref("")
 const lista = ref<{ id: number; nomeCompleto: string }[]>([])
 
 onMounted(async () => {
-  lista.value = await pacienteService.buscaRapida("", 20).catch(() => [])
+  const [pacientes, salasResp] = await Promise.all([
+    pacienteService.buscaRapida("", 20).catch(() => []),
+    salaService.listar().catch(() => []),
+  ])
+  lista.value = pacientes
+  salas.value = salasResp
+  if (salasResp.length) salaId.value = salasResp[0].id
 })
 async function buscar() {
   lista.value = await pacienteService.buscaRapida(busca.value, 20).catch(() => [])
@@ -53,6 +62,7 @@ async function salvar() {
       fimPrevisto: fimDate.toISOString().slice(0, 19),
       tipoServico: tipo.value,
       observacoes: obs.value || undefined,
+      salaId: salaId.value ?? undefined,
     })
     ui.toast("Consulta agendada")
     router.back()
@@ -103,9 +113,12 @@ async function salvar() {
         <i class="fa-solid fa-chevron-down"></i>
       </div>
 
-      <div class="f-label">Sala</div>
-      <div class="sel-wrap">
-        <select v-model="sala" class="msel"><option>Sala 1</option><option>Sala 2</option><option>Sala 3</option></select>
+      <div v-if="salas.length" class="f-label">Sala</div>
+      <div v-if="salas.length" class="sel-wrap">
+        <select v-model="salaId" class="msel">
+          <option :value="null">— Sem sala —</option>
+          <option v-for="s in salas" :key="s.id" :value="s.id">{{ s.nome }}</option>
+        </select>
         <i class="fa-solid fa-chevron-down"></i>
       </div>
 

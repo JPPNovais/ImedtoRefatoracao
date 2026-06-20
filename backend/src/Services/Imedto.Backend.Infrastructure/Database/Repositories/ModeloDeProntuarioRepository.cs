@@ -17,6 +17,19 @@ public class ModeloDeProntuarioRepository : IModeloDeProntuarioRepository
             .FirstOrDefaultAsync(m => m.Id == id
                                    && (m.EhPadraoSistema || m.EstabelecimentoId == estabelecimentoId));
 
+    public async Task<ModeloDeProntuario?> ObterPrimeiroVisivelOuNulo(long estabelecimentoId)
+    {
+        // Prefere modelo do próprio estabelecimento; fallback padrão-sistema.
+        return await _context.ModelosDeProntuario
+                   .Where(m => m.Ativo && m.EstabelecimentoId == estabelecimentoId)
+                   .OrderBy(m => m.Id)
+                   .FirstOrDefaultAsync()
+               ?? await _context.ModelosDeProntuario
+                   .Where(m => m.Ativo && m.EhPadraoSistema)
+                   .OrderBy(m => m.Id)
+                   .FirstOrDefaultAsync();
+    }
+
     public async Task Salvar(ModeloDeProntuario modelo)
     {
         if (modelo.Id == 0)

@@ -1,20 +1,28 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { pacienteService } from "@/services/paciente.service"
 import { prontuarioService } from "@/services/prontuario.service"
 import { orcamentoService } from "@/services/orcamento.service"
-import type { Evolucao, Orcamento, Paciente } from "@/types"
+import { receitaService, atestadoService, exameService } from "@/services/documentos.service"
+import type { ReceitaResumoDto, AtestadoDto, PedidoExameDto } from "@/services/documentos.service"
+import type { Evolucao, Orcamento, Paciente, AnexoDto } from "@/types"
 import { useUiStore } from "@/stores/ui"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { useBiometric } from "@/native/useBiometric"
+import { useDownload } from "@/native/useDownload"
 import { iniciais, idade, dataCurta } from "@/lib/format"
+import BottomSheet from "@/components/ui/BottomSheet.vue"
+import AppEmptyState from "@/components/ui/AppEmptyState.vue"
+
+const menuFichaOpen = ref(false)
 
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
 const permissoes = usePermissoesStore()
 const biometric = useBiometric()
+const download = useDownload()
 
 // RBAC: ações da ficha respeitam o vínculo (G2).
 const podeProntuario = computed(() => permissoes.pode("prontuario.ver"))
@@ -30,6 +38,23 @@ const orcamentos = ref<Orcamento[]>([])
 const carregando = ref(true)
 const tab = ref<"hist" | "pront" | "docs" | "orc" | "fotos">("hist")
 const piiRevelado = ref(false)
+
+// Detalhe de evolução (item 1 — aba Histórico)
+const evolucaoDetalhe = ref<Evolucao | null>(null)
+const detalheAnexos = ref<AnexoDto[]>([])
+const detalheCarregandoAnexos = ref(false)
+const detalheOpen = ref(false)
+
+// Aba Documentos (item 5)
+const docsCarregado = ref(false)
+const docsCarregando = ref(false)
+const receitas = ref<ReceitaResumoDto[]>([])
+const atestados = ref<AtestadoDto[]>([])
+const pedidosExame = ref<PedidoExameDto[]>([])
+const docDetalhe = ref<AtestadoDto | PedidoExameDto | null>(null)
+const docDetalheOpen = ref(false)
+const docTipo = ref<"atestado" | "exame">("atestado")
+const baixandoPdf = ref<number | null>(null)
 
 const temAlerta = computed(() => (paciente.value?.alertas.length ?? 0) > 0)
 
@@ -54,6 +79,32 @@ onMounted(async () => {
   }
 })
 
+// Carrega documentos de forma lazy ao entrar na aba (item 5)
+watch(tab, (nova) => {
+  if (nova === "docs" && !docsCarregado.value) carregarDocs()
+})
+
+async function carregarDocs() {
+  docsCarregando.value = true
+  try {
+    const [r, a, e] = await Promise.all([
+      receitaService.listarReceitas(id).catch(() => ({ itens: [] as ReceitaResumoDto[] })),
+      atestadoService.listarAtestados(id).catch(() => ({ itens: [] as AtestadoDto[] })),
+      exameService.listarPedidosExame(id).catch(() => ({ itens: [] as PedidoExameDto[] })),
+    ])
+    receitas.value = r.itens
+    atestados.value = a.itens
+    pedidosExame.value = e.itens
+    docsCarregado.value = true
+  } catch {
+    ui.toast("Erro ao carregar documentos", "error")
+  } finally {
+    docsCarregando.value = false
+  }
+}
+
+const totalDocs = computed(() => receitas.value.length + atestados.value.length + pedidosExame.value.length)
+
 async function revelarPii() {
   if (piiRevelado.value) return
   const ok = await biometric.confirmar("Revelar dados sensíveis do paciente")
@@ -71,6 +122,77 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
   if (tipo === "evolucao") router.push({ path: `/paciente/${id}/prontuario`, query: { nova: "1" } })
   else router.push({ path: `/${tipo}`, query: { pacienteId: id } })
 }
+
+// ── Detalhe de evolução (item 1 — aba Histórico) ────────────────────────────
+
+async function abrirDetalhe(e: Evolucao) {
+  evolucaoDetalhe.value = e
+  detalheOpen.value = true
+  detalheAnexos.value = []
+  if (e.qtdAnexos) {
+    detalheCarregandoAnexos.value = true
+    try {
+      detalheAnexos.value = await prontuarioService.listarAnexos(id, e.id)
+    } catch {
+      // silencioso
+    } finally {
+      detalheCarregandoAnexos.value = false
+    }
+  }
+}
+
+async function abrirAnexo(anexoId: number) {
+  try {
+    const urlDto = await prontuarioService.obterUrlAnexo(id, anexoId)
+    window.open(urlDto.url, "_blank")
+  } catch {
+    ui.toast("Não foi possível abrir o anexo", "error")
+  }
+}
+
+function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
+  const c = e.conteudo as Record<string, unknown>
+  return Object.entries(c)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => ({ chave: k, valor: String(v) }))
+}
+
+// ── Documentos — receita PDF (item 5) ───────────────────────────────────────
+
+async function baixarReceitaPdf(receitaId: number) {
+  baixandoPdf.value = receitaId
+  try {
+    await download.baixarPdf(`/receitas/${receitaId}/pdf`, `receita-${receitaId}.pdf`)
+  } catch {
+    ui.toast("Não foi possível baixar o PDF", "error")
+  } finally {
+    baixandoPdf.value = null
+  }
+}
+
+function abrirDocDetalhe(doc: AtestadoDto | PedidoExameDto, tipo: "atestado" | "exame") {
+  docDetalhe.value = doc
+  docTipo.value = tipo
+  docDetalheOpen.value = true
+}
+
+function etiquetaTipoReceita(tipo: string) {
+  const m: Record<string, string> = { Simples: "Simples", Controlada: "Controlada", Antimicrobiano: "Antimicrobiano" }
+  return m[tipo] ?? tipo
+}
+
+const baixandoProntuario = ref(false)
+async function exportarProntuarioPdf() {
+  menuFichaOpen.value = false
+  baixandoProntuario.value = true
+  try {
+    await download.baixarPdf(`/paciente/${id}/prontuario/pdf`, `prontuario-${id}.pdf`)
+  } catch {
+    ui.toast("Não foi possível exportar o prontuário", "error")
+  } finally {
+    baixandoProntuario.value = false
+  }
+}
 </script>
 
 <template>
@@ -78,7 +200,8 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
     <div class="push-head">
       <button class="iconbtn" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">{{ paciente?.nomeCompleto || "Ficha" }}</div>
-      <button class="iconbtn"><i class="fa-solid fa-ellipsis"></i></button>
+      <button v-if="podeProntuario" class="iconbtn" aria-label="Mais ações" @click="menuFichaOpen = true"><i class="fa-solid fa-ellipsis"></i></button>
+      <span v-else style="width: 40px"></span>
     </div>
 
     <div v-if="paciente" class="push-body">
@@ -123,18 +246,29 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
         <button v-if="podeFotos" class="ftab" :class="{ on: tab === 'fotos' }" @click="router.push(`/paciente/${id}/fotos`)">Fotos</button>
       </div>
 
+      <!-- Aba Histórico — cards clicáveis (item 1) -->
       <div v-show="tab === 'hist'" class="fpanel on">
         <div class="f-label">Últimas evoluções</div>
         <template v-if="evolucoes.length">
-          <div v-for="e in evolucoes" :key="e.id" class="evo-card">
+          <div
+            v-for="e in evolucoes"
+            :key="e.id"
+            class="evo-card evo-card--clicavel"
+            role="button"
+            tabindex="0"
+            @click="abrirDetalhe(e)"
+            @keydown.enter="abrirDetalhe(e)"
+          >
             <div class="eh"><b>{{ e.modeloNome || "Evolução" }}</b><span class="dt">{{ dataCurta(e.criadaEm) }}</span></div>
             <div class="who2">{{ e.autorNome }}</div>
-            <div v-if="e.qtdAnexos" class="att"><i class="fa-solid fa-paperclip"></i> {{ e.qtdAnexos }} {{ e.qtdAnexos > 1 ? "anexos" : "anexo" }}</div>
+            <div v-if="e.qtdAnexos" class="att"><i class="fa-solid fa-paperclip"></i> {{ e.qtdAnexos }} {{ e.qtdAnexos! > 1 ? "anexos" : "anexo" }}</div>
+            <i class="fa-solid fa-chevron-right evo-chev"></i>
           </div>
         </template>
         <div v-else class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>Sem evoluções registradas.</p></div>
       </div>
 
+      <!-- Aba Prontuário -->
       <div v-show="tab === 'pront'" class="fpanel on">
         <div v-if="evolucoes.length">
           <div v-for="e in evolucoes" :key="e.id" class="evo-card">
@@ -148,10 +282,95 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
         </button>
       </div>
 
+      <!-- Aba Documentos (item 5) -->
       <div v-show="tab === 'docs'" class="fpanel on">
-        <div class="tab-empty"><i class="fa-regular fa-file"></i><p>Nenhum documento emitido.</p></div>
+        <!-- Skeleton -->
+        <template v-if="docsCarregando">
+          <div class="skeleton" style="height: 56px; border-radius: 10px; margin-bottom: 8px;"></div>
+          <div class="skeleton" style="height: 56px; border-radius: 10px; margin-bottom: 8px;"></div>
+          <div class="skeleton" style="height: 56px; border-radius: 10px;"></div>
+        </template>
+
+        <!-- Vazio -->
+        <AppEmptyState
+          v-else-if="docsCarregado && totalDocs === 0"
+          icon="fa-file-circle-xmark"
+          titulo="Nenhum documento"
+          texto="Nenhuma receita, atestado ou pedido de exame emitido para este paciente."
+        />
+
+        <template v-else>
+          <!-- Receitas -->
+          <template v-if="receitas.length">
+            <div class="f-label">Receitas</div>
+            <div v-for="r in receitas" :key="r.id" class="doc-row">
+              <div class="di" style="background: hsl(var(--primary) / 0.12); color: var(--brand)">
+                <i class="fa-solid fa-prescription"></i>
+              </div>
+              <div class="dx">
+                <b>{{ etiquetaTipoReceita(r.tipo) }}</b>
+                <span>{{ r.quantidadeItens }} item{{ r.quantidadeItens !== 1 ? "s" : "" }} · {{ r.emitidaEm ? dataCurta(r.emitidaEm) : "Rascunho" }}</span>
+              </div>
+              <button
+                class="doc-pdf-btn"
+                :disabled="baixandoPdf === r.id"
+                @click="baixarReceitaPdf(r.id)"
+              >
+                <i v-if="baixandoPdf === r.id" class="fa-solid fa-spinner fa-spin"></i>
+                <i v-else class="fa-regular fa-file-pdf"></i>
+              </button>
+            </div>
+          </template>
+
+          <!-- Atestados -->
+          <template v-if="atestados.length">
+            <div class="f-label" :style="receitas.length ? 'margin-top: 14px' : ''">Atestados</div>
+            <div
+              v-for="a in atestados"
+              :key="a.id"
+              class="doc-row doc-row--clicavel"
+              role="button"
+              tabindex="0"
+              @click="abrirDocDetalhe(a, 'atestado')"
+              @keydown.enter="abrirDocDetalhe(a, 'atestado')"
+            >
+              <div class="di" style="background: hsl(var(--success) / 0.12); color: hsl(var(--success))">
+                <i class="fa-solid fa-file-medical"></i>
+              </div>
+              <div class="dx">
+                <b>{{ a.tipo }}</b>
+                <span>{{ a.profissionalNome || "—" }} · {{ dataCurta(a.criadoEm) }}</span>
+              </div>
+              <i class="fa-solid fa-chevron-right" style="color: var(--app-text-faint); font-size: var(--fs-xs)"></i>
+            </div>
+          </template>
+
+          <!-- Pedidos de Exame -->
+          <template v-if="pedidosExame.length">
+            <div class="f-label" :style="(receitas.length || atestados.length) ? 'margin-top: 14px' : ''">Pedidos de exame</div>
+            <div
+              v-for="e in pedidosExame"
+              :key="e.id"
+              class="doc-row doc-row--clicavel"
+              role="button"
+              tabindex="0"
+              @click="abrirDocDetalhe(e, 'exame')"
+              @keydown.enter="abrirDocDetalhe(e, 'exame')"
+            >
+              <div class="di" style="background: hsl(var(--info) / 0.12); color: hsl(var(--info))">
+                <i class="fa-solid fa-flask"></i>
+              </div>
+              <div class="dx">
+                <b>{{ e.tipo }}</b>
+                <span>{{ (e as PedidoExameDto).exames?.slice(0, 2).join(", ") || "—" }} · {{ dataCurta(e.criadoEm) }}</span>
+              </div>
+              <i class="fa-solid fa-chevron-right" style="color: var(--app-text-faint); font-size: var(--fs-xs)"></i>
+            </div>
+          </template>
+        </template>
       </div>
 
+      <!-- Aba Orçamentos -->
       <div v-show="tab === 'orc'" class="fpanel on">
         <div v-if="orcamentos.length" class="plist">
           <div v-for="o in orcamentos" :key="o.id" class="doc-row" style="cursor: pointer" @click="abrirOrcamento(o)">
@@ -175,5 +394,184 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
       </template>
       <div class="audit-foot"><i class="fa-solid fa-shield-halved"></i> Este acesso foi registrado em seu nome</div>
     </div>
+
+    <!-- Detalhe de evolução (item 1) -->
+    <BottomSheet v-model:open="detalheOpen" titulo="Evolução" tall>
+      <template v-if="evolucaoDetalhe">
+        <div class="f-label">{{ evolucaoDetalhe.modeloNome || "Evolução" }}</div>
+        <div class="evo-det-meta">
+          <span>{{ evolucaoDetalhe.autorNome }}</span>
+          <span class="dt">{{ dataCurta(evolucaoDetalhe.criadaEm) }}</span>
+        </div>
+        <div v-for="par in renderConteudo(evolucaoDetalhe)" :key="par.chave" class="evo-det-row">
+          <div class="evo-det-label">{{ par.chave }}</div>
+          <div class="evo-det-val">{{ par.valor }}</div>
+        </div>
+        <div v-if="evolucaoDetalhe.qtdAnexos" class="f-label" style="margin-top: 14px;">Anexos</div>
+        <div v-if="detalheCarregandoAnexos" class="skeleton" style="height: 48px; border-radius: 8px;"></div>
+        <div v-else-if="detalheAnexos.length" class="anexo-list">
+          <button v-for="a in detalheAnexos" :key="a.id" class="anexo-row" @click="abrirAnexo(a.id)">
+            <i class="fa-solid fa-paperclip"></i>
+            <span>{{ a.nomeOriginal }}</span>
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </button>
+        </div>
+      </template>
+    </BottomSheet>
+
+    <!-- Menu "..." — exportar prontuário PDF -->
+    <BottomSheet v-model:open="menuFichaOpen" titulo="Ações" closable>
+      <div class="med-row" @click="exportarProntuarioPdf">
+        <div class="mi">
+          <i v-if="baixandoProntuario" class="fa-solid fa-spinner fa-spin"></i>
+          <i v-else class="fa-regular fa-file-pdf"></i>
+        </div>
+        <b>{{ baixandoProntuario ? "Exportando…" : "Exportar prontuário PDF" }}</b>
+      </div>
+    </BottomSheet>
+
+    <!-- Detalhe de atestado ou pedido de exame (sem PDF — item 5) -->
+    <BottomSheet v-model:open="docDetalheOpen" :titulo="docTipo === 'atestado' ? 'Atestado' : 'Pedido de exame'" tall>
+      <template v-if="docDetalhe">
+        <template v-if="docTipo === 'atestado'">
+          <div class="f-label">Tipo</div>
+          <div class="doc-det-val">{{ (docDetalhe as AtestadoDto).tipo }}</div>
+          <template v-if="(docDetalhe as AtestadoDto).diasAfastamento">
+            <div class="f-label">Dias de afastamento</div>
+            <div class="doc-det-val">{{ (docDetalhe as AtestadoDto).diasAfastamento }} dias</div>
+          </template>
+          <template v-if="(docDetalhe as AtestadoDto).cid10">
+            <div class="f-label">CID-10</div>
+            <div class="doc-det-val">{{ (docDetalhe as AtestadoDto).cid10 }}</div>
+          </template>
+          <div class="f-label">Conteúdo</div>
+          <div class="doc-det-val doc-det-val--pre">{{ (docDetalhe as AtestadoDto).conteudo }}</div>
+          <div class="f-label">Emitido por</div>
+          <div class="doc-det-val">{{ (docDetalhe as AtestadoDto).profissionalNome || "—" }} · {{ dataCurta((docDetalhe as AtestadoDto).criadoEm) }}</div>
+        </template>
+
+        <template v-else>
+          <div class="f-label">Tipo</div>
+          <div class="doc-det-val">{{ (docDetalhe as PedidoExameDto).tipo }}</div>
+          <div class="f-label">Exames</div>
+          <div class="doc-det-val">{{ (docDetalhe as PedidoExameDto).exames?.join(", ") || "—" }}</div>
+          <div class="f-label">Indicação clínica</div>
+          <div class="doc-det-val doc-det-val--pre">{{ (docDetalhe as PedidoExameDto).indicacaoClinica }}</div>
+          <template v-if="(docDetalhe as PedidoExameDto).cid10">
+            <div class="f-label">CID-10</div>
+            <div class="doc-det-val">{{ (docDetalhe as PedidoExameDto).cid10 }}</div>
+          </template>
+          <div class="f-label">Emitido por</div>
+          <div class="doc-det-val">{{ (docDetalhe as PedidoExameDto).profissionalNome || "—" }} · {{ dataCurta((docDetalhe as PedidoExameDto).criadoEm) }}</div>
+        </template>
+
+        <div class="doc-det-info"><i class="fa-solid fa-circle-info"></i> PDF deste documento não disponível no app no momento.</div>
+      </template>
+    </BottomSheet>
   </div>
 </template>
+
+<style scoped>
+.evo-card--clicavel {
+  cursor: pointer;
+  position: relative;
+}
+.evo-card--clicavel:active {
+  opacity: 0.75;
+}
+.evo-chev {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--app-text-faint);
+  font-size: var(--fs-xs);
+}
+.doc-row--clicavel {
+  cursor: pointer;
+}
+.doc-row--clicavel:active {
+  opacity: 0.75;
+}
+.doc-pdf-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--app-border);
+  background: var(--app-card);
+  color: var(--brand);
+  cursor: pointer;
+  flex: none;
+}
+.evo-det-meta {
+  display: flex;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--app-text-dim);
+  margin-bottom: 12px;
+}
+.evo-det-row {
+  margin-bottom: 10px;
+}
+.evo-det-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--app-text-faint);
+  text-transform: capitalize;
+  margin-bottom: 2px;
+}
+.evo-det-val {
+  font-size: var(--fs-sm);
+  color: var(--app-text);
+  white-space: pre-wrap;
+}
+.anexo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.anexo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xl);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+  cursor: pointer;
+  min-height: 44px;
+  text-align: left;
+}
+.anexo-row span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-det-val {
+  font-size: var(--fs-sm);
+  color: var(--app-text);
+  margin-bottom: 12px;
+}
+.doc-det-val--pre {
+  white-space: pre-wrap;
+}
+.doc-det-info {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 16px;
+  padding: 10px 12px;
+  background: var(--app-card-2);
+  border-radius: var(--radius-xl);
+  font-size: var(--fs-xs);
+  color: var(--app-text-dim);
+}
+</style>

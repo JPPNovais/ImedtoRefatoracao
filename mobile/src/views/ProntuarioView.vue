@@ -3,11 +3,12 @@ import { onMounted, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { prontuarioService } from "@/services/prontuario.service"
 import { pacienteService } from "@/services/paciente.service"
-import type { Evolucao, Paciente } from "@/types"
+import type { Evolucao, Paciente, AnexoDto, ApiError } from "@/types"
 import { useUiStore } from "@/stores/ui"
 import { useTenantStore } from "@/stores/tenant"
 import { useVoice } from "@/native/useVoice"
 import { useCamera } from "@/native/useCamera"
+import { useDownload } from "@/native/useDownload"
 import { localDb } from "@/lib/db"
 import { iniciais, idade, dataCurta } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
@@ -18,17 +19,31 @@ const ui = useUiStore()
 const tenant = useTenantStore()
 const voice = useVoice()
 const camera = useCamera()
+const download = useDownload()
 
 const pacienteId = Number(route.params.id)
 const paciente = ref<Paciente | null>(null)
 const evolucoes = ref<Evolucao[]>([])
 const carregando = ref(true)
+// Verdadeiro quando o backend já tem prontuário para este paciente
+const prontuarioIniciado = ref(false)
 
+// Sheet de nova evolução
 const sheetOpen = ref(false)
 const modelo = ref("Retorno")
 const texto = ref("")
-const anexos = ref<{ dataUrl: string; done: boolean }[]>([])
+const anexos = ref<{ dataUrl: string; done: boolean; blob?: Blob; nome?: string }[]>([])
 const salvando = ref(false)
+
+// Sheet de detalhe de evolução (item 1)
+const evolucaoDetalhe = ref<Evolucao | null>(null)
+const detalheAnexos = ref<AnexoDto[]>([])
+const detalheCarregandoAnexos = ref(false)
+const detalheOpen = ref(false)
+
+// Action sheet do "..." (item 2)
+const menuOpen = ref(false)
+const exportandoPdf = ref(false)
 
 const MODELOS = ["Retorno", "Consulta", "Avaliação", "Pós-operatório", "Evolução livre"]
 
@@ -36,6 +51,7 @@ onMounted(async () => {
   try {
     paciente.value = await pacienteService.obter(pacienteId)
     const pront = await prontuarioService.obter(pacienteId)
+    prontuarioIniciado.value = pront.prontuario !== null
     evolucoes.value = pront.evolucoes
   } catch {
     ui.toast("Não foi possível abrir o prontuário", "error")
@@ -53,14 +69,10 @@ function toggleVoz() {
 async function anexar(source: "foto" | "galeria") {
   const foto = await camera.capturar(source)
   if (!foto) return
-  const item = { dataUrl: foto.dataUrl, done: false }
+  const item = { dataUrl: foto.dataUrl, done: false, blob: foto.blob, nome: `anexo-${Date.now()}.jpg` }
   anexos.value.push(item)
-  try {
-    await prontuarioService.uploadAnexo(pacienteId, foto.blob, `anexo-${Date.now()}.jpg`)
-    item.done = true
-  } catch {
-    item.done = true // mock/offline: marca como local
-  }
+  // Upload só acontece após salvar a evolução (item 4 — vincula ao evolucaoId)
+  item.done = true
 }
 function removerAnexo(i: number) {
   anexos.value.splice(i, 1)
@@ -73,22 +85,37 @@ async function salvar() {
   }
   salvando.value = true
   try {
-    await prontuarioService.registrarEvolucao(pacienteId, {
-      conteudoJson: { resumo: texto.value.trim(), modelo: modelo.value },
+    // Se o prontuário ainda não foi iniciado, inicia antes de registrar a evolução.
+    if (!prontuarioIniciado.value) {
+      await prontuarioService.iniciarProntuario(pacienteId)
+      prontuarioIniciado.value = true
+    }
+    const res = await prontuarioService.registrarEvolucao(pacienteId, {
+      conteudoJson: JSON.stringify({ resumo: texto.value.trim(), modelo: modelo.value }),
     })
-    evolucoes.value.unshift({
-      id: Date.now(),
-      prontuarioId: 0,
-      autorNome: "Dr. Você",
-      modeloNome: modelo.value,
-      conteudo: { resumo: texto.value.trim() },
-      criadaEm: new Date().toISOString(),
-      qtdAnexos: anexos.value.length,
-    })
+    // Upload dos anexos com o evolucaoId retornado (item 4)
+    const evolucaoId = res.evolucaoId
+    await Promise.allSettled(
+      anexos.value
+        .filter((a) => a.blob)
+        .map((a) =>
+          prontuarioService.uploadAnexo(pacienteId, a.blob!, a.nome ?? `anexo-${Date.now()}.jpg`, evolucaoId),
+        ),
+    )
+    // Recarrega do backend (item 3 — substitui o insert fake)
+    const pront = await prontuarioService.obter(pacienteId)
+    prontuarioIniciado.value = pront.prontuario !== null
+    evolucoes.value = pront.evolucoes
     ui.toast("Evolução salva")
     fecharSheet()
-  } catch {
-    // Offline: salva rascunho local com sync ao voltar (§7).
+  } catch (err) {
+    // Erros com status (ApiError: 422 BusinessException, 4xx, 5xx) NÃO são offline
+    // e NÃO geram rascunho — exibem a mensagem do backend via toast.
+    if (err && typeof err === "object" && "status" in err) {
+      ui.toast((err as ApiError).mensagem, "error")
+      return
+    }
+    // Falha real de rede (fetch rejeitou sem status) → salva rascunho local.
     if (tenant.estabelecimentoAtivoId) {
       await localDb.draftSave({
         id: `draft-${Date.now()}`,
@@ -116,9 +143,73 @@ function fecharSheet() {
   modelo.value = "Retorno"
   voice.parar()
 }
+
 function resumo(e: Evolucao): string {
   const c = e.conteudo as Record<string, unknown>
   return (c.resumo as string) || (c.texto as string) || ""
+}
+
+// ── Detalhe de evolução (item 1) ────────────────────────────────────────────
+
+async function abrirDetalhe(e: Evolucao) {
+  evolucaoDetalhe.value = e
+  detalheOpen.value = true
+  detalheAnexos.value = []
+  if (e.qtdAnexos) {
+    detalheCarregandoAnexos.value = true
+    try {
+      detalheAnexos.value = await prontuarioService.listarAnexos(pacienteId, e.id)
+    } catch {
+      // silencioso; a lista ficará vazia
+    } finally {
+      detalheCarregandoAnexos.value = false
+    }
+  }
+}
+
+async function abrirAnexo(anexoId: number) {
+  try {
+    const urlDto = await prontuarioService.obterUrlAnexo(pacienteId, anexoId)
+    window.open(urlDto.url, "_blank")
+  } catch {
+    ui.toast("Não foi possível abrir o anexo", "error")
+  }
+}
+
+// ── Exportar PDF (item 2) ────────────────────────────────────────────────────
+
+async function exportarPdf() {
+  menuOpen.value = false
+  exportandoPdf.value = true
+  try {
+    // Backend audita LGPD (exportação) dentro do handler — não chamamos registrar-exportacao separado
+    await download.baixarPdf(`/paciente/${pacienteId}/prontuario/pdf`, `prontuario-${pacienteId}.pdf`)
+  } catch {
+    ui.toast("Não foi possível exportar o PDF", "error")
+  } finally {
+    exportandoPdf.value = false
+  }
+}
+
+/** Converte um valor de conteúdo de evolução para string legível.
+ *  Array → itens separados por vírgula; objeto → pares "chave: valor"; primitivo → String(). */
+function valorLegivel(v: unknown): string {
+  if (Array.isArray(v)) return v.map((item) => valorLegivel(item)).join(", ")
+  if (v !== null && typeof v === "object") {
+    return Object.entries(v as Record<string, unknown>)
+      .filter(([, val]) => val !== null && val !== undefined && val !== "")
+      .map(([k, val]) => `${k}: ${valorLegivel(val)}`)
+      .join("; ")
+  }
+  return String(v)
+}
+
+// Renderiza conteúdo estruturado da evolução como pares chave/valor legíveis
+function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
+  const c = e.conteudo as Record<string, unknown>
+  return Object.entries(c)
+    .filter(([, v]) => v !== null && v !== undefined && v !== "")
+    .map(([k, v]) => ({ chave: k, valor: valorLegivel(v) }))
 }
 </script>
 
@@ -127,7 +218,10 @@ function resumo(e: Evolucao): string {
     <div class="push-head">
       <button class="iconbtn" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">Prontuário</div>
-      <button class="iconbtn"><i class="fa-solid fa-ellipsis"></i></button>
+      <button class="iconbtn" :disabled="exportandoPdf" @click="menuOpen = true">
+        <i v-if="exportandoPdf" class="fa-solid fa-spinner fa-spin"></i>
+        <i v-else class="fa-solid fa-ellipsis"></i>
+      </button>
     </div>
 
     <div class="push-body">
@@ -140,13 +234,26 @@ function resumo(e: Evolucao): string {
       </div>
 
       <div class="f-label">Linha do tempo</div>
-      <div v-if="evolucoes.length" class="timeline">
-        <div v-for="e in evolucoes" :key="e.id" class="tl-item">
+      <div v-if="carregando">
+        <div class="skeleton" style="height: 80px; border-radius: 12px; margin-bottom: 10px;"></div>
+        <div class="skeleton" style="height: 80px; border-radius: 12px;"></div>
+      </div>
+      <div v-else-if="evolucoes.length" class="timeline">
+        <div
+          v-for="e in evolucoes"
+          :key="e.id"
+          class="tl-item"
+          role="button"
+          tabindex="0"
+          @click="abrirDetalhe(e)"
+          @keydown.enter="abrirDetalhe(e)"
+        >
           <div class="tl-card">
             <div class="tl-head"><b>{{ e.modeloNome || "Evolução" }}</b><span class="dt">{{ dataCurta(e.criadaEm) }}</span></div>
             <div class="tl-by">{{ e.autorNome }}</div>
             <p v-if="resumo(e)" class="tl-snip">{{ resumo(e) }}</p>
-            <div v-if="e.qtdAnexos" class="att"><i class="fa-solid fa-paperclip"></i> {{ e.qtdAnexos }} {{ e.qtdAnexos > 1 ? "anexos" : "anexo" }}</div>
+            <div v-if="e.qtdAnexos" class="att"><i class="fa-solid fa-paperclip"></i> {{ e.qtdAnexos }} {{ e.qtdAnexos! > 1 ? "anexos" : "anexo" }}</div>
+            <div class="tl-ver"><i class="fa-solid fa-chevron-right"></i></div>
           </div>
         </div>
       </div>
@@ -159,6 +266,47 @@ function resumo(e: Evolucao): string {
     <div class="push-foot">
       <button class="btn-primary-lg" style="margin: 0" @click="sheetOpen = true"><i class="fa-solid fa-plus"></i> Nova evolução</button>
     </div>
+
+    <!-- Menu "..." do header (item 2) -->
+    <BottomSheet v-model:open="menuOpen" titulo="Prontuário">
+      <button class="act-row" style="width: 100%; text-align: left;" @click="exportarPdf">
+        <div class="ic ic-violet"><i class="fa-solid fa-file-pdf"></i></div>
+        <div class="tx"><b>Exportar PDF</b><span>Histórico completo do prontuário</span></div>
+        <i class="fa-solid fa-chevron-right chev"></i>
+      </button>
+    </BottomSheet>
+
+    <!-- Detalhe da evolução (item 1) -->
+    <BottomSheet v-model:open="detalheOpen" titulo="Evolução" tall>
+      <template v-if="evolucaoDetalhe">
+        <div class="f-label">{{ evolucaoDetalhe.modeloNome || "Evolução" }}</div>
+        <div class="evo-det-meta">
+          <span>{{ evolucaoDetalhe.autorNome }}</span>
+          <span class="dt">{{ dataCurta(evolucaoDetalhe.criadaEm) }}</span>
+        </div>
+
+        <div v-for="par in renderConteudo(evolucaoDetalhe)" :key="par.chave" class="evo-det-row">
+          <div class="evo-det-label">{{ par.chave }}</div>
+          <div class="evo-det-val">{{ par.valor }}</div>
+        </div>
+
+        <!-- Anexos -->
+        <div v-if="evolucaoDetalhe.qtdAnexos" class="f-label" style="margin-top: 14px;">Anexos</div>
+        <div v-if="detalheCarregandoAnexos" class="skeleton" style="height: 48px; border-radius: 8px;"></div>
+        <div v-else-if="detalheAnexos.length" class="anexo-list">
+          <button
+            v-for="a in detalheAnexos"
+            :key="a.id"
+            class="anexo-row"
+            @click="abrirAnexo(a.id)"
+          >
+            <i class="fa-solid fa-paperclip"></i>
+            <span>{{ a.nomeOriginal }}</span>
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </button>
+        </div>
+      </template>
+    </BottomSheet>
 
     <!-- Nova evolução (bottom sheet alto) -->
     <BottomSheet v-model:open="sheetOpen" titulo="Nova evolução" tall @update:open="(v) => !v && voice.parar()">
@@ -190,7 +338,6 @@ function resumo(e: Evolucao): string {
         <div v-for="(a, i) in anexos" :key="i" class="thumb" :class="{ done: a.done }">
           <img :src="a.dataUrl" alt="anexo" />
           <button class="rm" @click="removerAnexo(i)"><i class="fa-solid fa-xmark"></i></button>
-          <div class="prog"><div class="bar" :style="{ width: a.done ? '100%' : '60%' }"></div></div>
           <div class="done-check"><i class="fa-solid fa-check"></i></div>
         </div>
       </div>
@@ -205,3 +352,70 @@ function resumo(e: Evolucao): string {
     </BottomSheet>
   </div>
 </template>
+
+<style scoped>
+.tl-item {
+  cursor: pointer;
+  position: relative;
+}
+.tl-item:active .tl-card {
+  opacity: 0.75;
+}
+.tl-ver {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--app-text-faint);
+  font-size: var(--fs-xs);
+}
+.evo-det-meta {
+  display: flex;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--app-text-dim);
+  margin-bottom: 12px;
+}
+.evo-det-row {
+  margin-bottom: 10px;
+}
+.evo-det-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--app-text-faint);
+  text-transform: capitalize;
+  margin-bottom: 2px;
+}
+.evo-det-val {
+  font-size: var(--fs-sm);
+  color: var(--app-text);
+  white-space: pre-wrap;
+}
+.anexo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.anexo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xl);
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--brand);
+  cursor: pointer;
+  min-height: 44px;
+  text-align: left;
+}
+.anexo-row span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>

@@ -1,26 +1,72 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue"
+import { ref, watch, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
+import { useListaPaginada } from "@/composables/useListaPaginada"
 import { inventarioService } from "@/services/inventario.service"
 import { useUiStore } from "@/stores/ui"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
+import AppLoadMore from "@/components/ui/AppLoadMore.vue"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import type { ItemInventarioDto } from "@/types"
 
 const router = useRouter()
 const ui = useUiStore()
 
-// ── Estado ───────────────────────────────────────────────────────────────────
-const carregando = ref(true)
-const erro = ref(false)
-const itens = ref<ItemInventarioDto[]>([])
-const total = ref(0)
+// ── Filtros ──────────────────────────────────────────────────────────────────
+const busca = useDebouncedRef("", 300)
+const filtro = ref<"todos" | "baixo">("todos")
+
+// ── Sumário (derivados dos itens já carregados) ──────────────────────────────
 const totalBaixa = ref(0)
 const valorEstoque = ref(0)
 
-const busca = useDebouncedRef("", 300)
-const filtro = ref<"todos" | "baixo">("todos")
+// ── Lista paginada (busca server-side) ───────────────────────────────────────
+const lista = useListaPaginada<ItemInventarioDto>(
+  async (pagina, tamanho) => {
+    const apenasAbaixoMinimo = filtro.value === "baixo" ? true : undefined
+    return inventarioService.listarItens({
+      apenasAbaixoMinimo,
+      pagina,
+      tamanho,
+      busca: busca.value.trim() || undefined,
+    })
+  },
+  { tamanho: 25 },
+)
+
+const erro = ref(false)
+
+// ── Carregar ─────────────────────────────────────────────────────────────────
+async function carregar() {
+  erro.value = false
+  try {
+    await lista.recarregar()
+    atualizarSumario()
+  } catch {
+    erro.value = true
+    ui.toast("Não foi possível carregar o estoque", "error")
+  }
+}
+
+function atualizarSumario() {
+  if (filtro.value === "todos") {
+    totalBaixa.value = lista.itens.value.filter((i) => i.estoqueAbaixoMinimo).length
+  }
+  valorEstoque.value = lista.itens.value.reduce(
+    (acc, i) => acc + i.quantidadeAtual * (i.custoMedio || i.custoUnitario || 0),
+    0,
+  )
+}
+
+// Ao carregar mais, atualizar sumário
+watch(lista.itens, atualizarSumario, { deep: false })
+
+// Filtro ou busca mudam → volta pra página 1
+watch(filtro, carregar)
+watch(busca, carregar)
+
+onMounted(carregar)
 
 // ── Sheet de ajuste ──────────────────────────────────────────────────────────
 const sheetAberta = ref(false)
@@ -28,46 +74,6 @@ const itemSelecionado = ref<ItemInventarioDto | null>(null)
 const novaQuantidade = ref(0)
 const salvando = ref(false)
 
-// ── Listas filtradas (filtro "em baixa" feito na API; busca local rápida) ───
-const itensFiltrados = computed(() => {
-  const q = busca.value.trim().toLowerCase()
-  if (!q) return itens.value
-  return itens.value.filter((i) => i.nome.toLowerCase().includes(q))
-})
-
-// ── Carregar ─────────────────────────────────────────────────────────────────
-async function carregar() {
-  carregando.value = true
-  erro.value = false
-  try {
-    const apenasAbaixoMinimo = filtro.value === "baixo" ? true : undefined
-    const res = await inventarioService.listarItens({ apenasAbaixoMinimo, tamanho: 100 })
-    itens.value = res.itens
-    total.value = res.total
-
-    // Para o subtítulo do Mais precisamos carregar também os em baixa quando exibindo todos
-    if (filtro.value === "todos") {
-      totalBaixa.value = res.itens.filter((i) => i.estoqueAbaixoMinimo).length
-    }
-
-    valorEstoque.value = res.itens.reduce(
-      (acc, i) => acc + i.quantidadeAtual * (i.custoMedio || i.custoUnitario || 0),
-      0,
-    )
-  } catch {
-    erro.value = true
-    ui.toast("Não foi possível carregar o estoque", "error")
-  } finally {
-    carregando.value = false
-  }
-}
-
-// Recarregar ao trocar filtro
-watch(filtro, carregar)
-
-onMounted(carregar)
-
-// ── Abrir sheet de ajuste ────────────────────────────────────────────────────
 function abrirAjuste(item: ItemInventarioDto) {
   itemSelecionado.value = item
   novaQuantidade.value = item.quantidadeAtual
@@ -101,10 +107,10 @@ async function salvarQuantidade() {
       custoUnitario: item.custoMedio || item.custoUnitario || 0,
     })
     // Atualiza local para feedback imediato
-    const idx = itens.value.findIndex((i) => i.id === item.id)
+    const idx = lista.itens.value.findIndex((i) => i.id === item.id)
     if (idx >= 0) {
-      itens.value[idx] = {
-        ...itens.value[idx],
+      lista.itens.value[idx] = {
+        ...lista.itens.value[idx],
         quantidadeAtual: novaQuantidade.value,
         estoqueAbaixoMinimo: novaQuantidade.value < item.quantidadeMinima,
       }
@@ -122,7 +128,6 @@ async function repor() {
   const item = itemSelecionado.value
   if (!item) return
 
-  // "Repor" = entrada para atingir no mínimo o dobro do mínimo
   const alvoRepor = Math.max(item.quantidadeMinima * 2, item.quantidadeAtual)
   novaQuantidade.value = alvoRepor
 }
@@ -150,15 +155,15 @@ function formatarQtd(n: number) {
       <!-- Resumo -->
       <div class="est-summary">
         <div class="est-sum">
-          <div class="n">{{ carregando ? '—' : total }}</div>
+          <div class="n">{{ lista.carregando.value ? '—' : lista.total.value }}</div>
           <div class="l">Itens</div>
         </div>
         <div class="est-sum warn">
-          <div class="n">{{ carregando ? '—' : totalBaixa }}</div>
+          <div class="n">{{ lista.carregando.value ? '—' : totalBaixa }}</div>
           <div class="l">Em baixa</div>
         </div>
         <div class="est-sum">
-          <div class="n">{{ carregando ? '—' : formatarValor(valorEstoque) }}</div>
+          <div class="n">{{ lista.carregando.value ? '—' : formatarValor(valorEstoque) }}</div>
           <div class="l">Em estoque</div>
         </div>
       </div>
@@ -197,7 +202,7 @@ function formatarQtd(n: number) {
       </div>
 
       <!-- Skeleton -->
-      <template v-if="carregando">
+      <template v-if="lista.carregando.value">
         <div class="plist">
           <div v-for="n in 5" :key="n" class="skrow">
             <div class="sk sk-av" style="width: 36px; height: 36px; border-radius: 9px"></div>
@@ -222,18 +227,18 @@ function formatarQtd(n: number) {
       </div>
 
       <!-- Vazio -->
-      <div v-else-if="itensFiltrados.length === 0">
+      <div v-else-if="lista.itens.value.length === 0">
         <AppEmptyState
           :icon="filtro === 'baixo' ? 'fa-solid fa-box-open' : 'fa-solid fa-boxes-stacked'"
-          :titulo="filtro === 'baixo' ? 'Nenhum item em baixa' : 'Nenhum material'"
-          :texto="filtro === 'baixo' ? 'Todos os itens estão acima do mínimo.' : 'Cadastre materiais no painel web.'"
+          :titulo="filtro === 'baixo' ? 'Nenhum item em baixa' : (busca ? 'Nenhum resultado' : 'Nenhum material')"
+          :texto="filtro === 'baixo' ? 'Todos os itens estão acima do mínimo.' : (busca ? 'Tente outra busca.' : 'Cadastre materiais no painel web.')"
         />
       </div>
 
       <!-- Lista -->
       <div v-else class="plist">
         <div
-          v-for="item in itensFiltrados"
+          v-for="item in lista.itens.value"
           :key="item.id"
           class="prow"
           @click="abrirAjuste(item)"
@@ -256,6 +261,13 @@ function formatarQtd(n: number) {
           <i class="fa-solid fa-chevron-right chev"></i>
         </div>
       </div>
+
+      <!-- "Carregar mais" — disponível inclusive com busca (paginação server-side) -->
+      <AppLoadMore
+        :visivel="lista.temMais.value"
+        :carregando="lista.carregandoMais.value"
+        @carregar="lista.carregarMais()"
+      />
     </div>
 
     <!-- Sheet de ajuste de quantidade -->

@@ -1,4 +1,4 @@
-import { http } from "@/lib/http"
+import { http, getBlob } from "@/lib/http"
 import type { CobrancaDetalheDto, ValorSugeridoCheckInDto } from "@/types"
 
 export const cobrancaService = {
@@ -23,5 +23,10 @@ export const cobrancaService = {
     },
   ): Promise<void> {
     await http.post(`/cobrancas/${cobrancaId}/pagamentos`, payload)
+  },
+
+  /** Baixa o PDF do recibo de um pagamento — GET /api/cobrancas/pagamentos/{pagamentoId}/recibo */
+  async baixarRecibo(pagamentoId: number): Promise<Blob> {
+    return getBlob(`/cobrancas/pagamentos/${pagamentoId}/recibo`)
   },
 }
