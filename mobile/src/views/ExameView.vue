@@ -13,7 +13,12 @@ const ui = useUiStore()
 
 const EXAMES = ["Hemograma completo", "Glicemia de jejum", "Colesterol total e frações", "TSH", "Ureia e creatinina", "Urina tipo 1", "Raio-X de tórax", "Ultrassom abdominal", "Eletrocardiograma", "Vitamina D"]
 
-const pacienteId = Number(route.query.pacienteId || 1)
+const pacienteIdRaw = Number(route.query.pacienteId)
+if (!pacienteIdRaw || pacienteIdRaw <= 0) {
+  ui.toast("Paciente não identificado", "error")
+  router.back()
+}
+const pacienteId = pacienteIdRaw
 const pacienteNome = ref("Paciente")
 const busca = ref("")
 const selecionados = ref<string[]>([])

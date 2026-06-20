@@ -51,8 +51,10 @@ function abrirAvisos() {
     </div>
 
     <div class="body">
-      <RouterView v-slot="{ Component }">
-        <KeepAlive>
+      <!-- :key por tenant garante remount completo de todas as abas ao trocar de
+           estabelecimento — impede que dados do tenant anterior vazem via KeepAlive. -->
+      <RouterView v-slot="{ Component }" :key="tenant.estabelecimentoAtivoId ?? 0">
+        <KeepAlive :max="3">
           <component :is="Component" />
         </KeepAlive>
       </RouterView>

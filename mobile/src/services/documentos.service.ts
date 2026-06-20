@@ -1,11 +1,18 @@
 import { http, getBlob } from "@/lib/http"
-import type { ItemReceita, TipoReceita } from "@/types"
+import type { ItemReceita, MedicamentoFavoritoBackend, TipoReceita } from "@/types"
 
 /* Receita / Atestado / Pedido de exame — todos compartilham o fluxo
    "emitir → assinar (ANVISA) → share". A assinatura é assíncrona no
    backend (202 + polling de status). */
 
 export const receitaService = {
+  /**
+   * Lista favoritos de medicamento do profissional autenticado, ordenados por frequência de uso.
+   * Fonte: GET /api/receitas/favoritos?limite={limite}
+   */
+  async listarFavoritos(limite = 50): Promise<MedicamentoFavoritoBackend[]> {
+    return http.get("/receitas/favoritos", { limite })
+  },
   async emitir(payload: {
     pacienteId: number
     tipo: TipoReceita

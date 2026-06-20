@@ -6,8 +6,10 @@ import { pacienteService } from "@/services/paciente.service"
 import { useCamera } from "@/native/useCamera"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { useUiStore } from "@/stores/ui"
+import { useListaPaginada } from "@/composables/useListaPaginada"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
+import AppLoadMore from "@/components/ui/AppLoadMore.vue"
 import { dataCurta, iniciais, idade } from "@/lib/format"
 import type { AnexoDto, AnexoUrlDto, Paciente } from "@/types"
 
@@ -23,9 +25,17 @@ const podeFotos = computed(() => permissoes.pode("prontuario.ver"))
 const pacienteId = Number(route.params.id)
 
 const paciente = ref<Paciente | null>(null)
-const anexos = ref<AnexoDto[]>([])
-const carregando = ref(true)
 const uploadando = ref(false)
+const carregandoPaciente = ref(true)
+
+// Lista paginada — carrega em blocos de 30 fotos e faz append via AppLoadMore
+const listaFotos = useListaPaginada(
+  async (pagina, tamanho) => {
+    const res = await prontuarioService.listarAnexos(pacienteId, { pagina, tamanho })
+    return { itens: res.itens, total: res.total }
+  },
+  { tamanho: 30 },
+)
 
 // --- Sheet de captura ---
 const sheetCaptura = ref(false)
@@ -42,12 +52,12 @@ const sheetCompare = ref(false)
 const fotosCompare = ref<{ url: AnexoUrlDto; marcador: string | null; regiao: string | null }[]>([])
 const carregandoCompare = ref(false)
 
-// Fotos (somente imagens — filtra por mimeType)
+// Somente imagens (filtra non-image attachments)
 const fotos = computed(() =>
-  anexos.value.filter((a) => a.mimeType.startsWith("image/")),
+  (listaFotos.itens.value as AnexoDto[]).filter((a) => a.mimeType.startsWith("image/")),
 )
 
-// Botão comparar: visível quando há ≥2 fotos
+// Botão comparar: visível quando há ≥2 fotos já carregadas
 const podeComparar = computed(() => fotos.value.length >= 2)
 
 onMounted(async () => {
@@ -57,17 +67,17 @@ onMounted(async () => {
     return
   }
   try {
-    const [pac, lista] = await Promise.all([
+    // Carrega paciente e primeira página de fotos em paralelo
+    const [pac] = await Promise.all([
       pacienteService.obter(pacienteId),
-      prontuarioService.listarAnexos(pacienteId),
+      listaFotos.recarregar(),
     ])
     paciente.value = pac
-    anexos.value = lista
   } catch {
     ui.toast("Não foi possível carregar as fotos", "error")
     router.back()
   } finally {
-    carregando.value = false
+    carregandoPaciente.value = false
   }
 })
 
@@ -95,8 +105,8 @@ async function capturarEEnviar() {
       regiaoFinal,
       marcador.value,
     )
-    // Recarrega a lista após upload bem-sucedido
-    anexos.value = await prontuarioService.listarAnexos(pacienteId)
+    // Recarrega a lista paginada do início após upload bem-sucedido
+    await listaFotos.recarregar()
     ui.toast("Foto registrada com sucesso")
   } catch {
     ui.toast("Não foi possível salvar a foto. Tente novamente.", "error")
@@ -144,9 +154,11 @@ async function abrirComparacao() {
     }
     if (par.length < 2) par = lista.slice(0, 2)
 
-    const urls = await Promise.all(par.map((f) => prontuarioService.obterUrlAnexo(pacienteId, f.id)))
-    fotosCompare.value = par.map((f, i) => ({
-      url: urls[i],
+    // Batch de URLs (1 request para 2 fotos — sem N+1)
+    const urls = await prontuarioService.obterUrlsAnexos(pacienteId, par.map((f) => f.id))
+    const urlMap = new Map(urls.map((u) => [u.id, u]))
+    fotosCompare.value = par.map((f) => ({
+      url: urlMap.get(f.id)!,
       marcador: f.marcador ?? null,
       regiao: f.regiaoAnatomica ?? null,
     }))
@@ -189,7 +201,7 @@ function labelData(iso: string): string {
           <span>{{ idade(paciente.dataNascimento) ?? "—" }} anos · {{ paciente.genero || "—" }}</span>
         </div>
       </div>
-      <div v-else-if="carregando" class="pr-ctx">
+      <div v-else-if="carregandoPaciente" class="pr-ctx">
         <div class="skeleton" style="width: 44px; height: 44px; border-radius: 50%; flex: none"></div>
         <div style="flex: 1">
           <div class="skeleton" style="height: 14px; width: 60%; margin-bottom: 6px; border-radius: 6px"></div>
@@ -199,8 +211,8 @@ function labelData(iso: string): string {
 
       <div class="f-label">Registros</div>
 
-      <!-- Loading: grade skeleton -->
-      <div v-if="carregando" class="foto-grid">
+      <!-- Loading: grade skeleton (1ª carga) -->
+      <div v-if="listaFotos.carregando.value" class="foto-grid">
         <div v-for="n in 4" :key="n" class="skeleton foto-tile-sk"></div>
       </div>
 
@@ -213,22 +225,29 @@ function labelData(iso: string): string {
         />
       </div>
 
-      <!-- Grade de fotos -->
-      <div v-else class="foto-grid">
-        <button
-          v-for="foto in fotos"
-          :key="foto.id"
-          class="foto-tile"
-          @click="abrirFoto(foto)"
-        >
-          <i class="fa-regular fa-image ph"></i>
-          <span v-if="foto.marcador" class="tagp">{{ foto.marcador }}</span>
-          <div class="ov">
-            <b>{{ foto.regiaoAnatomica || foto.nomeOriginal }}</b>
-            <span>{{ labelData(foto.criadoEm) }}</span>
-          </div>
-        </button>
-      </div>
+      <!-- Grade de fotos paginada -->
+      <template v-else>
+        <div class="foto-grid">
+          <button
+            v-for="foto in fotos"
+            :key="foto.id"
+            class="foto-tile"
+            @click="abrirFoto(foto)"
+          >
+            <i class="fa-regular fa-image ph"></i>
+            <span v-if="foto.marcador" class="tagp">{{ foto.marcador }}</span>
+            <div class="ov">
+              <b>{{ foto.regiaoAnatomica || foto.nomeOriginal }}</b>
+              <span>{{ labelData(foto.criadoEm) }}</span>
+            </div>
+          </button>
+        </div>
+        <AppLoadMore
+          :visivel="listaFotos.temMais.value"
+          :carregando="listaFotos.carregandoMais.value"
+          @carregar="listaFotos.carregarMais()"
+        />
+      </template>
 
       <div class="audit-foot" style="margin-top: 14px">
         <i class="fa-solid fa-lock"></i> Imagens protegidas · acesso auditado

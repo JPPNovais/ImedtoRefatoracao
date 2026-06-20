@@ -35,8 +35,8 @@ async function bootstrap() {
     },
   })
 
-  await ui.initTheme()
-  await initDb()
+  // initTheme e initDb são independentes do bootstrap — rodam em paralelo para reduzir TTI.
+  await Promise.all([ui.initTheme(), initDb()])
   await auth.bootstrap() // rehidrata sessão via cookie (BFF)
 
   app.use(router)

@@ -5,7 +5,9 @@ import { cobrancaService } from "@/services/cobranca.service"
 import { financeiroService } from "@/services/financeiro.service"
 import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
-import { moeda, toISODate } from "@/lib/format"
+import { iniciais, moeda, toISODate } from "@/lib/format"
+import { mensagemDeErro } from "@/lib/erros"
+import { useMascaraMoeda } from "@/composables/useMascaraMoeda"
 import type { FormaPagamentoDto, CobrancaDetalheDto } from "@/types"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
@@ -57,18 +59,6 @@ const vinculoLabel = computed(() => {
   return "Nenhum vínculo"
 })
 
-// Iniciais para avatar
-function iniciais(nome: string | null): string {
-  if (!nome) return "?"
-  return nome
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase()
-}
-
 // Ícone por forma de pagamento
 function iconeFormaFn(nome: string): string {
   const n = nome.toLowerCase()
@@ -78,26 +68,14 @@ function iconeFormaFn(nome: string): string {
   return "fa-coins"
 }
 
-// Máscara BRL simples para o input
-function formatarValor(raw: string): string {
-  const digits = raw.replace(/\D/g, "")
-  if (!digits) return ""
-  const num = parseInt(digits, 10) / 100
-  return num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+const mascaraMoeda = useMascaraMoeda()
 
 function onValorInput(e: Event) {
-  const input = e.target as HTMLInputElement
-  valorStr.value = formatarValor(input.value)
-  const v = valorStr.value
-  requestAnimationFrame(() => {
-    input.value = v
-    input.setSelectionRange(v.length, v.length)
-  })
+  mascaraMoeda.onValorInput(e, valorStr)
 }
 
 function setValorRapido(v: number) {
-  valorStr.value = v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+  mascaraMoeda.setValorNumerico(v, valorStr)
 }
 
 function selecionarForma(id: number) {
@@ -177,8 +155,8 @@ async function salvar() {
     })
     // Mostra confirmação com opção de voltar — recibo disponível pela Caixa
     sucessoOpen.value = true
-  } catch {
-    ui.toast("Não foi possível registrar o pagamento", "error")
+  } catch (err) {
+    ui.toast(mensagemDeErro(err, "Não foi possível registrar o pagamento"), "error")
   } finally {
     salvando.value = false
   }
@@ -223,7 +201,7 @@ onMounted(carregar)
       <!-- Paciente -->
       <div class="rc-patient" style="cursor: default;">
         <span class="av pay-av">
-          <template v-if="pacienteNome">{{ iniciais(pacienteNome) }}</template>
+          <template v-if="pacienteNome">{{ iniciais(pacienteNome ?? '') }}</template>
           <i v-else class="fa-solid fa-user"></i>
         </span>
         <span class="rx">

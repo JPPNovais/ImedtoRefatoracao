@@ -6,6 +6,7 @@ import type { Orcamento } from "@/types"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { useUiStore } from "@/stores/ui"
 import { iniciais, moeda } from "@/lib/format"
+import { mensagemDeErro } from "@/lib/erros"
 import AppStatusPill from "@/components/ui/AppStatusPill.vue"
 
 const route = useRoute()
@@ -38,8 +39,8 @@ async function aprovar() {
     await orcamentoService.aprovar(orc.value.id)
     orc.value.status = "Aprovado"
     ui.toast("Orçamento aprovado")
-  } catch {
-    ui.toast("Não foi possível aprovar", "error")
+  } catch (err) {
+    ui.toast(mensagemDeErro(err, "Não foi possível aprovar"), "error")
   }
 }
 function recusar() {
@@ -53,8 +54,8 @@ function recusar() {
         await orcamentoService.recusar(orc.value.id)
         orc.value.status = "Recusado"
         ui.toast("Orçamento recusado")
-      } catch {
-        ui.toast("Não foi possível recusar", "error")
+      } catch (err) {
+        ui.toast(mensagemDeErro(err, "Não foi possível recusar"), "error")
       }
     },
   })

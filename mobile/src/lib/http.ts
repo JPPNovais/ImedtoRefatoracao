@@ -39,6 +39,8 @@ interface RequestOptions {
   /** desativa o retry de refresh (usado pelo próprio /auth/refresh) */
   skipRefresh?: boolean
   headers?: Record<string, string>
+  /** AbortSignal para cancelar requests obsoletos (somente web; no nativo é ignorado). */
+  signal?: AbortSignal
 }
 
 interface RawResponse {
@@ -97,6 +99,7 @@ async function rawRequest(path: string, opts: RequestOptions): Promise<RawRespon
     headers,
     credentials: "include",
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    signal: opts.signal,
   })
   let data: unknown = null
   const text = await res.text()
@@ -156,6 +159,48 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   throw toApiError(res.status, res.data)
 }
 
+/** Envia FormData via POST, reutilizando baseHeaders (SEM Content-Type — boundary automático),
+ *  cookies BFF, header de tenant, e o mesmo fluxo de refresh em 401 + normalização ApiError. */
+async function postForm<T>(path: string, form: FormData, extraHeaders?: Record<string, string>): Promise<T> {
+  // baseHeaders sem Content-Type para que o browser/nativo injete o boundary correto.
+  const headers: Record<string, string> = { Accept: "application/json", ...extraHeaders }
+  const tenantId = tenantIdProvider()
+  if (tenantId) headers["X-Estabelecimento-Id"] = String(tenantId)
+
+  const url = buildUrl(path)
+
+  async function doPost(): Promise<RawResponse> {
+    if (Capacitor.isNativePlatform()) {
+      // CapacitorHttp não suporta FormData diretamente; cai no fetch.
+      const res = await fetch(url, { method: "POST", headers, credentials: "include", body: form })
+      let data: unknown = null
+      const text = await res.text()
+      if (text) { try { data = JSON.parse(text) } catch { data = text } }
+      return { status: res.status, data }
+    }
+    const res = await fetch(url, { method: "POST", headers, credentials: "include", body: form })
+    let data: unknown = null
+    const text = await res.text()
+    if (text) { try { data = JSON.parse(text) } catch { data = text } }
+    return { status: res.status, data }
+  }
+
+  let res = await doPost()
+
+  if (res.status === 401) {
+    const refreshed = await tryRefresh()
+    if (refreshed) res = await doPost()
+    if (res.status === 401) { onAuthExpired(); throw toApiError(401, res.data) }
+  }
+  if (res.status === 402) {
+    const err = toApiError(402, res.data)
+    onAssinaturaBloqueada(err.tipo || "FeatureBloqueada")
+    throw err
+  }
+  if (res.status >= 200 && res.status < 300) return res.data as T
+  throw toApiError(res.status, res.data)
+}
+
 let refreshing: Promise<boolean> | null = null
 async function tryRefresh(): Promise<boolean> {
   if (refreshing) return refreshing
@@ -207,10 +252,13 @@ export async function getBlob(path: string): Promise<Blob> {
 }
 
 export const http = {
-  get: <T>(path: string, params?: RequestOptions["params"]) => request<T>(path, { params }),
+  get: <T>(path: string, params?: RequestOptions["params"], signal?: AbortSignal) =>
+    request<T>(path, { params, signal }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body }),
   del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  /** Envia FormData (multipart) com refresh, tenant e normalização de erro — sem fetch cru nas views. */
+  postForm,
   raw: rawRequest,
   getBlob,
 }

@@ -4,9 +4,11 @@ import { useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/auth"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { useUiStore } from "@/stores/ui"
+import { useTenantStore } from "@/stores/tenant"
 import { dashboardService } from "@/services/dashboard.service"
 import { financeiroService } from "@/services/financeiro.service"
 import { agendaService } from "@/services/agenda.service"
+import { localDb } from "@/lib/db"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import { moeda, horaDe, iniciais, toISODate } from "@/lib/format"
 import type { DashboardDto, CaixaDiarioDto } from "@/types"
@@ -15,6 +17,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const permissoes = usePermissoesStore()
 const ui = useUiStore()
+const tenant = useTenantStore()
 
 const carregando = ref(true)
 const erro = ref(false)
@@ -122,6 +125,20 @@ const itensAtencao = computed<ItemAtencao[]>(() => {
   return items
 })
 
+// Chave de cache: prefixada com tenant (multi-tenant) + data de hoje.
+// LGPD: cacheamos apenas dados agregados do dashboard (contagens, valores totais)
+// — sem nome de paciente, CPF ou conteúdo clínico.
+function cacheKeyDashboard() {
+  const hoje = toISODate(new Date())
+  return `${tenant.estabelecimentoAtivoId}:inicio:${hoje}`
+}
+
+interface InicioCache {
+  dashboard: DashboardDto
+  caixa: CaixaDiarioDto | null
+  statsHoje: { agendados: number; atendidos: number; faltas: number }
+}
+
 async function carregar() {
   carregando.value = true
   erro.value = false
@@ -138,9 +155,31 @@ async function carregar() {
     statsHoje.value = c
       ? { agendados: c.agendados, atendidos: c.atendidos, faltas: c.faltas }
       : { agendados: dash.agendamentosHoje, atendidos: 0, faltas: 0 }
-  } catch {
-    erro.value = true
-    ui.toast("Erro ao carregar o painel", "error")
+    // Persiste em cache (offline fallback) com prefixo de tenant
+    void localDb.cacheSet(cacheKeyDashboard(), {
+      dashboard: dash,
+      caixa: cx,
+      statsHoje: statsHoje.value,
+    } satisfies InicioCache)
+  } catch (err) {
+    // Erro com status = negócio (422, 403 etc.) → não usa cache, propaga.
+    if (err && typeof err === "object" && "status" in err) {
+      erro.value = true
+      ui.toast("Erro ao carregar o painel", "error")
+      return
+    }
+    // Erro de rede → tenta servir do cache
+    const cached = await localDb.cacheGet<InicioCache>(cacheKeyDashboard())
+    if (cached) {
+      dashboard.value = cached.value.dashboard
+      caixa.value = cached.value.caixa
+      statsHoje.value = cached.value.statsHoje
+      const hora = new Date(cached.savedAt)
+      ui.setOffline(true, `${String(hora.getHours()).padStart(2, "0")}:${String(hora.getMinutes()).padStart(2, "0")}`)
+    } else {
+      erro.value = true
+      ui.toast("Sem conexão e sem dados salvos", "error")
+    }
   } finally {
     carregando.value = false
   }
@@ -159,9 +198,19 @@ function irParaAgenda() {
   router.push("/agenda")
 }
 
-onMounted(carregar)
-// Recarrega ao voltar para a aba (KeepAlive)
-onActivated(carregar)
+let ultimaCarregadaEm = 0
+const FRESCOR_MS = 30_000
+
+onMounted(async () => {
+  await carregar()
+  ultimaCarregadaEm = Date.now()
+})
+// Recarrega ao voltar para a aba (KeepAlive), mas não na 1ª visita nem dentro do frescor.
+onActivated(async () => {
+  if (Date.now() - ultimaCarregadaEm < FRESCOR_MS) return
+  await carregar()
+  ultimaCarregadaEm = Date.now()
+})
 
 const iniciaisProximo = computed(() =>
   proximo.value ? iniciais(proximo.value.pacienteNome) : ""

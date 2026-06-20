@@ -69,7 +69,7 @@ const URLS: Record<string, string> = {
 // substituir por: import { Browser } from "@capacitor/browser"; await Browser.open({ url })
 function abrirNoNavegador(label: string) {
   const url = URLS[label] ?? WEB_BASE
-  window.open(url, "_blank")
+  window.open(url, "_blank", "noopener,noreferrer")
 }
 
 function sair() {

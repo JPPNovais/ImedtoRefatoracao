@@ -58,7 +58,8 @@ export const useAuthStore = defineStore("auth", () => {
     profissional.value = null
     await useTenantStore().limpar()
     usePermissoesStore().limpar()
-    await localDb.cacheClear()
+    // Purga cache e drafts no logout (dados clínicos em repouso devem ser removidos ao sair).
+    await Promise.all([localDb.cacheClear(), localDb.draftClear()])
   }
 
   return {

@@ -7,7 +7,8 @@ import { salaService } from "@/services/sala.service"
 import type { SalaDto } from "@/services/sala.service"
 import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
-import { iniciais } from "@/lib/format"
+import { iniciais, toISODate } from "@/lib/format"
+import { mensagemDeErro } from "@/lib/erros"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppSearchInput from "@/components/ui/AppSearchInput.vue"
 
@@ -16,7 +17,7 @@ const auth = useAuthStore()
 const ui = useUiStore()
 
 const paciente = ref<{ id: number; nomeCompleto: string } | null>(null)
-const data = ref(new Date().toISOString().slice(0, 10))
+const data = ref(toISODate(new Date()))
 const horario = ref("")
 const tipo = ref("Consulta")
 const salas = ref<SalaDto[]>([])
@@ -53,21 +54,25 @@ async function salvar() {
   salvando.value = true
   try {
     const inicio = `${data.value}T${horario.value}:00`
-    const fimDate = new Date(inicio)
-    fimDate.setMinutes(fimDate.getMinutes() + 30)
+    // Monta fim com componentes locais para não shift de UTC (+3h BRT).
+    const [hStr, mStr] = horario.value.split(":")
+    const fimTotalMin = Number(hStr) * 60 + Number(mStr) + 30
+    const fimH = String(Math.floor(fimTotalMin / 60) % 24).padStart(2, "0")
+    const fimM = String(fimTotalMin % 60).padStart(2, "0")
+    const fimPrevisto = `${data.value}T${fimH}:${fimM}:00`
     await agendaService.criar({
       pacienteId: paciente.value.id,
       profissionalUsuarioId: auth.usuario?.id || "",
       inicioPrevisto: inicio,
-      fimPrevisto: fimDate.toISOString().slice(0, 19),
+      fimPrevisto,
       tipoServico: tipo.value,
       observacoes: obs.value || undefined,
       salaId: salaId.value ?? undefined,
     })
     ui.toast("Consulta agendada")
     router.back()
-  } catch {
-    ui.toast("Não foi possível agendar", "error")
+  } catch (err) {
+    ui.toast(mensagemDeErro(err, "Não foi possível agendar"), "error")
   } finally {
     salvando.value = false
   }
