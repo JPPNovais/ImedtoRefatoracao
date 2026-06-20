@@ -278,6 +278,27 @@ export interface CaixaDiarioDto {
   resumoPorForma: ResumoCaixaFormaPagamentoDto[]
 }
 
+// ─── Disponibilidade de agenda ──────────────────────────────────────────────
+
+export interface DisponibilidadeSlot {
+  hora: string
+  disponivel: boolean
+  motivo: "agendado" | "bloqueado" | "passado" | null
+  pacienteNome?: string | null
+}
+
+export interface DisponibilidadeDia {
+  data: string        // "YYYY-MM-DD"
+  diaSemana: string   // "DOM" | "SEG" | "TER" | "QUA" | "QUI" | "SEX" | "SAB"
+  status: "fechado" | "disponivel" | "indisponivel"
+  slots: DisponibilidadeSlot[]
+}
+
+export interface DisponibilidadeSemanaDto {
+  profissionalUsuarioId: string
+  dias: DisponibilidadeDia[]
+}
+
 /** Erro de negócio normalizado (422 BusinessException) ou de rede. */
 export interface ApiError {
   status: number

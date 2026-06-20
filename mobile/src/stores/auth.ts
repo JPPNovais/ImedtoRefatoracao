@@ -5,6 +5,7 @@ import { authService } from "@/services/auth.service"
 import { useTenantStore } from "./tenant"
 import { usePermissoesStore } from "./permissoes"
 import { localDb } from "@/lib/db"
+import { useBiometric } from "@/native/useBiometric"
 
 /** BFF pattern: nenhum token em memória — só o usuário. Cookie HttpOnly faz a sessão. */
 export const useAuthStore = defineStore("auth", () => {
@@ -49,6 +50,9 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       await authService.logout()
     } finally {
+      // Remove credenciais biométricas do Keychain/Keystore ao sair
+      const biometric = useBiometric()
+      await biometric.apagarCredenciais()
       await limparSessao()
     }
   }

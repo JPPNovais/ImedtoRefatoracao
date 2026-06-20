@@ -167,6 +167,48 @@ export async function mockRoute(
   }
   if (/^\/agendamentos\/\d+\/(confirmar|concluir|cancelar|checkin)$/.test(p)) return { status: 204, data: null }
   if (p === "/agendamentos" && method === "POST") return { status: 201, data: { agendamentoId: 999 } }
+  if (p === "/agendamentos/disponibilidade" && method === "GET") {
+    const dataInicio = String(params?.dataInicio || today)
+    const dataFim = String(params?.dataFim || today)
+    // Gera dias do intervalo solicitado
+    const dias: unknown[] = []
+    const cur = new Date(dataInicio + "T12:00:00Z")
+    const fim = new Date(dataFim + "T12:00:00Z")
+    const DIAS_SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"]
+    // Slots ocupados por agendamentos existentes (só para a dataInicio = today do mock)
+    const ocupados = new Set(appts.map((a) => a.inicioPrevisto.substring(11, 16)))
+    while (cur <= fim) {
+      const iso = cur.toISOString().substring(0, 10)
+      const dow = cur.getUTCDay() // 0=DOM, 6=SAB
+      const diaSemana = DIAS_SEMANA[dow]
+      if (dow === 0 || dow === 6) {
+        // Fim de semana: fechado
+        dias.push({ data: iso, diaSemana, status: "fechado", slots: [] })
+      } else {
+        const slots: unknown[] = []
+        // Horários de atendimento: 08:00–12:00 e 14:00–17:00, de 30 em 30 min
+        const ranges = [
+          [8, 0], [8, 30], [9, 0], [9, 30], [10, 0], [10, 30], [11, 0], [11, 30],
+          [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30],
+        ]
+        for (const [h, m] of ranges) {
+          const hora = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+          const esteOcupado = iso === today && ocupados.has(hora)
+          // Simula 11:15 como bloqueado para demonstrar o motivo "bloqueado"
+          const bloqueado = hora === "11:30"
+          slots.push({
+            hora,
+            disponivel: !esteOcupado && !bloqueado,
+            motivo: esteOcupado ? "agendado" : bloqueado ? "bloqueado" : null,
+            pacienteNome: esteOcupado ? (appts.find((a) => a.inicioPrevisto.substring(11, 16) === hora)?.pacienteNome ?? null) : null,
+          })
+        }
+        dias.push({ data: iso, diaSemana, status: "disponivel", slots })
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1)
+    }
+    return { status: 200, data: await delay({ profissionalUsuarioId: String(params?.profissionalUsuarioId || "u-marina"), dias }) }
+  }
 
   if (p === "/paciente" && method === "GET") {
     const busca = String(params?.busca || "").toLowerCase()
