@@ -4,8 +4,10 @@ import { useRouter } from "vue-router"
 import { pacienteService } from "@/services/paciente.service"
 import type { PacienteListaItem } from "@/types"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
+import { useListaPaginada } from "@/composables/useListaPaginada"
 import { iniciais, idade, dataCurta } from "@/lib/format"
 import AppSearchInput from "@/components/ui/AppSearchInput.vue"
+import AppLoadMore from "@/components/ui/AppLoadMore.vue"
 
 const router = useRouter()
 
@@ -13,36 +15,33 @@ const buscaImediata = ref("")
 const buscaDebounced = useDebouncedRef("", 350)
 watch(buscaImediata, (v) => (buscaDebounced.value = v))
 
-const itens = ref<PacienteListaItem[]>([])
-const total = ref(0)
-const carregando = ref(true)
 const filtro = ref<"todos" | "alerta" | "recentes">("todos")
 
+const lista = useListaPaginada<PacienteListaItem>(
+  (pagina, tamanho) => pacienteService.listar(buscaDebounced.value || undefined, pagina, tamanho),
+  { tamanho: 20 },
+)
+
+// Filtros locais sobre os itens já carregados
 const filtrados = computed(() => {
-  if (filtro.value === "alerta") return itens.value.filter((p) => p.qtdAlertas > 0)
-  if (filtro.value === "recentes") return [...itens.value].sort((a, b) => (b.ultimaVisita || "").localeCompare(a.ultimaVisita || "")).slice(0, 5)
-  return itens.value
+  if (filtro.value === "alerta") return lista.itens.value.filter((p) => p.qtdAlertas > 0)
+  if (filtro.value === "recentes")
+    return [...lista.itens.value]
+      .sort((a, b) => (b.ultimaVisita || "").localeCompare(a.ultimaVisita || ""))
+      .slice(0, 5)
+  return lista.itens.value
 })
 
 const contagens = computed(() => ({
-  todos: itens.value.length,
-  alerta: itens.value.filter((p) => p.qtdAlertas > 0).length,
-  recentes: Math.min(5, itens.value.length),
+  todos: lista.itens.value.length,
+  alerta: lista.itens.value.filter((p) => p.qtdAlertas > 0).length,
+  recentes: Math.min(5, lista.itens.value.length),
 }))
 
-async function carregar() {
-  carregando.value = true
-  try {
-    const pagina = await pacienteService.listar(buscaDebounced.value || undefined, 1, 50)
-    itens.value = pagina.itens
-    total.value = pagina.total
-  } finally {
-    carregando.value = false
-  }
-}
+// Busca debounced → reseta para página 1
+watch(buscaDebounced, () => lista.recarregar())
 
-onMounted(carregar)
-watch(buscaDebounced, carregar)
+onMounted(() => lista.recarregar())
 
 function abrir(p: PacienteListaItem) {
   router.push(`/paciente/${p.id}`)
@@ -67,7 +66,7 @@ function meta(p: PacienteListaItem): string {
     </div>
 
     <!-- skeleton -->
-    <div v-if="carregando" class="plist">
+    <div v-if="lista.carregando.value" class="plist">
       <div v-for="i in 4" :key="i" class="skrow">
         <div class="sk sk-av"></div>
         <div style="flex: 1"><div class="sk sk-l" style="width: 55%"></div><div class="sk sk-l" style="width: 35%; margin-top: 8px"></div></div>
@@ -95,6 +94,14 @@ function meta(p: PacienteListaItem): string {
         <b>{{ buscaImediata ? "Nada encontrado" : "Nenhum paciente" }}</b>
         <p>{{ buscaImediata ? "Tente outro nome ou filtro." : "Cadastre o primeiro paciente no sistema." }}</p>
       </div>
+
+      <!-- "Carregar mais" só no filtro "todos" (recentes/alerta são filtros locais) -->
+      <AppLoadMore
+        v-if="filtro === 'todos'"
+        :visivel="lista.temMais.value"
+        :carregando="lista.carregandoMais.value"
+        @carregar="lista.carregarMais()"
+      />
     </template>
   </section>
 </template>
