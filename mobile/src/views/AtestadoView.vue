@@ -24,7 +24,7 @@ if (!pacienteIdRaw || pacienteIdRaw <= 0) {
 }
 const pacienteId = pacienteIdRaw
 const pacienteNome = ref("Paciente")
-const dias = ref(2)
+const dias = ref(1)
 const data = ref(toISODate(new Date()))
 const cid = ref<Cid10Dto | null>(null)
 const obs = ref("")
