@@ -34,7 +34,7 @@ const marcador = ref<"Antes" | "Depois" | "Evolução">("Depois")
 
 // --- Sheet de visualização ---
 const sheetView = ref(false)
-const fotoView = ref<{ foto: AnexoUrlDto; marcador: string | null; regiao: string | null } | null>(null)
+const fotoView = ref<{ foto: AnexoUrlDto; marcador: string | null; regiao: string | null; criadoEm: string } | null>(null)
 const carregandoUrl = ref(false)
 
 // --- Sheet de comparação ---
@@ -111,7 +111,12 @@ async function abrirFoto(foto: AnexoDto) {
   fotoView.value = null
   try {
     const urlDto = await prontuarioService.obterUrlAnexo(pacienteId, foto.id)
-    fotoView.value = { foto: urlDto, marcador: foto.marcador ?? null, regiao: foto.regiaoAnatomica ?? null }
+    fotoView.value = {
+      foto: urlDto,
+      marcador: foto.marcador ?? null,
+      regiao: foto.regiaoAnatomica ?? null,
+      criadoEm: foto.criadoEm,
+    }
   } catch {
     ui.toast("Não foi possível carregar a foto", "error")
     sheetView.value = false
@@ -298,7 +303,7 @@ function labelData(iso: string): string {
         <span v-if="fotoView.marcador" class="tagp">{{ fotoView.marcador }}</span>
         <div class="ov">
           <b>{{ fotoView.regiao || fotoView.foto.nomeOriginal }}</b>
-          <span>{{ dataCurta(fotoView.foto.expiraEm) }}</span>
+          <span>{{ dataCurta(fotoView.criadoEm) }}</span>
         </div>
       </div>
     </div>

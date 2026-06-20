@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
+import { Preferences } from "@capacitor/preferences"
 import { useAuthStore } from "@/stores/auth"
 import { useTenantStore } from "@/stores/tenant"
 import { useUiStore, type ThemeMode } from "@/stores/ui"
@@ -15,7 +16,8 @@ const ui = useUiStore()
 const permissoes = usePermissoesStore()
 const pushPrefs = usePreferenciasPushStore()
 
-const bioOn = ref(true)
+const CHAVE_BIO = "pref_biometria"
+const bioOn = ref(false)
 
 const nome = computed(() => auth.usuario?.nomeCompleto || "Profissional")
 const crm = computed(() => {
@@ -29,14 +31,47 @@ const estabLabel = computed(() =>
 
 const podeVerEstoque = computed(() => permissoes.pode("estoque"))
 
-onMounted(() => pushPrefs.carregar())
+onMounted(async () => {
+  pushPrefs.carregar()
+  try {
+    const { value } = await Preferences.get({ key: CHAVE_BIO })
+    // default: ativo (true) se não houver valor salvo
+    bioOn.value = value === null ? true : value === "true"
+  } catch {
+    bioOn.value = true
+  }
+})
+
+async function alternarBio() {
+  bioOn.value = !bioOn.value
+  try {
+    await Preferences.set({ key: CHAVE_BIO, value: String(bioOn.value) })
+  } catch {
+    // fallback web
+    try { localStorage.setItem(CHAVE_BIO, String(bioOn.value)) } catch { /* */ }
+  }
+}
 
 function setTema(m: ThemeMode) {
   ui.applyTheme(m)
 }
-function abrirNoNavegador(label: string) {
-  ui.toast(`Abrir no navegador: ${label}`)
+
+// URLs do painel web para abrir no navegador
+const WEB_BASE = "https://app.imedto.com"
+const URLS: Record<string, string> = {
+  "Equipe e permissões": `${WEB_BASE}/configuracoes/equipe`,
+  "Assinatura e plano": `${WEB_BASE}/configuracoes/assinatura`,
+  "Ajuda e suporte": `${WEB_BASE}/ajuda`,
 }
+
+// @capacitor/browser não está instalado; usa window.open como fallback web.
+// Para abrir no browser nativo no iOS/Android, instalar @capacitor/browser e
+// substituir por: import { Browser } from "@capacitor/browser"; await Browser.open({ url })
+function abrirNoNavegador(label: string) {
+  const url = URLS[label] ?? WEB_BASE
+  window.open(url, "_blank")
+}
+
 function sair() {
   ui.openConfirm({
     title: "Sair da conta?",
@@ -81,7 +116,7 @@ function sair() {
       <div class="set-row">
         <span class="si"><i class="fa-solid fa-fingerprint"></i></span>
         <span class="st">Biometria<small>Face ID / digital ao abrir</small></span>
-        <button class="switch" :class="{ on: bioOn }" @click="bioOn = !bioOn"></button>
+        <button class="switch" :class="{ on: bioOn }" @click="alternarBio"></button>
       </div>
     </div>
 

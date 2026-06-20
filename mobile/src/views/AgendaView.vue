@@ -319,7 +319,13 @@ async function onTouchEnd() {
       </div>
       <div class="f-label">Sala</div>
       <div class="fav-chips">
-        <button v-for="s in ['todas', 'Sala 1', 'Sala 2', 'Sala 3']" :key="s" class="fav-chip" :class="{ on: fSala === s }" @click="fSala = s">{{ s === "todas" ? "Todas" : s }}</button>
+        <button
+          v-for="s in ['todas', ...[...new Set(appts.map(a => a.salaNome).filter(Boolean))]]"
+          :key="s ?? 'todas'"
+          class="fav-chip"
+          :class="{ on: fSala === (s ?? 'todas') }"
+          @click="fSala = s ?? 'todas'"
+        >{{ s === 'todas' ? 'Todas' : s }}</button>
       </div>
       <div class="f-label">Alerta clínico</div>
       <div class="fav-chips">

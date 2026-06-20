@@ -198,7 +198,7 @@ export async function mockRoute(
 
   if (p === "/receitas" && method === "POST") return { status: 201, data: { receitaId: 555 } }
   if (/^\/receitas\/\d+\/assinar$/.test(p)) return { status: 202, data: { status: "AssinaturaPendente" } }
-  if (/^\/receitas\/\d+\/status-assinatura$/.test(p)) return { status: 200, data: { status: "AssinadaIcp", urlAssinada: "#" } }
+  if (/^\/receitas\/\d+\/status-assinatura$/.test(p)) return { status: 200, data: { status: "AssinadaIcp", pdfAssinadoUrl: "#" } }
   if (/^\/pacientes\/\d+\/atestados$/.test(p) && method === "POST") return { status: 201, data: { atestadoId: 777 } }
   if (/^\/pacientes\/\d+\/pedidos-exame$/.test(p) && method === "POST") return { status: 201, data: { pedidoExameId: 888 } }
 
