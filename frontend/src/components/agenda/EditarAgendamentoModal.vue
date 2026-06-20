@@ -21,6 +21,7 @@ import {
     type DisponibilidadeDia,
 } from "@/services/agendaService"
 import type { ProfissionalPublico } from "@/services/vinculoService"
+import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
 import { AppAvatarSelect } from "@/components/ui"
@@ -33,11 +34,18 @@ const props = defineProps<{
     agendamentosTodos?: Agendamento[]
     /** Quando true, abre já no modo reagendamento expandido. */
     focoReagendar?: boolean
+    /**
+     * Paciente atualizado pelo pai após salvar via PacienteFormModal.
+     * Ao receber, reflete nome no header sem reiniciar o fluxo de edição.
+     */
+    pacienteAtualizado?: Paciente | null
 }>()
 
 const emit = defineEmits<{
     fechar: []
     atualizado: []
+    /** Solicita ao pai abrir PacienteFormModal (evita modal aninhado). */
+    "editar-paciente": [paciente: Paciente]
 }>()
 
 const TIPOS_CONSULTA = [
@@ -74,6 +82,40 @@ const form = reactive({
 const tenant = useTenantStore()
 const salas = ref<Sala[]>([])
 
+// ─── Edição de paciente (atalho "Editar dados") ───
+// Papel do usuário vindo do tenant. Somente Profissional e Dono podem editar.
+const podeEditarPaciente = computed(() =>
+    tenant.papel === "Profissional" || tenant.papel === "Dono",
+)
+
+// Nome exibido no header: reflete atualização feita pelo PacienteFormModal (R5).
+const pacienteNomeLocal = computed(() =>
+    props.pacienteAtualizado?.id === props.agendamento?.pacienteId
+        ? props.pacienteAtualizado!.nomeCompleto
+        : (props.agendamento?.pacienteNome ?? ""),
+)
+
+const carregandoEdicaoPaciente = ref(false)
+
+async function solicitarEdicaoPaciente() {
+    if (!props.agendamento || !podeEditarPaciente.value || carregandoEdicaoPaciente.value) return
+    // Se já temos o objeto atualizado (prop), usa direto.
+    if (props.pacienteAtualizado?.id === props.agendamento.pacienteId) {
+        emit("editar-paciente", props.pacienteAtualizado!)
+        return
+    }
+    // Carrega o cadastro completo do paciente do backend.
+    carregandoEdicaoPaciente.value = true
+    try {
+        const completo = await pacienteService.obter(props.agendamento.pacienteId)
+        emit("editar-paciente", completo)
+    } catch {
+        // Silencioso — botão fica disponível para tentar de novo.
+    } finally {
+        carregandoEdicaoPaciente.value = false
+    }
+}
+
 async function garantirSalas() {
     if (salas.value.length > 0) return
     if (!tenant.estabelecimentoAtivoId) return
@@ -102,8 +144,9 @@ function fmtDataLabel(iso: string) {
 }
 
 const inicial = computed(() => {
-    if (!props.agendamento) return "?"
-    const partes = props.agendamento.pacienteNome.trim().split(/\s+/)
+    const nome = pacienteNomeLocal.value || ""
+    if (!nome) return "?"
+    const partes = nome.trim().split(/\s+/)
     if (partes.length === 1) return partes[0].charAt(0).toUpperCase()
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
 })
@@ -332,8 +375,8 @@ async function salvar() {
             <header class="modal-head edit-head">
                 <div class="eh-patient">
                     <div class="av">{{ inicial }}</div>
-                    <div>
-                        <h2>{{ agendamento.pacienteNome }}</h2>
+                    <div class="eh-info">
+                        <h2>{{ pacienteNomeLocal }}</h2>
                         <span class="eh-sub">
                             <span
                                 v-if="statusMeta"
@@ -348,6 +391,18 @@ async function salvar() {
                             </span>
                         </span>
                     </div>
+                    <!-- Atalho de edição do paciente: somente Profissional/Dono (R2) -->
+                    <button
+                        v-if="podeEditarPaciente"
+                        type="button"
+                        class="btn-editar-pac"
+                        :disabled="carregandoEdicaoPaciente"
+                        @click="solicitarEdicaoPaciente"
+                    >
+                        <i v-if="carregandoEdicaoPaciente" class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                        <i v-else class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        Editar dados
+                    </button>
                 </div>
                 <button type="button" class="modal-close" @click="emit('fechar')">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -604,6 +659,31 @@ async function salvar() {
 }
 .edit-head { align-items: center; }
 .eh-patient { display: flex; align-items: center; gap: 14px; flex: 1; }
+.eh-info { flex: 1; min-width: 0; }
+.btn-editar-pac {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--primary));
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+}
+.btn-editar-pac:hover:not(:disabled) {
+    background: hsl(var(--primary) / 0.06);
+    border-color: hsl(var(--primary) / 0.3);
+}
+.btn-editar-pac:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 .eh-patient .av {
     width: 48px;
     height: 48px;
