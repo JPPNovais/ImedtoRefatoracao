@@ -1,26 +1,21 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { atestadoService } from "@/services/documentos.service"
+import { catalogoService } from "@/services/catalogo.service"
 import { pacienteService } from "@/services/paciente.service"
 import { useUiStore } from "@/stores/ui"
 import { iniciais, toISODate } from "@/lib/format"
+import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppSearchInput from "@/components/ui/AppSearchInput.vue"
+import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import AssinaturaFlow from "@/components/AssinaturaFlow.vue"
+import type { Cid10Dto } from "@/types"
 
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
-
-const CIDS = [
-  { cod: "J06.9", desc: "Infecção aguda das vias aéreas superiores" },
-  { cod: "M54.5", desc: "Dor lombar baixa" },
-  { cod: "A09", desc: "Diarreia e gastroenterite de origem infecciosa" },
-  { cod: "R51", desc: "Cefaleia" },
-  { cod: "J11", desc: "Influenza (gripe)" },
-  { cod: "K29.7", desc: "Gastrite não especificada" },
-]
 
 const pacienteIdRaw = Number(route.query.pacienteId)
 if (!pacienteIdRaw || pacienteIdRaw <= 0) {
@@ -31,20 +26,40 @@ const pacienteId = pacienteIdRaw
 const pacienteNome = ref("Paciente")
 const dias = ref(2)
 const data = ref(toISODate(new Date()))
-const cid = ref<{ cod: string; desc: string } | null>(null)
+const cid = ref<Cid10Dto | null>(null)
 const obs = ref("")
 
 const cidSheet = ref(false)
-const buscaCid = ref("")
+const buscaCid = useDebouncedRef("", 350)
+const cidResultados = ref<Cid10Dto[]>([])
+const cidCarregando = ref(false)
+const cidErro = ref(false)
 const flow = ref<InstanceType<typeof AssinaturaFlow> | null>(null)
-
-const cidsFiltrados = computed(() =>
-  CIDS.filter((c) => (c.cod + " " + c.desc).toLowerCase().includes(buscaCid.value.toLowerCase())),
-)
 
 onMounted(async () => {
   const p = await pacienteService.obter(pacienteId).catch(() => null)
   if (p) pacienteNome.value = p.nomeCompleto
+})
+
+async function carregarCids(termo: string) {
+  cidCarregando.value = true
+  cidErro.value = false
+  try {
+    cidResultados.value = await catalogoService.buscarCid(termo || undefined)
+  } catch {
+    cidErro.value = true
+    ui.toast("Não foi possível carregar os CIDs", "error")
+  } finally {
+    cidCarregando.value = false
+  }
+}
+
+// Ao abrir o sheet carrega os mais comuns; ao digitar rebusca com debounce
+watch(cidSheet, (aberto) => {
+  if (aberto) carregarCids(buscaCid.value)
+})
+watch(buscaCid, (termo) => {
+  if (cidSheet.value) carregarCids(termo)
 })
 
 async function assinar() {
@@ -52,7 +67,7 @@ async function assinar() {
     await atestadoService.emitir(pacienteId, {
       tipo: "Afastamento",
       diasAfastamento: dias.value,
-      cid10: cid.value?.cod,
+      cid10: cid.value?.codigo,
       conteudo: obs.value || `Atestado de ${dias.value} dia(s) de afastamento.`,
     })
     return {}
@@ -90,7 +105,7 @@ async function assinar() {
       <div class="f-label">CID-10 (opcional)</div>
       <button class="tap-field" :class="{ placeholder: !cid }" @click="cidSheet = true">
         <i class="fa-solid fa-hashtag lead"></i>
-        <span>{{ cid ? `${cid.cod} · ${cid.desc}` : "Selecionar CID-10" }}</span>
+        <span>{{ cid ? `${cid.codigo} · ${cid.descricao}` : "Selecionar CID-10" }}</span>
         <i class="fa-solid fa-chevron-right chev"></i>
       </button>
 
@@ -104,19 +119,44 @@ async function assinar() {
 
     <BottomSheet v-model:open="cidSheet" titulo="CID-10" tall>
       <AppSearchInput v-model="buscaCid" placeholder="Buscar código ou doença…" />
-      <div v-for="c in cidsFiltrados" :key="c.cod" class="med-row" @click="cid = c; cidSheet = false">
-        <div class="mi"><i class="fa-solid fa-hashtag"></i></div>
-        <b>{{ c.cod }} · {{ c.desc }}</b>
-        <i class="fa-solid fa-plus add-i"></i>
+
+      <div v-if="cidCarregando" class="cid-loading">
+        <i class="fa-solid fa-spinner fa-spin"></i> Buscando…
       </div>
+      <AppEmptyState
+        v-else-if="!cidErro && cidResultados.length === 0"
+        icon="fa-file-medical"
+        titulo="Nenhum CID encontrado"
+        texto="Tente outro termo de busca"
+      />
+      <template v-else>
+        <div
+          v-for="c in cidResultados"
+          :key="c.codigo"
+          class="med-row"
+          @click="cid = c; cidSheet = false"
+        >
+          <div class="mi"><i class="fa-solid fa-hashtag"></i></div>
+          <b>{{ c.codigo }} · {{ c.descricao }}</b>
+          <i class="fa-solid fa-plus add-i"></i>
+        </div>
+      </template>
     </BottomSheet>
 
     <AssinaturaFlow
       ref="flow"
       titulo-sucesso="Atestado assinado"
-      :resumo="`${pacienteNome} · ${dias} dia(s)${cid ? ' · ' + cid.cod : ''}`"
+      :resumo="`${pacienteNome} · ${dias} dia(s)${cid ? ' · ' + cid.codigo : ''}`"
       copy-send="Enviar atestado"
       @concluir="router.back()"
     />
   </div>
 </template>
+
+<style scoped>
+.cid-loading {
+  padding: var(--space-4) var(--space-3);
+  color: var(--app-text-dim);
+  text-align: center;
+}
+</style>

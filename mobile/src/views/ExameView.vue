@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { exameService } from "@/services/documentos.service"
+import { catalogoService } from "@/services/catalogo.service"
 import { pacienteService } from "@/services/paciente.service"
 import { useUiStore } from "@/stores/ui"
 import { iniciais } from "@/lib/format"
+import { useDebouncedRef } from "@/composables/useDebouncedRef"
+import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import AssinaturaFlow from "@/components/AssinaturaFlow.vue"
+import type { ExameCatalogoDto } from "@/types"
 
 const route = useRoute()
 const router = useRouter()
 const ui = useUiStore()
-
-const EXAMES = ["Hemograma completo", "Glicemia de jejum", "Colesterol total e frações", "TSH", "Ureia e creatinina", "Urina tipo 1", "Raio-X de tórax", "Ultrassom abdominal", "Eletrocardiograma", "Vitamina D"]
 
 const pacienteIdRaw = Number(route.query.pacienteId)
 if (!pacienteIdRaw || pacienteIdRaw <= 0) {
@@ -20,22 +22,38 @@ if (!pacienteIdRaw || pacienteIdRaw <= 0) {
 }
 const pacienteId = pacienteIdRaw
 const pacienteNome = ref("Paciente")
-const busca = ref("")
+const busca = useDebouncedRef("", 350)
+const examesDisponiveis = ref<ExameCatalogoDto[]>([])
+const examesCarregando = ref(false)
 const selecionados = ref<string[]>([])
 const indicacao = ref("")
 const flow = ref<InstanceType<typeof AssinaturaFlow> | null>(null)
 
-const filtrados = computed(() => EXAMES.filter((e) => e.toLowerCase().includes(busca.value.toLowerCase())))
-
 onMounted(async () => {
-  const p = await pacienteService.obter(pacienteId).catch(() => null)
+  const [p] = await Promise.all([
+    pacienteService.obter(pacienteId).catch(() => null),
+    carregarExames(""),
+  ])
   if (p) pacienteNome.value = p.nomeCompleto
 })
 
-function toggle(e: string) {
-  const i = selecionados.value.indexOf(e)
+async function carregarExames(termo: string) {
+  examesCarregando.value = true
+  try {
+    examesDisponiveis.value = await catalogoService.buscarExames(termo || undefined)
+  } catch {
+    ui.toast("Não foi possível carregar os exames", "error")
+  } finally {
+    examesCarregando.value = false
+  }
+}
+
+watch(busca, (termo) => carregarExames(termo))
+
+function toggle(nome: string) {
+  const i = selecionados.value.indexOf(nome)
   if (i >= 0) selecionados.value.splice(i, 1)
-  else selecionados.value.push(e)
+  else selecionados.value.push(nome)
 }
 
 async function assinar() {
@@ -70,15 +88,25 @@ async function assinar() {
         <i class="fa-solid fa-magnifying-glass"></i>
         <input v-model="busca" type="text" placeholder="Buscar exame…" autocomplete="off" />
       </div>
-      <div class="fav-chips">
+
+      <div v-if="examesCarregando" class="exame-loading">
+        <i class="fa-solid fa-spinner fa-spin"></i> Buscando…
+      </div>
+      <AppEmptyState
+        v-else-if="examesDisponiveis.length === 0"
+        icon="fa-flask"
+        titulo="Nenhum exame encontrado"
+        texto="Tente outro termo de busca"
+      />
+      <div v-else class="fav-chips">
         <button
-          v-for="e in filtrados"
-          :key="e"
+          v-for="e in examesDisponiveis"
+          :key="e.id"
           class="fav-chip"
-          :class="{ on: selecionados.includes(e) }"
-          @click="toggle(e)"
+          :class="{ on: selecionados.includes(e.nome) }"
+          @click="toggle(e.nome)"
         >
-          <i v-if="selecionados.includes(e)" class="fa-solid fa-check"></i> {{ e }}
+          <i v-if="selecionados.includes(e.nome)" class="fa-solid fa-check"></i> {{ e.nome }}
         </button>
       </div>
 
@@ -99,3 +127,11 @@ async function assinar() {
     />
   </div>
 </template>
+
+<style scoped>
+.exame-loading {
+  padding: var(--space-4) var(--space-3);
+  color: var(--app-text-dim);
+  text-align: center;
+}
+</style>

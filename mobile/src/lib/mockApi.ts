@@ -202,6 +202,48 @@ export async function mockRoute(
   if (/^\/pacientes\/\d+\/atestados$/.test(p) && method === "POST") return { status: 201, data: { atestadoId: 777 } }
   if (/^\/pacientes\/\d+\/pedidos-exame$/.test(p) && method === "POST") return { status: 201, data: { pedidoExameId: 888 } }
 
+  if (p === "/catalogo/cid" && method === "GET") {
+    const busca = String(params?.busca || "").toLowerCase()
+    const todos = [
+      { codigo: "J06.9", descricao: "Infecção aguda das vias aéreas superiores", categoria: "J" },
+      { codigo: "M54.5", descricao: "Dor lombar baixa", categoria: "M" },
+      { codigo: "A09", descricao: "Diarreia e gastroenterite de origem infecciosa", categoria: "A" },
+      { codigo: "R51", descricao: "Cefaleia", categoria: "R" },
+      { codigo: "J11", descricao: "Influenza (gripe)", categoria: "J" },
+      { codigo: "K29.7", descricao: "Gastrite não especificada", categoria: "K" },
+      { codigo: "I10", descricao: "Hipertensão essencial (primária)", categoria: "I" },
+      { codigo: "E11", descricao: "Diabetes mellitus tipo 2", categoria: "E" },
+      { codigo: "F32", descricao: "Episódio depressivo", categoria: "F" },
+      { codigo: "J45", descricao: "Asma", categoria: "J" },
+    ]
+    const itens = busca ? todos.filter((c) => (c.codigo + " " + c.descricao).toLowerCase().includes(busca)) : todos
+    const limite = Number(params?.limite || 20)
+    return { status: 200, data: await delay(itens.slice(0, limite)) }
+  }
+  if (p === "/catalogo/exames" && method === "GET") {
+    const busca = String(params?.busca || "").toLowerCase()
+    const todos = [
+      { id: 1, nome: "Hemograma completo", tipo: "Laboratorial" },
+      { id: 2, nome: "Glicemia de jejum", tipo: "Laboratorial" },
+      { id: 3, nome: "Colesterol total e frações", tipo: "Laboratorial" },
+      { id: 4, nome: "TSH", tipo: "Laboratorial" },
+      { id: 5, nome: "Ureia e creatinina", tipo: "Laboratorial" },
+      { id: 6, nome: "Urina tipo 1", tipo: "Laboratorial" },
+      { id: 7, nome: "Raio-X de tórax", tipo: "Imagem" },
+      { id: 8, nome: "Ultrassom abdominal", tipo: "Imagem" },
+      { id: 9, nome: "Eletrocardiograma", tipo: "Cardiológico" },
+      { id: 10, nome: "Vitamina D", tipo: "Laboratorial" },
+      { id: 11, nome: "Ferritina", tipo: "Laboratorial" },
+      { id: 12, nome: "PCR (Proteína C-reativa)", tipo: "Laboratorial" },
+      { id: 13, nome: "Triglicerídeos", tipo: "Laboratorial" },
+      { id: 14, nome: "Ressonância magnética", tipo: "Imagem" },
+      { id: 15, nome: "Tomografia computadorizada", tipo: "Imagem" },
+    ]
+    const itens = busca ? todos.filter((e) => e.nome.toLowerCase().includes(busca)) : todos
+    const limite = Number(params?.limite || 30)
+    return { status: 200, data: await delay(itens.slice(0, limite)) }
+  }
+
   if (p === "/orcamentos" && method === "GET") return { status: 200, data: await delay(Object.values(orcamentos)) }
   const orcId = p.match(/^\/orcamentos\/(\d+)$/)
   if (orcId && method === "GET") {

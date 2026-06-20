@@ -13,10 +13,23 @@ export function iniciais(nome: string): string {
 
 export function idade(dataNascimento?: string | null): number | null {
   if (!dataNascimento) return null
-  const d = new Date(dataNascimento)
-  if (Number.isNaN(d.getTime())) return null
-  const diff = Date.now() - d.getTime()
-  return Math.floor(diff / (365.25 * 24 * 3600 * 1000))
+  // Parseia como data local para evitar shift de fuso em strings YYYY-MM-DD
+  const partes = dataNascimento.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!partes) return null
+  const anoNasc = Number(partes[1])
+  const mesNasc = Number(partes[2]) // 1-12
+  const diaNasc = Number(partes[3])
+  if (!anoNasc || !mesNasc || !diaNasc) return null
+  const hoje = new Date()
+  const anoHoje = hoje.getFullYear()
+  const mesHoje = hoje.getMonth() + 1 // 1-12
+  const diaHoje = hoje.getDate()
+  let anos = anoHoje - anoNasc
+  // Subtrai 1 se ainda não chegou ao mês/dia do aniversário
+  if (mesHoje < mesNasc || (mesHoje === mesNasc && diaHoje < diaNasc)) {
+    anos -= 1
+  }
+  return anos
 }
 
 /** Data local em yyyy-MM-dd (sem shift de fuso, ao contrário de toISOString). */
@@ -34,6 +47,14 @@ export function horaDe(iso: string): string {
 
 export function dataCurta(iso?: string | null): string {
   if (!iso) return "—"
+  // Formato YYYY-MM-DD (sem hora) → parseia local para não sofrer shift de fuso UTC
+  const apenasData = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (apenasData) {
+    const d = new Date(Number(apenasData[1]), Number(apenasData[2]) - 1, Number(apenasData[3]))
+    if (Number.isNaN(d.getTime())) return "—"
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`
+  }
+  // ISO com hora/timezone → parse normal (timezone já presente na string)
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return "—"
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`
