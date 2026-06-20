@@ -3,6 +3,9 @@ import { Preferences } from "@capacitor/preferences"
 import { NativeBiometric } from "capacitor-native-biometric"
 
 const CHAVE_BIO = "pref_biometria"
+// Identificador do servidor usado para o Keychain/Keystore nativo.
+// Deve ser constante entre versões para recuperar as credenciais salvas.
+const KEYCHAIN_SERVER = "com.imedto.mobile"
 
 /** Lê a preferência do usuário (default: ativado). */
 async function habilitadaPeloUsuario(): Promise<boolean> {
@@ -57,5 +60,55 @@ export function useBiometric() {
     }
   }
 
-  return { disponivel, confirmar, habilitadaPeloUsuario }
+  /**
+   * Salva credenciais no Keychain (iOS) / Keystore (Android).
+   * No-op em web — nunca persistir senha em texto fora do nativo (LGPD).
+   */
+  async function salvarCredenciais(email: string, senha: string): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return
+    try {
+      await NativeBiometric.setCredentials({
+        username: email,
+        password: senha,
+        server: KEYCHAIN_SERVER,
+      })
+    } catch {
+      // Falha silenciosa — login biométrico simplesmente não estará disponível
+    }
+  }
+
+  /**
+   * Recupera credenciais do Keychain/Keystore.
+   * Retorna null se não houver credenciais salvas ou em ambiente web.
+   */
+  async function obterCredenciais(): Promise<{ username: string; password: string } | null> {
+    if (!Capacitor.isNativePlatform()) return null
+    try {
+      const creds = await NativeBiometric.getCredentials({ server: KEYCHAIN_SERVER })
+      return creds ?? null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Remove credenciais do Keychain/Keystore (logout ou desativação da biometria).
+   * Tolera ausência — não lança se não houver credenciais.
+   */
+  async function apagarCredenciais(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return
+    try {
+      await NativeBiometric.deleteCredentials({ server: KEYCHAIN_SERVER })
+    } catch {
+      // Não há credenciais salvas — tolerado
+    }
+  }
+
+  /** Retorna true se há credenciais salvas no Keychain/Keystore. */
+  async function temCredenciais(): Promise<boolean> {
+    const creds = await obterCredenciais()
+    return creds !== null
+  }
+
+  return { disponivel, confirmar, habilitadaPeloUsuario, salvarCredenciais, obterCredenciais, apagarCredenciais, temCredenciais }
 }

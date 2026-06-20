@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { agendaService } from "@/services/agenda.service"
 import { salaService } from "@/services/sala.service"
@@ -7,23 +7,23 @@ import type { SalaDto } from "@/services/sala.service"
 import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
 import { iniciais, toISODate } from "@/lib/format"
+import { mensagemDeErro } from "@/lib/erros"
+import type { DisponibilidadeDia, DisponibilidadeSlot } from "@/types"
+import PacienteSeletorSheet from "@/components/ui/PacienteSeletorSheet.vue"
 
 /** Data de hoje em ISO local (sem shift UTC). */
 const hojeISO = toISODate(new Date())
 
 /**
- * Retorna true se o horário (string "HH:MM") está no passado considerando a data
- * selecionada. Usa hora LOCAL do dispositivo — espelho da regra do web (motivo: 'passado').
- * Só bloqueia se a data selecionada for HOJE; datas futuras liberam todos os slots.
+ * Retorna true se o slot está no passado LOCAL (só relevante quando a data é hoje,
+ * pois o backend pode não excluir slots passados da resposta).
  */
-function horarioNoPassado(h: string): boolean {
+function slotNoPassado(hora: string): boolean {
   if (data.value !== hojeISO) return false
-  const [hh, mm] = h.split(":").map(Number)
+  const [hh, mm] = hora.split(":").map(Number)
   const agora = new Date()
   return hh < agora.getHours() || (hh === agora.getHours() && mm <= agora.getMinutes())
 }
-import { mensagemDeErro } from "@/lib/erros"
-import PacienteSeletorSheet from "@/components/ui/PacienteSeletorSheet.vue"
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -38,7 +38,49 @@ const salaId = ref<number | null>(null)
 const obs = ref("")
 const salvando = ref(false)
 
-const HORARIOS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30", "15:00"]
+// Disponibilidade de agenda — substituem o HORARIOS fixo
+const diaDisponibilidade = ref<DisponibilidadeDia | null>(null)
+const carregandoSlots = ref(false)
+
+/** Retorna os slots do dia, com checagem de passado sobreposta à resposta do backend. */
+const slotsDodia = () => diaDisponibilidade.value?.slots ?? []
+
+async function carregarDisponibilidade() {
+  const profId = auth.usuario?.id
+  if (!profId) return
+  carregandoSlots.value = true
+  horario.value = "" // limpa seleção ao trocar data
+  try {
+    const resp = await agendaService.disponibilidade({
+      profissionalUsuarioId: profId,
+      dataInicio: data.value,
+      dataFim: data.value,
+      duracaoMinutos: 30,
+    })
+    diaDisponibilidade.value = resp.dias[0] ?? null
+  } catch {
+    ui.toast("Não foi possível carregar os horários disponíveis", "error")
+    diaDisponibilidade.value = null
+  } finally {
+    carregandoSlots.value = false
+  }
+}
+
+/** Slot habilitado: disponível pela API E não no passado. */
+function slotHabilitado(slot: DisponibilidadeSlot): boolean {
+  return slot.disponivel && !slotNoPassado(slot.hora)
+}
+
+/** Dica de acessibilidade para slots indisponíveis. */
+function ariaLabelSlot(slot: DisponibilidadeSlot): string {
+  if (slotNoPassado(slot.hora)) return `${slot.hora} — horário no passado`
+  if (!slot.disponivel) {
+    if (slot.motivo === "agendado") return `${slot.hora} — já agendado`
+    if (slot.motivo === "bloqueado") return `${slot.hora} — bloqueado`
+    return `${slot.hora} — indisponível`
+  }
+  return slot.hora
+}
 
 // Sheet de seleção de paciente (busca + criar + editar)
 const seletorOpen = ref(false)
@@ -50,7 +92,11 @@ onMounted(async () => {
   const salasResp = await salaService.listar().catch(() => [])
   salas.value = salasResp
   if (salasResp.length) salaId.value = salasResp[0].id
+  await carregarDisponibilidade()
 })
+
+// Ao trocar data: recarrega disponibilidade
+watch(data, carregarDisponibilidade)
 
 function abrirSeletor() {
   // Abre no modo busca (não edição)
@@ -146,16 +192,38 @@ async function salvar() {
       </div>
 
       <div class="f-label">Horário</div>
-      <div class="fav-chips">
+
+      <!-- Dia fechado (fim de semana / sem expediente) -->
+      <div v-if="!carregandoSlots && diaDisponibilidade?.status === 'fechado'" class="slots-fechado">
+        <i class="fa-regular fa-calendar-xmark"></i>
+        Sem atendimento neste dia
+      </div>
+
+      <!-- Skeleton enquanto carrega -->
+      <div v-else-if="carregandoSlots" class="fav-chips">
+        <div v-for="i in 8" :key="i" class="fav-chip slot-skeleton"></div>
+      </div>
+
+      <!-- Slots reais do backend -->
+      <div v-else class="fav-chips">
         <button
-          v-for="h in HORARIOS"
-          :key="h"
+          v-for="slot in slotsDodia()"
+          :key="slot.hora"
           class="fav-chip"
-          :class="{ on: horario === h, passado: horarioNoPassado(h) }"
-          :disabled="horarioNoPassado(h)"
-          :aria-label="horarioNoPassado(h) ? `${h} — horário no passado` : h"
-          @click="horario = h"
-        >{{ h }}</button>
+          :class="{
+            on: horario === slot.hora,
+            indisponivel: !slotHabilitado(slot),
+          }"
+          :disabled="!slotHabilitado(slot)"
+          :aria-label="ariaLabelSlot(slot)"
+          :title="!slotHabilitado(slot) && slot.motivo ? (slot.motivo === 'agendado' ? 'Já agendado' : 'Bloqueado') : undefined"
+          @click="horario = slot.hora"
+        >{{ slot.hora }}</button>
+
+        <!-- Nenhum slot disponível mas dia não fechado -->
+        <p v-if="slotsDodia().length === 0" class="slots-vazio">
+          Nenhum horário disponível
+        </p>
       </div>
 
       <div class="f-label">Tipo de atendimento</div>
@@ -196,12 +264,45 @@ async function salvar() {
 </template>
 
 <style scoped>
-/* Chip de horário no passado — desabilitado visualmente (cinza, sem cursor). */
-.fav-chip.passado,
+/* Chips indisponíveis (agendado, bloqueado, passado) — cinza, sem cursor. */
+.fav-chip.indisponivel,
 .fav-chip:disabled {
   opacity: 0.38;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* Skeleton de slots durante loading */
+.slot-skeleton {
+  background: var(--app-card-2);
+  color: transparent;
+  border-color: transparent;
+  min-width: 56px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Mensagem de dia fechado */
+.slots-fechado {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--app-text-faint);
+  font-size: var(--fs-sm);
+  padding: var(--space-3) 0 var(--space-5);
+}
+.slots-fechado i {
+  font-size: var(--fs-lg);
+}
+
+/* Mensagem de sem slots */
+.slots-vazio {
+  color: var(--app-text-faint);
+  font-size: var(--fs-sm);
+  margin: var(--space-2) 0 var(--space-5);
 }
 
 /* Botão de editar dados rápidos do paciente selecionado */

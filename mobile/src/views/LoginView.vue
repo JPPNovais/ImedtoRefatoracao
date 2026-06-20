@@ -19,11 +19,16 @@ const senha = ref("")
 const mostrarSenha = ref(false)
 const erro = ref(false)
 const carregando = ref(false)
-const biometriaHabilitada = ref(false)
+// Botão de biometria visível quando: biometria disponível no device E (há creds salvas OU pref habilitada)
+const mostrarBotaoBiometria = ref(false)
 
-// Lê a preferência ao montar — oculta o botão se o usuário desativou
 onMounted(async () => {
-  biometriaHabilitada.value = await biometric.habilitadaPeloUsuario()
+  const [dispRes, temCreds, habPref] = await Promise.all([
+    biometric.disponivel(),
+    biometric.temCredenciais(),
+    biometric.habilitadaPeloUsuario(),
+  ])
+  mostrarBotaoBiometria.value = dispRes && (temCreds || habPref)
 })
 
 async function entrar() {
@@ -32,6 +37,12 @@ async function entrar() {
   carregando.value = true
   try {
     await auth.login(email.value.trim(), senha.value)
+    // Após login bem-sucedido: salva credenciais no Keychain se biometria disponível e habilitada.
+    // Condição: nativo + pref habilitada → salva; assim na próxima vez o login biométrico já funciona.
+    const [dispRes, habPref] = await Promise.all([biometric.disponivel(), biometric.habilitadaPeloUsuario()])
+    if (dispRes && habPref) {
+      await biometric.salvarCredenciais(email.value.trim(), senha.value)
+    }
     irProximaTela()
   } catch {
     // Mensagem genérica — não revela se o e-mail existe (anti-enumeração).
@@ -42,12 +53,38 @@ async function entrar() {
 }
 
 async function entrarComBiometria() {
+  // Exige biometria disponível no device
+  const dispRes = await biometric.disponivel()
+  if (!dispRes) {
+    ui.toast("Biometria não disponível neste dispositivo", "error")
+    return
+  }
+  // Verifica se há credenciais salvas — sem elas não há como logar
+  const temCreds = await biometric.temCredenciais()
+  if (!temCreds) {
+    ui.toast("Faça login com e-mail e senha uma vez para ativar a biometria", "error")
+    return
+  }
+  // Pede confirmação biométrica (FaceID / digital)
   const ok = await biometric.confirmar("Entrar no Imedto")
   if (!ok) return
-  // Em produção: usa credenciais guardadas no Keychain/Keystore. Aqui revalida a sessão.
-  await auth.bootstrap()
-  if (auth.isAuthenticated) irProximaTela()
-  else ui.toast("Faça login com e-mail e senha na primeira vez", "error")
+  // Recupera credenciais e faz login real
+  const creds = await biometric.obterCredenciais()
+  if (!creds) {
+    ui.toast("Não foi possível recuperar as credenciais. Faça login com e-mail e senha.", "error")
+    return
+  }
+  carregando.value = true
+  try {
+    await auth.login(creds.username, creds.password)
+    irProximaTela()
+  } catch {
+    // Senha mudou no servidor: apaga credenciais obsoletas e orienta login normal
+    await biometric.apagarCredenciais()
+    ui.toast("Credenciais desatualizadas. Faça login com e-mail e senha para reativar a biometria.", "error")
+  } finally {
+    carregando.value = false
+  }
 }
 
 function irProximaTela() {
@@ -99,7 +136,7 @@ function irProximaTela() {
         {{ carregando ? "Entrando…" : "Entrar" }}
       </button>
 
-      <template v-if="biometriaHabilitada">
+      <template v-if="mostrarBotaoBiometria">
         <div class="ldiv">ou</div>
         <button class="bio-btn" @click="entrarComBiometria">
           <i class="fa-solid fa-fingerprint"></i> Entrar com biometria

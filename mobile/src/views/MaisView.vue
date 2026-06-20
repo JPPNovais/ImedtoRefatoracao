@@ -7,6 +7,7 @@ import { useTenantStore } from "@/stores/tenant"
 import { useUiStore, type ThemeMode } from "@/stores/ui"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { usePreferenciasPushStore } from "@/stores/preferenciasPush"
+import { useBiometric } from "@/native/useBiometric"
 import { iniciais } from "@/lib/format"
 
 const router = useRouter()
@@ -15,6 +16,7 @@ const tenant = useTenantStore()
 const ui = useUiStore()
 const permissoes = usePermissoesStore()
 const pushPrefs = usePreferenciasPushStore()
+const biometric = useBiometric()
 
 const CHAVE_BIO = "pref_biometria"
 const bioOn = ref(false)
@@ -49,6 +51,10 @@ async function alternarBio() {
   } catch {
     // fallback web
     try { localStorage.setItem(CHAVE_BIO, String(bioOn.value)) } catch { /* */ }
+  }
+  // Toggle OFF: remove credenciais do Keychain/Keystore para que o login biométrico não funcione
+  if (!bioOn.value) {
+    await biometric.apagarCredenciais()
   }
 }
 

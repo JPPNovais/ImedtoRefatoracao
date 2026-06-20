@@ -1,5 +1,5 @@
 import { http } from "@/lib/http"
-import type { Agendamento, ContagemPorDia, PaginaAgendamentos } from "@/types"
+import type { Agendamento, ContagemPorDia, DisponibilidadeSemanaDto, PaginaAgendamentos } from "@/types"
 
 export interface CriarAgendamentoPayload {
   pacienteId: number
@@ -45,5 +45,13 @@ export const agendaService = {
     payload: { salaId?: number; tipoAtendimento?: string; valorCobrado?: number },
   ): Promise<void> {
     await http.post(`/agendamentos/${id}/checkin`, payload)
+  },
+  async disponibilidade(params: {
+    profissionalUsuarioId: string
+    dataInicio: string
+    dataFim: string
+    duracaoMinutos?: number
+  }): Promise<DisponibilidadeSemanaDto> {
+    return http.get("/agendamentos/disponibilidade", params)
   },
 }
