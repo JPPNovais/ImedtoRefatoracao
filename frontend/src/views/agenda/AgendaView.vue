@@ -346,12 +346,18 @@ async function concluirAgendamento(a: Agendamento) {
 // ─── Modal de check-in ───
 const modalCheckInAberto = ref(false)
 const agendamentoCheckIn = ref<Agendamento | null>(null)
-// Edição de paciente disparada de dentro do check-in: renderizada aqui (na
-// raiz da view) para não aninhar Dialogs do design-system — o DialogOverlay
-// é fixo em z-50, e dois portais sobrepostos fazem o backdrop sumir.
+// Edição de paciente disparada de dentro do check-in, criar ou editar
+// agendamento: renderizada aqui (na raiz da view) para não aninhar Dialogs
+// do design-system — o DialogOverlay é fixo em z-50, e dois portais
+// sobrepostos fazem o backdrop sumir.
 const editarPacienteAberto = ref(false)
 const pacienteEmEdicao = ref<Paciente | null>(null)
 const pacienteAtualizadoCheckin = ref<Paciente | null>(null)
+// Paciente atualizado propagado especificamente para cada modal de agendamento.
+type FonteEdicaoPaciente = "checkin" | "novo" | "editar"
+const fonteEdicaoPaciente = ref<FonteEdicaoPaciente>("checkin")
+const pacienteAtualizadoNovo = ref<Paciente | null>(null)
+const pacienteAtualizadoEditar = ref<Paciente | null>(null)
 
 function abrirCheckIn(a: Agendamento) {
     agendamentoCheckIn.value = a
@@ -425,14 +431,22 @@ async function onPagamentoPago(payload: import("@/services/cobrancaService").Reg
     }
 }
 
-function onSolicitarEdicaoPaciente(p: Paciente) {
+function onSolicitarEdicaoPaciente(p: Paciente, fonte: FonteEdicaoPaciente = "checkin") {
     pacienteEmEdicao.value = p
+    fonteEdicaoPaciente.value = fonte
     editarPacienteAberto.value = true
 }
 
-function onPacienteSalvoNoCheckin(p: Paciente) {
-    pacienteAtualizadoCheckin.value = p
+function onPacienteSalvo(p: Paciente) {
     editarPacienteAberto.value = false
+    const fonte = fonteEdicaoPaciente.value
+    if (fonte === "checkin") {
+        pacienteAtualizadoCheckin.value = p
+    } else if (fonte === "novo") {
+        pacienteAtualizadoNovo.value = p
+    } else {
+        pacienteAtualizadoEditar.value = p
+    }
     pacienteEmEdicao.value = null
 }
 
@@ -482,6 +496,7 @@ function fecharModalNovo() {
     encaixePaciente.value = null
     encaixeProfissionalId.value = null
     encaixeMotivo.value = null
+    pacienteAtualizadoNovo.value = null
 }
 
 function onPacienteCriado(p: PacienteListaItem) {
@@ -748,9 +763,11 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :paciente-pre-selecionado="encaixePaciente"
         :profissional-pre-selecionado-id="encaixeProfissionalId"
         :motivo-pre-selecionado="encaixeMotivo"
+        :paciente-atualizado="pacienteAtualizadoNovo"
         @fechar="fecharModalNovo"
         @criado="onAgendamentoCriado"
         @paciente-criado="onPacienteCriado"
+        @editar-paciente="(p) => onSolicitarEdicaoPaciente(p, 'novo')"
     />
 
     <EditarAgendamentoModal
@@ -759,8 +776,10 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :profissionais="profissionaisDisponiveis"
         :agendamentos-todos="agendamentos"
         :foco-reagendar="editarFocoReagendar"
-        @fechar="editarAberto = false"
+        :paciente-atualizado="pacienteAtualizadoEditar"
+        @fechar="editarAberto = false; pacienteAtualizadoEditar = null"
         @atualizado="onAgendamentoEditado"
+        @editar-paciente="(p) => onSolicitarEdicaoPaciente(p, 'editar')"
     />
 
     <CheckInModal
@@ -770,7 +789,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :paciente-atualizado="pacienteAtualizadoCheckin"
         @fechar="modalCheckInAberto = false; agendamentoCheckIn = null; pacienteAtualizadoCheckin = null"
         @checkin-realizado="onCheckInRealizado"
-        @editar-paciente="onSolicitarEdicaoPaciente"
+        @editar-paciente="(p) => onSolicitarEdicaoPaciente(p, 'checkin')"
     />
 
     <PacienteFormModal
@@ -778,7 +797,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
         :aberto="editarPacienteAberto"
         :paciente="pacienteEmEdicao"
         @fechar="editarPacienteAberto = false; pacienteEmEdicao = null"
-        @salvo="onPacienteSalvoNoCheckin"
+        @salvo="onPacienteSalvo"
     />
 
     <CancelarAgendamentoModal

@@ -34,7 +34,7 @@ import {
     type ListaEsperaPrioridade,
     type ListaEsperaPreferenciaPeriodo,
 } from "@/services/listaEsperaService"
-import { pacienteService, type PacienteListaItem, type PacienteBuscaRapida } from "@/services/pacienteService"
+import { pacienteService, type Paciente, type PacienteListaItem, type PacienteBuscaRapida } from "@/services/pacienteService"
 import { salaService, type Sala } from "@/services/salaService"
 import { useTenantStore } from "@/stores/tenantStore"
 import type { ProfissionalPublico } from "@/services/vinculoService"
@@ -56,6 +56,11 @@ const props = defineProps<{
     profissionalPreSelecionadoId?: string | null
     /** Motivo pré-preenchido (vindo da lista de espera). */
     motivoPreSelecionado?: string | null
+    /**
+     * Paciente atualizado pelo pai após salvar via PacienteFormModal.
+     * Ao receber, reflete nome/CPF/telefone no card sem reiniciar o fluxo.
+     */
+    pacienteAtualizado?: Paciente | null
 }>()
 
 const emit = defineEmits<{
@@ -64,6 +69,8 @@ const emit = defineEmits<{
     criado: [payload: { listaEspera: boolean }]
     /** Quando criou um paciente novo no fluxo (parent atualiza cache). */
     "paciente-criado": [paciente: PacienteListaItem]
+    /** Solicita ao pai abrir PacienteFormModal (evita modal aninhado). */
+    "editar-paciente": [paciente: Paciente]
 }>()
 
 const step = ref<1 | 2 | 3>(1)
@@ -124,6 +131,49 @@ watch(buscaDeb, carregarBusca)
 watch(() => props.aberto, (a) => { if (a) carregarBusca() })
 
 const pacientesFiltrados = computed<PacienteBuscaRapida[]>(() => pacientesEncontrados.value)
+
+// ─── Edição de paciente (atalho "Editar dados") ───
+// Papel do usuário vindo do tenant. Somente Profissional e Dono podem editar.
+const podeEditarPaciente = computed(() =>
+    tenant.papel === "Profissional" || tenant.papel === "Dono",
+)
+
+// Paciente completo para o atalho de edição.
+// - Null quando não carregado ainda.
+// - Preenchido na primeira abertura do modal de edição (lazy load).
+// - Atualizado via prop `pacienteAtualizado` ao salvar — sem reiniciar o fluxo.
+const pacienteSelEnriquecido = ref<Paciente | null>(null)
+const carregandoEdicao = ref(false)
+
+watch(() => props.pacienteAtualizado, (p) => {
+    if (p) pacienteSelEnriquecido.value = p
+})
+
+// Ao trocar o paciente selecionado (Step 1 → novo paciente), descarta o
+// objeto enriquecido para forçar carregamento fresco no próximo "Editar dados".
+watch(() => pacienteSel.value?.id, () => {
+    pacienteSelEnriquecido.value = null
+})
+
+async function solicitarEdicaoPaciente() {
+    if (!pacienteSel.value || !podeEditarPaciente.value || carregandoEdicao.value) return
+    // Se já temos o objeto completo (ex: atualizado anteriormente), reutiliza.
+    if (pacienteSelEnriquecido.value && pacienteSelEnriquecido.value.id === pacienteSel.value.id) {
+        emit("editar-paciente", pacienteSelEnriquecido.value)
+        return
+    }
+    // Carrega o cadastro completo do paciente (busca rápida retorna só id+nome).
+    carregandoEdicao.value = true
+    try {
+        const completo = await pacienteService.obter(pacienteSel.value.id)
+        pacienteSelEnriquecido.value = completo
+        emit("editar-paciente", completo)
+    } catch {
+        // Silencioso — botão fica disponível para tentar de novo.
+    } finally {
+        carregandoEdicao.value = false
+    }
+}
 
 // ─── Step 2: Detalhes ───
 const TIPOS_CONSULTA = [
@@ -278,6 +328,23 @@ const pacienteEfetivo = computed(() => {
         }
     }
     if (!pacienteSel.value) return null
+    // Se temos o objeto enriquecido (carregado para edição ou atualizado via prop),
+    // usa seus dados para refletir alterações (R5 do briefing).
+    const enriquecido = pacienteSelEnriquecido.value
+    if (enriquecido && enriquecido.id === pacienteSel.value.id) {
+        const partes = enriquecido.nomeCompleto.trim().split(/\s+/)
+        const inic = partes.length === 1
+            ? partes[0][0]?.toUpperCase() ?? "?"
+            : ((partes[0][0] ?? "") + (partes[partes.length - 1][0] ?? "")).toUpperCase()
+        return {
+            id: enriquecido.id,
+            nome: enriquecido.nomeCompleto,
+            documento: enriquecido.cpf ?? enriquecido.documentoInternacional ?? "",
+            telefone: enriquecido.telefone ?? "",
+            iniciais: inic,
+            novo: false,
+        }
+    }
     const p = pacienteSel.value
     const partes = p.nomeCompleto.trim().split(/\s+/)
     const inic = partes.length === 1
@@ -600,6 +667,18 @@ const profSelecionado = computed(() =>
                                 <template v-if="pacienteEfetivo.telefone"> · {{ pacienteEfetivo.telefone }}</template>
                             </span>
                         </div>
+                        <!-- Atalho de edição: apenas para paciente existente + Profissional/Dono (R1/R2) -->
+                        <button
+                            v-if="!pacienteEfetivo.novo && podeEditarPaciente"
+                            type="button"
+                            class="btn-editar-pac"
+                            :disabled="carregandoEdicao"
+                            @click="solicitarEdicaoPaciente"
+                        >
+                            <i v-if="carregandoEdicao" class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+                            <i v-else class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                            Editar dados
+                        </button>
                     </div>
 
                     <button
@@ -1375,6 +1454,31 @@ const profSelecionado = computed(() =>
     background: hsl(var(--primary, 254 56% 38%) / 0.06);
     border: 1px solid hsl(var(--primary, 254 56% 38%) / 0.2);
     border-radius: 10px;
+}
+.patient-pinned .info { flex: 1; min-width: 0; }
+.btn-editar-pac {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid hsl(var(--foreground) / 0.12);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--primary));
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+}
+.btn-editar-pac:hover:not(:disabled) {
+    background: hsl(var(--primary) / 0.06);
+    border-color: hsl(var(--primary) / 0.3);
+}
+.btn-editar-pac:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 .patient-pinned .av {
     width: 40px;
