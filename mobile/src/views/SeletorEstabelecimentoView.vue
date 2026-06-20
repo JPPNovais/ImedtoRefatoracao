@@ -11,7 +11,7 @@ const auth = useAuthStore()
 async function escolher(e: Estabelecimento) {
   await tenant.selecionar(e)
   void auth // mantém referência (logout disponível pela aba Mais)
-  router.replace({ name: "agenda" })
+  router.replace({ name: "inicio" })
 }
 </script>
 

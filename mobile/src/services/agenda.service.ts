@@ -40,7 +40,10 @@ export const agendaService = {
   async cancelar(id: number, motivo: string): Promise<void> {
     await http.post(`/agendamentos/${id}/cancelar`, { motivo })
   },
-  async checkin(id: number, salaId?: number): Promise<void> {
-    await http.post(`/agendamentos/${id}/checkin`, { salaId })
+  async checkin(
+    id: number,
+    payload: { salaId?: number; tipoAtendimento?: string; valorCobrado?: number },
+  ): Promise<void> {
+    await http.post(`/agendamentos/${id}/checkin`, payload)
   },
 }

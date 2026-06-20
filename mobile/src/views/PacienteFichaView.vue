@@ -20,13 +20,15 @@ const biometric = useBiometric()
 const podeProntuario = computed(() => permissoes.pode("prontuario.ver"))
 const podePrescrever = computed(() => permissoes.pode("prescricao"))
 const podeOrcamento = computed(() => permissoes.pode("orcamento.ver"))
+// Fotos clínicas: restrito a Profissional/Dono via prontuario.ver (mesmo guarda do backend)
+const podeFotos = computed(() => permissoes.pode("prontuario.ver"))
 
 const id = Number(route.params.id)
 const paciente = ref<Paciente | null>(null)
 const evolucoes = ref<Evolucao[]>([])
 const orcamentos = ref<Orcamento[]>([])
 const carregando = ref(true)
-const tab = ref<"hist" | "pront" | "docs" | "orc">("hist")
+const tab = ref<"hist" | "pront" | "docs" | "orc" | "fotos">("hist")
 const piiRevelado = ref(false)
 
 const temAlerta = computed(() => (paciente.value?.alertas.length ?? 0) > 0)
@@ -118,6 +120,7 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
         <button v-if="podeProntuario" class="ftab" :class="{ on: tab === 'pront' }" @click="tab = 'pront'">Prontuário</button>
         <button class="ftab" :class="{ on: tab === 'docs' }" @click="tab = 'docs'">Documentos</button>
         <button v-if="podeOrcamento" class="ftab" :class="{ on: tab === 'orc' }" @click="tab = 'orc'">Orçamentos</button>
+        <button v-if="podeFotos" class="ftab" :class="{ on: tab === 'fotos' }" @click="router.push(`/paciente/${id}/fotos`)">Fotos</button>
       </div>
 
       <div v-show="tab === 'hist'" class="fpanel on">
@@ -160,13 +163,14 @@ function acao(tipo: "evolucao" | "receita" | "atestado" | "exame") {
         <div v-else class="tab-empty"><i class="fa-regular fa-file"></i><p>Nenhum orçamento.</p></div>
       </div>
 
-      <template v-if="podeProntuario || podePrescrever">
+      <template v-if="podeProntuario || podePrescrever || podeFotos">
         <div class="f-label" style="margin-top: 18px">Ações</div>
         <div class="fact-grid">
           <button v-if="podeProntuario" class="fact" @click="acao('evolucao')"><span class="fi ic-violet"><i class="fa-solid fa-plus"></i></span> Evolução</button>
           <button v-if="podePrescrever" class="fact" @click="acao('receita')"><span class="fi ic-violet"><i class="fa-solid fa-prescription"></i></span> Receita</button>
           <button v-if="podePrescrever" class="fact" @click="acao('atestado')"><span class="fi ic-green"><i class="fa-solid fa-file-medical"></i></span> Atestado</button>
           <button v-if="podePrescrever" class="fact" @click="acao('exame')"><span class="fi ic-blue"><i class="fa-solid fa-flask"></i></span> Exame</button>
+          <button v-if="podeFotos" class="fact" @click="router.push(`/paciente/${id}/fotos`)"><span class="fi ic-violet"><i class="fa-solid fa-camera"></i></span> Fotos</button>
         </div>
       </template>
       <div class="audit-foot"><i class="fa-solid fa-shield-halved"></i> Este acesso foi registrado em seu nome</div>

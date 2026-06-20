@@ -598,8 +598,8 @@ body {
 .stepper button:disabled { color: var(--app-text-faint); }
 .stepper .val { min-width: 92px; text-align: center; font-weight: 800; font-size: 16px; color: var(--app-text); border-left: 1px solid var(--app-border); border-right: 1px solid var(--app-border); height: 46px; display: flex; align-items: center; justify-content: center; gap: 5px; }
 .stepper .val small { font-weight: 700; color: var(--app-text-dim); font-size: 12.5px; }
-#atObs, #exInd, #naObs { width: 100%; min-height: 84px; padding: 12px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14.5px; color: var(--app-text); resize: none; outline: none; line-height: 1.5; }
-#atObs:focus, #exInd:focus, #naObs:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+#atObs, #exInd, #naObs, #payObs { width: 100%; min-height: 84px; padding: 12px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14.5px; color: var(--app-text); resize: none; outline: none; line-height: 1.5; }
+#atObs:focus, #exInd:focus, #naObs:focus, #payObs:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 .ex-search { margin-bottom: 12px; }
 .fav-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
 .fav-chip.on i { color: #fff; }
@@ -699,6 +699,130 @@ body {
 @keyframes splashLogo { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
 .splash .ring { width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.22); border-top-color: #fff; animation: sp 0.8s linear infinite; }
 .splash .tagline { position: absolute; bottom: 34px; color: rgba(255,255,255,0.62); font-size: 12px; font-weight: 600; }
+
+/* ════════════════ TOPBAR BELL BADGE ════════════════ */
+.iconbtn .nb { position: absolute; top: 4px; right: 4px; background: hsl(var(--error)); color: #fff; font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--app-bg); }
+.iconbtn .nb[hidden] { display: none; }
+
+/* ════════════════ INÍCIO / HOME (Painel) ════════════════ */
+.home-hero { padding: 6px 2px 14px; }
+.home-hero .hh-greet { font-size: 14px; color: var(--app-text-dim); font-weight: 700; }
+.home-hero .hh-name { font-size: 24px; font-weight: 800; color: var(--app-text); letter-spacing: -0.01em; margin-top: 1px; }
+.cash-card { width: 100%; text-align: left; border: 0; cursor: pointer; font: inherit; display: block;
+  background: linear-gradient(150deg, hsl(var(--primary)), hsl(var(--primary-dark))); color: #fff;
+  border-radius: var(--radius-2xl); padding: 16px 17px; box-shadow: 0 14px 30px -14px hsl(var(--primary) / 0.6); margin-bottom: 8px; }
+.cash-card:active { transform: scale(0.99); }
+.cash-card .cc-top { display: flex; align-items: center; justify-content: space-between; }
+.cash-card .cc-lbl { font-size: 11.5px; font-weight: 800; letter-spacing: 0.04em; opacity: 0.9; display: inline-flex; align-items: center; gap: 7px; text-transform: uppercase; }
+.cash-card .cc-top > i { opacity: 0.7; font-size: 13px; }
+.cash-card .cc-val { font-size: 30px; font-weight: 800; margin: 9px 0 10px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.cash-card .cc-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 700; }
+.cash-card .cc-foot > span:first-child { opacity: 0.85; }
+.cash-card .cc-pending { background: rgba(255,255,255,0.16); padding: 4px 11px; border-radius: var(--radius-full); font-weight: 800; white-space: nowrap; }
+.stat.tap { cursor: pointer; }
+.stat.tap:active { background: var(--app-card-2); }
+.stat.info .n { color: hsl(var(--info)); }
+.home-list { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; }
+.home-row { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--app-border); cursor: pointer; }
+.home-row:last-child { border-bottom: 0; }
+.home-row:active { background: var(--app-card-2); }
+.home-row .hi { width: 38px; height: 38px; flex: none; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.home-row .hx { flex: 1; min-width: 0; }
+.home-row .hx b { display: block; font-size: 14px; font-weight: 700; color: var(--app-text); }
+.home-row .hx span { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.home-row .hr { font-size: 11px; font-weight: 800; color: var(--app-text-faint); flex: none; }
+
+/* ════════════════ RECEPÇÃO / CHECK-IN ════════════════ */
+.recep-card { background: var(--app-card); border: 1px solid hsl(var(--info) / 0.35); border-radius: var(--radius-xl); padding: 11px 12px; box-shadow: var(--shadow-card); display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+.recep-card .av { width: 42px; height: 42px; flex: none; border-radius: 50%; background: hsl(var(--info) / 0.12); color: hsl(var(--info)); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.recep-card .rx { flex: 1; min-width: 0; }
+.recep-card .rx b { font-size: 14.5px; font-weight: 700; color: var(--app-text); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recep-card .rx .wait { font-size: 12px; color: hsl(var(--info)); font-weight: 800; margin-top: 3px; display: inline-flex; align-items: center; gap: 6px; }
+.recep-card .rstart { flex: none; border: 0; background: var(--brand); color: #fff; font: inherit; font-weight: 800; font-size: 12.5px; padding: 9px 14px; border-radius: var(--radius-full); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.recep-card .rstart:active { background: var(--brand-strong); }
+.arrived-note { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 700; color: hsl(var(--info)); background: hsl(var(--info) / 0.1); padding: 11px 13px; border-radius: var(--radius-lg); margin-bottom: 14px; }
+.arrived-note i { font-size: 14px; }
+
+/* ════════════════ RECEBIMENTO (pagamento) ════════════════ */
+.pay-amount { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 13px 16px; box-shadow: var(--shadow-card); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.pay-amount .cur { font-size: 20px; font-weight: 800; color: var(--app-text-dim); flex: none; }
+.pay-amount input { flex: 1; border: 0; background: transparent; font: inherit; font-size: 32px; font-weight: 800; color: var(--app-text); outline: none; font-variant-numeric: tabular-nums; width: 100%; min-width: 0; padding: 0; }
+.pay-amount input::placeholder { color: var(--app-text-faint); }
+.pay-quick { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 20px; }
+.pay-quick button { border: 1px solid var(--app-border); background: var(--app-card); color: var(--app-text-dim); font: inherit; font-size: 12.5px; font-weight: 800; padding: 7px 13px; border-radius: var(--radius-full); cursor: pointer; }
+.pay-quick button:active { background: var(--brand-soft); border-color: var(--brand); color: var(--brand); }
+.pay-method { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+.pay-m { border: 1px solid var(--app-border); background: var(--app-card); border-radius: var(--radius-lg); padding: 13px 8px; cursor: pointer; font: inherit; display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--app-text-dim); font-size: 12.5px; font-weight: 800; }
+.pay-m i { font-size: 18px; }
+.pay-m.on { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+
+/* ════════════════ CAIXA DO DIA ════════════════ */
+.caixa-total { background: linear-gradient(150deg, hsl(var(--primary)), hsl(var(--primary-dark))); color: #fff; border-radius: var(--radius-2xl); padding: 18px; margin-bottom: 18px; box-shadow: 0 14px 30px -14px hsl(var(--primary) / 0.6); }
+.caixa-total .ct-lbl { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
+.caixa-total .ct-val { font-size: 32px; font-weight: 800; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.caixa-total .ct-split { display: flex; gap: 24px; margin-top: 16px; }
+.caixa-total .ct-split div { font-size: 12px; font-weight: 700; opacity: 0.9; }
+.caixa-total .ct-split b { display: block; font-size: 16px; font-weight: 800; margin-top: 3px; opacity: 1; font-variant-numeric: tabular-nums; }
+.caixa-list { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; }
+.caixa-row { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-bottom: 1px solid var(--app-border); }
+.caixa-row:last-child { border-bottom: 0; }
+.caixa-row .ci { width: 38px; height: 38px; flex: none; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: hsl(var(--success) / 0.13); color: hsl(160 70% 36%); }
+.caixa-row .cx { flex: 1; min-width: 0; }
+.caixa-row .cx b { display: block; font-size: 14px; font-weight: 700; color: var(--app-text); }
+.caixa-row .cx span { font-size: 12px; color: var(--app-text-dim); font-weight: 600; }
+.caixa-row .cv { font-size: 14.5px; font-weight: 800; color: hsl(160 70% 34%); font-variant-numeric: tabular-nums; flex: none; }
+.dark .caixa-row .cv { color: #4fd6a3; }
+.dlg-ic.ok { background: hsl(var(--success) / 0.12); color: hsl(var(--success)); }
+
+/* ════════════════ AUTOMAÇÃO ════════════════ */
+.auto-intro { display: flex; gap: 12px; align-items: flex-start; background: var(--brand-tint); border-radius: var(--radius-xl); padding: 13px 14px; margin-bottom: 18px; }
+.auto-intro .ai { width: 38px; height: 38px; flex: none; border-radius: 11px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.auto-intro p { font-size: 12.5px; color: var(--app-text-dim); font-weight: 600; line-height: 1.45; }
+.auto-intro p b { color: var(--app-text); }
+.chan-wa { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 800; color: #1c8d4e; background: rgba(37,211,102,0.14); padding: 2px 8px; border-radius: var(--radius-full); margin-top: 4px; }
+.dark .chan-wa { color: #4fd6a3; }
+
+/* ════════════════ ESTOQUE ════════════════ */
+.est-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.est-sum { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); padding: 11px 12px; box-shadow: var(--shadow-card); }
+.est-sum .n { font-size: 19px; font-weight: 800; color: var(--app-text); line-height: 1; }
+.est-sum.warn .n { color: hsl(35 88% 42%); }
+.est-sum .l { font-size: 10.5px; font-weight: 700; color: var(--app-text-dim); margin-top: 5px; }
+.est-list { background: var(--app-card); border: 1px solid var(--app-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); overflow: hidden; }
+.est-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--app-border); cursor: pointer; }
+.est-row:last-child { border-bottom: 0; }
+.est-row:active { background: var(--app-card-2); }
+.est-row .ex { flex: 1; min-width: 0; }
+.est-row .ex b { font-size: 14px; font-weight: 700; color: var(--app-text); display: block; }
+.est-row .ex .em { font-size: 11.5px; color: var(--app-text-dim); font-weight: 600; margin-top: 4px; display: inline-flex; align-items: center; gap: 7px; }
+.est-row .eq { font-size: 17px; font-weight: 800; color: var(--app-text); font-variant-numeric: tabular-nums; flex: none; text-align: right; }
+.est-row .eq small { display: block; font-size: 10.5px; font-weight: 700; color: var(--app-text-faint); margin-top: 1px; }
+.est-row.low .eq { color: hsl(35 88% 42%); }
+.est-row.crit .eq { color: hsl(var(--error)); }
+.pill.mini { padding: 2px 8px; font-size: 10px; }
+.est-cur { text-align: center; font-size: 13px; font-weight: 700; color: var(--app-text-dim); margin: 2px 0 14px; }
+.est-cur b { font-size: 26px; font-weight: 800; color: var(--app-text); display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+/* ════════════════ FOTOS CLÍNICAS ════════════════ */
+.foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.foto-tile { position: relative; aspect-ratio: 1 / 1; border-radius: var(--radius-lg); overflow: hidden; background: linear-gradient(135deg, var(--app-card-2), var(--app-border)); border: 1px solid var(--app-border); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.foto-tile .ph { color: var(--app-text-faint); font-size: 26px; }
+.foto-tile .ov { position: absolute; left: 0; right: 0; bottom: 0; padding: 20px 10px 9px; background: linear-gradient(transparent, rgba(0,0,0,0.6)); color: #fff; }
+.foto-tile .ov b { font-size: 12px; font-weight: 800; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.foto-tile .ov span { font-size: 10.5px; opacity: 0.88; font-weight: 700; }
+.foto-tile .tagp { position: absolute; top: 8px; left: 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: var(--radius-full); background: rgba(255,255,255,0.92); color: var(--brand); }
+.foto-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cam-view { position: relative; aspect-ratio: 3 / 4; border-radius: 18px; background: radial-gradient(120% 90% at 50% 28%, #2c2545, #15111f); overflow: hidden; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; }
+.cam-view .frame { position: absolute; inset: 22px; border: 2px solid rgba(255,255,255,0.22); border-radius: 12px; }
+.cam-view .cam-ico { color: rgba(255,255,255,0.4); font-size: 32px; }
+.cam-view .cam-region { position: absolute; top: 12px; left: 12px; right: 12px; font-size: 11px; font-weight: 800; color: #fff; background: rgba(0,0,0,0.4); padding: 6px 11px; border-radius: var(--radius-full); text-align: center; }
+.cam-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.cam-flash.go { animation: flash 0.42s var(--ease-out); }
+@keyframes flash { 0% { opacity: 0; } 28% { opacity: 0.92; } 100% { opacity: 0; } }
+.cam-shutter { width: 64px; height: 64px; border-radius: 50%; border: 4px solid var(--app-card); background: #fff; box-shadow: 0 0 0 2px var(--brand); margin: 4px auto 0; cursor: pointer; display: block; }
+.cam-shutter:active { transform: scale(0.94); }
+#camRegion { width: 100%; padding: 12px; border: 1px solid var(--app-border); border-radius: var(--radius-lg); background: var(--app-card); font: inherit; font-size: 14px; color: var(--app-text); outline: none; margin-bottom: 14px; }
+#camRegion:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
 </style>
 </head>
 <body>
@@ -720,7 +844,7 @@ body {
   </svg>
 </template>
 <div class="chrome">
-  <div class="label"><b>Imedto Mobile</b><span>Fundação · navegação · agenda</span></div>
+  <div class="label"><b>Imedto Mobile</b><span>Início · recepção · recebimento</span></div>
   <div class="theme-toggle" id="themeToggle">
     <button data-theme="light" class="on"><i class="fa-regular fa-sun"></i> Claro</button>
     <button data-theme="dark"><i class="fa-regular fa-moon"></i> Escuro</button>
@@ -753,8 +877,9 @@ body {
         </span>
       </button>
       <div class="tools" id="topTools">
-        <button class="iconbtn" id="agSearchBtn" title="Buscar"><i class="fa-solid fa-magnifying-glass"></i></button>
-        <button class="iconbtn" id="agFilterBtn" title="Filtrar"><i class="fa-solid fa-sliders"></i><span class="dot" id="agFilterDot" style="display:none;"></span></button>
+        <button class="iconbtn ag-only" id="agSearchBtn" title="Buscar"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="iconbtn ag-only" id="agFilterBtn" title="Filtrar"><i class="fa-solid fa-sliders"></i><span class="dot" id="agFilterDot" style="display:none;"></span></button>
+        <button class="iconbtn" id="bellBtn" title="Avisos"><i class="fa-regular fa-bell"></i><span class="nb" id="bellBadge">3</span></button>
       </div>
     </div>
 
@@ -764,8 +889,30 @@ body {
     <!-- scroll body -->
     <div class="body" id="scrollBody">
 
+      <!-- ════════ INÍCIO / PAINEL ════════ -->
+      <section class="view active" id="view-inicio" data-screen-label="Início">
+        <div class="home-hero">
+          <div class="hh-greet" id="homeGreet">Bom dia,</div>
+          <div class="hh-name" id="homeName">Dra. Marina</div>
+        </div>
+
+        <button class="cash-card" id="homeCash">
+          <div class="cc-top"><span class="cc-lbl"><i class="fa-regular fa-money-bill-1"></i> Recebido hoje</span><i class="fa-solid fa-chevron-right"></i></div>
+          <div class="cc-val" id="homeCashVal">R$ 0,00</div>
+          <div class="cc-foot"><span id="homeCashCount">Nenhum recebimento</span><span class="cc-pending" id="homeCashPending">—</span></div>
+        </button>
+
+        <div class="stats" id="homeStats"></div>
+
+        <div class="sec-h"><div class="t">Próximo</div><div class="chip" id="homeNextChip"><i class="fa-regular fa-clock"></i> —</div></div>
+        <div id="homeNextCard" style="margin-bottom:22px;"></div>
+
+        <div class="sec-h"><div class="t">Precisa de atenção</div></div>
+        <div class="home-list" id="homeAttn"></div>
+      </section>
+
       <!-- ════════ AGENDA ════════ -->
-      <section class="view active" id="view-agenda" data-screen-label="Agenda do dia">
+      <section class="view" id="view-agenda" data-screen-label="Agenda do dia">
         <div class="ptr" id="ptr"><i class="fa-solid fa-arrow-rotate-right"></i></div>
 
         <!-- search bar (toggled from top bar) -->
@@ -783,8 +930,14 @@ body {
         </div>
 
         <div id="agendaNormal">
+          <!-- recepção / sala de espera -->
+          <div id="recepWrap" style="display:none;">
+            <div class="sec-h"><div class="t">Na recepção</div><div class="chip" id="recepChip"></div></div>
+            <div id="recepStrip" style="margin-bottom:22px;"></div>
+          </div>
+
           <!-- mini stats -->
-          <div class="stats">
+          <div class="stats" id="agStats">
             <div class="stat"><div class="n">12</div><div class="l"><i class="fa-regular fa-calendar"></i> Agendados</div></div>
             <div class="stat ok"><div class="n">4</div><div class="l"><i class="fa-solid fa-circle-check"></i> Atendidos</div></div>
             <div class="stat"><div class="n">0</div><div class="l"><i class="fa-regular fa-circle-xmark"></i> Faltas</div></div>
@@ -823,14 +976,6 @@ body {
         <div class="plist" id="plist"></div>
         <div class="empty" id="pEmpty" style="display:none;"><i class="fa-regular fa-folder-open"></i><b id="pEmptyT">Nada encontrado</b><p id="pEmptyMsg">Tente outro nome ou filtro.</p></div>
       </section>
-      <section class="view" id="view-avisos" data-screen-label="Avisos">
-        <div class="av-head">
-          <div class="ttl"><b id="avUnread">3</b> não lidos</div>
-          <button class="mark-read" id="avMarkAll"><i class="fa-solid fa-check-double"></i> Marcar todas lidas</button>
-        </div>
-        <div id="avContent"></div>
-        <div class="empty" id="avEmpty" style="display:none;"><i class="fa-regular fa-bell-slash"></i><b>Tudo em dia</b><p>Você não tem avisos no momento.</p></div>
-      </section>
       <section class="view" id="view-mais" data-screen-label="Mais">
         <button class="mais-profile" id="profileRow">
           <span class="av">MC</span>
@@ -859,7 +1004,8 @@ body {
         <div class="f-label">Gestão</div>
         <div class="set-list">
           <div class="set-row" data-ext="Equipe e permissões"><span class="si"><i class="fa-solid fa-users-gear"></i></span><span class="st">Equipe e permissões</span><i class="fa-solid fa-arrow-up-right-from-square rt"></i></div>
-          <div class="set-row" data-ext="Automações"><span class="si"><i class="fa-solid fa-bolt"></i></span><span class="st">Automações</span><i class="fa-solid fa-arrow-up-right-from-square rt"></i></div>
+          <div class="set-row" id="maisEstoque"><span class="si"><i class="fa-solid fa-boxes-stacked"></i></span><span class="st">Estoque<small id="maisEstoqueSub">—</small></span><i class="fa-solid fa-chevron-right rt"></i></div>
+          <div class="set-row" id="maisAutomacao"><span class="si"><i class="fa-solid fa-bolt"></i></span><span class="st">Automações<small>Lembretes e confirmações</small></span><i class="fa-solid fa-chevron-right rt"></i></div>
           <div class="set-row" data-ext="Assinatura e plano"><span class="si"><i class="fa-solid fa-crown"></i></span><span class="st">Assinatura e plano</span><i class="fa-solid fa-arrow-up-right-from-square rt"></i></div>
         </div>
 
@@ -873,10 +1019,10 @@ body {
 
     <!-- tab bar -->
     <div class="tabbar">
-      <button class="tab on" data-tab="agenda"><i class="fa-regular fa-calendar"></i><span>Agenda</span></button>
-      <button class="tab" data-tab="pacientes"><i class="fa-solid fa-user-group"></i><span>Pacientes</span></button>
+      <button class="tab on" data-tab="inicio"><i class="fa-solid fa-house"></i><span>Início</span></button>
+      <button class="tab" data-tab="agenda"><i class="fa-regular fa-calendar"></i><span>Agenda</span></button>
       <div class="fab-slot"><button class="fab" id="fab"><i class="fa-solid fa-plus"></i></button></div>
-      <button class="tab has-badge" data-tab="avisos"><i class="fa-regular fa-bell"></i><span class="nb">3</span><span>Avisos</span></button>
+      <button class="tab" data-tab="pacientes"><i class="fa-solid fa-user-group"></i><span>Pacientes</span></button>
       <button class="tab" data-tab="mais"><i class="fa-solid fa-ellipsis"></i><span>Mais</span></button>
     </div>
 
@@ -891,6 +1037,7 @@ body {
       <div class="act-row" data-action="receita"><div class="ic ic-violet"><i class="fa-solid fa-prescription"></i></div><div class="tx"><b>Nova receita</b><span>Favoritos · assinar · enviar</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
       <div class="act-row" data-action="atestado"><div class="ic ic-green"><i class="fa-solid fa-file-medical"></i></div><div class="tx"><b>Atestado</b><span>CID · dias · assinar</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
       <div class="act-row" data-action="exame"><div class="ic ic-blue"><i class="fa-solid fa-flask"></i></div><div class="tx"><b>Pedido de exame</b><span>Selecionar exames · assinar</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
+      <div class="act-row" data-action="pagamento"><div class="ic ic-green"><i class="fa-solid fa-hand-holding-dollar"></i></div><div class="tx"><b>Registrar pagamento</b><span>Receber · PIX, cartão ou dinheiro</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
       <div class="act-row" data-action="agendamento"><div class="ic ic-amber"><i class="fa-regular fa-calendar-plus"></i></div><div class="tx"><b>Novo agendamento</b><span>Marcar uma consulta</span></div><i class="fa-solid fa-chevron-right chev"></i></div>
     </div>
 
@@ -990,6 +1137,20 @@ body {
       </div>
     </div>
 
+    <!-- ════════ PUSH: Avisos / notificações ════════ -->
+    <div class="push" id="push-avisos" data-screen-label="Avisos">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Avisos</div>
+        <button class="mark-read" id="avMarkAll"><i class="fa-solid fa-check-double"></i> Marcar lidas</button>
+      </div>
+      <div class="push-body">
+        <div class="av-head"><div class="ttl"><b id="avUnread">3</b> não lidos</div></div>
+        <div id="avContent"></div>
+        <div class="empty" id="avEmpty" style="display:none;"><i class="fa-regular fa-bell-slash"></i><b>Tudo em dia</b><p>Você não tem avisos no momento.</p></div>
+      </div>
+    </div>
+
     <!-- ════════ PUSH: Detalhe do agendamento (Tela 2) ════════ -->
     <div class="push" id="push-agendamento" data-screen-label="Detalhe do agendamento">
       <div class="push-head">
@@ -1017,11 +1178,14 @@ body {
         </div>
 
         <div class="f-label">Ações</div>
+        <div class="arrived-note" id="agArrivedNote" style="display:none;"><i class="fa-solid fa-hourglass-half"></i> <span id="agArrivedTxt"></span></div>
+        <button class="btn-primary-lg" id="agCheckin"><i class="fa-solid fa-door-open"></i> Check-in — paciente chegou</button>
         <button class="btn-primary-lg" id="agStart"><i class="fa-solid fa-play"></i> Iniciar atendimento</button>
         <div class="btn-row">
           <button class="btn-soft ok" data-act="atendido"><i class="fa-solid fa-check"></i> Atendido</button>
           <button class="btn-soft danger" data-act="faltou"><i class="fa-solid fa-xmark"></i> Faltou</button>
         </div>
+        <button class="btn-outline" id="agPay"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar pagamento</button>
         <button class="btn-outline" data-act="reagendar"><i class="fa-solid fa-arrows-rotate"></i> Reagendar</button>
         <button class="btn-outline" id="agShare"><i class="fa-brands fa-whatsapp"></i> Enviar confirmação</button>
       </div>
@@ -1073,6 +1237,8 @@ body {
           <button class="fact" data-fact="receita"><span class="fi ic-violet"><i class="fa-solid fa-prescription"></i></span> Receita</button>
           <button class="fact" data-fact="atestado"><span class="fi ic-green"><i class="fa-solid fa-file-medical"></i></span> Atestado</button>
           <button class="fact" data-fact="exame"><span class="fi ic-blue"><i class="fa-solid fa-flask"></i></span> Exame</button>
+          <button class="fact" data-fact="fotos"><span class="fi ic-blue"><i class="fa-solid fa-camera"></i></span> Fotos</button>
+          <button class="fact" data-fact="pagamento"><span class="fi ic-green"><i class="fa-solid fa-hand-holding-dollar"></i></span> Recebimento</button>
         </div>
         <div class="audit-foot"><i class="fa-solid fa-shield-halved"></i> Este acesso foi registrado em seu nome</div>
       </div>
@@ -1332,6 +1498,189 @@ body {
       <div class="push-foot"><button class="btn-primary-lg" id="naSave" style="margin:0;"><i class="fa-regular fa-calendar-check"></i> Agendar consulta</button></div>
     </div>
 
+    <!-- ════════ PUSH: Recebimento (pagamento) ════════ -->
+    <div class="push" id="push-pagamento" data-screen-label="Recebimento">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Recebimento</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <button class="rc-patient" id="payPatient">
+          <span class="av" id="payAv" style="background:var(--app-card-2);color:var(--app-text-faint);"><i class="fa-solid fa-user"></i></span>
+          <span class="rx"><b id="payName">Selecionar paciente</b><span id="paySub">Toque para escolher</span></span>
+          <i class="fa-solid fa-chevron-right chev"></i>
+        </button>
+
+        <div class="f-label">Valor</div>
+        <div class="pay-amount"><span class="cur">R$</span><input id="payValue" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" /></div>
+        <div class="pay-quick" id="payQuick"></div>
+
+        <div class="f-label">Forma de pagamento</div>
+        <div class="pay-method" id="payMethods">
+          <button class="pay-m on" data-m="PIX"><i class="fa-solid fa-qrcode"></i> PIX</button>
+          <button class="pay-m" data-m="Cartão"><i class="fa-regular fa-credit-card"></i> Cartão</button>
+          <button class="pay-m" data-m="Dinheiro"><i class="fa-solid fa-money-bill-wave"></i> Dinheiro</button>
+        </div>
+        <div id="payParcWrap" style="display:none;">
+          <div class="f-label">Parcelas</div>
+          <div class="sel-wrap"><select class="msel" id="payParc"><option>1x sem juros</option><option>2x sem juros</option><option>3x sem juros</option><option>4x</option><option>6x</option><option>10x</option></select><i class="fa-solid fa-chevron-down"></i></div>
+        </div>
+
+        <div class="f-label">Vincular a (opcional)</div>
+        <button class="tap-field" id="payLink"><i class="fa-solid fa-link lead"></i> <span id="payLinkLabel">Consulta de hoje</span> <i class="fa-solid fa-chevron-down chev"></i></button>
+        <div class="f-label">Observações (opcional)</div>
+        <textarea id="payObs" placeholder="Ex.: referente à consulta · sinal de procedimento…"></textarea>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="paySave" style="margin:0;"><i class="fa-solid fa-circle-check"></i> <span id="paySaveLabel">Receber</span></button></div>
+    </div>
+
+    <!-- ════════ PUSH: Caixa do dia ════════ -->
+    <div class="push" id="push-caixa" data-screen-label="Caixa do dia">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Caixa do dia</div>
+        <button class="iconbtn" id="caixaShare" title="Compartilhar"><i class="fa-regular fa-share-from-square"></i></button>
+      </div>
+      <div class="push-body">
+        <div class="caixa-total">
+          <div class="ct-lbl">Recebido hoje · sex, 05/06</div>
+          <div class="ct-val" id="caixaTotal">R$ 0,00</div>
+          <div class="ct-split">
+            <div>PIX<b id="caixaPix">R$ 0</b></div>
+            <div>Cartão<b id="caixaCard">R$ 0</b></div>
+            <div>Dinheiro<b id="caixaCash">R$ 0</b></div>
+          </div>
+        </div>
+        <div class="f-label">Movimentações</div>
+        <div class="caixa-list" id="caixaList"></div>
+        <div class="audit-foot" style="margin-top:16px;"><i class="fa-solid fa-shield-halved"></i> Valores sincronizados com o financeiro</div>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="caixaNew" style="margin:0;"><i class="fa-solid fa-plus"></i> Novo recebimento</button></div>
+    </div>
+
+    <!-- post-atendimento sheet (cobrar agora?) -->
+    <div class="sheet" id="atendSheet">
+      <div class="grip"></div>
+      <div style="text-align:center;padding:4px 0 2px;">
+        <div class="dlg-ic ok" style="margin:0 auto 12px;"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="sh-title" style="text-align:center;margin:0;">Atendimento concluído</div>
+        <div class="sh-sub" style="text-align:center;" id="atendSub">Deseja registrar o pagamento agora?</div>
+      </div>
+      <button class="btn-primary-lg" id="atendReceber"><i class="fa-solid fa-hand-holding-dollar"></i> Registrar pagamento</button>
+      <button class="btn-outline" id="atendDepois" style="margin-bottom:0;"><i class="fa-solid fa-check"></i> Concluir sem cobrar</button>
+    </div>
+
+    <!-- ════════ PUSH: Automação ════════ -->
+    <div class="push" id="push-automacao" data-screen-label="Automação">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Automação</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <div class="auto-intro">
+          <div class="ai"><i class="fa-solid fa-bolt"></i></div>
+          <p><b>Lembretes automáticos</b> enviados pelo WhatsApp. O paciente confirma com um toque e a agenda atualiza sozinha.</p>
+        </div>
+        <div class="f-label">Lembretes e confirmações</div>
+        <div class="set-list">
+          <div class="set-row"><span class="si"><i class="fa-regular fa-bell"></i></span><span class="st">Lembrete de consulta<small>24h antes · <span class="chan-wa"><i class="fa-brands fa-whatsapp"></i> WhatsApp</span></small></span><button class="switch on" data-auto="lembrete24"></button></div>
+          <div class="set-row"><span class="si"><i class="fa-solid fa-circle-check"></i></span><span class="st">Confirmação de presença<small>Pede confirmação · atualiza a agenda</small></span><button class="switch on" data-auto="confirmacao"></button></div>
+          <div class="set-row"><span class="si"><i class="fa-regular fa-clock"></i></span><span class="st">Lembrete no dia<small>2h antes da consulta</small></span><button class="switch" data-auto="lembreteDia"></button></div>
+        </div>
+        <div class="f-label">Relacionamento</div>
+        <div class="set-list">
+          <div class="set-row"><span class="si"><i class="fa-solid fa-cake-candles"></i></span><span class="st">Aniversário do paciente<small>Mensagem automática no dia</small></span><button class="switch" data-auto="aniversario"></button></div>
+          <div class="set-row"><span class="si"><i class="fa-solid fa-arrows-rotate"></i></span><span class="st">Retorno / recall<small>Após período sem consulta</small></span><button class="switch" data-auto="recall"></button></div>
+          <div class="set-row"><span class="si"><i class="fa-regular fa-paper-plane"></i></span><span class="st">Pós-consulta<small>Orientações e cuidados</small></span><button class="switch" data-auto="posconsulta"></button></div>
+        </div>
+        <div class="audit-foot" style="margin-top:16px;"><i class="fa-solid fa-shield-halved"></i> Mensagens seguem a LGPD e o consentimento do paciente</div>
+      </div>
+    </div>
+
+    <!-- ════════ PUSH: Estoque ════════ -->
+    <div class="push" id="push-estoque" data-screen-label="Estoque">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Estoque</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div class="push-body">
+        <div class="est-summary">
+          <div class="est-sum"><div class="n" id="estCountItens">0</div><div class="l">Itens</div></div>
+          <div class="est-sum warn"><div class="n" id="estCountLow">0</div><div class="l">Em baixa</div></div>
+          <div class="est-sum"><div class="n" id="estValor">R$ 0</div><div class="l">Em estoque</div></div>
+        </div>
+        <div class="psearch ex-search"><i class="fa-solid fa-magnifying-glass"></i><input id="estSearch" type="text" placeholder="Buscar material…" autocomplete="off" /></div>
+        <div class="fav-chips" id="estPills">
+          <button class="fav-chip on" data-ef="todos">Todos</button>
+          <button class="fav-chip" data-ef="baixo"><i class="fa-solid fa-triangle-exclamation" style="color:hsl(var(--warning));font-size:11px;"></i> Em baixa</button>
+        </div>
+        <div class="est-list" id="estList"></div>
+      </div>
+    </div>
+
+    <!-- estoque: baixa / reposição sheet -->
+    <div class="sheet" id="estSheet">
+      <div class="grip"></div>
+      <div class="sh-row"><div class="sh-title" id="estSheetName">Material</div><button class="sheet-x" id="estClose"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="sh-sub" style="margin-top:2px;">Ajuste a quantidade em estoque.</div>
+      <div class="est-cur">Quantidade atual<b><span id="estVal">0</span> <span id="estUnit" style="font-size:14px;color:var(--app-text-dim);"></span></b></div>
+      <div class="stepper" style="margin:0 auto 18px;">
+        <button id="estMinus2"><i class="fa-solid fa-minus"></i></button>
+        <div class="val"><span id="estStepVal">0</span></div>
+        <button id="estPlus2"><i class="fa-solid fa-plus"></i></button>
+      </div>
+      <button class="btn-primary-lg" id="estSave"><i class="fa-solid fa-floppy-disk"></i> Salvar quantidade</button>
+      <button class="btn-outline" id="estRepor" style="margin-bottom:0;"><i class="fa-solid fa-truck-ramp-box"></i> Repor estoque</button>
+    </div>
+
+    <!-- ════════ PUSH: Fotos clínicas ════════ -->
+    <div class="push" id="push-fotos" data-screen-label="Fotos clínicas">
+      <div class="push-head">
+        <button class="iconbtn" data-pop><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="ph-title">Fotos clínicas</div>
+        <button class="iconbtn" id="fotoCompareBtn" title="Comparar"><i class="fa-solid fa-images"></i></button>
+      </div>
+      <div class="push-body">
+        <div class="pr-ctx"><div class="av" id="fotoAv">MS</div><div><b id="fotoName">Paciente</b><span id="fotoMeta">—</span></div></div>
+        <div class="f-label">Registros</div>
+        <div class="foto-grid" id="fotoGrid"></div>
+        <div class="audit-foot" style="margin-top:14px;"><i class="fa-solid fa-lock"></i> Imagens protegidas · acesso auditado</div>
+      </div>
+      <div class="push-foot"><button class="btn-primary-lg" id="fotoCapture" style="margin:0;"><i class="fa-solid fa-camera"></i> Capturar foto</button></div>
+    </div>
+
+    <!-- câmera (captura) sheet -->
+    <div class="sheet" id="fotoSheet">
+      <div class="grip"></div>
+      <div class="sh-row"><div class="sh-title">Capturar foto</div><button class="sheet-x" id="camClose"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="cam-view" style="margin-top:10px;">
+        <div class="cam-region" id="camRegionLabel">Enquadre a região clínica</div>
+        <div class="frame"></div>
+        <i class="fa-regular fa-image cam-ico"></i>
+        <div class="cam-flash" id="camFlash"></div>
+      </div>
+      <div class="f-label">Região / descrição</div>
+      <input id="camRegion" type="text" placeholder="Ex.: incisão dorsal, face, arcada superior…" autocomplete="off" />
+      <div class="f-label">Marcador</div>
+      <div class="fav-chips" id="camTags">
+        <button class="fav-chip" data-tag="Antes">Antes</button>
+        <button class="fav-chip on" data-tag="Depois">Depois</button>
+        <button class="fav-chip" data-tag="Evolução">Evolução</button>
+      </div>
+      <button class="cam-shutter" id="camShutter"></button>
+      <div style="text-align:center;font-size:11.5px;color:var(--app-text-faint);font-weight:700;margin-top:10px;">Toque para capturar</div>
+    </div>
+
+    <!-- foto viewer sheet -->
+    <div class="sheet" id="fotoViewSheet">
+      <div class="grip"></div>
+      <div class="sh-row"><div class="sh-title" id="fotoViewTitle">Registro</div><button class="sheet-x" id="fotoViewClose"><i class="fa-solid fa-xmark"></i></button></div>
+      <div id="fotoViewBody" style="margin-top:10px;"></div>
+    </div>
+
     <!-- patient picker sheet -->
     <div class="sheet sheet-tall" id="patSheet">
       <div class="sheet-head">
@@ -1557,7 +1906,7 @@ document.getElementById('agendaClearFilter').addEventListener('click', () => {
   agendaQuery = ''; agendaSearch.value = ''; agendaSearchBar.classList.remove('has-val'); agendaSearchBar.style.display = 'none';
   agStatus = 'todos'; agSala = 'todas'; agAlert = 'todos'; renderAgenda();
 });
-function updateTopbarTools(tab){ document.getElementById('topTools').style.display = tab === 'agenda' ? 'flex' : 'none'; }
+function updateTopbarTools(tab){ document.getElementById('topTools').style.display = 'flex'; document.querySelectorAll('#topTools .ag-only').forEach(b => b.style.display = tab === 'agenda' ? 'flex' : 'none'); }
 
 /* ───── push screens (drill-in stack) ───── */
 const screenStack = [];
@@ -1581,17 +1930,18 @@ function openAgendamento(id){
   const obsWrap = document.getElementById('agObsWrap');
   if (a.obs){ obsWrap.style.display='block'; document.getElementById('agObs').textContent = a.obs; }
   else obsWrap.style.display='none';
+  syncApptActions(a);
   pushScreen('push-agendamento');
 }
 document.getElementById('agStart').addEventListener('click', () => { if (currentAppt) openProntuario(currentAppt.name, true); });
 document.getElementById('agPatient').addEventListener('click', () => { if (currentAppt) openFicha(currentAppt.name); });
 document.querySelector('[data-act="reagendar"]').addEventListener('click', () => showToast('Abrindo reagendamento'));
-document.querySelector('[data-act="atendido"]').addEventListener('click', () => { showToast('Marcado como atendido'); popScreen(); });
+document.querySelector('[data-act="atendido"]').addEventListener('click', () => { markAttended(); });
 document.querySelector('[data-act="faltou"]').addEventListener('click', () => {
-  openConfirm('Marcar como faltou?', 'O paciente será registrado como ausente. A ação fica no histórico do agendamento.', () => { showToast('Marcado como faltou'); popScreen(); });
+  openConfirm('Marcar como faltou?', 'O paciente será registrado como ausente. A ação fica no histórico do agendamento.', () => { if (currentAppt){ currentAppt.attended = true; currentAppt.arrived = false; currentAppt.status = ['p-error','fa-circle-xmark','Faltou']; dayStats.faltas++; } renderLaterList(); renderRecep(); renderStats(); renderInicio(); showToast('Marcado como faltou'); popScreen(); });
 });
 function openShareSheet(title, sub){ document.getElementById('shareTitle').textContent = title; document.getElementById('shareSub').textContent = sub; openSheet('shareSheet'); }
-document.getElementById('agShare').addEventListener('click', () => openShareSheet('Enviar confirmação', 'Link público para o paciente confirmar presença.'));
+document.getElementById('agShare').addEventListener('click', () => { if (currentAppt && !currentAppt.confirmed) sendConfirmation(currentAppt); else if (currentAppt && currentAppt.confirmed) showToast('Presença já confirmada'); });
 document.querySelectorAll('.share-item').forEach(s => s.addEventListener('click', () => { closeSheets(); showToast(s.dataset.share === 'Link copiado' ? 'Link copiado' : 'Compartilhado via ' + s.dataset.share); }));
 
 /* ───── confirm dialog ───── */
@@ -1690,6 +2040,8 @@ document.querySelectorAll('#push-ficha .fact').forEach(b => b.addEventListener('
   else if (f === 'receita') openReceita(currentFicha);
   else if (f === 'atestado') openAtestado(currentFicha);
   else if (f === 'exame') openExame(currentFicha);
+  else if (f === 'fotos') openFotos(currentFicha);
+  else if (f === 'pagamento') openPagamento(currentFicha, { linkLabel: 'Atendimento' });
 }));
 fc('fcOpenPront').addEventListener('click', () => openProntuario(currentFicha));
 
@@ -1781,12 +2133,12 @@ function updateAvisos(){
   const unread = notifs.filter(n => n.unread).length;
   document.querySelector('.av-head .ttl').innerHTML = unread > 0 ? `<b>${unread}</b> não lidos` : 'Tudo lido';
   document.getElementById('avMarkAll').disabled = unread === 0;
-  const nb = document.querySelector('.tab[data-tab="avisos"] .nb');
-  if (unread > 0){ nb.style.display = 'flex'; nb.textContent = unread; } else nb.style.display = 'none';
+  const nb = document.getElementById('bellBadge');
+  if (unread > 0){ nb.hidden = false; nb.textContent = unread; } else nb.hidden = true;
 }
 function onNotif(i, el){
   if (notifs[i].unread){ notifs[i].unread = false; el.classList.remove('unread'); updateAvisos(); }
-  const n = notifs[i];
+  const n = notifs[i]; popScreen();
   if (n.deep === 'agenda'){ document.querySelector('.tab[data-tab="agenda"]').click(); showToast('Abrindo: ' + n.title); }
   else if (n.deep === 'receita'){ showToast('Abrindo receita'); }
   else showToast('Abrindo: ' + n.title);
@@ -1889,6 +2241,7 @@ document.getElementById('rcSign').addEventListener('click', () => {
     document.getElementById('okHead').textContent = 'Receita assinada';
     document.getElementById('okTitle').textContent = 'Receita assinada';
     document.getElementById('okSummary').textContent = `${pname} · ${rcItems.length} ${rcItems.length>1?'itens':'item'} · receita ${tipo.split(' ')[0]}`;
+    document.querySelector('#push-signok .ok-sig').innerHTML = '<i class="fa-solid fa-shield-halved"></i> Assinada digitalmente · ANVISA';
     okShareCtx = { title:'Enviar receita', sub:'PDF assinado ou link seguro para o paciente.' };
     pushScreen('push-signok');
   });
@@ -1951,6 +2304,7 @@ document.getElementById('atSign').addEventListener('click', () => {
     document.getElementById('okHead').textContent = 'Atestado assinado';
     document.getElementById('okTitle').textContent = 'Atestado assinado';
     document.getElementById('okSummary').textContent = `${pname} · ${atDias} ${atDias>1?'dias':'dia'}${selectedCid?' · CID '+selectedCid.c:''}`;
+    document.querySelector('#push-signok .ok-sig').innerHTML = '<i class="fa-solid fa-shield-halved"></i> Assinada digitalmente · ANVISA';
     okShareCtx = { title:'Enviar atestado', sub:'PDF assinado ou link seguro para o paciente.' };
     pushScreen('push-signok');
   });
@@ -1981,6 +2335,7 @@ document.getElementById('exSign').addEventListener('click', () => {
     document.getElementById('okHead').textContent = 'Pedido gerado';
     document.getElementById('okTitle').textContent = 'Pedido de exame gerado';
     document.getElementById('okSummary').textContent = `${pname} · ${n} ${n>1?'exames':'exame'}`;
+    document.querySelector('#push-signok .ok-sig').innerHTML = '<i class="fa-solid fa-shield-halved"></i> Assinada digitalmente · ANVISA';
     okShareCtx = { title:'Enviar pedido de exame', sub:'PDF assinado ou link seguro para o paciente.' };
     pushScreen('push-signok');
   });
@@ -2064,7 +2419,7 @@ function enterApp(name, role, count){
   currentRole = role; syncMaisEstab();
   document.querySelectorAll('#estabSheet .estab').forEach(x => x.classList.toggle('cur', x.dataset.name === name));
   loginLayer.classList.remove('show'); seletorLayer.classList.remove('show');
-  document.querySelector('.tab[data-tab="agenda"]').click();
+  document.querySelector('.tab[data-tab="inicio"]').click();
   if (!pushTriggered){ pushTriggered = true; setTimeout(showPush, 4200); }
 }
 document.querySelectorAll('.sel-card').forEach(c => c.addEventListener('click', () => enterApp(c.dataset.name, c.dataset.role, c.dataset.count)));
@@ -2109,14 +2464,14 @@ function syncNaPatient(){
   else { av.innerHTML = '<i class="fa-solid fa-user"></i>'; av.style.background = 'var(--app-card-2)'; av.style.color = 'var(--app-text-faint)'; nm.textContent = 'Selecionar paciente'; sb.textContent = 'Toque para escolher'; }
 }
 document.getElementById('naDate').addEventListener('click', () => showToast('Selecionar data'));
-document.getElementById('naPatient').addEventListener('click', () => { renderPatList(''); document.getElementById('patSearch').value = ''; openSheet('patSheet'); });
+document.getElementById('naPatient').addEventListener('click', () => { patPickCb = null; renderPatList(''); document.getElementById('patSearch').value = ''; openSheet('patSheet'); });
 document.getElementById('patClose').addEventListener('click', closeSheets);
 function renderPatList(q){
   const nq = norm(q);
   const list = patients.filter(p => norm(p.name).includes(nq));
   const el = document.getElementById('patList');
   el.innerHTML = list.length ? list.map(p => `<div class="med-row" data-pat="${p.name}"><div class="mi" style="border-radius:50%;">${p.initials}</div><b>${p.name}<small style="display:block;font-size:11.5px;color:var(--app-text-dim);font-weight:600;">${p.age} anos · ${p.sex}</small></b><i class="fa-solid fa-plus add-i"></i></div>`).join('') : `<div class="tab-empty"><i class="fa-regular fa-folder-open"></i><p>Nenhum paciente encontrado.</p></div>`;
-  el.querySelectorAll('[data-pat]').forEach(r => r.addEventListener('click', () => { naPatientSel = patients.find(p => p.name === r.dataset.pat); syncNaPatient(); closeSheets(); }));
+  el.querySelectorAll('[data-pat]').forEach(r => r.addEventListener('click', () => { const sp = patients.find(p => p.name === r.dataset.pat); if (patPickCb){ const cb = patPickCb; patPickCb = null; closeSheets(); cb(sp); } else { naPatientSel = sp; syncNaPatient(); closeSheets(); } }));
 }
 document.getElementById('patSearch').addEventListener('input', e => renderPatList(e.target.value));
 function addMinutes(t, m){ const [h, mi] = t.split(':').map(Number); const d = new Date(2000,0,1,h,mi+m); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
@@ -2144,6 +2499,7 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id===`view-${tab}`));
   document.getElementById('scrollBody').scrollTop = 0;
   if (tab === 'pacientes') ensurePacientes();
+  if (tab === 'inicio') renderInicio();
   updateTopbarTools(tab);
 }));
 
@@ -2241,6 +2597,7 @@ document.querySelectorAll('.act-row').forEach(r => r.addEventListener('click', (
   if (a === 'receita') setTimeout(() => openReceita(null), 60);
   else if (a === 'atestado') setTimeout(() => openAtestado(null), 60);
   else if (a === 'exame') setTimeout(() => openExame(null), 60);
+  else if (a === 'pagamento') setTimeout(() => openPagamento(null), 60);
   else setTimeout(() => openNovoAgend(), 60);
 }));
 
@@ -2262,6 +2619,327 @@ body.addEventListener('pointerup', () => {
   else ptr.style.height='0px';
   py=null;
 });
+
+/* ════════════════════════════════════════════════════════════
+   ADIÇÕES: Início (painel) · Recepção/check-in · Recebimento · Caixa
+   ════════════════════════════════════════════════════════════ */
+
+/* ───── helpers ───── */
+const NOW_MIN = 9 * 60 + 18; // relógio do mock: 9:18
+function toMin(t){ const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+function waitMin(a){ return Math.max(0, NOW_MIN - toMin(a.arrivedAt || '09:18')); }
+function waitLabel(a){ const w = waitMin(a); return w <= 0 ? 'agora' : `há ${w} min`; }
+function formatBRL(n){ return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function parseBR(s){ s = (s || '').toString().trim().replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.'); const n = parseFloat(s); return isNaN(n) ? 0 : n; }
+
+/* ───── estado do dia / pagamentos ───── */
+const dayStats = { atendidos: 4, faltas: 0 };
+const payments = [
+  { name:'Ana Lima', initials:'AL', value:600, method:'Cartão', time:'09:05', note:'Avaliação + curativo' },
+  { name:'Carlos Mendes', initials:'CM', value:400, method:'Dinheiro', time:'08:50', note:'Retorno' },
+  { name:'Rafael Gomes', initials:'RG', value:250, method:'PIX', time:'08:30', note:'Consulta' },
+];
+function paymentsTotal(){ return payments.reduce((s, p) => s + p.value, 0); }
+function pendingTotal(){ let t = 0; Object.values(orcamentos).forEach(o => { if (o.status === 'Aguardando') t += parseBR(o.total); }); return t; }
+function recepList(){ return appts.filter(a => a.arrived && !a.attended); }
+
+/* ───── stats (agenda + início) ───── */
+function statCell(n, icon, label, cls){ return `<div class="stat ${cls||''}"><div class="n">${n}</div><div class="l"><i class="${icon}"></i> ${label}</div></div>`; }
+function renderStats(){
+  const ag = document.getElementById('agStats');
+  if (ag) ag.innerHTML =
+    statCell(12, 'fa-regular fa-calendar', 'Agendados', '') +
+    statCell(dayStats.atendidos, 'fa-solid fa-circle-check', 'Atendidos', 'ok') +
+    statCell(dayStats.faltas, 'fa-regular fa-circle-xmark', 'Faltas', '');
+  const hs = document.getElementById('homeStats');
+  if (hs){
+    const rec = recepList().length;
+    hs.innerHTML =
+      statCell(dayStats.atendidos, 'fa-solid fa-circle-check', 'Atendidos', 'ok') +
+      `<button class="stat tap info" id="homeRecepStat" style="border:1px solid var(--app-border);text-align:left;font:inherit;"><div class="n">${rec}</div><div class="l"><i class="fa-solid fa-hourglass-half"></i> Na recepção</div></button>` +
+      statCell(dayStats.faltas, 'fa-regular fa-circle-xmark', 'Faltas', '');
+    const rs = document.getElementById('homeRecepStat');
+    if (rs) rs.addEventListener('click', goAgenda);
+  }
+}
+function goAgenda(){ document.querySelector('.tab[data-tab="agenda"]').click(); }
+
+/* ───── recepção / sala de espera (na agenda) ───── */
+function renderRecep(){
+  const list = recepList();
+  const wrap = document.getElementById('recepWrap'), strip = document.getElementById('recepStrip');
+  if (!wrap || !strip) return;
+  if (!list.length){ wrap.style.display = 'none'; strip.innerHTML = ''; return; }
+  wrap.style.display = 'block';
+  document.getElementById('recepChip').innerHTML = `<i class="fa-solid fa-hourglass-half"></i> ${list.length} aguardando`;
+  strip.innerHTML = list.map(a => `<div class="recep-card" data-id="${a.id}"><div class="av">${a.initials}</div><div class="rx"><b>${a.name}</b><span class="wait"><i class="fa-solid fa-hourglass-half"></i> aguardando ${waitLabel(a)} · ${a.time}</span></div><button class="rstart" data-start="${a.id}"><i class="fa-solid fa-play"></i> Iniciar</button></div>`).join('');
+  strip.querySelectorAll('.recep-card').forEach(c => c.addEventListener('click', e => { if (e.target.closest('[data-start]')) return; openAgendamento(c.dataset.id); }));
+  strip.querySelectorAll('[data-start]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const a = apptById(b.dataset.start); if (a){ currentAppt = a; openProntuario(a.name, true); } }));
+}
+
+/* ───── check-in (no detalhe do agendamento) ───── */
+function syncApptActions(a){
+  const checkin = document.getElementById('agCheckin'), start = document.getElementById('agStart'), note = document.getElementById('agArrivedNote'), pay = document.getElementById('agPay');
+  if (a.attended){
+    checkin.style.display = 'none'; start.style.display = 'none'; note.style.display = 'flex';
+    document.getElementById('agArrivedTxt').textContent = a.status[2] === 'Faltou' ? 'Paciente não compareceu' : 'Atendimento concluído';
+    pay.style.display = a.status[2] === 'Faltou' ? 'none' : 'flex';
+  } else if (a.arrived){
+    checkin.style.display = 'none'; start.style.display = 'flex'; note.style.display = 'flex';
+    document.getElementById('agArrivedTxt').textContent = `Chegou às ${a.arrivedAt} · aguardando ${waitLabel(a)}`;
+    pay.style.display = 'flex';
+  } else {
+    checkin.style.display = 'flex'; start.style.display = 'none'; note.style.display = 'none';
+    pay.style.display = 'flex';
+  }
+  updateAgShareBtn(a);
+}
+document.getElementById('agCheckin').addEventListener('click', () => {
+  if (!currentAppt) return;
+  currentAppt.arrived = true; currentAppt.arrivedAt = '09:18';
+  currentAppt.status = ['p-info', 'fa-hourglass-half', 'Aguardando'];
+  const st = document.getElementById('agStatus'); st.className = 'pill p-info'; st.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Aguardando';
+  syncApptActions(currentAppt);
+  renderLaterList(); renderRecep(); renderStats(); refreshHome();
+  showToast('Check-in registrado · ' + currentAppt.name.split(' ')[0]);
+});
+function markAttended(){
+  const a = currentAppt;
+  if (a){ a.attended = true; a.arrived = false; a.status = ['p-success', 'fa-circle-check', 'Atendido']; dayStats.atendidos++; }
+  renderLaterList(); renderRecep(); renderStats(); refreshHome();
+  popScreen();
+  setTimeout(() => { document.getElementById('atendSub').textContent = `${a ? a.name : 'Paciente'} foi atendido. Deseja registrar o pagamento agora?`; openSheet('atendSheet'); }, 360);
+}
+document.getElementById('atendDepois').addEventListener('click', () => { closeSheets(); showToast('Atendimento concluído'); });
+document.getElementById('atendReceber').addEventListener('click', () => { const nm = currentAppt ? currentAppt.name : null; closeSheets(); setTimeout(() => openPagamento(nm, { linkLabel: 'Consulta de hoje' }), 140); });
+document.getElementById('agPay').addEventListener('click', () => { if (currentAppt) openPagamento(currentAppt.name, { linkLabel: 'Consulta de hoje' }); });
+
+/* ───── seletor de paciente reutilizável ───── */
+let patPickCb = null;
+function openPatientPicker(cb){ patPickCb = cb; renderPatList(''); document.getElementById('patSearch').value = ''; openSheet('patSheet'); }
+
+/* ───── recebimento (pagamento) ───── */
+let payMethod = 'PIX', payPatientSel = null;
+function setPayPatient(p){
+  payPatientSel = p || null;
+  const av = document.getElementById('payAv'), nm = document.getElementById('payName'), sb = document.getElementById('paySub');
+  if (p){ av.textContent = p.initials; av.style.background = 'var(--brand-soft)'; av.style.color = 'var(--brand)'; nm.textContent = p.name; sb.textContent = `${p.age} anos · ${p.sex}`; }
+  else { av.innerHTML = '<i class="fa-solid fa-user"></i>'; av.style.background = 'var(--app-card-2)'; av.style.color = 'var(--app-text-faint)'; nm.textContent = 'Selecionar paciente'; sb.textContent = 'Toque para escolher'; }
+}
+function setPayMethod(m){ payMethod = m; document.querySelectorAll('#payMethods .pay-m').forEach(b => b.classList.toggle('on', b.dataset.m === m)); document.getElementById('payParcWrap').style.display = m === 'Cartão' ? 'block' : 'none'; }
+function openPagamento(name, opts){
+  opts = opts || {};
+  const p = name ? (patients.find(x => x.name === name) || resolvePatient(name)) : null;
+  setPayPatient(p);
+  document.getElementById('payValue').value = opts.value || '';
+  document.getElementById('payObs').value = '';
+  document.getElementById('payLinkLabel').textContent = opts.linkLabel || 'Consulta de hoje';
+  document.getElementById('payLink').classList.remove('placeholder');
+  setPayMethod('PIX');
+  document.getElementById('payParc').selectedIndex = 0;
+  document.getElementById('payQuick').innerHTML = [150, 250, 400, 600].map(v => `<button data-q="${v}">${formatBRL(v).replace(',00', '')}</button>`).join('');
+  document.querySelectorAll('#payQuick button').forEach(b => b.addEventListener('click', () => { document.getElementById('payValue').value = Number(b.dataset.q).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); }));
+  pushScreen('push-pagamento');
+}
+document.querySelectorAll('#payMethods .pay-m').forEach(b => b.addEventListener('click', () => setPayMethod(b.dataset.m)));
+document.getElementById('payPatient').addEventListener('click', () => openPatientPicker(setPayPatient));
+document.getElementById('payLink').addEventListener('click', () => showToast('Vincular a consulta ou orçamento'));
+document.getElementById('paySave').addEventListener('click', () => {
+  const val = parseBR(document.getElementById('payValue').value);
+  if (!payPatientSel){ showToast('Selecione o paciente'); return; }
+  if (val <= 0){ showToast('Informe o valor'); return; }
+  const btn = document.getElementById('paySave'), icon = btn.querySelector('i'), lbl = document.getElementById('paySaveLabel');
+  btn.disabled = true; icon.className = 'fa-solid fa-spinner fa-spin'; lbl.textContent = 'Processando…';
+  setTimeout(() => {
+    const p = payPatientSel;
+    payments.unshift({ name: p.name, initials: p.initials, value: val, method: payMethod, time: '09:18', note: document.getElementById('payObs').value.trim() || document.getElementById('payLinkLabel').textContent });
+    if (currentAppt && currentAppt.name === p.name) currentAppt.paid = true;
+    btn.disabled = false; icon.className = 'fa-solid fa-circle-check'; lbl.textContent = 'Receber';
+    refreshHome();
+    document.getElementById('okHead').textContent = 'Pagamento recebido';
+    document.getElementById('okTitle').textContent = 'Pagamento recebido';
+    document.getElementById('okSummary').textContent = `${p.name} · ${formatBRL(val)} · ${payMethod}${payMethod === 'Cartão' ? ' · ' + document.getElementById('payParc').value : ''}`;
+    document.querySelector('#push-signok .ok-sig').innerHTML = '<i class="fa-solid fa-shield-halved"></i> Registrado no caixa do dia';
+    okShareCtx = { title: 'Enviar recibo', sub: 'Comprovante de pagamento para o paciente.' };
+    pushScreen('push-signok');
+  }, 950);
+});
+
+/* ───── caixa do dia ───── */
+function openCaixa(){
+  const total = paymentsTotal();
+  document.getElementById('caixaTotal').textContent = formatBRL(total);
+  const by = m => payments.filter(p => p.method === m).reduce((s, p) => s + p.value, 0);
+  document.getElementById('caixaPix').textContent = formatBRL(by('PIX')).replace(',00', '');
+  document.getElementById('caixaCard').textContent = formatBRL(by('Cartão')).replace(',00', '');
+  document.getElementById('caixaCash').textContent = formatBRL(by('Dinheiro')).replace(',00', '');
+  const mIcon = { 'PIX': 'fa-qrcode', 'Cartão': 'fa-credit-card', 'Dinheiro': 'fa-money-bill-wave' };
+  document.getElementById('caixaList').innerHTML = payments.map(p =>
+    `<div class="caixa-row"><div class="ci"><i class="fa-solid ${mIcon[p.method] || 'fa-coins'}"></i></div><div class="cx"><b>${p.name}</b><span>${p.method} · ${p.note} · ${p.time}</span></div><div class="cv">+ ${formatBRL(p.value).replace('R$ ', '')}</div></div>`
+  ).join('') || `<div class="tab-empty" style="padding:26px 16px;"><i class="fa-regular fa-folder-open"></i><p>Nenhum recebimento hoje.</p></div>`;
+  pushScreen('push-caixa');
+}
+document.getElementById('homeCash').addEventListener('click', openCaixa);
+document.getElementById('caixaNew').addEventListener('click', () => openPagamento(null));
+document.getElementById('caixaShare').addEventListener('click', () => openShareSheet('Compartilhar caixa', 'Resumo do dia para a equipe ou contabilidade.'));
+
+/* ───── início / painel ───── */
+function renderCash(){
+  document.getElementById('homeCashVal').textContent = formatBRL(paymentsTotal());
+  const c = payments.length;
+  document.getElementById('homeCashCount').textContent = c ? `${c} recebimento${c > 1 ? 's' : ''}` : 'Nenhum recebimento';
+  const pend = pendingTotal(), pe = document.getElementById('homeCashPending');
+  if (pend > 0){ pe.style.display = ''; pe.textContent = `${formatBRL(pend).replace(',00', '')} a receber`; } else pe.style.display = 'none';
+}
+function renderAttn(){
+  const items = [];
+  const lowItems = (typeof estoque !== 'undefined') ? estoque.filter(isLow) : [];
+  if (lowItems.length) items.push({ icon: 'fa-boxes-stacked', cls: 'ic-amber', t: `${lowItems.length} ${lowItems.length > 1 ? 'itens' : 'item'} em baixo estoque`, s: lowItems.slice(0, 2).map(i => i.name).join(' · '), r: 'Repor', act: () => openEstoque() });
+  Object.values(orcamentos).forEach(o => { if (o.status === 'Aguardando') items.push({ icon: 'fa-file-invoice-dollar', cls: 'ic-amber', t: `Orçamento ${o.n} aguardando`, s: `${o.patient} · R$ ${o.total}`, r: 'Ver', act: () => openOrcamento(o.n) }); });
+  recepList().forEach(a => items.push({ icon: 'fa-hourglass-half', cls: 'ic-blue', t: `${a.name} aguardando`, s: `Recepção · ${waitLabel(a)}`, r: 'Atender', act: () => openAgendamento(a.id) }));
+  items.push({ icon: 'fa-prescription', cls: 'ic-violet', t: 'Receita pronta para envio', s: 'Maria Silva · 02/06', r: 'Enviar', act: () => openShareSheet('Enviar receita', 'PDF assinado ou link seguro para o paciente.') });
+  const el = document.getElementById('homeAttn');
+  if (!items.length){ el.innerHTML = `<div class="tab-empty" style="padding:26px 16px;"><i class="fa-regular fa-circle-check"></i><p>Tudo em dia.</p></div>`; return; }
+  el.innerHTML = items.map((it, i) => `<div class="home-row" data-i="${i}"><div class="hi ${it.cls}"><i class="fa-solid ${it.icon}"></i></div><div class="hx"><b>${it.t}</b><span>${it.s}</span></div><div class="hr">${it.r} ›</div></div>`).join('');
+  el.querySelectorAll('.home-row').forEach(r => r.addEventListener('click', () => items[+r.dataset.i].act()));
+}
+function renderInicio(){
+  renderCash(); renderStats();
+  const nx = appts.find(a => a.next && !a.attended) || appts.find(a => !a.attended && !a.arrived) || appts.find(a => !a.attended);
+  const chip = document.getElementById('homeNextChip'), card = document.getElementById('homeNextCard');
+  if (nx){
+    chip.innerHTML = `<i class="fa-regular fa-clock"></i> ${nx.mins || nx.time}`;
+    card.innerHTML = `<div class="appt next-card ${nx.alert ? 'alert' : ''}" data-id="${nx.id}">${apptInner(nx)}</div>`;
+    card.querySelector('.appt').addEventListener('click', function(){ openAgendamento(this.dataset.id); });
+  } else { chip.innerHTML = '<i class="fa-regular fa-circle-check"></i> dia concluído'; card.innerHTML = ''; }
+  renderAttn();
+}
+// só re-renderiza o início se a aba estiver visível ou para manter dados prontos
+function refreshHome(){ renderInicio(); }
+
+/* ───── bell (avisos no topo) ───── */
+document.getElementById('bellBtn').addEventListener('click', () => pushScreen('push-avisos'));
+
+/* ════════════════════════════════════════════════════════════
+   ADIÇÕES 2: Confirmação WhatsApp · Automação · Estoque · Fotos clínicas
+   ════════════════════════════════════════════════════════════ */
+
+/* ───── confirmação de presença (WhatsApp, ida e volta) ───── */
+function updateAgShareBtn(a){
+  const b = document.getElementById('agShare');
+  if (a.confirmed) b.innerHTML = '<i class="fa-solid fa-circle-check" style="color:hsl(var(--success))"></i> Presença confirmada';
+  else if (a.confirmSent) b.innerHTML = '<i class="fa-regular fa-clock"></i> Lembrete enviado · aguardando';
+  else b.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Enviar confirmação';
+}
+function addNotif(n){ notifs.unshift(n); renderAvisos(); }
+function showConfirmPush(a){ document.getElementById('pbTitle').textContent = 'Presença confirmada'; document.getElementById('pbBody').textContent = `${a.name} · ${a.time}`; showPush(); }
+function sendConfirmation(a){
+  if (!a) return;
+  a.confirmSent = true; updateAgShareBtn(a);
+  showToast('Lembrete enviado pelo WhatsApp');
+  setTimeout(() => {
+    a.confirmed = true; a.confirmSent = false; a.status = ['p-success', 'fa-circle-check', 'Confirmou'];
+    renderLaterList(); renderRecep(); renderStats(); refreshHome();
+    if (currentAppt === a){ const st = document.getElementById('agStatus'); st.className = 'pill p-success'; st.innerHTML = '<i class="fa-solid fa-circle-check"></i> Confirmou'; updateAgShareBtn(a); }
+    addNotif({ g: 'Hoje', cat: 'c-success', icon: 'fa-circle-check', title: 'Presença confirmada', sub: `${a.name} · ${a.time}`, time: 'agora', unread: true, deep: 'agenda' });
+    showConfirmPush(a);
+  }, 3200);
+}
+
+/* ───── automação ───── */
+document.getElementById('maisAutomacao').addEventListener('click', () => pushScreen('push-automacao'));
+document.querySelectorAll('#push-automacao .switch').forEach(s => s.addEventListener('click', () => { s.classList.toggle('on'); showToast('Automação ' + (s.classList.contains('on') ? 'ativada' : 'desativada')); }));
+
+/* ───── estoque ───── */
+const estoque = [
+  { name:'Luva de procedimento M', qty:8, unit:'cx', min:10, price:32 },
+  { name:'Anestésico (lidocaína)', qty:3, unit:'frasco', min:5, price:58 },
+  { name:'Gaze estéril', qty:2, unit:'pct', min:8, price:9 },
+  { name:'Agulha gengival 30G', qty:24, unit:'un', min:20, price:2.5 },
+  { name:'Máscara cirúrgica', qty:40, unit:'cx', min:15, price:24 },
+  { name:'Fio de sutura 4-0', qty:6, unit:'un', min:6, price:14 },
+];
+function isLow(i){ return i.qty < i.min; }
+function estStatus(i){ if (i.qty <= Math.ceil(i.min * 0.4)) return ['p-error', 'fa-circle-xmark', 'Crítico', 'crit']; if (i.qty < i.min) return ['p-warning', 'fa-circle', 'Baixo', 'low']; return ['p-success', 'fa-circle-check', 'OK', '']; }
+function estValor(){ return estoque.reduce((s, i) => s + i.qty * i.price, 0); }
+function updateMaisEstoque(){ const el = document.getElementById('maisEstoqueSub'); if (el){ const low = estoque.filter(isLow).length; el.textContent = `${estoque.length} itens${low ? ' · ' + low + ' em baixa' : ''}`; } }
+let estQuery = '', estFilter = 'todos';
+function renderEstoque(){
+  document.getElementById('estCountItens').textContent = estoque.length;
+  document.getElementById('estCountLow').textContent = estoque.filter(isLow).length;
+  document.getElementById('estValor').textContent = 'R$ ' + Math.round(estValor()).toLocaleString('pt-BR');
+  let list = estoque.filter(i => norm(i.name).includes(norm(estQuery)));
+  if (estFilter === 'baixo') list = list.filter(isLow);
+  const el = document.getElementById('estList');
+  if (!list.length){ el.innerHTML = `<div class="tab-empty" style="padding:26px 16px;"><i class="fa-regular fa-folder-open"></i><p>Nenhum material encontrado.</p></div>`; updateMaisEstoque(); return; }
+  el.innerHTML = list.map(i => { const s = estStatus(i); return `<div class="est-row ${s[3]}" data-i="${estoque.indexOf(i)}"><div class="ex"><b>${i.name}</b><div class="em"><span class="pill mini ${s[0]}"><i class="fa-solid ${s[1]}"></i> ${s[2]}</span> mín. ${i.min} ${i.unit}</div></div><div class="eq">${i.qty}<small>${i.unit}</small></div></div>`; }).join('');
+  el.querySelectorAll('.est-row').forEach(r => r.addEventListener('click', () => openBaixa(+r.dataset.i)));
+  updateMaisEstoque();
+}
+function openEstoque(){ estQuery = ''; estFilter = 'todos'; const s = document.getElementById('estSearch'); if (s) s.value = ''; document.querySelectorAll('#estPills .fav-chip').forEach(c => c.classList.toggle('on', c.dataset.ef === 'todos')); renderEstoque(); pushScreen('push-estoque'); }
+document.getElementById('maisEstoque').addEventListener('click', openEstoque);
+document.getElementById('estSearch').addEventListener('input', e => { estQuery = e.target.value; renderEstoque(); });
+document.querySelectorAll('#estPills .fav-chip').forEach(c => c.addEventListener('click', () => { document.querySelectorAll('#estPills .fav-chip').forEach(x => x.classList.remove('on')); c.classList.add('on'); estFilter = c.dataset.ef; renderEstoque(); }));
+let estIdx = null, estWork = 0;
+function openBaixa(i){ estIdx = i; estWork = estoque[i].qty; document.getElementById('estSheetName').textContent = estoque[i].name; document.getElementById('estUnit').textContent = estoque[i].unit; syncEstStepper(); openSheet('estSheet'); }
+function syncEstStepper(){ document.getElementById('estVal').textContent = estoque[estIdx].qty; document.getElementById('estStepVal').textContent = estWork; document.getElementById('estMinus2').disabled = estWork <= 0; }
+document.getElementById('estClose').addEventListener('click', closeSheets);
+document.getElementById('estMinus2').addEventListener('click', () => { if (estWork > 0){ estWork--; syncEstStepper(); } });
+document.getElementById('estPlus2').addEventListener('click', () => { estWork++; syncEstStepper(); });
+document.getElementById('estRepor').addEventListener('click', () => { estWork = Math.max(estoque[estIdx].min * 2, estWork); syncEstStepper(); });
+document.getElementById('estSave').addEventListener('click', () => { estoque[estIdx].qty = estWork; closeSheets(); renderEstoque(); refreshHome(); showToast('Estoque atualizado'); });
+
+/* ───── fotos clínicas ───── */
+const clinicalPhotos = {
+  'Maria Silva': [ { region:'Incisão dorsal', date:'02/06', tag:'Depois' }, { region:'Incisão dorsal', date:'18/05', tag:'Antes' } ],
+  'Ana Lima': [ { region:'Lesão dorsal', date:'30/05', tag:'Evolução' } ],
+};
+let fotoPatient = null, fotoTag = 'Depois';
+function fotoList(){ if (!clinicalPhotos[fotoPatient]) clinicalPhotos[fotoPatient] = []; return clinicalPhotos[fotoPatient]; }
+function openFotos(name){
+  fotoPatient = name || currentFicha || 'Maria Silva';
+  const p = patients.find(x => x.name === fotoPatient) || resolvePatient(fotoPatient);
+  document.getElementById('fotoAv').textContent = p.initials;
+  document.getElementById('fotoName').textContent = p.name;
+  document.getElementById('fotoMeta').textContent = `${p.age} anos · ${p.sex}`;
+  renderFotos(); pushScreen('push-fotos');
+}
+function renderFotos(){
+  const list = fotoList(), el = document.getElementById('fotoGrid'), cmp = document.getElementById('fotoCompareBtn');
+  if (!list.length){ el.innerHTML = `<div class="tab-empty" style="grid-column:1/-1;padding:30px 16px;"><i class="fa-regular fa-images"></i><p>Nenhuma foto clínica.<br>Toque em “Capturar foto”.</p></div>`; cmp.style.visibility = 'hidden'; return; }
+  el.innerHTML = list.map((f, i) => `<div class="foto-tile" data-i="${i}"><i class="fa-regular fa-image ph"></i><span class="tagp">${f.tag}</span><div class="ov"><b>${f.region}</b><span>${f.date}</span></div></div>`).join('');
+  el.querySelectorAll('.foto-tile').forEach(t => t.addEventListener('click', () => openFotoView(+t.dataset.i)));
+  cmp.style.visibility = list.length >= 2 ? 'visible' : 'hidden';
+}
+function tileBig(f, label){ return `<div class="foto-tile" style="aspect-ratio:3/4;cursor:default;"><i class="fa-regular fa-image ph"></i><span class="tagp">${label}</span><div class="ov"><b>${f.region}</b><span>${f.date}</span></div></div>`; }
+function openFotoView(i){
+  const list = fotoList(), f = list[i], same = list.filter(x => x.region === f.region);
+  document.getElementById('fotoViewTitle').textContent = f.region;
+  const body = document.getElementById('fotoViewBody');
+  if (same.length >= 2){ const after = same[0], before = same[same.length - 1]; body.innerHTML = `<div class="foto-compare">${tileBig(before, 'Antes')}${tileBig(after, 'Depois')}</div><div class="audit-foot" style="margin-top:12px;"><i class="fa-solid fa-arrows-left-right"></i> Comparação antes / depois · ${f.region}</div>`; }
+  else body.innerHTML = tileBig(f, f.tag);
+  openSheet('fotoViewSheet');
+}
+document.getElementById('fotoViewClose').addEventListener('click', closeSheets);
+document.getElementById('fotoCompareBtn').addEventListener('click', () => { const list = fotoList(); if (list.length >= 2) openFotoView(0); });
+function setCamTag(t){ fotoTag = t; document.querySelectorAll('#camTags .fav-chip').forEach(c => c.classList.toggle('on', c.dataset.tag === t)); }
+document.querySelectorAll('#camTags .fav-chip').forEach(c => c.addEventListener('click', () => setCamTag(c.dataset.tag)));
+document.getElementById('camRegion').addEventListener('input', e => { document.getElementById('camRegionLabel').textContent = e.target.value.trim() || 'Enquadre a região clínica'; });
+document.getElementById('fotoCapture').addEventListener('click', () => { document.getElementById('camRegion').value = ''; document.getElementById('camRegionLabel').textContent = 'Enquadre a região clínica'; setCamTag('Depois'); openSheet('fotoSheet'); });
+document.getElementById('camClose').addEventListener('click', closeSheets);
+document.getElementById('camShutter').addEventListener('click', () => {
+  const flash = document.getElementById('camFlash'); flash.classList.add('go');
+  const region = document.getElementById('camRegion').value.trim() || 'Região clínica';
+  setTimeout(() => { flash.classList.remove('go'); fotoList().unshift({ region, date: 'Hoje', tag: fotoTag }); closeSheets(); renderFotos(); showToast('Foto registrada'); }, 430);
+});
+updateMaisEstoque();
+
+/* ───── init das adições ───── */
+(function initAdds(){
+  const jo = apptById('joao');
+  if (jo){ jo.arrived = true; jo.arrivedAt = '09:06'; jo.status = ['p-info', 'fa-hourglass-half', 'Aguardando']; }
+  renderLaterList(); renderRecep(); renderStats(); renderInicio();
+})();
 </script>
 </body>
 </html>

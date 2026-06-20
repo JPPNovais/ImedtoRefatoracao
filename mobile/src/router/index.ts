@@ -15,25 +15,33 @@ const routes: RouteRecordRaw[] = [
     component: () => import("@/components/layout/TabsLayout.vue"),
     meta: { requiresAuth: true, requiresTenant: true },
     children: [
-      { path: "", redirect: "/agenda" },
+      { path: "", redirect: "/inicio" },
+      { path: "inicio", name: "inicio", component: () => import("@/views/InicioView.vue"), meta: { tab: "inicio" } },
       { path: "agenda", name: "agenda", component: () => import("@/views/AgendaView.vue"), meta: { tab: "agenda", perm: "agenda.ver" } },
       { path: "pacientes", name: "pacientes", component: () => import("@/views/PacientesView.vue"), meta: { tab: "pacientes", perm: "pacientes.ver" } },
-      { path: "avisos", name: "avisos", component: () => import("@/views/AvisosView.vue"), meta: { tab: "avisos" } },
       { path: "mais", name: "mais", component: () => import("@/views/MaisView.vue"), meta: { tab: "mais" } },
     ],
   },
+
+  // Avisos: acessível pelo sino do header (push/drill-in)
+  { path: "/avisos", name: "avisos", component: () => import("@/views/AvisosView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true } },
 
   // Drill-ins (push lateral, tela cheia) — cada um com a permissão exigida (RBAC)
   { path: "/agenda/:id", name: "agendamento", component: () => import("@/views/AgendamentoDetalheView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "agenda.ver" } },
   { path: "/novo-agendamento", name: "novo-agendamento", component: () => import("@/views/NovoAgendamentoView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "agenda.criar" } },
   { path: "/paciente/:id", name: "ficha", component: () => import("@/views/PacienteFichaView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "pacientes.ver" } },
   { path: "/paciente/:id/prontuario", name: "prontuario", component: () => import("@/views/ProntuarioView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "prontuario.ver" } },
+  { path: "/paciente/:id/fotos", name: "fotos-clinicas", component: () => import("@/views/FotosClinicasView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "prontuario.ver" } },
   { path: "/receita", name: "receita", component: () => import("@/views/ReceitaView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "prescricao" } },
   { path: "/atestado", name: "atestado", component: () => import("@/views/AtestadoView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "prescricao" } },
   { path: "/exame", name: "exame", component: () => import("@/views/ExameView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "prescricao" } },
   { path: "/orcamento/:id", name: "orcamento", component: () => import("@/views/OrcamentoView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "orcamento.ver" } },
+  { path: "/caixa", name: "caixa", component: () => import("@/views/CaixaView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "financeiro.ver" } },
+  { path: "/pagamento", name: "pagamento", component: () => import("@/views/PagamentoView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "financeiro_paciente.registrar" } },
+  { path: "/estoque", name: "estoque", component: () => import("@/views/EstoqueView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true, perm: "estoque" } },
+  { path: "/automacao", name: "automacao", component: () => import("@/views/AutomacaoView.vue"), meta: { layout: "push", requiresAuth: true, requiresTenant: true } },
 
-  { path: "/:pathMatch(.*)*", redirect: "/agenda" },
+  { path: "/:pathMatch(.*)*", redirect: "/inicio" },
 ]
 
 const router = createRouter({
@@ -50,7 +58,7 @@ router.beforeEach((to) => {
     return { name: "login" }
   }
   if (to.meta.public && auth.isAuthenticated) {
-    return tenant.temTenantSelecionado ? { name: "agenda" } : { name: "seletor" }
+    return tenant.temTenantSelecionado ? { name: "inicio" } : { name: "seletor" }
   }
   if (to.meta.requiresTenant && !tenant.temTenantSelecionado) {
     // Sem vínculo nenhum → o seletor mostra o estado vazio (G2/onboarding).
@@ -66,7 +74,7 @@ router.beforeEach((to) => {
         ? "agenda"
         : permissoes.pode("pacientes.ver")
           ? "pacientes"
-          : "avisos"
+          : "mais"
       // evita loop se a própria rota destino já é o fallback
       return to.name === fallback ? false : { name: fallback }
     }
