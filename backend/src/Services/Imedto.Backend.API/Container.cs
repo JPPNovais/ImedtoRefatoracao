@@ -1013,6 +1013,11 @@ public static class Container
         services.AddSingleton<ProcedimentoCatalogoQueryRepository>();
         services.AddSingleton<BuscarProcedimentoCatalogoQueryHandlers>();
         services.AddSingleton<ObterProcedimentoPorCodigoQueryHandlers>();
+        // Catálogos CID-10 e exames.
+        services.AddSingleton<Cid10QueryRepository>();
+        services.AddSingleton<BuscarCid10QueryHandlers>();
+        services.AddSingleton<ExameCatalogoQueryRepository>();
+        services.AddSingleton<BuscarExameCatalogoQueryHandlers>();
 
         // Assinatura Digital ICP-Brasil (2026-06-01).
         // (Configure<BirdIdOptions> feito em Install() que tem acesso à configuration)
@@ -1428,6 +1433,9 @@ public static class Container
             // Item 4.13 — Catálogo TUSS/CBHPM.
             bus.Register<BuscarProcedimentoCatalogoQuery, IEnumerable<ProcedimentoCatalogoDto>, BuscarProcedimentoCatalogoQueryHandlers>();
             bus.Register<ObterProcedimentoPorCodigoQuery, ProcedimentoCatalogoDto?, ObterProcedimentoPorCodigoQueryHandlers>();
+            // Catálogos CID-10 e exames.
+            bus.Register<BuscarCid10Query, IEnumerable<Cid10Dto>, BuscarCid10QueryHandlers>();
+            bus.Register<BuscarExameCatalogoQuery, IEnumerable<ExameCatalogoDto>, BuscarExameCatalogoQueryHandlers>();
             bus.Register<ListarRegrasAutomacaoQuery, IEnumerable<RegraAutomacaoDto>, ListarRegrasAutomacaoQueryHandlers>();
             bus.Register<ListarEventosAutomacaoQuery, IEnumerable<EventoAutomacaoDto>, ListarEventosAutomacaoQueryHandlers>();
             bus.Register<ListarNotificacoesQuery, PaginaNotificacoesDto, ListarNotificacoesQueryHandlers>();

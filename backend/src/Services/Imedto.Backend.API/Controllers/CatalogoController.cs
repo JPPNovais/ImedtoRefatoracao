@@ -90,4 +90,30 @@ public class CatalogoController : ControllerBase
             throw new BusinessException("Procedimento não encontrado.");
         return Ok(result);
     }
+
+    /// <summary>
+    /// Busca CID-10 por código ou descrição (autocomplete). Catálogo global, sem tenant.
+    /// </summary>
+    [HttpGet("cid")]
+    public async Task<ActionResult<IEnumerable<Cid10Dto>>> BuscarCid(
+        [FromQuery] string? busca,
+        [FromQuery] int limite = 20)
+    {
+        var result = await _query.Query<BuscarCid10Query, IEnumerable<Cid10Dto>>(
+            new BuscarCid10Query { Busca = busca, Limite = limite });
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Busca exames do catálogo global por nome (autocomplete). Sem tenant.
+    /// </summary>
+    [HttpGet("exames")]
+    public async Task<ActionResult<IEnumerable<ExameCatalogoDto>>> BuscarExames(
+        [FromQuery] string? busca,
+        [FromQuery] int limite = 30)
+    {
+        var result = await _query.Query<BuscarExameCatalogoQuery, IEnumerable<ExameCatalogoDto>>(
+            new BuscarExameCatalogoQuery { Busca = busca, Limite = limite });
+        return Ok(result);
+    }
 }
