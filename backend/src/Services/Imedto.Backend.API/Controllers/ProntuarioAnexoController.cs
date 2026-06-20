@@ -5,6 +5,7 @@ using Imedto.Backend.Contracts.Prontuarios.Commands;
 using Imedto.Backend.Contracts.Prontuarios.Queries;
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Domain;
 using Imedto.Backend.SharedKernel.Tenancy;
 
 namespace Imedto.Backend.API.Controllers;
@@ -130,6 +131,59 @@ public class ProntuarioAnexoController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Upload de um anexo via JSON com conteúdo em Base64. Usado pelo app mobile (CapacitorHttp)
+    /// que não consegue enviar cookies de sessão via multipart/fetch nativo do WebView.
+    /// Reutiliza exatamente o mesmo <see cref="AdicionarAnexoCommand"/> do endpoint multipart —
+    /// mesma gravação no S3, mesmas validações, mesmos campos opcionais.
+    /// </summary>
+    [HttpPost("base64")]
+    [Consumes("application/json")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> UploadBase64(
+        long pacienteId,
+        [FromBody] AnexoBase64Request request)
+    {
+        if (request is null)
+            return UnprocessableEntity(new { tipo = "ErroDeNegocio", mensagem = "Payload inválido." });
+
+        byte[] bytes;
+        try
+        {
+            bytes = Convert.FromBase64String(request.ArquivoBase64 ?? string.Empty);
+        }
+        catch (FormatException)
+        {
+            throw new BusinessException("Conteúdo do arquivo inválido.");
+        }
+
+        if (bytes.Length == 0)
+            throw new BusinessException("Arquivo vazio.");
+
+        var command = new AdicionarAnexoCommand
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            EvolucaoId = request.EvolucaoId,
+            AutorUsuarioId = _tenant.UsuarioId,
+            NomeOriginal = request.NomeOriginal ?? "arquivo",
+            MimeType = request.MimeType ?? string.Empty,
+            TamanhoBytes = bytes.Length,
+            Conteudo = new MemoryStream(bytes),
+            RegiaoAnatomica = request.RegiaoAnatomica,
+            Marcador = request.Marcador
+        };
+
+        await _commandBus.Send(command);
+
+        return StatusCode(StatusCodes.Status201Created, new
+        {
+            anexoId = command.AnexoIdCriado,
+            storagePath = command.StoragePath
+        });
+    }
+
     /// <summary>Gera URL assinada para download do anexo (expira em 5min).</summary>
     [HttpGet("{anexoId:long}/url")]
     [ProducesResponseType(typeof(AnexoUrlDto), StatusCodes.Status200OK)]
@@ -150,3 +204,15 @@ public class ProntuarioAnexoController : ControllerBase
 
 /// <summary>Payload do endpoint de batch de URLs assinadas.</summary>
 public record AnexoIdsRequest(IReadOnlyList<long> AnexoIds);
+
+/// <summary>
+/// Payload do endpoint de upload via Base64 (mobile). O campo <see cref="ArquivoBase64"/>
+/// deve conter somente o conteúdo Base64 puro — sem o prefixo <c>data:image/png;base64,</c>.
+/// </summary>
+public record AnexoBase64Request(
+    string ArquivoBase64,
+    string NomeOriginal,
+    string MimeType,
+    long? EvolucaoId = null,
+    string? RegiaoAnatomica = null,
+    string? Marcador = null);
