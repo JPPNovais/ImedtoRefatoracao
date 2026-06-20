@@ -1,6 +1,6 @@
 # Pipeline de agentes Imedto
 
-Pipeline de 4 agentes especializados com **separação clara de papéis**, **briefing imutável como fonte de verdade** e **quality gate único**. Existe porque o produto é complexo (saúde, multi-tenant, LGPD, multi-estabelecimento), o stack é amplo (Vue 3 + .NET 10 CQRS + Postgres RDS + AWS), e a regressão é cara em sistemas de clínica — recepcionista clica 50× por dia; um clique a mais é receita perdida.
+Pipeline de 6 agentes especializados (2 trilhas — web/backend e mobile — que compartilham BA e DB) com **separação clara de papéis**, **briefing imutável como fonte de verdade** e **quality gate único por trilha**. Existe porque o produto é complexo (saúde, multi-tenant, LGPD, multi-estabelecimento), o stack é amplo (Vue 3 + .NET 10 CQRS + Postgres RDS + AWS), e a regressão é cara em sistemas de clínica — recepcionista clica 50× por dia; um clique a mais é receita perdida.
 
 ## Diagrama de fluxo
 
@@ -58,7 +58,15 @@ Pipeline de 4 agentes especializados com **separação clara de papéis**, **bri
 | `imedto-business-analyst` | **Opus** | Refinamento ambíguo, regra de negócio complexa, julgamento sobre o que é/não é spec gap. Opus brilha em "pensar antes" — exatamente onde o BA atua. | Refinar demanda, fazer perguntas direcionadas, escrever briefing imutável com CAs testáveis, criar addendums em spec gap. |
 | `imedto-developer` | **Sonnet** | Execução fiel contra briefing claro. Sonnet é rápido e bom o suficiente para implementar Vue + .NET + testes sem ambiguidade. | Implementar feature/bugfix fielmente ao briefing. Frontend + backend + testes. Recusa sem briefing. |
 | `imedto-database` | **Sonnet** | Schema, índice, migration — território com padrão claro. Convenção do projeto já está em CLAUDE.md. | Único autor de migrations. EF Core + SQL idempotente em `db/migrations/`. Valida via MCP AWS RDS. |
-| `imedto-qa` | **Sonnet** | Validação contra checklist explícito (CAs + multi-tenant + LGPD + estados). Decisão Tipo A/B segue regra clara. | Quality gate. Único autorizado a `git commit`/`git push`. Classifica bug A/B antes de devolver. |
+| `imedto-qa` | **Sonnet** | Validação contra checklist explícito (CAs + multi-tenant + LGPD + estados). Decisão Tipo A/B segue regra clara. | Quality gate **web/backend**. Autorizado a `git commit`/`git push`. Classifica bug A/B antes de devolver. |
+| `imedto-mobile-developer` | **Sonnet** | Execução fiel de telas mobile contra briefing + design. Capacitor + Vue 3 tem padrão claro; Sonnet executa rápido. | **Só `mobile/`** (app do médico). Implementa telas/serviços/stores consumindo a API, reusa DS mobile, capabilities nativas. Não toca web/backend. Recusa sem briefing. |
+| `imedto-mobile-qa` | **Sonnet** | Validação mobile contra checklist (CAs + design + multi-tenant + LGPD + RBAC + estados + temas + nativo). | Quality gate **do `mobile/`**. Sobe backend local e aponta o app pra ele; valida em 375px claro/escuro. Autorizado a `git commit`/`git push`. Classifica A/B. |
+
+### Trilhas: web/backend vs mobile
+
+- **Trilha web/backend**: `imedto-business-analyst` → `imedto-developer` (frontend/ + backend/) → `imedto-database` (se schema) → `imedto-qa`.
+- **Trilha mobile**: `imedto-business-analyst` → `imedto-mobile-developer` (só mobile/) → `imedto-mobile-qa`. Se a feature mobile exigir **endpoint/contrato novo no backend**, o mobile-developer **para e reporta** ao orquestrador, que aciona a trilha backend (`imedto-developer`/`imedto-database`) antes de continuar o mobile.
+- **Compartilhados**: o BA escreve o briefing das duas trilhas; o DB é o único autor de migrations das duas. O orquestrador escolhe a trilha pela pasta tocada (`mobile/` → trilha mobile; `frontend/`/`backend/` → trilha web/backend).
 
 ## Quando escapar do default
 

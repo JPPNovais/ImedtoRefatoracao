@@ -133,14 +133,18 @@ Discoveries (investigações de viabilidade antes de cravar arquitetura) vão em
 
 ### Agents Disponíveis
 
-Pipeline de 4 agentes especializados, com briefing imutável em [`planejamentos/`](planejamentos/) como fonte de verdade. Documento mestre da pipeline em [`.claude/agents/PIPELINE.md`](.claude/agents/PIPELINE.md).
+Pipeline de 6 agentes especializados, com briefing imutável em [`planejamentos/`](planejamentos/) como fonte de verdade. Documento mestre da pipeline em [`.claude/agents/PIPELINE.md`](.claude/agents/PIPELINE.md).
 
 | Agent | Modelo | Responsabilidade |
 |-------|--------|------------------|
 | [`imedto-business-analyst`](.claude/agents/imedto-business-analyst.md) | Opus | Refinar demanda crua, perguntas direcionadas, escrever briefing imutável com CAs testáveis em `planejamentos/`. Cria addendums em spec gap (Tipo B). **Atualiza `Docs/` quando a demanda altera arquitetura/infra/design/LGPD.** |
-| [`imedto-developer`](.claude/agents/imedto-developer.md) | Sonnet | Implementar feature/bugfix fielmente ao briefing — frontend (Vue 3 + TS + design system) + backend (.NET 10 CQRS + DDD). Recusa sem briefing. Aciona DB agent se schema muda. |
+| [`imedto-developer`](.claude/agents/imedto-developer.md) | Sonnet | Implementar feature/bugfix fielmente ao briefing — **web (`frontend/`) + backend (`backend/`)**. Vue 3 + TS + design system / .NET 10 CQRS + DDD. Recusa sem briefing. Aciona DB agent se schema muda. |
 | [`imedto-database`](.claude/agents/imedto-database.md) | Sonnet | Único autor de migrations. Fluxo EF Core + SQL idempotente em `db/migrations/`. Inspeciona RDS via MCP AWS RDS (ou psql via túnel SSH). Multi-tenant + índices + performance dia 1. |
-| [`imedto-qa`](.claude/agents/imedto-qa.md) | Sonnet | Quality gate único. Valida cada CA via chrome-devtools MCP + suíte automatizada. **Único autorizado a `git commit`/`git push`.** Classifica bug Tipo A (volta dev) vs Tipo B (escala BA). Nunca corrige sozinho. |
+| [`imedto-qa`](.claude/agents/imedto-qa.md) | Sonnet | Quality gate **de web/backend**. Valida cada CA via chrome-devtools MCP + suíte automatizada. Autorizado a `git commit`/`git push`. Classifica bug Tipo A (volta dev) vs Tipo B (escala BA). Nunca corrige sozinho. |
+| [`imedto-mobile-developer`](.claude/agents/imedto-mobile-developer.md) | Sonnet | **Só `mobile/`** (app do médico — Capacitor 6 + Vue 3 + plugins nativos). Implementa telas/serviços/stores consumindo **apenas a API** do backend, reusa o design system mobile, capabilities nativas (câmera/biometria/push/voz/share). Recusa sem briefing. Não toca web/backend. |
+| [`imedto-mobile-qa`](.claude/agents/imedto-mobile-qa.md) | Sonnet | Quality gate **do `mobile/`**. Sobe backend local e **aponta o app mobile pra ele**, valida cada CA via chrome-devtools em 375px nos temas claro/escuro, confere multi-tenant/LGPD/RBAC/estados/nativo. Autorizado a `git commit`/`git push`. Classifica A/B. Nunca corrige sozinho. |
+
+**Quando usar a dupla mobile**: a demanda toca a pasta `mobile/` (app do médico). Aí o orquestrador aciona `imedto-mobile-developer` (implementa) → `imedto-mobile-qa` (valida). Para `frontend/` (web) ou `backend/`, use a dupla padrão (`imedto-developer` → `imedto-qa`). O BA (`imedto-business-analyst`) e o DB (`imedto-database`) são compartilhados pelas duas trilhas. Se a feature mobile exigir endpoint/contrato novo no backend, o mobile-developer **para e reporta** — o backend é do `imedto-developer`/`imedto-database`.
 
 ### Pipeline
 
