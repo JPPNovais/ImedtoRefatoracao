@@ -11,7 +11,7 @@ import { useUiStore } from "@/stores/ui"
 import { usePermissoesStore } from "@/stores/permissoes"
 import { useBiometric } from "@/native/useBiometric"
 import { useDownload } from "@/native/useDownload"
-import { iniciais, idade, dataCurta, renderConteudoEvolucao } from "@/lib/format"
+import { iniciais, idade, dataCurta, renderConteudoEvolucao, generoLabel } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 import AppEmptyState from "@/components/ui/AppEmptyState.vue"
 import PacienteSeletorSheet from "@/components/ui/PacienteSeletorSheet.vue"
@@ -275,7 +275,7 @@ async function aoAtualizarPaciente(p: { id: number; nomeCompleto: string }) {
         <div class="av-xl">{{ iniciais(paciente.nomeCompleto) }}</div>
         <div class="fn">{{ paciente.nomeCompleto }}</div>
         <div class="fmeta">
-          {{ idade(paciente.dataNascimento) ?? "—" }} anos · {{ paciente.genero || "—" }}
+          {{ idade(paciente.dataNascimento) ?? "—" }} anos · {{ generoLabel(paciente.genero) }}
         </div>
         <div class="pii-row">
           <button class="pii" :class="{ revealed: piiRevelado }" @click="revelarPii">

@@ -10,7 +10,7 @@ import { useVoice } from "@/native/useVoice"
 import { useCamera } from "@/native/useCamera"
 import { useDownload } from "@/native/useDownload"
 import { localDb } from "@/lib/db"
-import { iniciais, idade, dataCurta, renderConteudoEvolucao } from "@/lib/format"
+import { iniciais, idade, dataCurta, renderConteudoEvolucao, generoLabel } from "@/lib/format"
 import BottomSheet from "@/components/ui/BottomSheet.vue"
 
 const route = useRoute()
@@ -213,7 +213,7 @@ function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
         <div class="av">{{ iniciais(paciente.nomeCompleto) }}</div>
         <div>
           <b>{{ paciente.nomeCompleto }}</b>
-          <span>{{ idade(paciente.dataNascimento) ?? "—" }} anos · {{ paciente.genero || "—" }}</span>
+          <span>{{ idade(paciente.dataNascimento) ?? "—" }} anos · {{ generoLabel(paciente.genero) }}</span>
         </div>
       </div>
 

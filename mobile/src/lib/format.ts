@@ -151,6 +151,18 @@ export function renderConteudoEvolucao(conteudo: Record<string, unknown>): Array
     .map(([k, v]) => ({ chave: k, valor: valorLegivel(v) }))
 }
 
+/** Rótulo legível do gênero (enum do backend: Masculino/Feminino/Outro/NaoInformado). */
+export function generoLabel(g?: string | null): string {
+  if (!g) return "—"
+  const labels: Record<string, string> = {
+    Masculino: "Masculino",
+    Feminino: "Feminino",
+    Outro: "Outro",
+    NaoInformado: "Não informado",
+  }
+  return labels[g] ?? g
+}
+
 export function grupoNotif(iso: string): "Hoje" | "Ontem" | "Anteriores" {
   const d = new Date(iso)
   const hoje = new Date()

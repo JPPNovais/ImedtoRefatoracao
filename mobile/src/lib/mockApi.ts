@@ -251,18 +251,6 @@ export async function mockRoute(
     }
     return { status: 204, data: null }
   }
-  if (pacId && method === "PUT") {
-    // Mock: atualiza nome se enviado
-    const id = Number(pacId[1])
-    const body = params as Record<string, unknown>
-    if (pacientes[id] && body?.nomeCompleto) {
-      const nome = String(body.nomeCompleto)
-      pacientes[id] = { ...pacientes[id], nomeCompleto: nome }
-      const item = pacienteLista.itens.find((x) => x.id === id)
-      if (item) item.nomeCompleto = nome
-    }
-    return { status: 204, data: null }
-  }
   const prontId = p.match(/^\/paciente\/(\d+)\/prontuario$/)
   if (prontId && method === "GET") {
     const pr = prontuarios[Number(prontId[1])] || { prontuario: null, evolucoes: [] }

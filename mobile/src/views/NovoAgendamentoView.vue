@@ -38,7 +38,7 @@ const salaId = ref<number | null>(null)
 const obs = ref("")
 const salvando = ref(false)
 
-// Disponibilidade de agenda — substituem o HORARIOS fixo
+// Disponibilidade de agenda: slots vêm do backend (dias úteis, horários livres/ocupados)
 const diaDisponibilidade = ref<DisponibilidadeDia | null>(null)
 const carregandoSlots = ref(false)
 
