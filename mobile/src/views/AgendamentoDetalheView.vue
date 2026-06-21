@@ -177,7 +177,7 @@ function concluirSemCobrar() {
 <template>
   <div class="push show">
     <div class="push-head">
-      <button class="iconbtn" @click="voltar"><i class="fa-solid fa-arrow-left"></i></button>
+      <button class="iconbtn" aria-label="Voltar" @click="voltar"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">Agendamento</div>
       <button class="iconbtn" aria-label="Mais ações" @click="menuOpen = true"><i class="fa-solid fa-ellipsis"></i></button>
     </div>

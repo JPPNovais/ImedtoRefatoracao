@@ -78,7 +78,7 @@ async function assinar() {
 <template>
   <div class="push show">
     <div class="push-head">
-      <button class="iconbtn" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
+      <button class="iconbtn" aria-label="Voltar" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">Atestado</div>
       <span style="width: 40px"></span>
     </div>

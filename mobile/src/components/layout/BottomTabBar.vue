@@ -32,7 +32,7 @@ function openActions() {
       <i class="fa-regular fa-calendar"></i><span>Agenda</span>
     </button>
     <div class="fab-slot">
-      <button class="fab" :class="{ rot: ui.activeSheet === 'actions' }" @click="openActions">
+      <button class="fab" :class="{ rot: ui.activeSheet === 'actions' }" aria-label="Criar (novo agendamento, receita, atestado, exame)" @click="openActions">
         <i class="fa-solid fa-plus"></i>
       </button>
     </div>

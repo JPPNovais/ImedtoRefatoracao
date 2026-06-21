@@ -144,7 +144,7 @@ function concluir() {
 <template>
   <div class="push show">
     <div class="push-head">
-      <button class="iconbtn" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
+      <button class="iconbtn" aria-label="Voltar" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">Nova receita</div>
       <span style="width: 40px"></span>
     </div>

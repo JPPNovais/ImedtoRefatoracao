@@ -200,9 +200,9 @@ function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
 <template>
   <div class="push show">
     <div class="push-head">
-      <button class="iconbtn" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
+      <button class="iconbtn" aria-label="Voltar" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">Prontuário</div>
-      <button class="iconbtn" :disabled="exportandoPdf" @click="menuOpen = true">
+      <button class="iconbtn" aria-label="Mais ações" :disabled="exportandoPdf" @click="menuOpen = true">
         <i v-if="exportandoPdf" class="fa-solid fa-spinner fa-spin"></i>
         <i v-else class="fa-solid fa-ellipsis"></i>
       </button>

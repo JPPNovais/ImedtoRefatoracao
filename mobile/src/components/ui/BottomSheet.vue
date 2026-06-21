@@ -88,7 +88,7 @@ watch(
           <div class="grip"></div>
           <div class="sh-row">
             <div class="sh-title">{{ titulo }}</div>
-            <button class="sheet-x" @click="close"><i class="fa-solid fa-xmark"></i></button>
+            <button class="sheet-x" aria-label="Fechar" @click="close"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </div>
         <div class="sheet-body"><slot /></div>
@@ -105,7 +105,7 @@ watch(
           <div class="grip"></div>
           <div v-if="titulo" class="sh-row">
             <div class="sh-title">{{ titulo }}</div>
-            <button v-if="closable" class="sheet-x" @click="close"><i class="fa-solid fa-xmark"></i></button>
+            <button v-if="closable" class="sheet-x" aria-label="Fechar" @click="close"><i class="fa-solid fa-xmark"></i></button>
           </div>
           <div v-if="sub" class="sh-sub">{{ sub }}</div>
         </div>

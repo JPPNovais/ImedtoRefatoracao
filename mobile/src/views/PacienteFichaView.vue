@@ -264,7 +264,7 @@ async function aoAtualizarPaciente(p: { id: number; nomeCompleto: string }) {
 <template>
   <div class="push show">
     <div class="push-head">
-      <button class="iconbtn" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
+      <button class="iconbtn" aria-label="Voltar" @click="router.back()"><i class="fa-solid fa-arrow-left"></i></button>
       <div class="ph-title">{{ paciente?.nomeCompleto || "Ficha" }}</div>
       <button v-if="podeProntuario" class="iconbtn" aria-label="Mais ações" @click="menuFichaOpen = true"><i class="fa-solid fa-ellipsis"></i></button>
       <span v-else style="width: 40px"></span>
