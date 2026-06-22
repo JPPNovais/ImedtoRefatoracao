@@ -332,6 +332,105 @@ function formatarGenerico(v: unknown): string {
     return ""
 }
 
+function fmtEvolucaoPosOp(d: Record<string, unknown>): string {
+    const linhas: string[] = []
+
+    const EVOLUCAO_LABELS: Record<string, string> = {
+        otima: "Ótima", boa: "Boa", regular: "Regular", ruim: "Ruim",
+    }
+    const evolucao = EVOLUCAO_LABELS[s(d.evolucaoPaciente)] ?? ""
+    if (evolucao) {
+        const comentario = s(d.evolucaoComentario)
+        linhas.push(comentario ? `Evolução: ${evolucao} — ${comentario}` : `Evolução: ${evolucao}`)
+    }
+
+    const orientacoes = s(d.seguindoOrientacoes)
+    if (orientacoes) {
+        const label = orientacoes === "sim" ? "Sim" : orientacoes === "nao" ? "Não" : ""
+        if (label) {
+            const comentario = s(d.orientacoesComentario)
+            linhas.push(comentario ? `Seguindo orientações: ${label} — ${comentario}` : `Seguindo orientações: ${label}`)
+        }
+    }
+
+    if (s(d.dataCirurgia)) linhas.push(`Data da cirurgia: ${s(d.dataCirurgia)}`)
+    if (s(d.dpo) !== "") linhas.push(`DPO: ${s(d.dpo)} dia(s)`)
+    if (s(d.destino)) linhas.push(`Destino: ${s(d.destino)}`)
+    if (s(d.dieta)) linhas.push(`Dieta: ${s(d.dieta)}`)
+    if (s(d.observacao)) linhas.push(`Observação: ${s(d.observacao)}`)
+
+    return linhas.join("\n")
+}
+
+function fmtDescCirurgica(d: Record<string, unknown>): string {
+    const linhas: string[] = []
+
+    if (s(d.cirurgiao)) linhas.push(`Cirurgião: ${s(d.cirurgiao)}`)
+    if (s(d.data)) {
+        const diaStr = s(d.diaSemana)
+        linhas.push(diaStr ? `Data: ${s(d.data)} (${diaStr})` : `Data: ${s(d.data)}`)
+    }
+    if (s(d.cirurgiasRealizadas)) linhas.push(`Cirurgia(s) realizada(s): ${s(d.cirurgiasRealizadas)}`)
+
+    // Equipe
+    const equipe: string[] = []
+    if (s(d.anestesista)) equipe.push(`Anestesista: ${s(d.anestesista)}`)
+    if (s(d.auxiliar)) equipe.push(`Auxiliar: ${s(d.auxiliar)}`)
+    if (s(d.instrumentador)) equipe.push(`Instrumentador(a): ${s(d.instrumentador)}`)
+    for (const m of lista(d.outrosMembros)) {
+        const funcao = s(m.funcao), nome = s(m.nome)
+        if (funcao || nome) equipe.push(juntar([funcao, nome], ": "))
+    }
+    if (equipe.length) linhas.push(`Equipe: ${equipe.join("; ")}`)
+
+    // Duração
+    const inicio = s(d.cirurgiaInicio), fim = s(d.cirurgiaFim)
+    if (inicio || fim) {
+        const durStr = s(d.cirurgiaFim) ? (() => {
+            if (!inicio || !fim) return ""
+            const [hI, mI] = inicio.split(":").map(Number)
+            const [hF, mF] = fim.split(":").map(Number)
+            if ([hI, mI, hF, mF].some(Number.isNaN)) return ""
+            let total = (hF * 60 + mF) - (hI * 60 + mI)
+            if (total < 0) total += 24 * 60
+            return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`
+        })() : ""
+        const partes = [inicio && `Início: ${inicio}`, fim && `Fim: ${fim}`, durStr && `Duração: ${durStr}`].filter(Boolean)
+        if (partes.length) linhas.push(partes.join(" | "))
+    }
+
+    // Profilaxia
+    const pf = d.profilaxia && typeof d.profilaxia === "object" ? d.profilaxia as Record<string, unknown> : null
+    if (pf) {
+        const antitrombs: string[] = []
+        if (pf.enoxaparina) antitrombs.push("Enoxaparina 40mg SC")
+        if (pf.meiaCompressiva) antitrombs.push("Meia compressiva")
+        if (pf.botaPneumatica) antitrombs.push("Bota pneumática")
+        if (pf.deambulacaoPrecoce) antitrombs.push("Deambulação precoce")
+        if (pf.antitrombOutroAtivo && s(pf.antitrombOutro)) antitrombs.push(s(pf.antitrombOutro))
+        if (antitrombs.length) linhas.push(`Profilaxia antitrombótica: ${antitrombs.join("; ")}`)
+
+        const antibios: string[] = []
+        if (pf.cefazolina) antibios.push("Cefazolina")
+        if (pf.gentamicina) antibios.push("Gentamicina")
+        if (pf.antibioOutroAtivo && s(pf.antibioOutro)) antibios.push(s(pf.antibioOutro))
+        if (antibios.length) linhas.push(`Profilaxia antibiótica: ${antibios.join("; ")}`)
+    }
+
+    // Intercorrências
+    const interc = s(d.intercorrencia)
+    if (interc === "sem") linhas.push("Intercorrências: Sem intercorrências")
+    else if (interc === "com") {
+        const desc = s(d.intercorrenciaDescricao)
+        linhas.push(desc ? `Intercorrências: ${desc}` : "Intercorrências: Com intercorrência (sem descrição)")
+    }
+
+    if (s(d.tecnicaOperatoria)) linhas.push(`Técnica operatória: ${s(d.tecnicaOperatoria)}`)
+    if (s(d.observacoes)) linhas.push(`Observações: ${s(d.observacoes)}`)
+
+    return linhas.join("\n")
+}
+
 const FORMATADORES_CURADOS: Record<string, (d: Record<string, unknown>) => string> = {
     "hpp": fmtHpp,
     "h-familiar": fmtHistoriaFamiliar,
@@ -339,6 +438,8 @@ const FORMATADORES_CURADOS: Record<string, (d: Record<string, unknown>) => strin
     "exame-fisico": fmtExameFisico,
     "exames-realizados": fmtExamesRealizados,
     "procedimentos-indicados": fmtProcedimentos,
+    "evolucao-pos-op": fmtEvolucaoPosOp,
+    "desc-cirurgica": fmtDescCirurgica,
 }
 
 /**

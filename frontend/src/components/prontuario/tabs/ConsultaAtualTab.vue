@@ -24,6 +24,8 @@ const props = defineProps<{
     salvando: boolean
     /** Sexo do paciente — propagado ao SecaoExameFisico → BodyMap. */
     pacienteSexo?: string | null
+    /** Erro de validação do campo "cirurgião" na seção desc-cirurgica (CA20–CA22). */
+    erroCirurgiao?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -217,6 +219,7 @@ function selecionarModelo(id: number, fechar: () => void) {
                             :titulo="secao.titulo"
                             :tipo="secao.tipo"
                             :paciente-sexo="pacienteSexo"
+                            :erro-cirurgiao="secao.chave === 'desc-cirurgica' ? erroCirurgiao : null"
                         />
                     </div>
                 </section>
@@ -240,7 +243,7 @@ function selecionarModelo(id: number, fechar: () => void) {
     <!-- Seletor de template (desc-cirurgica). Montado aqui mas só faz request ao abrir (CA15). -->
     <SeletorTemplateCirurgico
         v-model:aberto="seletorAberto"
-        :valor-atual="novaEvolucao['desc-cirurgica'] ?? ''"
+        :valor-atual="(novaEvolucao['desc-cirurgica'] as any)?.observacoes ?? ''"
         @aplicar="aplicarTemplate"
     />
 </template>

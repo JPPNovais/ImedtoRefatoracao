@@ -121,6 +121,54 @@ watch(modeloConsultaAtual, () => {
 
 const novaEvolucao = reactive<Record<string, any>>({})
 const salvandoEvolucao = ref(false)
+// Erro de validação do campo "cirurgião" na desc-cirurgica (CA20–CA22).
+const erroCirurgiao = ref<string | null>(null)
+
+// Limpa o erro do cirurgião quando o campo é preenchido (CA21)
+watch(
+    () => (novaEvolucao["desc-cirurgica"] as Record<string, unknown> | undefined)?.cirurgiao,
+    (v) => {
+        if (typeof v === "string" && v.trim()) erroCirurgiao.value = null
+    },
+)
+
+/** Verifica CA20–CA22: bloqueia o salvar se desc-cirurgica está presente,
+ *  tem ao menos 1 campo preenchido, e cirurgiao está vazio. */
+function validarCirurgiao(): boolean {
+    const desc = novaEvolucao["desc-cirurgica"]
+    if (!desc || typeof desc !== "object") {
+        erroCirurgiao.value = null
+        return true
+    }
+    const d = desc as Record<string, unknown>
+    // Campos a verificar (exceto cirurgiao, diaSemana e dpo que são derivados/readonly)
+    const camposVerificaveis = [
+        "cirurgiasRealizadas", "anestesista", "auxiliar", "instrumentador",
+        "cirurgiaInicio", "cirurgiaFim", "tecnicaOperatoria", "observacoes",
+        "intercorrenciaDescricao", "data",
+    ]
+    const temCampoPreenchido =
+        camposVerificaveis.some(k => typeof d[k] === "string" && (d[k] as string).trim() !== "") ||
+        (Array.isArray(d.outrosMembros) && (d.outrosMembros as unknown[]).length > 0) ||
+        (d.profilaxia && typeof d.profilaxia === "object" &&
+            Object.values(d.profilaxia as Record<string, unknown>).some(v => v === true)) ||
+        (typeof d.intercorrencia === "string" && (d.intercorrencia as string) !== "")
+
+    if (!temCampoPreenchido) {
+        erroCirurgiao.value = null
+        return true
+    }
+    const cirurgiao = typeof d.cirurgiao === "string" ? (d.cirurgiao as string).trim() : ""
+    if (!cirurgiao) {
+        erroCirurgiao.value = "Informe o cirurgião para registrar a descrição cirúrgica."
+        // Scroll até a seção desc-cirurgica
+        const el = document.getElementById("mod-desc-cirurgica")
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+        return false
+    }
+    erroCirurgiao.value = null
+    return true
+}
 
 const SECOES_ESTRUTURADAS = new Set([
     "hpp",
@@ -129,6 +177,8 @@ const SECOES_ESTRUTURADAS = new Set([
     "exame-fisico",
     "exames-realizados",
     "procedimentos-indicados",
+    "evolucao-pos-op",
+    "desc-cirurgica",
 ])
 
 const uploadPendente = ref<File | null>(null)
@@ -222,6 +272,11 @@ const LATERALIDADE_LOCAL_PARA_BACKEND: Record<string, string | null> = {
 }
 
 async function salvarEvolucao() {
+    // CA20–CA22: validar cirurgião antes de qualquer POST
+    if (!validarCirurgiao()) {
+        salvandoEvolucao.value = false
+        return
+    }
     salvandoEvolucao.value = true
     erro.value = null
     try {
@@ -468,8 +523,19 @@ async function finalizarAtendimento() {
                 :nova-evolucao="novaEvolucao"
                 :salvando="salvandoEvolucao"
                 :paciente-sexo="paciente?.genero ?? null"
+                :erro-cirurgiao="erroCirurgiao"
                 @salvar="salvarEvolucao"
-                @aplicar-template="(chave, corpo) => { novaEvolucao[chave] = corpo }"
+                @aplicar-template="(chave, corpo) => {
+                    if (chave === 'desc-cirurgica') {
+                        const atual = novaEvolucao[chave]
+                        novaEvolucao[chave] = {
+                            ...(atual && typeof atual === 'object' ? atual : {}),
+                            observacoes: corpo,
+                        }
+                    } else {
+                        novaEvolucao[chave] = corpo
+                    }
+                }"
             />
 
             <ConsultasAnterioresTab

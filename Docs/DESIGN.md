@@ -524,7 +524,27 @@ A renderização legível de seções estruturadas de evolução (drawer "Ver" e
 
 **Paridade modal ↔ PDF (R9):** ambos os canais (`EvolucaoDetalheDrawer.vue` e `useProntuarioPdf.ts`) devem chamar `formatarSecaoLegivel(s.chave, conteudo[s.chave])` — nunca heurística local independente. A decisão de exibir/omitir a seção deriva do resultado da função.
 
-**Seções curadas:** `hpp`, `h-familiar`, `h-social`, `exame-fisico`, `exames-realizados`, `procedimentos-indicados`. Chaves fora dessas 6 caem no fallback genérico (humaniza camelCase, sem chave técnica crua).
+**Seções curadas:** `hpp`, `h-familiar`, `h-social`, `exame-fisico`, `exames-realizados`, `procedimentos-indicados`, `evolucao-pos-op`, `desc-cirurgica`. Chaves fora dessas 8 caem no fallback genérico (humaniza camelCase, sem chave técnica crua).
+
+## Seções estruturadas de prontuário — pós-op e descrição cirúrgica (briefing 2026-06-21_001)
+
+As seções `evolucao-pos-op` e `desc-cirurgica` possuem formulários estruturados dedicados registrados em `SECOES_ESTRUTURADAS` de `ProntuarioView.vue`. O backend armazena o conteúdo como JSONB opaco — não valida o shape.
+
+### `SecaoEvolucaoPosOperatoria.vue`
+- Localização: `frontend/src/components/prontuario/secoes/SecaoEvolucaoPosOperatoria.vue`
+- Props: `modelValue: EvolucaoPosOp`, `readOnly?: boolean`
+- Interface `EvolucaoPosOp`: `evolucaoPaciente`, `evolucaoComentario`, `seguindoOrientacoes`, `orientacoesComentario`, `dataCirurgia`, `dpo`, `destino`, `dieta`, `observacao`.
+- DPO calculado automaticamente ao alterar `dataCirurgia` (retorna `""` se futuro/inválido, `"0"` para hoje).
+
+### `SecaoDescricaoCirurgica.vue`
+- Localização: `frontend/src/components/prontuario/secoes/SecaoDescricaoCirurgica.vue`
+- Props: `modelValue: DescCirurgica`, `readOnly?: boolean`, `erroCirurgiao?: string | null`
+- Dia da semana calculado automaticamente (`new Date(data + "T12:00:00").getDay()`).
+- Duração calculada de `cirurgiaInicio`/`cirurgiaFim` com tratamento de virada de dia (`total += 24 * 60` se negativo).
+- Campos de anestesia (`tipoAnestesia`, `anestesiaInicio`, `anestesiaFim`) são **deliberadamente omitidos** (R7 do briefing).
+- `erroCirurgiao` exibe mensagem inline e borda vermelha no campo cirurgião via `.campo-com-erro :deep(.form-input)`.
+
+**Validação de cirurgião (CA20–CA22):** lógica em `validarCirurgiao()` em `ProntuarioView.vue`. Bloqueia `salvarEvolucao()` se a seção `desc-cirurgica` tem ≥1 campo não-vazio E `cirurgiao` está em branco. Propaga por prop chain: `ProntuarioView → ConsultaAtualTab (prop erroCirurgiao) → SecaoProntuario → SecaoDescricaoCirurgica`. O watch limpa o erro ao preencher o cirurgião.
 
 ## Export CSV de relatórios (briefing 2026-06-10_004)
 
