@@ -11,9 +11,10 @@
 -->
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import { AppButton, AppPopover } from "@/components/ui"
+import { AppButton } from "@/components/ui"
 import SecaoProntuario from "@/components/prontuario/SecaoProntuario.vue"
 import SeletorTemplateCirurgico from "@/components/prontuario/SeletorTemplateCirurgico.vue"
+import SeletorModeloProntuario from "@/components/prontuario/SeletorModeloProntuario.vue"
 import type { ModeloProntuario, SecaoModelo } from "@/services/prontuarioService"
 
 const props = defineProps<{
@@ -95,11 +96,6 @@ function scrollToSecao(chave: string) {
 }
 
 const modeloAtual = computed(() => props.modelos.find(m => m.id === props.modeloId) ?? null)
-
-function selecionarModelo(id: number, fechar: () => void) {
-    if (id !== props.modeloId) emit("update:modeloId", id)
-    fechar()
-}
 </script>
 
 <template>
@@ -130,45 +126,11 @@ function selecionarModelo(id: number, fechar: () => void) {
         <!-- ──── Main: módulos editáveis ──── -->
         <div class="pront-main">
             <div v-if="modeloAtual" class="pront-toolbar">
-                <AppPopover posicao="bottom-start">
-                    <template #gatilho="{ toggle, aberto }">
-                        <button
-                            type="button"
-                            class="tpl-current"
-                            :class="{ aberto }"
-                            :title="modeloAtual.descricao || ''"
-                            @click="toggle"
-                        >
-                            <i class="fa-solid fa-stethoscope"></i>
-                            <div>
-                                <span class="tpl-lbl">Tipo de prontuário</span>
-                                <strong>{{ modeloAtual.nome }}</strong>
-                            </div>
-                            <i class="fa-solid fa-chevron-down tpl-caret"></i>
-                        </button>
-                    </template>
-                    <template #conteudo="{ fechar }">
-                        <div class="tpl-menu">
-                            <p class="tpl-menu-head">Trocar modelo · {{ modelos.length }} disponíveis</p>
-                            <button
-                                v-for="m in modelos"
-                                :key="m.id"
-                                type="button"
-                                class="tpl-menu-item"
-                                :class="{ current: m.id === modeloId }"
-                                @click="selecionarModelo(m.id, fechar)"
-                            >
-                                <i class="fa-solid fa-stethoscope"></i>
-                                <div>
-                                    <b>{{ m.nome }}</b>
-                                    <span v-if="m.descricao">{{ m.descricao }}</span>
-                                    <span v-else-if="m.ehPadraoSistema">Modelo do sistema</span>
-                                </div>
-                                <i v-if="m.id === modeloId" class="fa-solid fa-check tpl-menu-check"></i>
-                            </button>
-                        </div>
-                    </template>
-                </AppPopover>
+                <SeletorModeloProntuario
+                    :modelo-id="modeloId"
+                    :modelos="modelos"
+                    @update:modelo-id="emit('update:modeloId', $event)"
+                />
                 <div class="pt-info">
                     <span>{{ secoes.length }} módulos</span>
                 </div>
@@ -316,45 +278,6 @@ function selecionarModelo(id: number, fechar: () => void) {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
     margin-bottom: 16px; flex-wrap: wrap;
 }
-.tpl-current {
-    display: inline-flex; align-items: center; gap: 12px;
-    padding: 10px 16px;
-    background: white;
-    border: 1px solid hsl(var(--secondary) / 0.14);
-    border-radius: var(--radius-md);
-    font: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 150ms, box-shadow 150ms;
-}
-.tpl-current:hover { border-color: hsl(var(--primary) / 0.6); }
-.tpl-current.aberto {
-    border-color: hsl(var(--primary));
-    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
-}
-.tpl-caret {
-    margin-left: 6px; font-size: 11px;
-    color: hsl(var(--secondary) / 0.5);
-    transition: transform 150ms;
-}
-.tpl-current.aberto .tpl-caret { transform: rotate(180deg); }
-.tpl-current > i:first-child {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: hsl(var(--primary) / 0.12);
-    color: hsl(var(--primary));
-    display: inline-flex; align-items: center; justify-content: center;
-}
-.tpl-current > div { text-align: left; display: flex; flex-direction: column; }
-.tpl-lbl {
-    font-size: 10px;
-    color: hsl(var(--secondary) / 0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-.tpl-current strong {
-    font-size: 14px;
-    color: hsl(var(--primary-dark));
-}
 .pt-info { font-size: 12px; color: hsl(var(--secondary) / 0.65); }
 
 .modules-list { display: flex; flex-direction: column; gap: 12px; }
@@ -406,48 +329,4 @@ function selecionarModelo(id: number, fechar: () => void) {
     padding-top: 4px;
 }
 
-/* ──── Dropdown "Trocar modelo" (conteúdo do AppPopover) ──── */
-.tpl-menu { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
-.tpl-menu-head {
-    font-size: 11px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    color: hsl(var(--secondary) / 0.5);
-    margin: 4px 8px 6px;
-}
-.tpl-menu-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px;
-    background: white;
-    border: 1px solid transparent;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    text-align: left; font: inherit;
-    transition: all 150ms;
-}
-.tpl-menu-item:hover { background: hsl(var(--primary) / 0.05); }
-.tpl-menu-item.current {
-    background: hsl(var(--primary) / 0.08);
-    border-color: hsl(var(--primary) / 0.25);
-}
-.tpl-menu-item > i:first-child {
-    width: 28px; height: 28px; border-radius: 6px;
-    background: hsl(var(--primary) / 0.1);
-    color: hsl(var(--primary));
-    display: inline-flex; align-items: center; justify-content: center;
-    flex-shrink: 0; font-size: 12px;
-}
-.tpl-menu-item > div { flex: 1; min-width: 0; }
-.tpl-menu-item b {
-    display: block; font-size: 12px;
-    color: hsl(var(--primary-dark));
-    font-weight: 600;
-}
-.tpl-menu-item span {
-    font-size: 11px;
-    color: hsl(var(--secondary) / 0.6);
-    line-height: 1.3;
-    overflow: hidden; text-overflow: ellipsis;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-}
-.tpl-menu-check { color: hsl(var(--primary)); font-size: 12px; flex-shrink: 0; }
 </style>

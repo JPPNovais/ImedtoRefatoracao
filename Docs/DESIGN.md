@@ -349,6 +349,12 @@ Para seções de texto longo no prontuário que suportam aplicação de template
 - `<div class="module-action">` com `AppButton variant="ghost" size="sm"` e ícone `fa-file-import`.
 - Condicionado à chave da seção: `v-if="secao.chave === 'desc-cirurgica'"`.
 
+**Componente `SeletorModeloProntuario`:**
+- Localização: [`frontend/src/components/prontuario/SeletorModeloProntuario.vue`](../frontend/src/components/prontuario/SeletorModeloProntuario.vue).
+- Props: `modeloId: number | null`, `modelos: ModeloProntuario[]`.
+- Emits: `update:modeloId: [id: number]` — suporta `v-model:modelo-id`.
+- Reutilizado em dois contextos: (1) toolbar de `ConsultaAtualTab` quando modelo já selecionado — gatilho exibe nome atual e cabeçalho do popover usa "Trocar modelo"; (2) slot `#acao` de `AppEmptyState` em `ProntuarioView` quando `modeloConsultaAtual === null` — gatilho exibe placeholder em itálico e cabeçalho usa "Selecionar modelo". Em ambos os casos o visual e a lista de itens são idênticos; a diferença é apenas o texto do gatilho/cabeçalho. Adicionado em briefing `planejamentos/2026-06-22_001`.
+
 **Componente `SeletorTemplateCirurgico`:**
 - Localização: [`frontend/src/components/prontuario/SeletorTemplateCirurgico.vue`](../frontend/src/components/prontuario/SeletorTemplateCirurgico.vue).
 - Props: `aberto: boolean`, `valorAtual: string`.

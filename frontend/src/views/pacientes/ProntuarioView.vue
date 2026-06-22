@@ -28,10 +28,11 @@ import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuario
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { usePermissoesStore } from "@/stores/permissoesStore"
-import { AppButton, AppField, AppSelect, AppToast } from "@/components/ui"
+import { AppButton, AppEmptyState, AppToast } from "@/components/ui"
 import ProntuarioPacienteHeader    from "@/components/prontuario/ProntuarioPacienteHeader.vue"
 import ProntuarioTabs, { type AbaProntuario } from "@/components/prontuario/ProntuarioTabs.vue"
 import ConsultaAtualTab            from "@/components/prontuario/tabs/ConsultaAtualTab.vue"
+import SeletorModeloProntuario     from "@/components/prontuario/SeletorModeloProntuario.vue"
 import ConsultasAnterioresTab      from "@/components/prontuario/tabs/ConsultasAnterioresTab.vue"
 import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTab.vue"
 import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
@@ -206,9 +207,11 @@ async function carregar() {
         modelosDisponiveis.value = modelos
         pront.value = prontuarioCarregado
         if (pront.value) {
-            modeloConsultaAtual.value = pront.value.prontuario.modeloDeProntuarioId
+            // R1: não pré-seleciona o modelo — médico escolhe conscientemente no empty-state.
+            modeloConsultaAtual.value = null
             totalEvolucoes.value = pront.value.evolucoes.length
-            inicializarFormEvolucao()
+            // Não chama inicializarFormEvolucao() aqui — o watch de modeloConsultaAtual cuida
+            // disso quando o médico escolher o modelo (CA9/R2).
             // Carrega o total real (sem ficar preso ao cap timeline=50 do payload inicial).
             prontuarioService.contarEvolucoes(pacienteId.value)
                 .then(n => { totalEvolucoes.value = n })
@@ -287,9 +290,10 @@ async function salvarEvolucao() {
             notificar("Preencha ao menos uma seção antes de salvar.", "error")
             return
         }
-        const modeloOverride = modeloConsultaAtual.value !== pront.value?.prontuario.modeloDeProntuarioId
-            ? (modeloConsultaAtual.value ?? undefined)
-            : undefined
+        // R6/CA8: modeloConsultaAtual é sempre a escolha consciente do médico
+        // (nunca vem pré-carregado do prontuário — R1). Enviamos sempre como
+        // modeloOverride para que a evolução seja gravada com o modelo da sessão.
+        const modeloOverride = modeloConsultaAtual.value ?? undefined
 
         const { evolucaoId } = await prontuarioService.registrarEvolucao(
             pacienteId.value, conteudoNaoVazio, modeloOverride, eventoId.value,
@@ -515,8 +519,26 @@ async function finalizarAtendimento() {
                 :contagem-anteriores="totalEvolucoes"
             />
 
+            <!-- CA1/R2: empty-state exige escolha do modelo antes de montar módulos.
+                 Seletor fica no topo (espelha .pront-toolbar da ConsultaAtualTab) para que
+                 o gatilho do popover esteja no terço superior da área → popover abre para baixo. -->
+            <div v-if="abaAtiva === 'consulta' && modeloConsultaAtual === null" class="escolher-modelo-wrap">
+                <div class="escolher-modelo-toolbar">
+                    <SeletorModeloProntuario
+                        :modelo-id="modeloConsultaAtual"
+                        :modelos="modelosDisponiveis"
+                        @update:modelo-id="modeloConsultaAtual = $event"
+                    />
+                </div>
+                <AppEmptyState
+                    icone="fa-solid fa-stethoscope"
+                    titulo="Selecione o tipo de prontuário para iniciar a consulta"
+                    descricao="Escolha um modelo no seletor acima para montar os módulos desta evolução."
+                />
+            </div>
+
             <ConsultaAtualTab
-                v-if="abaAtiva === 'consulta' && modeloConsultaAtual !== null"
+                v-else-if="abaAtiva === 'consulta' && modeloConsultaAtual !== null"
                 v-model:modelo-id="modeloConsultaAtual"
                 :modelos="modelosDisponiveis"
                 :secoes="secoesConsultaAtual"
@@ -615,6 +637,18 @@ async function finalizarAtendimento() {
 .iniciar-sub { font-size: 0.85em; color: var(--text-muted); margin: 0; }
 
 /* Estados */
-.estado-msg { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.9em; }
-.msg-erro   { color: hsl(var(--error)); font-size: 0.875em; margin: 0 0 1rem; }
+.estado-msg { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: var(--text-sm); }
+.msg-erro   { color: hsl(var(--error)); font-size: var(--text-sm); margin: 0 0 1rem; }
+
+/* Empty-state: escolher modelo (CA1/R2).
+ * Toolbar no topo (espelha .pront-toolbar da ConsultaAtualTab) para que o
+ * gatilho do popover fique no terço superior — popover abre para baixo. */
+.escolher-modelo-wrap {
+    padding: 1.5rem 0 3rem;
+}
+.escolher-modelo-toolbar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
 </style>

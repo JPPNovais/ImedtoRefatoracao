@@ -562,7 +562,6 @@ function setMembro(idx: number, campo: keyof OutroMembro, valor: string) {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    padding-left: 0.25rem;
 }
 
 /* ── Responsivo ── */
