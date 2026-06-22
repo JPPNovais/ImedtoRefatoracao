@@ -39,6 +39,12 @@ const props = defineProps<{
      * Ao receber, reflete nome no header sem reiniciar o fluxo de edição.
      */
     pacienteAtualizado?: Paciente | null
+    /**
+     * Oculta o modal (sem desmontar) enquanto o PacienteFormModal do "Editar
+     * dados" está aberto na frente. Preserva o estado; reaparece ao fechar o
+     * secundário. Evita o conflito de z-index com o Dialog do DS (z-50 < z-100).
+     */
+    oculto?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -370,7 +376,7 @@ async function salvar() {
 </script>
 
 <template>
-    <div v-if="aberto && agendamento" class="modal-overlay" @click="emit('fechar')">
+    <div v-if="aberto && agendamento" class="modal-overlay" :class="{ 'modal-overlay--oculto': oculto }" @click="emit('fechar')">
         <div class="modal modal-edit" @click.stop>
             <header class="modal-head edit-head">
                 <div class="eh-patient">
@@ -634,6 +640,9 @@ async function salvar() {
     animation: ovIn 180ms ease-out both;
 }
 @keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Modal secundário (PacienteFormModal) aberto na frente: esconde sem desmontar. */
+.modal-overlay--oculto { display: none; }
 
 .modal {
     background: hsl(var(--card));

@@ -61,6 +61,13 @@ const props = defineProps<{
      * Ao receber, reflete nome/CPF/telefone no card sem reiniciar o fluxo.
      */
     pacienteAtualizado?: Paciente | null
+    /**
+     * Oculta o modal (sem desmontar) enquanto um modal secundário — o
+     * PacienteFormModal do "Editar dados" — está aberto na frente. Preserva
+     * todo o estado do fluxo; o overlay reaparece ao fechar o secundário.
+     * Evita o conflito de z-index com o Dialog do design-system (z-50 < z-100).
+     */
+    oculto?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -500,7 +507,7 @@ const profSelecionado = computed(() =>
 </script>
 
 <template>
-    <div v-if="aberto" class="modal-overlay" @click="emit('fechar')">
+    <div v-if="aberto" class="modal-overlay" :class="{ 'modal-overlay--oculto': oculto }" @click="emit('fechar')">
         <div class="modal" @click.stop>
             <header class="modal-head">
                 <div>
@@ -1025,6 +1032,9 @@ const profSelecionado = computed(() =>
     animation: ovIn 180ms ease-out both;
 }
 @keyframes ovIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Modal secundário (PacienteFormModal) aberto na frente: esconde sem desmontar. */
+.modal-overlay--oculto { display: none; }
 
 .modal {
     background: hsl(var(--card));

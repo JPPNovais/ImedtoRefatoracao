@@ -6,6 +6,7 @@ import {
 } from "@/components/ui"
 import { pacienteService, type Paciente, type PacientePayload } from "@/services/pacienteService"
 import { cpfValido } from "@/utils/cpf"
+import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
 import { PACIENTE_TAGS } from "@/constants/pacienteTags"
 import { useCepAutofill } from "@/composables/useCepAutofill"
 
@@ -86,6 +87,22 @@ function novaForm(): Form {
 const form = reactive<Form>(novaForm())
 const erro = ref<string | null>(null)
 const salvando = ref(false)
+
+// Erro do backend específico do documento (CPF/doc internacional) — ex.: 422 de
+// duplicidade no estabelecimento. Destacado no próprio campo via erroExterno do
+// DocumentoPacienteField, não no rodapé genérico.
+const erroDocumento = ref<string | null>(null)
+
+// Ponte entre o v-model { tipo, valor } do DocumentoPacienteField e os campos
+// planos do form. Reusa o componente padrão em vez de reimplementar toggle +
+// validação de CPF à mão (a validação de dígito verificador já vive no componente).
+const docModel = computed<DocumentoPacienteValue>({
+    get: () => ({ tipo: form.tipoDocumento, valor: form.documento }),
+    set: (v) => { form.tipoDocumento = v.tipo; form.documento = v.valor },
+})
+
+// Ao mexer no documento, descarta o erro de duplicidade vindo do backend.
+watch(() => [form.tipoDocumento, form.documento], () => { erroDocumento.value = null })
 
 // Modo é derivado: paciente presente = edição (form completo); ausente = criação rápida.
 const modo = computed<"criar" | "editar">(() => (props.paciente ? "editar" : "criar"))
@@ -213,6 +230,7 @@ async function salvar() {
     if (!valido.value || salvando.value) return
     salvando.value = true
     erro.value = null
+    erroDocumento.value = null
 
     try {
         const docValor = form.documento.trim()
@@ -253,7 +271,12 @@ async function salvar() {
             }
         }
     } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao salvar paciente."
+        const msg = e?.response?.data?.mensagem ?? "Erro ao salvar paciente."
+        // Erro de documento (CPF/doc internacional — ex.: duplicidade no
+        // estabelecimento, fonte da verdade no backend) é destacado no campo;
+        // demais erros vão para o rodapé genérico.
+        if (/cpf|documento/i.test(msg)) erroDocumento.value = msg
+        else erro.value = msg
     } finally {
         salvando.value = false
     }
@@ -357,33 +380,7 @@ const subtitulo = computed(() =>
                         <AppInput v-model="form.nomeCompleto" :disabled="salvando" />
                     </AppField>
 
-                    <AppField label="Documento">
-                        <div class="tabs-doc">
-                            <button
-                                type="button"
-                                class="tab-doc"
-                                :class="{ ativa: form.tipoDocumento === 'cpf' }"
-                                @click="form.tipoDocumento = 'cpf'; form.documento = ''"
-                            >CPF</button>
-                            <button
-                                type="button"
-                                class="tab-doc"
-                                :class="{ ativa: form.tipoDocumento === 'internacional' }"
-                                @click="form.tipoDocumento = 'internacional'; form.documento = ''"
-                            >Internacional</button>
-                        </div>
-                        <AppInput
-                            v-if="form.tipoDocumento === 'cpf'"
-                            v-model="form.documento" v-maska="'###.###.###-##'"
-                            placeholder="000.000.000-00" :disabled="salvando"
-                        />
-                        <AppInput
-                            v-else
-                            v-model="form.documento"
-                            placeholder="Nº do documento (passaporte, RNE...)"
-                            maxlength="30" :disabled="salvando"
-                        />
-                    </AppField>
+                    <DocumentoPacienteField v-model="docModel" :erro-externo="erroDocumento" />
 
                     <AppField label="Data de nascimento">
                         <AppDatePicker v-model="form.dataNascimento" :disabled="salvando" />
@@ -591,30 +588,6 @@ const subtitulo = computed(() =>
 .secao-hint {
     font-size: 12px; color: hsl(var(--secondary) / 0.65);
     margin: -6px 0 8px; line-height: 1.4;
-}
-
-/* Tabs Documento */
-.tabs-doc {
-    display: flex; gap: 4px;
-    background: hsl(var(--secondary) / 0.06);
-    border-radius: 8px; padding: 3px;
-    margin-bottom: 6px;
-}
-.tab-doc {
-    flex: 1;
-    padding: 6px 10px;
-    border: none; background: transparent;
-    cursor: pointer;
-    font-family: inherit; font-size: 12px; font-weight: 600;
-    color: hsl(var(--secondary) / 0.65);
-    border-radius: 6px;
-    transition: all 150ms;
-}
-.tab-doc:hover:not(.ativa) { color: hsl(var(--primary-dark)); }
-.tab-doc.ativa {
-    background: white;
-    color: hsl(var(--primary-dark));
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
 }
 
 /* Tags */
