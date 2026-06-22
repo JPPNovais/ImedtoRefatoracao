@@ -25,11 +25,8 @@ public class PacienteDto
     /// <summary>Tags clínicas/operacionais (chaves curtas, ex: <c>"vip"</c>, <c>"gestante"</c>).</summary>
     public string[] Tags { get; set; } = Array.Empty<string>();
 
-    /// <summary>
-    /// Alertas clínicos críticos (ex: alergias graves, comorbidades). Exibidos em
-    /// destaque vermelho no detalhe do paciente.
-    /// </summary>
-    public string[] Alertas { get; set; } = Array.Empty<string>();
+    // Alertas clínicos removidos do detalhe administrativo (LGPD briefing 2026-06-22_002).
+    // O conteúdo dos alertas viaja somente no ProntuarioCompletoDto, gated por papel/vínculo de atendimento.
 
     public DateTime CriadoEm { get; set; }
 
@@ -56,8 +53,8 @@ public class PacienteListaItemDto
     /// <summary>Tags clínicas para filtros e badges visuais na lista.</summary>
     public string[] Tags { get; set; } = Array.Empty<string>();
 
-    /// <summary>Quantidade de alertas clínicos do paciente (badge vermelho na lista).</summary>
-    public int QtdAlertas { get; set; }
+    // QtdAlertas removido da listagem (LGPD briefing 2026-06-22_002).
+    // Nem a contagem de alertas pode aparecer na lista — revelaria a existência de dado sensível.
 }
 
 public class PaginaPacientesDto

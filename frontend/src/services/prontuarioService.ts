@@ -43,6 +43,19 @@ export interface Evolucao {
 export interface ProntuarioCompleto {
     prontuario: ProntuarioResumo
     evolucoes: Evolucao[]
+    /**
+     * Alertas clínicos gated (R2 LGPD briefing 2026-06-22_002).
+     * Presente apenas para Dono ou Profissional que atendeu/está atendendo.
+     * Para quem não tem direito, o backend retorna array vazio — indistinguível de "sem alertas".
+     */
+    alertas: string[]
+    /**
+     * Flag de gestão de alertas (CA12 briefing 2026-06-22_002).
+     * True apenas para Dono (sempre) ou Profissional com vínculo de atendimento verificado.
+     * Derivado pelo backend do mesmo predicado de gating que decide o preenchimento de alertas.
+     * Recepcionista e Profissional sem vínculo recebem false.
+     */
+    podeGerirAlertas: boolean
 }
 
 export interface PaginaEvolucoes {
@@ -223,6 +236,15 @@ export const prontuarioService = {
             `/paciente/${pacienteId}/prontuario/evolucoes/${evolucaoId}/termos`,
         )
         return data
+    },
+
+    /**
+     * Atualiza os alertas clínicos do paciente (gestão dentro do prontuário).
+     * Gated por R3 LGPD: backend rejeita com 422 quem não tem direito.
+     * Substitui o array inteiro de alertas.
+     */
+    async atualizarAlertas(pacienteId: number, alertas: string[]): Promise<void> {
+        await httpClient.put(`/paciente/${pacienteId}/prontuario/alertas`, { alertas })
     },
 }
 

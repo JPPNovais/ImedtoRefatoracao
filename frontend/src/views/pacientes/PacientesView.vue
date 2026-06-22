@@ -306,11 +306,7 @@ function formatarCpf(cpf: string | null) {
                         {{ resolverTag(chave).label }}
                     </span>
                     <span v-if="p.tags.length > 3" class="tag-extra">+{{ p.tags.length - 3 }}</span>
-                    <span v-if="p.qtdAlertas > 0" class="alert-count" :title="p.qtdAlertas + ' alerta(s) clínico(s)'">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        {{ p.qtdAlertas }} alerta{{ p.qtdAlertas > 1 ? 's' : '' }}
-                    </span>
-                    <span v-if="!p.tags.length && !p.qtdAlertas" class="muted">—</span>
+                    <span v-if="!p.tags.length" class="muted">—</span>
                 </div>
 
                 <div class="pt-cell">
@@ -477,14 +473,6 @@ function formatarCpf(cpf: string | null) {
     background: hsl(var(--secondary) / 0.08);
     color: hsl(var(--secondary) / 0.6);
 }
-
-.alert-count {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; font-weight: 700;
-    background: hsl(var(--error) / 0.08); color: hsl(var(--error));
-    padding: 3px 7px; border-radius: 999px;
-}
-.alert-count i { font-size: 9px; }
 
 .pt-cell { font-size: 12.5px; color: hsl(var(--secondary)); }
 .pt-cell--small { font-size: 12px; color: hsl(var(--secondary) / 0.7); }

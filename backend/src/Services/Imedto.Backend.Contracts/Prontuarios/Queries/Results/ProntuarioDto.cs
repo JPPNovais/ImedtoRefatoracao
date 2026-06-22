@@ -31,6 +31,20 @@ public class ProntuarioCompletoDto
 {
     public ProntuarioDto Prontuario { get; set; }
     public IEnumerable<EvolucaoDto> Evolucoes { get; set; } = Array.Empty<EvolucaoDto>();
+
+    /// <summary>
+    /// Alertas clínicos do paciente — gated por papel/vínculo de atendimento (R2/R5 LGPD).
+    /// Retornado apenas quando o solicitante é Dono, ou atendeu/está atendendo o paciente.
+    /// Para quem não tem direito, o campo retorna vazio — indistinguível de "sem alertas".
+    /// </summary>
+    public string[] Alertas { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Indica se o solicitante pode gerir (adicionar/remover) alertas clínicos (CA12).
+    /// True apenas para Dono (sempre) ou Profissional com vínculo de atendimento verificado.
+    /// Derivado do mesmo predicado de gating que decide o preenchimento de <see cref="Alertas"/>.
+    /// </summary>
+    public bool PodeGerirAlertas { get; set; }
 }
 
 public class PaginaEvolucoesDto

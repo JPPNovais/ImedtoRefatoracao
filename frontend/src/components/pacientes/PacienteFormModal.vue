@@ -19,7 +19,8 @@ import { useCepAutofill } from "@/composables/useCepAutofill"
  *     5 campos essenciais (nome/CPF/telefone/nascimento/sexo). Botão "Cadastrar
  *     com mais detalhes" expande para o cadastro completo na hora.
  *  - `editar` (quando `paciente` está presente): cadastro completo direto, com
- *     todas as seções (Dados, Contato, Endereço, Tags, Alertas, Observações).
+ *     todas as seções (Dados, Contato, Endereço, Tags, Observações).
+ *     Alertas clínicos removidos (LGPD 2026-06-22_002) — geridos no prontuário.
  *
  * Quando o backend permite, o cadastro rápido pode salvar com só nome — CPF
  * e telefone permanecem obrigatórios para reduzir duplicidade na clínica.
@@ -54,7 +55,7 @@ interface Form {
     uf: string
     observacoes: string
     tags: string[]
-    alertas: string[]
+    // alertas removido da interface Form (LGPD 2026-06-22_002) — gestão no prontuário
     /** Consentimento explícito para WhatsApp (LGPD — opt-in). */
     whatsappLembreteOptIn: boolean
 }
@@ -78,13 +79,11 @@ function novaForm(): Form {
         uf: "",
         observacoes: "",
         tags: [],
-        alertas: [],
         whatsappLembreteOptIn: false,
     }
 }
 
 const form = reactive<Form>(novaForm())
-const novoAlerta = ref("")
 const erro = ref<string | null>(null)
 const salvando = ref(false)
 
@@ -110,7 +109,6 @@ const GENEROS = [
 function reset() {
     Object.assign(form, novaForm())
     expandirCadastro.value = false
-    novoAlerta.value = ""
     erro.value = null
 }
 
@@ -130,7 +128,6 @@ function popularComPaciente(p: Paciente) {
     form.email = p.email ?? ""
     form.observacoes = p.observacoes ?? ""
     form.tags = [...(p.tags ?? [])]
-    form.alertas = [...(p.alertas ?? [])]
     form.whatsappLembreteOptIn = p.whatsappLembreteOptIn ?? false
     parseEndereco(p.endereco)
     // Previne disparo automático de busca ao montar em modo edição (CA12):
@@ -192,26 +189,13 @@ function montarEndereco(): string {
     return partes.join(", ")
 }
 
-// ─── Tags + alertas ────────────────────────────────────────────────────────
+// ─── Tags ────────────────────────────────────────────────────────────────────
 function toggleTag(chave: string) {
     const idx = form.tags.indexOf(chave)
     if (idx === -1) form.tags.push(chave)
     else form.tags.splice(idx, 1)
 }
-
-function adicionarAlerta() {
-    const v = novoAlerta.value.trim()
-    if (!v) return
-    if (v.length > 200) { erro.value = "Cada alerta deve ter no máximo 200 caracteres."; return }
-    if (form.alertas.length >= 10) { erro.value = "Máximo de 10 alertas por paciente."; return }
-    if (form.alertas.some(a => a.toLowerCase() === v.toLowerCase())) { novoAlerta.value = ""; return }
-    form.alertas.push(v)
-    novoAlerta.value = ""
-}
-
-function removerAlerta(i: number) {
-    form.alertas.splice(i, 1)
-}
+// adicionarAlerta/removerAlerta removidas (LGPD 2026-06-22_002) — gestão no prontuário
 
 // ─── Validação + persist ───────────────────────────────────────────────────
 const valido = computed(() => {
@@ -247,8 +231,8 @@ async function salvar() {
             email:                  form.email || undefined,
             endereco:               montarEndereco() || undefined,
             observacoes:            form.observacoes || undefined,
-            tags:                   form.tags.length    ? [...form.tags]    : [],
-            alertas:                form.alertas.length ? [...form.alertas] : [],
+            tags:                   form.tags.length ? [...form.tags] : [],
+            // alertas não enviados pelo form geral (LGPD 2026-06-22_002)
             whatsappLembreteOptIn:  form.whatsappLembreteOptIn,
         }
 
@@ -349,7 +333,7 @@ const subtitulo = computed(() =>
 
             <button type="button" class="link-completo" :disabled="salvando" @click="expandirCadastro = true">
                 <i class="fa-solid fa-plus-circle"></i>
-                Cadastrar com mais detalhes (endereço, tags, alertas, observações)
+                Cadastrar com mais detalhes (endereço, tags, observações)
             </button>
         </div>
 
@@ -512,37 +496,9 @@ const subtitulo = computed(() =>
                 </div>
             </section>
 
-            <section class="secao">
-                <h3 class="ds-section-title">Alertas clínicos</h3>
-                <p class="secao-hint">
-                    Avisos críticos que aparecem no detalhe (ex: "Alergia a penicilina"). Máximo 10.
-                </p>
-                <div v-if="form.alertas.length" class="alertas-lista">
-                    <div v-for="(a, i) in form.alertas" :key="i" class="alerta-item">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>{{ a }}</span>
-                        <button
-                            type="button" class="alerta-remover"
-                            :disabled="salvando" aria-label="Remover alerta"
-                            @click="removerAlerta(i)"
-                        ><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                </div>
-                <div class="alerta-novo">
-                    <AppInput
-                        v-model="novoAlerta"
-                        placeholder="Descreva o alerta e pressione Enter..."
-                        :disabled="salvando || form.alertas.length >= 10"
-                        @keyup.enter="adicionarAlerta"
-                    />
-                    <AppButton
-                        variant="secondary"
-                        icon="fa-solid fa-plus"
-                        :disabled="salvando || !novoAlerta.trim() || form.alertas.length >= 10"
-                        @click="adicionarAlerta"
-                    >Adicionar</AppButton>
-                </div>
-            </section>
+            <!-- Seção "Alertas clínicos" removida do form geral (LGPD 2026-06-22_002).
+                 Gestão de alertas agora é exclusiva do cabeçalho do prontuário,
+                 restrita a Dono + Profissional que atendeu/está atendendo. -->
 
             <section class="secao">
                 <h3 class="ds-section-title">Observações</h3>
@@ -711,31 +667,6 @@ const subtitulo = computed(() =>
     line-height: 1.4;
 }
 
-/* Alertas */
-.alertas-lista { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-.alerta-item {
-    display: flex; align-items: center; gap: 8px;
-    background: hsl(var(--error) / 0.06);
-    border: 1px solid hsl(var(--error) / 0.2);
-    border-left-width: 3px;
-    padding: 8px 12px; border-radius: 8px;
-    font-size: 13px; color: hsl(0 70% 30%);
-}
-.alerta-item > i:first-child { color: hsl(var(--error)); flex-shrink: 0; font-size: 12px; }
-.alerta-item > span { flex: 1; }
-.alerta-remover {
-    background: none; border: none; cursor: pointer;
-    color: hsl(var(--error) / 0.7); font-size: 13px;
-    padding: 2px 6px; border-radius: 4px;
-}
-.alerta-remover:hover:not(:disabled) {
-    background: hsl(var(--error) / 0.12);
-    color: hsl(var(--error));
-}
-
-.alerta-novo { display: flex; gap: 8px; align-items: stretch; }
-.alerta-novo > :first-child { flex: 1; }
-
 .msg-erro {
     color: hsl(var(--error));
     background: hsl(var(--error) / 0.06);
@@ -746,6 +677,5 @@ const subtitulo = computed(() =>
 
 @media (max-width: 720px) {
     .form-grid { grid-template-columns: 1fr; }
-    .alerta-novo { flex-direction: column; }
 }
 </style>

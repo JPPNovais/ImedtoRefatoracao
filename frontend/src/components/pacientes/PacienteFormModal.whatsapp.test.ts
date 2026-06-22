@@ -45,7 +45,6 @@ function criarPaciente(overrides: Partial<Paciente> = {}): Paciente {
         endereco: null,
         observacoes: null,
         tags: [],
-        alertas: [],
         criadoEm: "2024-01-01T00:00:00Z",
         atualizadoEm: null,
         whatsappLembreteOptIn: false,

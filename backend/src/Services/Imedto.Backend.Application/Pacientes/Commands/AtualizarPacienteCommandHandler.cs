@@ -43,6 +43,10 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
         if (!Enum.TryParse<GeneroPaciente>(command.Genero, ignoreCase: true, out var genero))
             genero = GeneroPaciente.NaoInformado;
 
+        // Alertas: quando null (caminho administrativo, LGPD briefing 2026-06-22_002),
+        // preserva o valor atual — alertas só são geridos via AtualizarAlertasProntuarioCommand.
+        var alertasPreservados = command.Alertas ?? paciente.Alertas;
+
         paciente.AtualizarDados(
             command.NomeCompleto,
             command.Cpf,
@@ -54,7 +58,7 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
             command.Observacoes,
             command.DocumentoInternacional,
             command.Tags,
-            command.Alertas);
+            alertasPreservados);
 
         // R4/CA8: consentimento WhatsApp — só atualiza quando o campo veio no request.
         if (command.WhatsappLembreteOptIn.HasValue)

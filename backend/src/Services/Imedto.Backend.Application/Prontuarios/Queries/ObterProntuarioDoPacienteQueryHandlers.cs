@@ -22,7 +22,12 @@ public class ObterProntuarioDoPacienteQueryHandlers
 
     public async Task<ProntuarioCompletoDto> Handle(ObterProntuarioDoPacienteQuery query)
     {
-        var dto = await _queryRepository.ObterDoPaciente(query.PacienteId, query.EstabelecimentoId, query.TamanhoTimeline);
+        var dto = await _queryRepository.ObterDoPacienteGated(
+            query.PacienteId,
+            query.EstabelecimentoId,
+            query.TamanhoTimeline,
+            query.SolicitanteUsuarioId,
+            query.SolicitantePapel);
 
         // Audit LGPD — registra a leitura (só quando há prontuário para logar).
         if (dto?.Prontuario is not null && query.SolicitanteUsuarioId != Guid.Empty)

@@ -616,16 +616,8 @@ function orcStatusClass(s: string): string {
                     </div>
                 </div>
 
-                <!-- Alertas clínicos -->
-                <div v-if="paciente.alertas.length" class="pd-alerts">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <div class="pd-alerts-content">
-                        <b>Alertas clínicos</b>
-                        <ul>
-                            <li v-for="(a, i) in paciente.alertas" :key="i">{{ a }}</li>
-                        </ul>
-                    </div>
-                </div>
+                <!-- Alertas clínicos removidos das informações básicas (LGPD 2026-06-22_002).
+                     Visíveis apenas no cabeçalho do prontuário, gated por papel/vínculo. -->
 
                 <!-- Quick stats -->
                 <div class="pd-stats">
@@ -1238,23 +1230,6 @@ function orcStatusClass(s: string): string {
     display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap;
     margin-left: auto;
 }
-
-/* Alertas */
-.pd-alerts {
-    display: flex; align-items: flex-start; gap: 12px;
-    background: hsl(var(--error) / 0.06);
-    border: 1px solid hsl(var(--error) / 0.2);
-    border-radius: 8px; padding: 10px 14px;
-    margin-bottom: 14px;
-}
-.pd-alerts > i { font-size: 16px; color: hsl(var(--error)); margin-top: 2px; }
-.pd-alerts-content { flex: 1; }
-.pd-alerts-content b {
-    display: block; font-size: 12px; font-weight: 700;
-    color: hsl(var(--error)); text-transform: uppercase; letter-spacing: 0.04em;
-}
-.pd-alerts-content ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: hsl(0 70% 25%); }
-.pd-alerts-content li { line-height: 1.5; }
 
 /* Quick stats */
 .pd-stats { display: flex; gap: 8px; padding-bottom: 12px; flex-wrap: wrap; }

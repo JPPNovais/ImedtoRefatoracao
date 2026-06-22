@@ -260,6 +260,18 @@ Regras LGPD específicas da Onda 2:
 - **Minimização de payload:** `IMigracaoPacienteLookup` retorna apenas `(PacienteId, ProntuarioId)` — nunca dados sensíveis do paciente.
 - **CA15 — honestidade estrutural:** prontuário sem campos identificáveis não gera evolução inventada; entra como anexo `text/plain` pesquisável. Isso evita PII falso ou distorcido nos prontuários.
 
+## Alertas clínicos — visibilidade restrita (briefing 2026-06-22_002)
+
+Os **alertas clínicos** do paciente (`pacientes.alertas text[]` — ex.: "alergia a penicilina", "anticoagulado", comorbidades) são **dado pessoal sensível de saúde** (Art. 5º II / Art. 11 LGPD) — equiparável ao CPF: não podem aparecer para qualquer um. O **conteúdo** e qualquer **derivado** (inclusive a contagem) têm visibilidade restrita.
+
+- **Exposto apenas no cabeçalho do prontuário**, no contexto do atendimento. **Removido** de: lista de pacientes (badge + `qtdAlertas` do DTO de listagem), informações básicas do detalhe do paciente, resumo do check-in da agenda e formulário geral do paciente (`PacienteFormModal`, usado pela recepção). Não pode ser exposto em nenhum lugar novo (hover de lista, tooltip de agenda, busca rápida).
+- **Quem pode LER** (sempre dentro do tenant do paciente): **Dono** (sempre) **ou** **Profissional que está atendendo** (atendimento ativo atribuído a ele — agendamento com check-in e status não terminal — ou conduzindo a evolução atual) **ou** **Profissional que já atendeu** (evolução passada autorada por ele no prontuário). **Recepção nunca lê.** Profissional sem vínculo de atendimento e não-Dono **não lê**. Sinais técnicos: `ProntuarioEvolucao.AutorUsuarioId` (atendeu) e `Agendamento.ProfissionalUsuarioId`/`CheckInEm`/`Status` (atendendo).
+- **Segurança clínica (não-negociável):** o ato de iniciar/conduzir o atendimento atual **conta** como "está atendendo" — médico em **primeira consulta de paciente novo** (sem histórico) **precisa** ver os alertas (ex.: alergia antes de prescrever). O bloqueio recai apenas sobre abrir o prontuário **sem contexto de atendimento e sem histórico, não sendo Dono**.
+- **Gestão** (criar/editar/remover) restrita às **mesmas personas** (Dono + atende/atendeu) e feita **dentro do prontuário** — a recepção não cria/edita alertas; a seção saiu do formulário geral do paciente.
+- **Enforcement no backend, não só na UI:** a API **não devolve** o conteúdo nem a contagem de alertas a quem não tem direito (chamada direta inclusa). A negativa de leitura é **indistinguível** de "paciente sem alertas" — não revela que existe alerta oculto. Ocultar o bloco no front é UX; a fonte da verdade é o handler/query.
+- **Audit reusa o trilho do prontuário** (sem tabela/serviço novo): a leitura do prontuário que exibe alertas já registra `TipoAcessoProntuario.Leitura` via `IProntuarioAcessoLogService`; a **gestão** de alerta (escrita sensível) registra 1 linha de `TipoAcessoProntuario.Escrita` (best-effort — falha não bloqueia a operação).
+- **Multi-tenant** rígido (filtro `estabelecimento_id`; paciente de outro tenant → "não encontrado" genérico) e **mensagens genéricas sem PII** (negativa não ecoa conteúdo de alerta, nome ou CPF, e não distingue "não existe" de "não pode ver").
+
 ---
 
 ## Checklist multi-tenant — premissa não-negociável

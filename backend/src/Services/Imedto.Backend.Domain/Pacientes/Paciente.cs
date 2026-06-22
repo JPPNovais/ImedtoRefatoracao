@@ -213,6 +213,20 @@ public class Paciente : Entity, ISoftDeletable
     }
 
     /// <summary>
+    /// Atualiza somente os alertas clínicos do paciente (gestão dentro do prontuário).
+    /// Restrito a quem tem direito de gestão (R3 LGPD briefing 2026-06-22_002) —
+    /// o gating é feito pelo handler antes de chamar este método.
+    /// </summary>
+    public virtual void AtualizarSomenteAlertas(IReadOnlyList<string> alertas)
+    {
+        if (EstaDeletado)
+            throw new BusinessException("Paciente deletado não pode ser editado.");
+
+        Alertas = NormalizarLista(alertas, AlertaMaxLen, AlertasMaxCount, "Alertas");
+        AtualizadoEm = DateTime.UtcNow;
+    }
+
+    /// <summary>
     /// Registra ou revoga o consentimento explícito do paciente para receber lembretes via WhatsApp.
     /// Grava data/hora e quem registrou (audit trail LGPD — R4 do briefing 2026-06-18_005).
     /// </summary>

@@ -1,12 +1,19 @@
 <!--
     Header sticky do prontuário (visual do design Imedto care):
-      - Esquerda: voltar + avatar + nome/idade/sexo/CPF/contato + alertas
+      - Esquerda: voltar + avatar + nome/idade/sexo/CPF/contato + alertas gated
       - Direita: timer (quando há atendimento ativo) + ação finalizar
-    Não toca o backend — `finalizar` apenas emite evento (a view chama
-    `agendaService.concluir`).
+
+    Alertas clínicos (LGPD briefing 2026-06-22_002):
+      - Recebidos como prop `alertas: string[]` — vindos do ProntuarioCompleto (gated).
+      - Para quem não tem acesso (Recepção, sem vínculo), o backend retorna []
+        indistinguível de "sem alertas" (R5).
+      - Gestão inline habilitada apenas quando `podeGerir === true` (Dono ou
+        Profissional com vínculo de atendimento verificado pelo backend via R3).
+
+    Não toca o backend — `finalizar` e `salvar-alertas` são eventos (a view faz as chamadas).
 -->
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import type { Paciente } from "@/services/pacienteService"
 import type { Agendamento } from "@/services/agendaService"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
@@ -18,11 +25,24 @@ const props = defineProps<{
     estabelecimento?: string | null
     /** Permite ocultar a coluna de ações (em telas read-only / sem agendamento) */
     semAcoes?: boolean
+    /**
+     * Alertas clínicos gated (LGPD 2026-06-22_002).
+     * Vindos de ProntuarioCompleto.alertas — array vazio = sem alertas OU sem acesso.
+     */
+    alertas?: string[]
+    /**
+     * Se verdadeiro, exibe controles de gestão de alertas (adicionar/remover).
+     * Determinado pela view com base no papel do usuário (Dono sempre; Profissional
+     * com vínculo de atendimento; Recepção nunca).
+     */
+    podeGerir?: boolean
 }>()
 
 const emit = defineEmits<{
     "voltar": []
     "finalizar": []
+    /** Emitido ao salvar alertas; a view chama prontuarioService.atualizarAlertas. */
+    "salvar-alertas": [alertas: string[]]
 }>()
 
 const { atual: atendimentoAtivo, ehEstePaciente } = useAtendimentoAtivo()
@@ -68,16 +88,61 @@ const meta = computed(() => {
     return linhas
 })
 
-// Alertas do paciente: tudo via campo livre `alertas: string[]`. O design
-// distingue "alergia" (vermelho) de outros alertas (amarelo). Heurística:
-// se o texto começa com "alergia" → vermelho.
+// ── Alertas gated ────────────────────────────────────────────────────────────
+// Heurística de cor: texto começa com "alergia" → vermelho; demais → amarelo.
 type Alerta = { texto: string, tipo: "err" | "warn" }
-const alertas = computed<Alerta[]>(() => {
-    return (props.paciente?.alertas ?? []).map(t => ({
+const alertasExibicao = computed<Alerta[]>(() => {
+    return (props.alertas ?? []).map(t => ({
         texto: t,
         tipo: t.toLowerCase().startsWith("alergia") ? "err" : "warn",
     }))
 })
+
+// ── Gestão inline de alertas ─────────────────────────────────────────────────
+const gerindoAlertas = ref(false)
+const alertasEdicao = ref<string[]>([])
+const novoAlerta = ref("")
+const salvandoAlertas = ref(false)
+
+function abrirGestao() {
+    alertasEdicao.value = [...(props.alertas ?? [])]
+    novoAlerta.value = ""
+    gerindoAlertas.value = true
+}
+
+function cancelarGestao() {
+    gerindoAlertas.value = false
+    novoAlerta.value = ""
+}
+
+function adicionarAlertaEdicao() {
+    const v = novoAlerta.value.trim()
+    if (!v) return
+    if (v.length > 200) return
+    if (alertasEdicao.value.length >= 10) return
+    if (alertasEdicao.value.some(a => a.toLowerCase() === v.toLowerCase())) {
+        novoAlerta.value = ""
+        return
+    }
+    alertasEdicao.value.push(v)
+    novoAlerta.value = ""
+}
+
+function removerAlertaEdicao(i: number) {
+    alertasEdicao.value.splice(i, 1)
+}
+
+async function confirmarGestao() {
+    if (salvandoAlertas.value) return
+    salvandoAlertas.value = true
+    try {
+        emit("salvar-alertas", [...alertasEdicao.value])
+        gerindoAlertas.value = false
+        novoAlerta.value = ""
+    } finally {
+        salvandoAlertas.value = false
+    }
+}
 
 const dataHora = computed(() => {
     const iso = props.agendamento?.inicioPrevisto
@@ -111,9 +176,10 @@ void emit
                     <span v-if="estabelecimento">{{ estabelecimento }}</span>
                 </div>
 
-                <div v-if="alertas.length > 0" class="ph-alerts">
+                <!-- Alertas gated: exibidos somente quando o backend retornou dados (array não vazio) -->
+                <div v-if="alertasExibicao.length > 0 && !gerindoAlertas" class="ph-alerts">
                     <span
-                        v-for="(a, i) in alertas"
+                        v-for="(a, i) in alertasExibicao"
                         :key="i"
                         class="ph-alert"
                         :class="a.tipo"
@@ -121,6 +187,84 @@ void emit
                         <i class="fa-solid" :class="a.tipo === 'err' ? 'fa-ban' : 'fa-circle-info'"></i>
                         {{ a.texto }}
                     </span>
+                    <button
+                        v-if="podeGerir"
+                        type="button"
+                        class="ph-alert-edit"
+                        aria-label="Gerenciar alertas clínicos"
+                        @click="abrirGestao"
+                    >
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                </div>
+
+                <!-- Estado: sem alertas mas pode gerir — link discreto para adicionar -->
+                <div v-if="alertasExibicao.length === 0 && podeGerir && !gerindoAlertas" class="ph-alerts-vazio">
+                    <button type="button" class="ph-alert-add-link" @click="abrirGestao">
+                        <i class="fa-solid fa-plus"></i>
+                        Adicionar alerta clínico
+                    </button>
+                </div>
+
+                <!-- Painel de gestão inline (somente quando gerindoAlertas && podeGerir) -->
+                <div v-if="gerindoAlertas && podeGerir" class="ph-gestao-alertas">
+                    <div v-if="alertasEdicao.length" class="ph-gestao-lista">
+                        <div
+                            v-for="(a, i) in alertasEdicao"
+                            :key="i"
+                            class="ph-gestao-item"
+                        >
+                            <i class="fa-solid"
+                               :class="a.toLowerCase().startsWith('alergia') ? 'fa-ban' : 'fa-circle-info'">
+                            </i>
+                            <span>{{ a }}</span>
+                            <button
+                                type="button"
+                                class="ph-gestao-remover"
+                                aria-label="Remover alerta"
+                                :disabled="salvandoAlertas"
+                                @click="removerAlertaEdicao(i)"
+                            >
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="ph-gestao-novo">
+                        <input
+                            v-model="novoAlerta"
+                            class="ph-gestao-input"
+                            type="text"
+                            placeholder="Novo alerta (Enter para adicionar)..."
+                            :disabled="salvandoAlertas || alertasEdicao.length >= 10"
+                            maxlength="200"
+                            @keyup.enter="adicionarAlertaEdicao"
+                        />
+                        <button
+                            type="button"
+                            class="ph-btn ph-btn-secondary"
+                            :disabled="salvandoAlertas || !novoAlerta.trim() || alertasEdicao.length >= 10"
+                            @click="adicionarAlertaEdicao"
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="ph-gestao-acoes">
+                        <button
+                            type="button"
+                            class="ph-btn ph-btn-secondary"
+                            :disabled="salvandoAlertas"
+                            @click="cancelarGestao"
+                        >Cancelar</button>
+                        <button
+                            type="button"
+                            class="ph-btn ph-btn-success"
+                            :disabled="salvandoAlertas"
+                            @click="confirmarGestao"
+                        >
+                            <i class="fa-solid fa-check"></i>
+                            Salvar
+                        </button>
+                    </div>
                 </div>
 
                 <div v-if="dataHora && agendamento" class="ph-encounter">
@@ -197,7 +341,66 @@ void emit
     font-size: 12px; color: hsl(var(--secondary) / 0.7);
 }
 .ph-meta-sep { opacity: 0.4; margin: 0 2px; }
-.ph-alerts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+/* Alertas em exibição */
+.ph-alerts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.ph-alert-edit {
+    background: none; border: none; cursor: pointer;
+    color: hsl(var(--secondary) / 0.5); padding: 2px 4px;
+    border-radius: 4px; font-size: var(--text-xs);
+    transition: color 150ms;
+}
+.ph-alert-edit:hover { color: hsl(var(--primary)); }
+
+/* Link "Adicionar alerta clínico" quando não há alertas mas pode gerir */
+.ph-alerts-vazio { margin-top: 4px; }
+.ph-alert-add-link {
+    background: none; border: none; cursor: pointer;
+    font-size: var(--text-xs); color: hsl(var(--secondary) / 0.5);
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 0; transition: color 150ms;
+}
+.ph-alert-add-link:hover { color: hsl(var(--primary)); }
+.ph-alert-add-link i { font-size: inherit; }
+
+/* Painel de gestão inline */
+.ph-gestao-alertas {
+    margin-top: 8px;
+    background: hsl(var(--secondary) / 0.03);
+    border: 1px solid hsl(var(--secondary) / 0.12);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.ph-gestao-lista { display: flex; flex-direction: column; gap: 4px; }
+.ph-gestao-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: var(--text-xs); color: hsl(var(--secondary) / 0.85);
+    padding: 4px 6px; border-radius: 4px;
+    background: hsl(var(--secondary) / 0.05);
+}
+.ph-gestao-item i { font-size: inherit; flex-shrink: 0; }
+.ph-gestao-item > span { flex: 1; }
+.ph-gestao-remover {
+    background: none; border: none; cursor: pointer;
+    color: hsl(var(--error) / 0.6); padding: 2px 4px;
+    border-radius: 3px; font-size: var(--text-xs);
+}
+.ph-gestao-remover:hover:not(:disabled) { color: hsl(var(--error)); background: hsl(var(--error) / 0.08); }
+
+.ph-gestao-novo { display: flex; gap: 6px; }
+.ph-gestao-input {
+    flex: 1; height: 30px; padding: 0 8px;
+    border: 1px solid hsl(var(--secondary) / 0.2);
+    border-radius: var(--radius-sm); font: inherit;
+    font-size: var(--text-xs);
+    background: white;
+}
+.ph-gestao-input:focus { outline: none; border-color: hsl(var(--primary) / 0.5); }
+.ph-gestao-input:disabled { opacity: 0.5; }
+
+.ph-gestao-acoes { display: flex; justify-content: flex-end; gap: 6px; }
+
 .ph-encounter {
     margin-top: 6px;
     font-size: 12px; color: hsl(var(--primary));
@@ -222,7 +425,7 @@ void emit
     display: inline-flex; align-items: center; gap: 6px;
     height: 36px; padding: 0 12px;
     border-radius: var(--radius-md);
-    font: inherit; font-size: 13px; font-weight: 600;
+    font: inherit; font-size: var(--text-xs); font-weight: var(--font-weight-semibold);
     cursor: pointer; border: 1px solid transparent;
     transition: background 150ms, border-color 150ms, color 150ms, box-shadow 150ms;
     white-space: nowrap;
@@ -232,11 +435,12 @@ void emit
     background: white; color: hsl(var(--secondary) / 0.85);
     border-color: hsl(var(--secondary) / 0.18);
 }
-.ph-btn-secondary:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.4); }
+.ph-btn-secondary:hover:not(:disabled) { color: hsl(var(--primary)); border-color: hsl(var(--primary) / 0.4); }
 .ph-btn-success {
     background: hsl(155 60% 50%); color: white; border-color: hsl(155 60% 50%);
 }
-.ph-btn-success:hover { background: hsl(155 60% 42%); border-color: hsl(155 60% 42%); }
+.ph-btn-success:hover:not(:disabled) { background: hsl(155 60% 42%); border-color: hsl(155 60% 42%); }
+.ph-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 760px) {
     .pront-header { padding: 12px 14px; }
