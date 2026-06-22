@@ -756,6 +756,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
 
     <NovoAgendamentoModal
         :aberto="modalNovoAberto"
+        :oculto="editarPacienteAberto && fonteEdicaoPaciente === 'novo'"
         :profissionais="profissionaisDisponiveis"
         :data-padrao="dataSel"
         :paciente-pre-selecionado="encaixePaciente"
@@ -770,6 +771,7 @@ async function encaixarListaEspera(item: ListaEsperaItem) {
 
     <EditarAgendamentoModal
         :aberto="editarAberto"
+        :oculto="editarPacienteAberto && fonteEdicaoPaciente === 'editar'"
         :agendamento="editarAg"
         :profissionais="profissionaisDisponiveis"
         :agendamentos-todos="agendamentos"
