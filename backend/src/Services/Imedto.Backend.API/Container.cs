@@ -630,6 +630,7 @@ public static class Container
         services.AddScoped<ConcluirPendenciaAoCriarOrcamentoHandler>();
         services.AddScoped<ConcluirPendenciaAoCriarAgendamentoHandler>();
         services.AddScoped<IniciarProntuarioCommandHandler>();
+        services.AddScoped<AtualizarAlertasProntuarioCommandHandler>(); // R3 LGPD: gestão gated de alertas no prontuário
         services.AddScoped<RegistrarEvolucaoCommandHandler>();
         services.AddScoped<RegistrarExportacaoProntuarioCommandHandler>();
         services.AddScoped<RegistrarExportacaoEvolucaoCommandHandler>();
@@ -1171,6 +1172,7 @@ public static class Container
             bus.Register<EditarModeloDescricaoCirurgicaCommand, EditarModeloDescricaoCirurgicaCommandHandler>();
             bus.Register<ExcluirModeloDescricaoCirurgicaCommand, ExcluirModeloDescricaoCirurgicaCommandHandler>();
             bus.Register<IniciarProntuarioCommand, IniciarProntuarioCommandHandler>();
+            bus.Register<AtualizarAlertasProntuarioCommand, AtualizarAlertasProntuarioCommandHandler>();
             bus.Register<RegistrarEvolucaoCommand, RegistrarEvolucaoCommandHandler>();
             bus.Register<RegistrarExportacaoProntuarioCommand, RegistrarExportacaoProntuarioCommandHandler>();
             bus.Register<RegistrarExportacaoEvolucaoCommand, RegistrarExportacaoEvolucaoCommandHandler>();

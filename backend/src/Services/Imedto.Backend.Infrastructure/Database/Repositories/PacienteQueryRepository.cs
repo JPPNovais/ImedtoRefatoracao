@@ -57,8 +57,7 @@ public class PacienteQueryRepository
                     data_nascimento                          AS DataNascimento,
                     telefone                                 AS Telefone,
                     criado_em                                AS CriadoEm,
-                    COALESCE(tags, ARRAY[]::text[])          AS Tags,
-                    coalesce(array_length(alertas, 1), 0)    AS QtdAlertas
+                    COALESCE(tags, ARRAY[]::text[])          AS Tags
             FROM    public.pacientes
             WHERE   estabelecimento_id = @EstabelecimentoId
               AND   deletado_em IS NULL
@@ -212,7 +211,6 @@ public class PacienteQueryRepository
                     endereco                                AS Endereco,
                     observacoes                             AS Observacoes,
                     COALESCE(tags, ARRAY[]::text[])         AS Tags,
-                    COALESCE(alertas, ARRAY[]::text[])      AS Alertas,
                     criado_em                               AS CriadoEm,
                     whatsapp_lembrete_opt_in                AS WhatsappLembreteOptIn
             FROM    public.pacientes
@@ -220,6 +218,8 @@ public class PacienteQueryRepository
               AND   estabelecimento_id = @EstabelecimentoId
               AND   deletado_em IS NULL
             """;
+            // Alertas removidos do detalhe administrativo (LGPD briefing 2026-06-22_002).
+            // Conteúdo gated viaja no ProntuarioCompletoDto.
 
         await using var conn = new NpgsqlConnection(_connectionString);
         return await conn.QuerySingleOrDefaultAsync<PacienteDto>(sql, new

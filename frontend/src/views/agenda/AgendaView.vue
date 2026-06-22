@@ -276,7 +276,6 @@ onMounted(async () => {
                     telefone: paciente.telefone ?? null,
                     criadoEm: "",
                     tags: [],
-                    qtdAlertas: 0,
                 }
                 encaixePaciente.value = item
                 await abrirModalNovo()
@@ -315,7 +314,6 @@ async function carregarPacientePorId(id: number): Promise<PacienteListaItem | nu
             telefone: null,
             criadoEm: "",
             tags: [],
-            qtdAlertas: 0,
         }
         pacientes.value.unshift(item)
         return item

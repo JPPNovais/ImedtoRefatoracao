@@ -78,6 +78,8 @@ const prontVazio: ProntuarioCompleto = {
         criadoEm: "2026-05-12T10:00:00Z",
     },
     evolucoes: [],
+    alertas: [],
+    podeGerirAlertas: false,
 }
 
 const prontComEvolucoes: ProntuarioCompleto = {
@@ -112,6 +114,8 @@ const prontComEvolucoes: ProntuarioCompleto = {
             criadaEm: "2026-05-12T10:30:00Z",
         },
     ],
+    alertas: [],
+    podeGerirAlertas: false,
 }
 
 const pacienteCompleto: Paciente = {
@@ -127,7 +131,6 @@ const pacienteCompleto: Paciente = {
     endereco: null,
     observacoes: null,
     tags: [],
-    alertas: [],
     criadoEm: "2026-01-01T00:00:00Z",
     atualizadoEm: null,
     whatsappLembreteOptIn: false,

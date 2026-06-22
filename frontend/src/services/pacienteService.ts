@@ -10,8 +10,7 @@ export interface PacienteListaItem {
     criadoEm: string
     /** Tags clínicas/operacionais (chaves curtas como "vip", "gestante"). */
     tags: string[]
-    /** Quantidade de alertas clínicos do paciente — usada como badge na lista. */
-    qtdAlertas: number
+    // qtdAlertas removido (LGPD briefing 2026-06-22_002): nem a contagem pode aparecer na lista.
 }
 
 export interface PaginaPacientes {
@@ -35,8 +34,8 @@ export interface Paciente {
     observacoes: string | null
     /** Tags clínicas/operacionais — chaves curtas (ex: "vip", "gestante"). */
     tags: string[]
-    /** Alertas clínicos críticos exibidos em destaque no detalhe do paciente. */
-    alertas: string[]
+    // alertas removido do detalhe administrativo (LGPD briefing 2026-06-22_002).
+    // Os alertas viajam somente no ProntuarioCompleto, gated por papel/vínculo de atendimento.
     criadoEm: string
     atualizadoEm: string | null
     /** Consentimento do paciente para receber lembretes via WhatsApp (LGPD — opt-in explícito). */
@@ -54,7 +53,8 @@ export interface PacientePayload {
     endereco?: string
     observacoes?: string
     tags?: string[]
-    alertas?: string[]
+    // alertas removido do payload administrativo (LGPD briefing 2026-06-22_002).
+    // Gestão exclusiva via prontuarioService.atualizarAlertas().
     /** Consentimento para WhatsApp. Null = não alterar em PUT; false é o padrão em POST. */
     whatsappLembreteOptIn?: boolean | null
 }

@@ -316,10 +316,7 @@ function fechar() {
                         {{ new Date(paciente.dataNascimento).toLocaleDateString("pt-BR") }}
                     </span>
                 </div>
-                <div v-if="paciente.alertas && paciente.alertas.length" class="alertas-resumo">
-                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                    <span>{{ paciente.alertas.join(" · ") }}</span>
-                </div>
+                <!-- alertas-resumo removido do check-in (LGPD 2026-06-22_002) -->
             </div>
         </div>
 
@@ -559,26 +556,6 @@ function fechar() {
     font-weight: 500;
     color: hsl(var(--foreground));
 }
-.alertas-resumo {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: hsl(var(--error) / 0.06);
-    border: 1px solid hsl(var(--error) / 0.2);
-    border-left-width: 3px;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 12px;
-    color: hsl(0 70% 30%);
-    font-weight: 500;
-}
-.alertas-resumo > i {
-    color: hsl(var(--error));
-    flex-shrink: 0;
-    font-size: 12px;
-}
-
 .msg-erro {
     color: hsl(var(--error));
     background: hsl(var(--error) / 0.06);

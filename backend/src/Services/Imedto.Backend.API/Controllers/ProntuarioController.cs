@@ -50,12 +50,14 @@ public class ProntuarioController : ControllerBase
     [ProducesResponseType(typeof(ProntuarioCompletoDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Obter(long pacienteId, [FromQuery] int timeline = 50)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papel);
         var dto = await _requestBus.Query<ObterProntuarioDoPacienteQuery, ProntuarioCompletoDto>(
             new ObterProntuarioDoPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papel,
                 TamanhoTimeline = timeline
             });
 
@@ -234,6 +236,31 @@ public class ProntuarioController : ControllerBase
             });
         return Ok(itens);
     }
+
+    /// <summary>
+    /// Atualiza os alertas clínicos do paciente (gestão dentro do prontuário).
+    /// Gated por R3 LGPD: apenas Dono (sempre) ou Profissional que atendeu/está atendendo.
+    /// Auditado como escrita de prontuário (best-effort).
+    /// </summary>
+    [HttpPut("alertas")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AtualizarAlertas(long pacienteId, [FromBody] AtualizarAlertasRequest request)
+    {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelGestao);
+        await _commandBus.Send(new AtualizarAlertasProntuarioCommand
+        {
+            PacienteId = pacienteId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId,
+            SolicitantePapel = papelGestao,
+            Alertas = request.Alertas ?? Array.Empty<string>(),
+        });
+
+        return NoContent();
+    }
 }
 
 /// <param name="ModeloDeProntuarioId">
@@ -242,3 +269,6 @@ public class ProntuarioController : ControllerBase
 /// </param>
 public record IniciarProntuarioRequest(long? ModeloDeProntuarioId = null);
 public record RegistrarEvolucaoRequest(string ConteudoJson, long? ModeloDeProntuarioId = null);
+
+/// <summary>Payload para atualização dos alertas clínicos pelo prontuário.</summary>
+public record AtualizarAlertasRequest(IReadOnlyList<string> Alertas = null);

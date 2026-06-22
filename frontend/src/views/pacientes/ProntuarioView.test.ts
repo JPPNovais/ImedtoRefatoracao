@@ -232,6 +232,92 @@ describe("ProntuarioView — 2026-06-22_001: empty-state antes de escolher model
     })
 })
 
+// ---------------------------------------------------------------------------
+// CA12 — podeGerirAlertas vem do backend, não do papel local
+// ---------------------------------------------------------------------------
+
+describe("ProntuarioView — CA12: podeGerirAlertas derivado do backend", () => {
+    it("CA12-a: pront.podeGerirAlertas=true → prop pode-gerir=true no ProntuarioPacienteHeader", async () => {
+        const prontComGestao = { ...PRONT_EXISTENTE, alertas: ["Alergia a penicilina"], podeGerirAlertas: true }
+        vi.mocked(prontuarioService.obter).mockResolvedValue(prontComGestao as any)
+        vi.mocked(prontuarioService.listarModelos).mockResolvedValue(MODELOS_DISPONIVEIS)
+        ;(prontuarioService as any).contarEvolucoes = vi.fn().mockResolvedValue(1)
+
+        const wrapper = mount(ProntuarioView, {
+            global: {
+                plugins: [
+                    createTestingPinia({
+                        initialState: {
+                            tenant: { ativo: { id: 1, nomeFantasia: "Clínica" }, semEstabelecimento: false },
+                            permissoes: { permissoes: [] },
+                            proximosPasso: { acoes: [] },
+                        },
+                    }),
+                ],
+                stubs: STUBS_PESADOS,
+            },
+        })
+        await flushPromises()
+
+        const header = wrapper.findComponent({ name: "ProntuarioPacienteHeader" })
+        expect(header.exists()).toBe(true)
+        expect(header.props("podeGerir")).toBe(true)
+    })
+
+    it("CA12-b: pront.podeGerirAlertas=false → prop pode-gerir=false no ProntuarioPacienteHeader", async () => {
+        // Profissional sem vínculo ou Recepcionista: backend retorna podeGerirAlertas=false.
+        const prontSemGestao = { ...PRONT_EXISTENTE, alertas: [], podeGerirAlertas: false }
+        vi.mocked(prontuarioService.obter).mockResolvedValue(prontSemGestao as any)
+        vi.mocked(prontuarioService.listarModelos).mockResolvedValue(MODELOS_DISPONIVEIS)
+        ;(prontuarioService as any).contarEvolucoes = vi.fn().mockResolvedValue(1)
+
+        const wrapper = mount(ProntuarioView, {
+            global: {
+                plugins: [
+                    createTestingPinia({
+                        initialState: {
+                            tenant: { ativo: { id: 1, nomeFantasia: "Clínica" }, semEstabelecimento: false },
+                            permissoes: { permissoes: [] },
+                            proximosPasso: { acoes: [] },
+                        },
+                    }),
+                ],
+                stubs: STUBS_PESADOS,
+            },
+        })
+        await flushPromises()
+
+        const header = wrapper.findComponent({ name: "ProntuarioPacienteHeader" })
+        expect(header.exists()).toBe(true)
+        expect(header.props("podeGerir")).toBe(false)
+    })
+
+    it("CA12-c: prontuário nulo (não iniciado) → pode-gerir=false (default seguro)", async () => {
+        vi.mocked(prontuarioService.obter).mockResolvedValue(null)
+        vi.mocked(prontuarioService.listarModelos).mockResolvedValue(MODELOS_DISPONIVEIS)
+
+        const wrapper = mount(ProntuarioView, {
+            global: {
+                plugins: [
+                    createTestingPinia({
+                        initialState: {
+                            tenant: { ativo: { id: 1, nomeFantasia: "Clínica" }, semEstabelecimento: false },
+                            permissoes: { permissoes: [] },
+                            proximosPasso: { acoes: [] },
+                        },
+                    }),
+                ],
+                stubs: STUBS_PESADOS,
+            },
+        })
+        await flushPromises()
+
+        const header = wrapper.findComponent({ name: "ProntuarioPacienteHeader" })
+        expect(header.exists()).toBe(true)
+        expect(header.props("podeGerir")).toBe(false)
+    })
+})
+
 describe("ProntuarioView — regressão TDZ watch/erroCirurgiao (CA21)", () => {
     it("monta sem ReferenceError no setup (watch não precede declaração das refs)", async () => {
         // Se o bug de TDZ existir, mount() lança imediatamente durante o setup().

@@ -53,6 +53,31 @@ const permissoesStore = usePermissoesStore()
 // CA-RBAC1/2: controla visibilidade do botão de emitir termo no drawer da evolução.
 const podeEmitirTermo = computed(() => permissoesStore.pode("termos.emitir"))
 
+// Alertas clínicos gated (LGPD briefing 2026-06-22_002):
+//   - Lidos de ProntuarioCompleto.alertas (backend filtra por papel/vínculo).
+//   - Para quem não tem acesso, backend retorna [] — indistinguível de "sem alertas" (R5).
+const alertasProntuario = computed(() => pront.value?.alertas ?? [])
+
+// Gestão de alertas (CA12): flag vem do backend — mesmo predicado que preenche os alertas.
+// Dono = sempre true; Profissional com vínculo = true; Recepcionista ou sem vínculo = false.
+// Não depende do papel local para evitar que Profissional sem vínculo veja o controle.
+const podeGerirAlertas = computed(() => pront.value?.podeGerirAlertas ?? false)
+
+async function salvarAlertas(alertas: string[]) {
+    if (!pacienteId.value) return
+    try {
+        await prontuarioService.atualizarAlertas(pacienteId.value, alertas)
+        // Atualiza estado local para refletir a mudança sem recarregar o prontuário inteiro.
+        if (pront.value) {
+            pront.value = { ...pront.value, alertas }
+        }
+        notificar("Alertas clínicos atualizados.", "success")
+    } catch (e: any) {
+        const msg = e?.response?.data?.mensagem ?? "Erro ao salvar alertas."
+        notificar(msg, "error")
+    }
+}
+
 // CA-C1/C4: modal de emissão de termo vinculado a uma evolução.
 const modalTermoEvolucaoAberto = ref(false)
 const evolucaoIdParaTermo = ref<number | null>(null)
@@ -485,8 +510,11 @@ async function finalizarAtendimento() {
             :agendamento="agendamento"
             :estabelecimento="tenant.ativo?.nomeFantasia ?? null"
             :sem-acoes="!pront"
+            :alertas="alertasProntuario"
+            :pode-gerir="podeGerirAlertas"
             @voltar="voltar"
             @finalizar="finalizarAtendimento"
+            @salvar-alertas="salvarAlertas"
         />
 
         <p v-if="carregando" class="estado-msg">Carregando prontuário...</p>

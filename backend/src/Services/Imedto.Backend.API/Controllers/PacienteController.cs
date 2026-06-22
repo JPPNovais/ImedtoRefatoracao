@@ -134,7 +134,7 @@ public class PacienteController : ControllerBase
             Endereco = request.Endereco,
             Observacoes = request.Observacoes,
             Tags = request.Tags ?? Array.Empty<string>(),
-            Alertas = request.Alertas ?? Array.Empty<string>(),
+            Alertas = Array.Empty<string>(), // Alertas não são definidos no cadastro administrativo (LGPD 2026-06-22_002)
             WhatsappLembreteOptIn = request.WhatsappLembreteOptIn,
         });
 
@@ -165,7 +165,9 @@ public class PacienteController : ControllerBase
             Endereco = request.Endereco,
             Observacoes = request.Observacoes,
             Tags = request.Tags ?? Array.Empty<string>(),
-            Alertas = request.Alertas ?? Array.Empty<string>(),
+            // Alertas não atualizados pelo caminho administrativo (LGPD 2026-06-22_002):
+            // o handler ignorará null e preservará o valor existente do aggregate.
+            Alertas = null,
             WhatsappLembreteOptIn = request.WhatsappLembreteOptIn,
         });
 
@@ -339,7 +341,9 @@ public record PacienteRequest(
     string Endereco,
     string Observacoes,
     IReadOnlyList<string> Tags = null,
-    IReadOnlyList<string> Alertas = null,
+    // Alertas removidos do payload administrativo (LGPD briefing 2026-06-22_002).
+    // A gestão de alertas é feita exclusivamente via PUT /api/paciente/{id}/prontuario/alertas,
+    // gated por papel/vínculo de atendimento.
     /// <summary>
     /// Consentimento explícito do paciente para receber lembretes via WhatsApp (LGPD — R4).
     /// Null = não alterar (em PUT) ou false (em POST).
