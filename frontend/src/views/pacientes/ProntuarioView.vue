@@ -28,10 +28,11 @@ import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuario
 import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { usePermissoesStore } from "@/stores/permissoesStore"
-import { AppButton, AppField, AppSelect, AppToast } from "@/components/ui"
+import { AppButton, AppEmptyState, AppToast } from "@/components/ui"
 import ProntuarioPacienteHeader    from "@/components/prontuario/ProntuarioPacienteHeader.vue"
 import ProntuarioTabs, { type AbaProntuario } from "@/components/prontuario/ProntuarioTabs.vue"
 import ConsultaAtualTab            from "@/components/prontuario/tabs/ConsultaAtualTab.vue"
+import SeletorModeloProntuario     from "@/components/prontuario/SeletorModeloProntuario.vue"
 import ConsultasAnterioresTab      from "@/components/prontuario/tabs/ConsultasAnterioresTab.vue"
 import ReceitasTab                 from "@/components/prontuario/tabs/ReceitasTab.vue"
 import AtestadoTab                 from "@/components/prontuario/tabs/AtestadoTab.vue"
@@ -121,6 +122,54 @@ watch(modeloConsultaAtual, () => {
 
 const novaEvolucao = reactive<Record<string, any>>({})
 const salvandoEvolucao = ref(false)
+// Erro de validação do campo "cirurgião" na desc-cirurgica (CA20–CA22).
+const erroCirurgiao = ref<string | null>(null)
+
+// Limpa o erro do cirurgião quando o campo é preenchido (CA21)
+watch(
+    () => (novaEvolucao["desc-cirurgica"] as Record<string, unknown> | undefined)?.cirurgiao,
+    (v) => {
+        if (typeof v === "string" && v.trim()) erroCirurgiao.value = null
+    },
+)
+
+/** Verifica CA20–CA22: bloqueia o salvar se desc-cirurgica está presente,
+ *  tem ao menos 1 campo preenchido, e cirurgiao está vazio. */
+function validarCirurgiao(): boolean {
+    const desc = novaEvolucao["desc-cirurgica"]
+    if (!desc || typeof desc !== "object") {
+        erroCirurgiao.value = null
+        return true
+    }
+    const d = desc as Record<string, unknown>
+    // Campos a verificar (exceto cirurgiao, diaSemana e dpo que são derivados/readonly)
+    const camposVerificaveis = [
+        "cirurgiasRealizadas", "anestesista", "auxiliar", "instrumentador",
+        "cirurgiaInicio", "cirurgiaFim", "tecnicaOperatoria", "observacoes",
+        "intercorrenciaDescricao", "data",
+    ]
+    const temCampoPreenchido =
+        camposVerificaveis.some(k => typeof d[k] === "string" && (d[k] as string).trim() !== "") ||
+        (Array.isArray(d.outrosMembros) && (d.outrosMembros as unknown[]).length > 0) ||
+        (d.profilaxia && typeof d.profilaxia === "object" &&
+            Object.values(d.profilaxia as Record<string, unknown>).some(v => v === true)) ||
+        (typeof d.intercorrencia === "string" && (d.intercorrencia as string) !== "")
+
+    if (!temCampoPreenchido) {
+        erroCirurgiao.value = null
+        return true
+    }
+    const cirurgiao = typeof d.cirurgiao === "string" ? (d.cirurgiao as string).trim() : ""
+    if (!cirurgiao) {
+        erroCirurgiao.value = "Informe o cirurgião para registrar a descrição cirúrgica."
+        // Scroll até a seção desc-cirurgica
+        const el = document.getElementById("mod-desc-cirurgica")
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+        return false
+    }
+    erroCirurgiao.value = null
+    return true
+}
 
 const SECOES_ESTRUTURADAS = new Set([
     "hpp",
@@ -129,6 +178,8 @@ const SECOES_ESTRUTURADAS = new Set([
     "exame-fisico",
     "exames-realizados",
     "procedimentos-indicados",
+    "evolucao-pos-op",
+    "desc-cirurgica",
 ])
 
 const uploadPendente = ref<File | null>(null)
@@ -156,9 +207,11 @@ async function carregar() {
         modelosDisponiveis.value = modelos
         pront.value = prontuarioCarregado
         if (pront.value) {
-            modeloConsultaAtual.value = pront.value.prontuario.modeloDeProntuarioId
+            // R1: não pré-seleciona o modelo — médico escolhe conscientemente no empty-state.
+            modeloConsultaAtual.value = null
             totalEvolucoes.value = pront.value.evolucoes.length
-            inicializarFormEvolucao()
+            // Não chama inicializarFormEvolucao() aqui — o watch de modeloConsultaAtual cuida
+            // disso quando o médico escolher o modelo (CA9/R2).
             // Carrega o total real (sem ficar preso ao cap timeline=50 do payload inicial).
             prontuarioService.contarEvolucoes(pacienteId.value)
                 .then(n => { totalEvolucoes.value = n })
@@ -222,6 +275,11 @@ const LATERALIDADE_LOCAL_PARA_BACKEND: Record<string, string | null> = {
 }
 
 async function salvarEvolucao() {
+    // CA20–CA22: validar cirurgião antes de qualquer POST
+    if (!validarCirurgiao()) {
+        salvandoEvolucao.value = false
+        return
+    }
     salvandoEvolucao.value = true
     erro.value = null
     try {
@@ -232,9 +290,10 @@ async function salvarEvolucao() {
             notificar("Preencha ao menos uma seção antes de salvar.", "error")
             return
         }
-        const modeloOverride = modeloConsultaAtual.value !== pront.value?.prontuario.modeloDeProntuarioId
-            ? (modeloConsultaAtual.value ?? undefined)
-            : undefined
+        // R6/CA8: modeloConsultaAtual é sempre a escolha consciente do médico
+        // (nunca vem pré-carregado do prontuário — R1). Enviamos sempre como
+        // modeloOverride para que a evolução seja gravada com o modelo da sessão.
+        const modeloOverride = modeloConsultaAtual.value ?? undefined
 
         const { evolucaoId } = await prontuarioService.registrarEvolucao(
             pacienteId.value, conteudoNaoVazio, modeloOverride, eventoId.value,
@@ -460,16 +519,45 @@ async function finalizarAtendimento() {
                 :contagem-anteriores="totalEvolucoes"
             />
 
+            <!-- CA1/R2: empty-state exige escolha do modelo antes de montar módulos.
+                 Seletor fica no topo (espelha .pront-toolbar da ConsultaAtualTab) para que
+                 o gatilho do popover esteja no terço superior da área → popover abre para baixo. -->
+            <div v-if="abaAtiva === 'consulta' && modeloConsultaAtual === null" class="escolher-modelo-wrap">
+                <div class="escolher-modelo-toolbar">
+                    <SeletorModeloProntuario
+                        :modelo-id="modeloConsultaAtual"
+                        :modelos="modelosDisponiveis"
+                        @update:modelo-id="modeloConsultaAtual = $event"
+                    />
+                </div>
+                <AppEmptyState
+                    icone="fa-solid fa-stethoscope"
+                    titulo="Selecione o tipo de prontuário para iniciar a consulta"
+                    descricao="Escolha um modelo no seletor acima para montar os módulos desta evolução."
+                />
+            </div>
+
             <ConsultaAtualTab
-                v-if="abaAtiva === 'consulta' && modeloConsultaAtual !== null"
+                v-else-if="abaAtiva === 'consulta' && modeloConsultaAtual !== null"
                 v-model:modelo-id="modeloConsultaAtual"
                 :modelos="modelosDisponiveis"
                 :secoes="secoesConsultaAtual"
                 :nova-evolucao="novaEvolucao"
                 :salvando="salvandoEvolucao"
                 :paciente-sexo="paciente?.genero ?? null"
+                :erro-cirurgiao="erroCirurgiao"
                 @salvar="salvarEvolucao"
-                @aplicar-template="(chave, corpo) => { novaEvolucao[chave] = corpo }"
+                @aplicar-template="(chave, corpo) => {
+                    if (chave === 'desc-cirurgica') {
+                        const atual = novaEvolucao[chave]
+                        novaEvolucao[chave] = {
+                            ...(atual && typeof atual === 'object' ? atual : {}),
+                            observacoes: corpo,
+                        }
+                    } else {
+                        novaEvolucao[chave] = corpo
+                    }
+                }"
             />
 
             <ConsultasAnterioresTab
@@ -549,6 +637,18 @@ async function finalizarAtendimento() {
 .iniciar-sub { font-size: 0.85em; color: var(--text-muted); margin: 0; }
 
 /* Estados */
-.estado-msg { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.9em; }
-.msg-erro   { color: hsl(var(--error)); font-size: 0.875em; margin: 0 0 1rem; }
+.estado-msg { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: var(--text-sm); }
+.msg-erro   { color: hsl(var(--error)); font-size: var(--text-sm); margin: 0 0 1rem; }
+
+/* Empty-state: escolher modelo (CA1/R2).
+ * Toolbar no topo (espelha .pront-toolbar da ConsultaAtualTab) para que o
+ * gatilho do popover fique no terço superior — popover abre para baixo. */
+.escolher-modelo-wrap {
+    padding: 1.5rem 0 3rem;
+}
+.escolher-modelo-toolbar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
 </style>

@@ -13,6 +13,8 @@ import SecaoExameFisico          from "./secoes/SecaoExameFisico.vue"
 import SecaoExamesRealizados     from "./secoes/SecaoExamesRealizados.vue"
 import SecaoProcedimentosIndicados from "./secoes/SecaoProcedimentosIndicados.vue"
 import SecaoCondutaChecklist from "./secoes/SecaoCondutaChecklist.vue"
+import SecaoEvolucaoPosOperatoria from "./secoes/SecaoEvolucaoPosOperatoria.vue"
+import SecaoDescricaoCirurgica from "./secoes/SecaoDescricaoCirurgica.vue"
 
 const props = defineProps<{
     chave: string
@@ -22,6 +24,8 @@ const props = defineProps<{
     readOnly?: boolean
     /** Sexo do paciente — usado pelo SecaoExameFisico para escolher a silhueta do mapa corporal. */
     pacienteSexo?: string | null
+    /** Erro de validação do campo "cirurgião" — propagado para SecaoDescricaoCirurgica (CA20–CA22). */
+    erroCirurgiao?: string | null
 }>()
 const emit = defineEmits<{
     "update:modelValue": [valor: any]
@@ -98,6 +102,19 @@ const valorTexto = computed({
         v-else-if="chave === 'procedimentos-indicados'"
         v-model="valorEstrutura"
         :read-only="readOnly"
+    />
+
+    <SecaoEvolucaoPosOperatoria
+        v-else-if="chave === 'evolucao-pos-op'"
+        v-model="valorEstrutura"
+        :read-only="readOnly"
+    />
+
+    <SecaoDescricaoCirurgica
+        v-else-if="chave === 'desc-cirurgica'"
+        v-model="valorEstrutura"
+        :read-only="readOnly"
+        :erro-cirurgiao="erroCirurgiao"
     />
 
     <!--

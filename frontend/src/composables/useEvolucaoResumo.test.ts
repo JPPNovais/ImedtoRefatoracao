@@ -275,3 +275,138 @@ describe("formatarSecaoLegivel — procedimentos-indicados (F3/CA58)", () => {
         expect(out).not.toContain("()")
     })
 })
+
+// ── Briefing 2026-06-21_001 — evolucao-pos-op ─────────────────────────────────
+
+describe("formatarSecaoLegivel — evolucao-pos-op (CA9/CA10/CA11)", () => {
+    it("CA9 — string legada continua legível (retrocompatibilidade)", () => {
+        const out = formatarSecaoLegivel("evolucao-pos-op", "Paciente evoluindo bem, sem intercorrências.")
+        expect(out).toBe("Paciente evoluindo bem, sem intercorrências.")
+        expect(out).not.toContain("[object Object]")
+        expect(out).not.toContain("{")
+    })
+
+    it("CA10 — objeto estruturado: campos preenchidos aparecem com rótulo legível", () => {
+        const out = formatarSecaoLegivel("evolucao-pos-op", {
+            evolucaoPaciente: "boa",
+            evolucaoComentario: "sem dor",
+            seguindoOrientacoes: "sim",
+            orientacoesComentario: "",
+            dataCirurgia: "2024-01-10",
+            dpo: "5",
+            destino: "Alta",
+            dieta: "Livre",
+            observacao: "Retorno em 7 dias",
+        })
+        expect(out).toContain("Evolução: Boa")
+        expect(out).toContain("sem dor")
+        expect(out).toContain("Seguindo orientações: Sim")
+        expect(out).toContain("DPO: 5")
+        expect(out).toContain("Destino: Alta")
+        expect(out).toContain("Dieta: Livre")
+        expect(out).toContain("Retorno em 7 dias")
+        // Sem chave técnica
+        expect(out).not.toContain("evolucaoPaciente")
+        expect(out).not.toContain("seguindoOrientacoes")
+        expect(out).not.toContain('"boa"')
+    })
+
+    it("CA11 — objeto totalmente vazio retorna string vazia (seção omitida)", () => {
+        expect(formatarSecaoLegivel("evolucao-pos-op", {})).toBe("")
+        expect(formatarSecaoLegivel("evolucao-pos-op", {
+            evolucaoPaciente: "", seguindoOrientacoes: "", dataCirurgia: "", dpo: "", destino: "", dieta: "", observacao: "",
+        })).toBe("")
+    })
+
+    it("CA10 — sem fields: true/false cru na saída", () => {
+        const out = formatarSecaoLegivel("evolucao-pos-op", { evolucaoPaciente: "ruim" })
+        expect(out).not.toContain("true")
+        expect(out).not.toContain("false")
+    })
+})
+
+// ── Briefing 2026-06-21_001 — desc-cirurgica ──────────────────────────────────
+
+describe("formatarSecaoLegivel — desc-cirurgica (CA9/CA10/CA11)", () => {
+    it("CA9 — string legada continua legível (retrocompatibilidade)", () => {
+        const out = formatarSecaoLegivel("desc-cirurgica", "Colecistectomia videolaparoscópica realizada sem intercorrências.")
+        expect(out).toBe("Colecistectomia videolaparoscópica realizada sem intercorrências.")
+        expect(out).not.toContain("[object Object]")
+    })
+
+    it("CA10 — objeto estruturado: campos principais aparecem legíveis", () => {
+        const out = formatarSecaoLegivel("desc-cirurgica", {
+            cirurgiao: "Dr. Fulano de Tal",
+            data: "2024-03-15",
+            diaSemana: "Sexta-feira",
+            cirurgiasRealizadas: "Colecistectomia videolaparoscópica",
+            anestesista: "Dr. Anestesista",
+            auxiliar: "Dr. Auxiliar",
+            instrumentador: "",
+            outrosMembros: [{ funcao: "Circulante", nome: "Enf. Joana" }],
+            cirurgiaInicio: "08:00",
+            cirurgiaFim: "10:00",
+            profilaxia: {
+                enoxaparina: true, meiaCompressiva: true,
+                cefazolina: true, gentamicina: false,
+                antitrombOutroAtivo: false, antitrombOutro: "",
+                antibioOutroAtivo: false, antibioOutro: "",
+                botaPneumatica: false, deambulacaoPrecoce: false,
+            },
+            intercorrencia: "sem",
+            intercorrenciaDescricao: "",
+            tecnicaOperatoria: "Técnica de 4 portais",
+            observacoes: "",
+        })
+        expect(out).toContain("Cirurgião: Dr. Fulano de Tal")
+        expect(out).toContain("Sexta-feira")
+        expect(out).toContain("Colecistectomia videolaparoscópica")
+        expect(out).toContain("Dr. Anestesista")
+        expect(out).toContain("Circulante")
+        expect(out).toContain("Enf. Joana")
+        expect(out).toContain("Duração: 02:00")
+        expect(out).toContain("Enoxaparina 40mg SC")
+        expect(out).toContain("Meia compressiva")
+        expect(out).toContain("Cefazolina")
+        expect(out).toContain("Sem intercorrências")
+        expect(out).toContain("Técnica de 4 portais")
+        // Sem chaves técnicas
+        expect(out).not.toContain("cirurgiao:")
+        expect(out).not.toContain("antitrombOutroAtivo")
+        expect(out).not.toContain("true")
+        expect(out).not.toContain("false")
+    })
+
+    it("CA6 — sem campos de anestesia na saída (R7)", () => {
+        const out = formatarSecaoLegivel("desc-cirurgica", {
+            cirurgiao: "Dr. X",
+            anestesista: "Dr. Anest",
+        })
+        // Anestesista (nome, dado de equipe) deve aparecer
+        expect(out).toContain("Dr. Anest")
+        // Tipos e horários de anestesia nunca devem aparecer
+        expect(out).not.toContain("tipoAnestesia")
+        expect(out).not.toContain("anestesiaInicio")
+        expect(out).not.toContain("anestesiaFim")
+    })
+
+    it("CA11 — objeto totalmente vazio retorna string vazia", () => {
+        expect(formatarSecaoLegivel("desc-cirurgica", {})).toBe("")
+        expect(formatarSecaoLegivel("desc-cirurgica", {
+            cirurgiao: "", data: "", cirurgiasRealizadas: "",
+            anestesista: "", auxiliar: "", instrumentador: "",
+            outrosMembros: [], cirurgiaInicio: "", cirurgiaFim: "",
+            intercorrencia: "", tecnicaOperatoria: "", observacoes: "",
+        })).toBe("")
+    })
+
+    it("intercorrência 'com' exibe descrição", () => {
+        const out = formatarSecaoLegivel("desc-cirurgica", {
+            cirurgiao: "Dr. X",
+            intercorrencia: "com",
+            intercorrenciaDescricao: "Sangramento intraoperatório controlado",
+        })
+        expect(out).toContain("Sangramento intraoperatório controlado")
+        expect(out).not.toContain('"com"')
+    })
+})
