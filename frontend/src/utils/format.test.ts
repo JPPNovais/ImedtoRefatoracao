@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatarMoedaBrl } from "./format"
+import { formatarMoedaBrl, formatarTelefone } from "./format"
 
 describe("formatarMoedaBrl", () => {
     it("formata valor inteiro com R$", () => {
@@ -25,5 +25,29 @@ describe("formatarMoedaBrl", () => {
         const formatado = formatarMoedaBrl(1.235)
         // Round-half-to-even (banker's rounding) ou meio-pra-cima — ambos sao validos
         expect(formatado).toMatch(/1,2[34]/)
+    })
+})
+
+describe("formatarTelefone", () => {
+    it("formata celular (11 dígitos)", () => {
+        expect(formatarTelefone("31999995555")).toBe("(31) 99999-5555")
+    })
+
+    it("formata fixo (10 dígitos)", () => {
+        expect(formatarTelefone("3133334444")).toBe("(31) 3333-4444")
+    })
+
+    it("aceita valor já mascarado", () => {
+        expect(formatarTelefone("(31) 99999-5555")).toBe("(31) 99999-5555")
+    })
+
+    it("devolve o original quando não tem 10/11 dígitos", () => {
+        expect(formatarTelefone("123")).toBe("123")
+    })
+
+    it("devolve null para vazio/nulo", () => {
+        expect(formatarTelefone("")).toBeNull()
+        expect(formatarTelefone(null)).toBeNull()
+        expect(formatarTelefone(undefined)).toBeNull()
     })
 })

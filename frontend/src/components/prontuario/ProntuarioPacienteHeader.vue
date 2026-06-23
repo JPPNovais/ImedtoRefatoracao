@@ -18,11 +18,12 @@ import type { Paciente } from "@/services/pacienteService"
 import type { Agendamento } from "@/services/agendaService"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { useClockTick, formatarDuracao } from "@/composables/useClockTick"
+import { formatarCpf } from "@/utils/cpf"
+import { formatarTelefone } from "@/utils/format"
 
 const props = defineProps<{
     paciente: Paciente | null
     agendamento?: Agendamento | null
-    estabelecimento?: string | null
     /** Permite ocultar a coluna de ações (em telas read-only / sem agendamento) */
     semAcoes?: boolean
     /**
@@ -83,8 +84,8 @@ const meta = computed(() => {
     const linhas: string[] = []
     if (idade.value !== null) linhas.push(`${idade.value} anos`)
     if (p.genero) linhas.push(p.genero)
-    if (p.cpf) linhas.push(`CPF ${p.cpf}`)
-    if (p.telefone) linhas.push(p.telefone)
+    if (p.cpf) linhas.push(`CPF ${formatarCpf(p.cpf)}`)
+    if (p.telefone) linhas.push(formatarTelefone(p.telefone) ?? p.telefone)
     return linhas
 })
 
@@ -172,8 +173,6 @@ void emit
                         {{ t }}
                         <span v-if="i < meta.length - 1" class="ph-meta-sep">·</span>
                     </span>
-                    <span v-if="estabelecimento && meta.length > 0" class="ph-meta-sep">·</span>
-                    <span v-if="estabelecimento">{{ estabelecimento }}</span>
                 </div>
 
                 <!-- Alertas gated: exibidos somente quando o backend retornou dados (array não vazio) -->
