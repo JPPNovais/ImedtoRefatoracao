@@ -58,7 +58,10 @@ public class AtualizarPacienteCommandHandler : ICommandHandler<AtualizarPaciente
             command.Observacoes,
             command.DocumentoInternacional,
             command.Tags,
-            alertasPreservados);
+            alertasPreservados,
+            command.ResponsavelNome,
+            command.ResponsavelParentesco,
+            command.ResponsavelTelefone);
 
         // R4/CA8: consentimento WhatsApp — só atualiza quando o campo veio no request.
         if (command.WhatsappLembreteOptIn.HasValue)

@@ -52,6 +52,12 @@ public class PacienteConfiguration : IEntityTypeConfiguration<Paciente>
         builder.Property(p => p.WhatsappLembreteOptInEm).HasColumnName("whatsapp_lembrete_opt_in_em");
         builder.Property(p => p.WhatsappLembreteOptInPorUsuarioId).HasColumnName("whatsapp_lembrete_opt_in_por_usuario_id");
 
+        // Responsável (LGPD — PII de terceiro, R7/R8 briefing 2026-06-23_002).
+        // Nullable; obrigatoriedade nome+parentesco para menor é regra de domínio, não constraint.
+        builder.Property(p => p.ResponsavelNome).HasColumnName("responsavel_nome").HasMaxLength(Paciente.ResponsavelNomeMaxLen);
+        builder.Property(p => p.ResponsavelParentesco).HasColumnName("responsavel_parentesco").HasMaxLength(Paciente.ResponsavelParentescoMaxLen);
+        builder.Property(p => p.ResponsavelTelefone).HasColumnName("responsavel_telefone").HasMaxLength(Paciente.ResponsavelTelefoneMaxLen);
+
         // Listagens ativas sempre filtram por estabelecimento + não-deletado.
         builder.HasIndex(p => new { p.EstabelecimentoId, p.DeletadoEm }).HasDatabaseName("ix_pacientes_estabelecimento");
 

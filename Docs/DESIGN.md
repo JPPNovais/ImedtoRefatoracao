@@ -84,6 +84,28 @@ Como aplicar:
 
 Se um conceito de domínio aparece em **duas operações diferentes** com a mesma regra (ex: "este usuário pode atuar como profissional neste estabelecimento" → vale para criar agendamento, editar agendamento, listar disponibilidade), extraia em **uma** função do repositório e chame nos dois lugares — não copie o `if`.
 
+## Constantes de domínio — `frontend/src/constants/`
+
+Listas fechadas de opções usadas em `<AppSelect>` e validadas no backend devem viver em arquivos dedicados em `frontend/src/constants/`. Essa pasta é a fonte única de verdade para enumerações de negócio no frontend — não use arrays inline nas views.
+
+**Arquivos existentes:**
+| Arquivo | Conteúdo |
+|---------|----------|
+| `pacienteTags.ts` | Tags clínicas/operacionais manuais de paciente (ex: "vip", "gestante"). |
+| `parentescos.ts` | Parentescos do responsável legal de menor de idade (briefing 2026-06-23_002). 9 opções fixas (Mãe, Pai, Avó/Avô, Tio/Tia, Irmão/Irmã, Filho/Filha, Cônjuge/Companheiro(a), Tutor/Responsável legal, Outro). |
+
+**Padrão de declaração:**
+```typescript
+// constants/parentescos.ts
+export const PARENTESCOS: { value: string; label: string }[] = [
+    { value: "Mãe", label: "Mãe" },
+    { value: "Pai", label: "Pai" },
+    // ...
+]
+```
+
+**Regra de uso:** toda lista de seleção que o backend valida (i.e., que viola `BusinessException` se enviado valor fora do conjunto) deve ter uma constante aqui. Não inline no template.
+
 ## Módulo Admin Global
 
 O módulo administrativo (`frontend/src/modules/admin/`) **reusa integralmente o design system do app principal** — `AppTopBar`, `AppSidebar`, `AppPageHeader`, `AppCard`, `AppModal`, `AppButton`, `AppField`, `AppInput`, `AppTextarea`, `AppCheckbox`, `AppSelect`, `AppBadge`, `AppStatusPill`, `AppSearchInput`, `AppEmptyState`, `AppPagination`, `AppToast`. Zero hex code próprio no CSS scoped do módulo; zero classes `admin-*`, `secao-*`, `page-*`, `assinatura-*` (Wave 3 — briefing 2026-05-30_003).
@@ -280,6 +302,39 @@ Card de alerta acionável. Card inteiro é clicável (router-link). Usado no blo
 ```
 
 **Diferença de `AppKpiCard`:** enquanto `AppKpiCard` exibe métricas de KPI (não é clicável), `AppAlertCard` é um card de navegação acionável — toda a área é link.
+
+### `AppAgeTag` (briefing 2026-06-23_002)
+
+Tag visual derivada da faixa etária do paciente. Localização: [`frontend/src/components/ui/AppAgeTag.vue`](../frontend/src/components/ui/AppAgeTag.vue).
+
+**Props:**
+- `faixa: FaixaEtaria` — `"idoso"` | `"menor"` | `null`. Quando `null`, o componente não renderiza nada.
+
+**Regras de negócio (invariantes de exibição):**
+- `"menor"` → ícone `fa-child-reaching`, cor `hsl(260 60% 55%)` (violeta), texto "Menor".
+- `"idoso"` → ícone `fa-person-cane`, cor `hsl(38 90% 50%)` (âmbar), texto "Idoso".
+- A tag é **sempre derivada** no momento da exibição — **nunca persiste** no array `tags[]`.
+- Aparece na listagem de pacientes, no detalhe do paciente, e no card de agendamento.
+
+**Fonte única de verdade para cálculo:**
+- **Frontend:** `frontend/src/utils/idade.ts` → `calcularFaixaEtaria(dataNascimento)`.
+- **Backend (agenda):** CASE SQL no `AgendamentoQueryRepository` (campo `PacienteFaixaEtaria` no DTO — evita expor `dataNascimento` completa na tela de agenda).
+
+**Regras de borda:**
+- No dia em que completa 18 anos: deixa de ser menor (adulto).
+- No dia em que completa 60 anos: passa a ser idoso.
+- Sem data de nascimento: sem tag.
+
+**Uso:**
+```html
+<AppAgeTag :faixa="calcularFaixaEtaria(paciente.dataNascimento)" />
+<!-- ou, via DTO do agendamento (sem expor dataNascimento): -->
+<AppAgeTag :faixa="agendamento.pacienteFaixaEtaria ?? null" />
+```
+
+### `AppSelectCategoriaInline` (briefing 2026-06-22_003)
+
+Seletor inline de categoria financeira. Localização: [`frontend/src/components/ui/AppSelectCategoriaInline.vue`](../frontend/src/components/ui/AppSelectCategoriaInline.vue).
 
 ## Bloco "Precisa da sua atenção" — Home (briefing 2026-06-12_001)
 

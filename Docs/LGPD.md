@@ -274,6 +274,31 @@ Os **alertas clínicos** do paciente (`pacientes.alertas text[]` — ex.: "alerg
 
 ---
 
+## Responsável legal do paciente — PII de terceiro (briefing 2026-06-23_002)
+
+Pacientes menores de 18 anos precisam de um **responsável legal** cadastrado. Os dados do responsável (`responsavelNome`, `responsavelParentesco`, `responsavelTelefone`) são **dados pessoais de terceiro** (Art. 5º, I LGPD) — não dados do próprio titular.
+
+**Minimização obrigatória:**
+- Os 3 campos (`responsavelNome`, `responsavelParentesco`, `responsavelTelefone`) aparecem **apenas no `PacienteDto`** (endpoint de detalhe `/api/paciente/{id}`) e na **exportação LGPD** (`PacienteExportPessoalDto`, Art. 18).
+- **Não** aparecem em `PacienteListaItemDto` (listagem paginada), `PacienteBuscaRapidaDto` (autocomplete) nem em qualquer DTO de agendamento — minimização: a recepção não precisa ver o responsável ao agendar.
+- O campo `PacienteFaixaEtaria` (`"menor" | "idoso" | null`) nos DTOs de agendamento é **derivado** da data de nascimento via SQL — expõe apenas a classificação necessária para UX, sem expor a data completa nem os dados do responsável.
+
+**Validação obrigatória no backend (invariante do aggregate):**
+- `Paciente.Cadastrar()` e `Paciente.AtualizarDados()` lançam `BusinessException` (422) se `dataNascimento` < 18 anos E `responsavelNome` ou `responsavelParentesco` estão ausentes.
+- Frontend bloqueia o "Salvar" com a mesma regra (UX) — mas o backend é a fonte de verdade.
+- Em modo de cadastro rápido (formulário simplificado), ao detectar menor: expande automaticamente para o formulário completo com a seção de Responsável — sem bloquear com alerta.
+
+**Anonimização:**
+- `Paciente.Anonimizar()` limpa `responsavelNome`, `responsavelParentesco` e `responsavelTelefone` junto com os demais dados PII do titular — nenhum dado de terceiro permanece após anonimização.
+
+**Audit trail:**
+- As operações de criação e edição de paciente (inclusive os campos do responsável) já geram `TipoAcessoPaciente.Edicao` via `IPacienteAcessoLogService` — sem audit trail separado.
+
+**Exportação Art. 18:**
+- `PacienteExportPessoalDto` inclui os 3 campos do responsável em `PacienteExportPessoalDto` (subcampo `Pessoal`), assegurando a portabilidade completa dos dados ao titular (ou ao responsável legal, quando o titular for menor).
+
+---
+
 ## Checklist multi-tenant — premissa não-negociável
 
 Antes de cada commit que toca dados de domínio (paciente, agendamento, prontuário, financeiro, equipe, estoque, orçamento, **assinatura digital**), valide:

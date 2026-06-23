@@ -10,7 +10,7 @@
 import { computed } from "vue"
 import type { Agendamento } from "@/services/agendaService"
 import { formatData, formatDataHora, formatHora } from "@/utils/datetime"
-import { AppAvatar } from "@/components/ui"
+import { AppAgeTag, AppAvatar } from "@/components/ui"
 
 const props = defineProps<{
     agendamento: Agendamento
@@ -182,6 +182,8 @@ function clicarBadge() {
             <div class="head-row">
                 <div class="av">{{ inicial }}</div>
                 <span class="pat-name">{{ agendamento.pacienteNome }}</span>
+                <!-- Tag etária derivada (D1/CA7 briefing 2026-06-23_002) — sem expor DataNascimento -->
+                <AppAgeTag :faixa="agendamento.pacienteFaixaEtaria ?? null" />
                 <span
                     class="pill"
                     :style="{ background: meta.pillBg, color: meta.pillFg }"

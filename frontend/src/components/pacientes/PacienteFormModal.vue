@@ -8,7 +8,9 @@ import { pacienteService, type Paciente, type PacientePayload } from "@/services
 import { cpfValido } from "@/utils/cpf"
 import DocumentoPacienteField, { type DocumentoPacienteValue } from "@/components/pacientes/DocumentoPacienteField.vue"
 import { PACIENTE_TAGS } from "@/constants/pacienteTags"
+import { PARENTESCOS } from "@/constants/parentescos"
 import { useCepAutofill } from "@/composables/useCepAutofill"
+import { calcularFaixaEtaria } from "@/utils/idade"
 
 /**
  * Modal de cadastro/edição de paciente — alinhado ao estilo do design system
@@ -59,6 +61,10 @@ interface Form {
     // alertas removido da interface Form (LGPD 2026-06-22_002) — gestão no prontuário
     /** Consentimento explícito para WhatsApp (LGPD — opt-in). */
     whatsappLembreteOptIn: boolean
+    // Responsável (briefing 2026-06-23_002) — PII de terceiro.
+    responsavelNome: string
+    responsavelParentesco: string
+    responsavelTelefone: string
 }
 
 function novaForm(): Form {
@@ -81,6 +87,9 @@ function novaForm(): Form {
         observacoes: "",
         tags: [],
         whatsappLembreteOptIn: false,
+        responsavelNome: "",
+        responsavelParentesco: "",
+        responsavelTelefone: "",
     }
 }
 
@@ -146,6 +155,9 @@ function popularComPaciente(p: Paciente) {
     form.observacoes = p.observacoes ?? ""
     form.tags = [...(p.tags ?? [])]
     form.whatsappLembreteOptIn = p.whatsappLembreteOptIn ?? false
+    form.responsavelNome = p.responsavelNome ?? ""
+    form.responsavelParentesco = p.responsavelParentesco ?? ""
+    form.responsavelTelefone = p.responsavelTelefone ?? ""
     parseEndereco(p.endereco)
     // Previne disparo automático de busca ao montar em modo edição (CA12):
     // o composable ignora o próximo disparo debounced com este valor.
@@ -219,15 +231,29 @@ const valido = computed(() => {
     if (!form.nomeCompleto.trim()) return false
     if (modo.value === "criar" && !expandirCadastro.value) {
         // Cadastro rápido: nome obrigatório; CPF e telefone fortemente recomendados.
-        // Aceitamos só o nome para reduzir atrito (igual ao design "preencha o resto depois").
+        // Aceitamos só o nome para reduzir atrito. D2: menor direciona para completo no salvar.
         return true
     }
     if (form.tipoDocumento === "cpf" && form.documento.trim() && !cpfValido(form.documento)) return false
+    // CA10 (R3): menor de idade exige nome + parentesco do responsável (espelho do backend).
+    if (responsavelObrigatorio.value) {
+        if (!form.responsavelNome.trim() || !form.responsavelParentesco) return false
+    }
     return true
 })
 
 async function salvar() {
-    if (!valido.value || salvando.value) return
+    if (salvando.value) return
+
+    // D2: no cadastro rápido, se o paciente for menor de idade, expandir para completo
+    // com seção Responsável em destaque em vez de bloquear com erro seco (CA10/D2).
+    if (modo.value === "criar" && !expandirCadastro.value && eMenor.value) {
+        expandirCadastro.value = true
+        // Foco na seção responsável após expansão (próximo tick)
+        return
+    }
+
+    if (!valido.value) return
     salvando.value = true
     erro.value = null
     erroDocumento.value = null
@@ -252,6 +278,10 @@ async function salvar() {
             tags:                   form.tags.length ? [...form.tags] : [],
             // alertas não enviados pelo form geral (LGPD 2026-06-22_002)
             whatsappLembreteOptIn:  form.whatsappLembreteOptIn,
+            // Responsável (briefing 2026-06-23_002)
+            responsavelNome:       form.responsavelNome.trim() || undefined,
+            responsavelParentesco: form.responsavelParentesco || undefined,
+            responsavelTelefone:   form.responsavelTelefone || undefined,
         }
 
         if (props.paciente?.id) {
@@ -286,6 +316,17 @@ function fechar() {
     if (salvando.value) return
     emit("fechar")
 }
+
+// ─── Responsável ─────────────────────────────────────────────────────────────
+// Determina se o paciente é menor de idade a partir da data de nascimento no form.
+// Espelha a borda do backend (ValidarResponsavelParaMenor): completa 18 = adulto.
+const eMenor = computed<boolean>(() => {
+    if (!form.dataNascimento) return false
+    return calcularFaixaEtaria(form.dataNascimento) === "menor"
+})
+
+// Campos de responsável são obrigatórios (nome+parentesco) para menor de idade.
+const responsavelObrigatorio = computed(() => eMenor.value)
 
 // Largura do modal: cadastro rápido cabe em md; completo precisa de lg.
 const largura = computed<"md" | "lg">(() => (formCompleto.value ? "lg" : "md"))
@@ -497,6 +538,44 @@ const subtitulo = computed(() =>
                  Gestão de alertas agora é exclusiva do cabeçalho do prontuário,
                  restrita a Dono + Profissional que atendeu/está atendendo. -->
 
+            <section class="secao secao-responsavel" data-testid="secao-responsavel">
+                <h3 class="ds-section-title">
+                    Responsável
+                    <span v-if="responsavelObrigatorio" class="responsavel-obrigatorio-hint">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        Paciente menor de idade — informe o responsável.
+                    </span>
+                </h3>
+                <div class="form-grid">
+                    <AppField label="Nome do responsável" :required="responsavelObrigatorio" class="full">
+                        <AppInput
+                            v-model="form.responsavelNome"
+                            placeholder="Nome completo do responsável"
+                            :disabled="salvando"
+                            data-testid="responsavel-nome"
+                        />
+                    </AppField>
+
+                    <AppField label="Parentesco" :required="responsavelObrigatorio">
+                        <AppSelect v-model="form.responsavelParentesco" :disabled="salvando" data-testid="responsavel-parentesco">
+                            <option value="">—</option>
+                            <option v-for="p in PARENTESCOS" :key="p.value" :value="p.value">{{ p.label }}</option>
+                        </AppSelect>
+                    </AppField>
+
+                    <AppField label="Telefone do responsável">
+                        <AppInput
+                            v-model="form.responsavelTelefone"
+                            v-maska="'(##) #####-####'"
+                            type="tel"
+                            placeholder="(00) 00000-0000"
+                            :disabled="salvando"
+                            data-testid="responsavel-telefone"
+                        />
+                    </AppField>
+                </div>
+            </section>
+
             <section class="secao">
                 <h3 class="ds-section-title">Observações</h3>
                 <AppTextarea
@@ -639,6 +718,18 @@ const subtitulo = computed(() =>
     color: hsl(var(--secondary) / 0.65);
     line-height: 1.4;
 }
+
+/* Hint de obrigatoriedade do responsável para menor */
+.responsavel-obrigatorio-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 8px;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    color: hsl(260 60% 40%);
+}
+.responsavel-obrigatorio-hint i { font-size: var(--text-2xs); }
 
 .msg-erro {
     color: hsl(var(--error));

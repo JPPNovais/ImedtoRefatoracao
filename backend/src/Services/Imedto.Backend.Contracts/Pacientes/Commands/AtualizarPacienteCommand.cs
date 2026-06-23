@@ -25,4 +25,9 @@ public class AtualizarPacienteCommand : ICommand
     /// Null = não alterar o opt-in existente; true/false = gravar consentimento com audit.
     /// </summary>
     public bool? WhatsappLembreteOptIn { get; set; }
+
+    // Responsável (R3/R7 briefing 2026-06-23_002). PII de terceiro — não expor em lista/busca rápida.
+    public string ResponsavelNome { get; set; }
+    public string ResponsavelParentesco { get; set; }
+    public string ResponsavelTelefone { get; set; }
 }

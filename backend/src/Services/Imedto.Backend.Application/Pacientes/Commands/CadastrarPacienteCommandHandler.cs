@@ -60,7 +60,10 @@ public class CadastrarPacienteCommandHandler : ICommandHandler<CadastrarPaciente
             command.Observacoes,
             command.DocumentoInternacional,
             command.Tags,
-            command.Alertas);
+            command.Alertas,
+            command.ResponsavelNome,
+            command.ResponsavelParentesco,
+            command.ResponsavelTelefone);
 
         // R4/CA8: consentimento WhatsApp marcado no cadastro — registra com quem registrou.
         if (command.WhatsappLembreteOptIn == true && command.SolicitanteUsuarioId != Guid.Empty)

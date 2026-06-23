@@ -75,7 +75,13 @@ public class AgendamentoQueryRepository
                 a.check_in_em           AS CheckInEm,
                 a.sala_id               AS SalaId,
                 sa.nome                 AS SalaNome,
-                ts.nome                 AS SalaTipoNome
+                ts.nome                 AS SalaTipoNome,
+                CASE
+                    WHEN pac.data_nascimento IS NULL THEN NULL
+                    WHEN date_part('year', age(current_date, pac.data_nascimento::date)) < 18 THEN 'menor'
+                    WHEN date_part('year', age(current_date, pac.data_nascimento::date)) >= 60 THEN 'idoso'
+                    ELSE NULL
+                END                     AS PacienteFaixaEtaria
             FROM agendamentos a
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id
@@ -229,7 +235,13 @@ public class AgendamentoQueryRepository
                 a.check_in_em           AS CheckInEm,
                 a.sala_id               AS SalaId,
                 sa.nome                 AS SalaNome,
-                ts.nome                 AS SalaTipoNome
+                ts.nome                 AS SalaTipoNome,
+                CASE
+                    WHEN pac.data_nascimento IS NULL THEN NULL
+                    WHEN date_part('year', age(current_date, pac.data_nascimento::date)) < 18 THEN 'menor'
+                    WHEN date_part('year', age(current_date, pac.data_nascimento::date)) >= 60 THEN 'idoso'
+                    ELSE NULL
+                END                     AS PacienteFaixaEtaria
             FROM agendamentos a
             JOIN pacientes    pac  ON pac.id = a.paciente_id
             JOIN usuarios     uprf ON uprf.id = a.profissional_usuario_id

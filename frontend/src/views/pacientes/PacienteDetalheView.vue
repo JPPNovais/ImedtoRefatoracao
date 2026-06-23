@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import {
-    AppButton, AppEmptyState, AppToast, AppPagination,
+    AppAgeTag, AppButton, AppEmptyState, AppToast, AppPagination,
 } from "@/components/ui"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import PacienteTermosTab from "@/components/termos/PacienteTermosTab.vue"
@@ -15,6 +15,7 @@ import EvolucaoDetalheDrawer from "@/components/prontuario/EvolucaoDetalheDrawer
 import { orcamentoService, type OrcamentoResumo } from "@/services/orcamentoService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { resolverTag } from "@/constants/pacienteTags"
+import { calcularFaixaEtaria } from "@/utils/idade"
 import { useAuthStore } from "@/stores/authStore"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { documentoService, type DocumentoResumo, type TipoDocumento } from "@/services/documentoService"
@@ -598,7 +599,9 @@ function orcStatusClass(s: string): string {
                             <span v-if="paciente.email"><i class="fa-solid fa-envelope"></i> {{ paciente.email }}</span>
                             <span v-if="paciente.endereco"><i class="fa-solid fa-location-dot"></i> {{ cidadeUf }}</span>
                         </div>
-                        <div v-if="paciente.tags.length" class="pd-tags">
+                        <div v-if="paciente.tags.length || calcularFaixaEtaria(paciente.dataNascimento)" class="pd-tags">
+                            <!-- Tag etária automática antes das tags manuais (CA1/CA2/CA8) -->
+                            <AppAgeTag :faixa="calcularFaixaEtaria(paciente.dataNascimento)" />
                             <span
                                 v-for="t in paciente.tags" :key="t"
                                 class="tag-pill"

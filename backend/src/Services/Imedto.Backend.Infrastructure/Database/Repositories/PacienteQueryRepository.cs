@@ -159,7 +159,10 @@ public class PacienteQueryRepository
                     deletado_em                 AS DeletadoEm,
                     deletado_por_usuario_id     AS DeletadoPorUsuarioId,
                     anonimizado_em              AS AnonimizadoEm,
-                    anonimizado_por_usuario_id  AS AnonimizadoPorUsuarioId
+                    anonimizado_por_usuario_id  AS AnonimizadoPorUsuarioId,
+                    responsavel_nome            AS ResponsavelNome,
+                    responsavel_parentesco      AS ResponsavelParentesco,
+                    responsavel_telefone        AS ResponsavelTelefone
             FROM    public.pacientes
             WHERE   id = @PacienteId
               AND   estabelecimento_id = @EstabelecimentoId
@@ -212,7 +215,10 @@ public class PacienteQueryRepository
                     observacoes                             AS Observacoes,
                     COALESCE(tags, ARRAY[]::text[])         AS Tags,
                     criado_em                               AS CriadoEm,
-                    whatsapp_lembrete_opt_in                AS WhatsappLembreteOptIn
+                    whatsapp_lembrete_opt_in                AS WhatsappLembreteOptIn,
+                    responsavel_nome                        AS ResponsavelNome,
+                    responsavel_parentesco                  AS ResponsavelParentesco,
+                    responsavel_telefone                    AS ResponsavelTelefone
             FROM    public.pacientes
             WHERE   id = @PacienteId
               AND   estabelecimento_id = @EstabelecimentoId
@@ -220,6 +226,7 @@ public class PacienteQueryRepository
             """;
             // Alertas removidos do detalhe administrativo (LGPD briefing 2026-06-22_002).
             // Conteúdo gated viaja no ProntuarioCompletoDto.
+            // Responsável (briefing 2026-06-23_002): PII de terceiro — só neste endpoint de detalhe.
 
         await using var conn = new NpgsqlConnection(_connectionString);
         return await conn.QuerySingleOrDefaultAsync<PacienteDto>(sql, new

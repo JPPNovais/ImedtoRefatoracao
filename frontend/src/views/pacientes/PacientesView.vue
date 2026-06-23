@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import PacienteFormModal from "@/components/pacientes/PacienteFormModal.vue"
 import {
-    AppButton, AppEmptyState, AppFilterPills, AppPageHeader, AppPagination, AppSearchInput, AppSelect, AppToast, AppConfirmDialog,
+    AppAgeTag, AppButton, AppEmptyState, AppFilterPills, AppPageHeader, AppPagination, AppSearchInput, AppSelect, AppToast, AppConfirmDialog,
 } from "@/components/ui"
 import { useDebouncedRef } from "@/composables/useDebouncedRef"
 import {
@@ -14,6 +14,7 @@ import {
     type PaginaPacientes,
 } from "@/services/pacienteService"
 import { PACIENTE_TAGS, resolverTag } from "@/constants/pacienteTags"
+import { calcularFaixaEtaria } from "@/utils/idade"
 
 const router = useRouter()
 
@@ -174,6 +175,7 @@ function idade(dataNasc: string | null): string {
     if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) anos--
     return anos > 0 ? `${anos} anos` : ""
 }
+// Nota: calcularFaixaEtaria (utils/idade.ts) é usado via AppAgeTag abaixo (CA8).
 
 function formatarCpf(cpf: string | null) {
     if (!cpf) return ""
@@ -297,6 +299,8 @@ function formatarCpf(cpf: string | null) {
                 </div>
 
                 <div class="pt-tags">
+                    <!-- Tag etária automática antes das tags manuais (CA1/CA2/CA8) -->
+                    <AppAgeTag :faixa="calcularFaixaEtaria(p.dataNascimento)" />
                     <span
                         v-for="chave in p.tags.slice(0, 3)" :key="chave"
                         class="tag-pill"
@@ -306,7 +310,7 @@ function formatarCpf(cpf: string | null) {
                         {{ resolverTag(chave).label }}
                     </span>
                     <span v-if="p.tags.length > 3" class="tag-extra">+{{ p.tags.length - 3 }}</span>
-                    <span v-if="!p.tags.length" class="muted">—</span>
+                    <span v-if="!p.tags.length && !calcularFaixaEtaria(p.dataNascimento)" class="muted">—</span>
                 </div>
 
                 <div class="pt-cell">
