@@ -25,7 +25,6 @@ import {
 import { pacienteService, type Paciente } from "@/services/pacienteService"
 import { agendaService, type Agendamento } from "@/services/agendaService"
 import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
-import { useTenantStore } from "@/stores/tenantStore"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { usePermissoesStore } from "@/stores/permissoesStore"
 import { AppButton, AppEmptyState, AppToast } from "@/components/ui"
@@ -46,7 +45,6 @@ const { gerarPdf: gerarPdfProntuario, gerarPdfEvolucao } = useProntuarioPdf()
 
 const route  = useRoute()
 const router = useRouter()
-const tenant = useTenantStore()
 const { ehEsteAtendimento, finalizar: limparAtendimentoLocal } = useAtendimentoAtivo()
 const permissoesStore = usePermissoesStore()
 
@@ -508,7 +506,6 @@ async function finalizarAtendimento() {
         <ProntuarioPacienteHeader
             :paciente="paciente"
             :agendamento="agendamento"
-            :estabelecimento="tenant.ativo?.nomeFantasia ?? null"
             :sem-acoes="!pront"
             :alertas="alertasProntuario"
             :pode-gerir="podeGerirAlertas"

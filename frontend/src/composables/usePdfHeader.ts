@@ -13,6 +13,7 @@
  */
 import type { jsPDF as JsPdfType } from "jspdf"
 import { estabelecimentoService, type Estabelecimento } from "@/services/estabelecimentoService"
+import { formatarTelefone } from "@/utils/format"
 import {
     NUNITO_REGULAR_B64,
     NUNITO_SEMIBOLD_B64,
@@ -163,14 +164,6 @@ export function formatarCnpj(cnpj: string | null | undefined): string | null {
     const d = cnpj.toUpperCase().replace(/[^A-Z0-9]/g, "")
     if (d.length !== 14) return cnpj
     return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
-}
-
-export function formatarTelefone(tel: string | null | undefined): string | null {
-    if (!tel) return null
-    const d = tel.replace(/\D/g, "")
-    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
-    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-    return tel
 }
 
 export function formatarCpf(cpf: string | null | undefined): string | null {
