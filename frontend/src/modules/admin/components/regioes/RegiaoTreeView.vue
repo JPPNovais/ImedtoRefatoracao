@@ -75,11 +75,13 @@ const nivelAtual = props.nivel ?? 0
                     </button>
 
                     <!-- Inativar (ação primária de remoção) — só para nós ativos -->
+                    <!-- Nível 1 (raiz): desabilitado com tooltip (sustenta o mapa corporal — briefing 2026-06-23_001 R2) -->
                     <button
                         v-if="no.ativo"
                         class="btn-icon btn-icon-inativar"
                         type="button"
-                        title="Inativar"
+                        :title="no.nivel === 1 ? 'Regiões de nível 1 sustentam o mapa corporal e não podem ser inativadas' : 'Inativar'"
+                        :disabled="no.nivel === 1"
                         @click="emit('inativar', no)"
                     >
                         <i class="fa-solid fa-ban"></i>
@@ -96,12 +98,13 @@ const nivelAtual = props.nivel ?? 0
                         <i class="fa-solid fa-rotate-left"></i>
                     </button>
 
-                    <!-- Excluir permanentemente (secundário) — desabilitado quando tem filhos -->
+                    <!-- Excluir permanentemente (secundário) — desabilitado quando tem filhos ou é nível 1 -->
+                    <!-- Nível 1 (raiz): desabilitado com tooltip (sustenta o mapa corporal — briefing 2026-06-23_001 R1) -->
                     <button
                         class="btn-icon btn-icon-excluir btn-icon-secundario"
                         type="button"
-                        :title="no.filhos.length > 0 ? 'Possui sub-regiões — inative ou remova-as primeiro' : 'Excluir permanentemente'"
-                        :disabled="no.filhos.length > 0"
+                        :title="no.nivel === 1 ? 'Regiões de nível 1 sustentam o mapa corporal e não podem ser excluídas' : no.filhos.length > 0 ? 'Possui sub-regiões — inative ou remova-as primeiro' : 'Excluir permanentemente'"
+                        :disabled="no.nivel === 1 || no.filhos.length > 0"
                         @click="emit('excluir', no)"
                     >
                         <i class="fa-solid fa-trash"></i>

@@ -18,7 +18,7 @@ function regiao(overrides: Partial<ExameFisicoRegiao> & { id: string; nome: stri
 
 // Membro superior direito (base anterior)
 const membroSupDirBase: ExameFisicoRegiao = regiao({
-    id: "msd-anterior",
+    id: "membro-superior-direito-anterior",
     nome: "Membro superior direito (anterior)",
     nivel: 1,
     vista: "anterior",
@@ -26,7 +26,7 @@ const membroSupDirBase: ExameFisicoRegiao = regiao({
 
 // Membro superior esquerdo (base anterior)
 const membroSupEsqBase: ExameFisicoRegiao = regiao({
-    id: "mse-anterior",
+    id: "membro-superior-esquerdo-anterior",
     nome: "Membro superior esquerdo (anterior)",
     nivel: 1,
     vista: "anterior",
@@ -34,7 +34,7 @@ const membroSupEsqBase: ExameFisicoRegiao = regiao({
 
 // Membro superior direito (base posterior) — para vista circunferencial
 const membroSupDirPost: ExameFisicoRegiao = regiao({
-    id: "msd-posterior",
+    id: "membro-superior-direito-posterior",
     nome: "Membro superior direito (posterior)",
     nivel: 1,
     vista: "posterior",
@@ -44,14 +44,14 @@ const membroSupDirPost: ExameFisicoRegiao = regiao({
 const ombroDireito: ExameFisicoRegiao = regiao({
     id: "ombro-direito",
     nome: "Ombro direito",
-    pai_id: "msd-anterior",
+    pai_id: "membro-superior-direito-anterior",
     vista: "anterior",
 })
 
 const cotovelo: ExameFisicoRegiao = regiao({
     id: "cotovelo-direito",
     nome: "Cotovelo direito",
-    pai_id: "msd-anterior",
+    pai_id: "membro-superior-direito-anterior",
     vista: "anterior",
 })
 
@@ -59,7 +59,7 @@ const cotovelo: ExameFisicoRegiao = regiao({
 const deltoideDireito: ExameFisicoRegiao = regiao({
     id: "deltoide-direito",
     nome: "Deltóide direito",
-    pai_id: "msd-posterior",
+    pai_id: "membro-superior-direito-posterior",
     vista: "posterior",
 })
 
@@ -67,7 +67,7 @@ const deltoideDireito: ExameFisicoRegiao = regiao({
 const ombro_esq: ExameFisicoRegiao = regiao({
     id: "ombro-esquerdo",
     nome: "Ombro esquerdo",
-    pai_id: "mse-anterior",
+    pai_id: "membro-superior-esquerdo-anterior",
     vista: "anterior",
 })
 

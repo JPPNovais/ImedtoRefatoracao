@@ -13,10 +13,10 @@ export const RAMOS_CIRCUNFERENCIAL: Record<string, { anterior: string; posterior
   'torax-circunferencial':   { anterior: 'torax-anterior',   posterior: 'torax-posterior'         },
   'abdome-circunferencial':  { anterior: 'abdome-anterior',  posterior: 'lombossacra-posterior'   }, // exceção clínica
   'pelve-circunferencial':   { anterior: 'pelve-anterior',   posterior: 'pelve-posterior'         },
-  'msd-circunferencial':     { anterior: 'msd-anterior',     posterior: 'msd-posterior'           },
-  'mse-circunferencial':     { anterior: 'mse-anterior',     posterior: 'mse-posterior'           },
-  'mid-circunferencial':     { anterior: 'mid-anterior',     posterior: 'mid-posterior'           },
-  'mie-circunferencial':     { anterior: 'mie-anterior',     posterior: 'mie-posterior'           },
+  'membro-superior-direito-circunferencial':  { anterior: 'membro-superior-direito-anterior',  posterior: 'membro-superior-direito-posterior'  },
+  'membro-superior-esquerdo-circunferencial': { anterior: 'membro-superior-esquerdo-anterior', posterior: 'membro-superior-esquerdo-posterior' },
+  'membro-inferior-direito-circunferencial':  { anterior: 'membro-inferior-direito-anterior',  posterior: 'membro-inferior-direito-posterior'  },
+  'membro-inferior-esquerdo-circunferencial': { anterior: 'membro-inferior-esquerdo-anterior', posterior: 'membro-inferior-esquerdo-posterior' },
 }
 
 /**

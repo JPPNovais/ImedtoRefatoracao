@@ -479,7 +479,7 @@ function getAncestralComum(ids: string[]): string | null {
 const SUFIXO_CIRC = '-circunferencial'
 
 /**
- * Dado o id de um nó circunferencial (ex.: 'msd-circunferencial'),
+ * Dado o id de um nó circunferencial (ex.: 'membro-superior-direito-circunferencial'),
  * retorna o nome canônico do nó buscando no catálogo.
  */
 function getNomeCircunferencial(idCirc: string): string {

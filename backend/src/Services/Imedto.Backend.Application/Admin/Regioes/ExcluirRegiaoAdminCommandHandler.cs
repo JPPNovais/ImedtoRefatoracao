@@ -30,6 +30,10 @@ public class ExcluirRegiaoAdminCommandHandler
         if (regiao is null)
             throw new BusinessException("Região anatômica não encontrada.");
 
+        // R1: nível 1 (raiz) sustenta o mapa corporal — não pode ser excluído via tela de admin.
+        if (regiao.Nivel == 1)
+            throw new BusinessException("Regiões de nível 1 (raiz) sustentam o mapa corporal e não podem ser excluídas.");
+
         if (await _query.TemFilhosAsync(command.Id, ct))
             throw new BusinessException("Esta região tem subgrupos. Inative em vez de excluir, ou remova os subgrupos primeiro.");
 

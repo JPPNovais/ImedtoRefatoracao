@@ -30,6 +30,10 @@ public class InativarRegiaoAdminCommandHandler
         if (regiao is null)
             throw new BusinessException("Região anatômica não encontrada.");
 
+        // R2: nível 1 (raiz) sustenta o mapa corporal — não pode ser inativado via tela de admin.
+        if (regiao.Nivel == 1)
+            throw new BusinessException("Regiões de nível 1 (raiz) sustentam o mapa corporal e não podem ser inativadas.");
+
         regiao.Inativar();
         await _repo.Salvar();
 

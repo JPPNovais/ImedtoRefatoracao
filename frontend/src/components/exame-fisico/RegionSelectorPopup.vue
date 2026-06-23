@@ -92,8 +92,8 @@ const baseAtiva = computed<ExameFisicoRegiao | null>(() => {
 })
 
 /**
- * Dado o nó base ativo (ex.: "msd-anterior"), resolve qual nó
- * circunferencial corresponde (ex.: "msd-circunferencial").
+ * Dado o nó base ativo (ex.: "membro-superior-direito-anterior"), resolve qual nó
+ * circunferencial corresponde (ex.: "membro-superior-direito-circunferencial").
  * Derivação por convenção: troca o sufixo "-anterior"/"-posterior" por "-circunferencial".
  */
 const idCircunferencial = computed<string | null>(() => {
@@ -151,7 +151,7 @@ const filhosAtuais = computed(() => {
   if (!regiaoAtual.value) return []
   // No modo anterior/posterior de membro, filtra filhos da vista correta
   if (props.membroRegioes && vistaEscolhida.value && navegacao.value.length === 0) {
-    // base ativa já é o nó correto da vista (ex.: msd-anterior ou msd-posterior)
+    // base ativa já é o nó correto da vista (ex.: membro-superior-direito-anterior ou membro-superior-direito-posterior)
     return props.getFilhos(regiaoAtual.value.id)
   }
   return props.getFilhos(regiaoAtual.value.id)

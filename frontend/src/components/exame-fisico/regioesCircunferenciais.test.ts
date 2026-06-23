@@ -15,18 +15,18 @@ import { RAMOS_CIRCUNFERENCIAL, PARTE_PARA_TRONCO } from './regioesCircunferenci
  * posterior e circunferencial) — evita simular o catálogo Vue reativo no teste.
  */
 const OPOSTO_MEMBRO: Record<string, string> = {
-  'msd-anterior':       'mse-anterior',
-  'mse-anterior':       'msd-anterior',
-  'msd-posterior':      'mse-posterior',
-  'mse-posterior':      'msd-posterior',
-  'msd-circunferencial': 'mse-circunferencial',
-  'mse-circunferencial': 'msd-circunferencial',
-  'mid-anterior':       'mie-anterior',
-  'mie-anterior':       'mid-anterior',
-  'mid-posterior':      'mie-posterior',
-  'mie-posterior':      'mid-posterior',
-  'mid-circunferencial': 'mie-circunferencial',
-  'mie-circunferencial': 'mid-circunferencial',
+  'membro-superior-direito-anterior':         'membro-superior-esquerdo-anterior',
+  'membro-superior-esquerdo-anterior':        'membro-superior-direito-anterior',
+  'membro-superior-direito-posterior':        'membro-superior-esquerdo-posterior',
+  'membro-superior-esquerdo-posterior':       'membro-superior-direito-posterior',
+  'membro-superior-direito-circunferencial':  'membro-superior-esquerdo-circunferencial',
+  'membro-superior-esquerdo-circunferencial': 'membro-superior-direito-circunferencial',
+  'membro-inferior-direito-anterior':         'membro-inferior-esquerdo-anterior',
+  'membro-inferior-esquerdo-anterior':        'membro-inferior-direito-anterior',
+  'membro-inferior-direito-posterior':        'membro-inferior-esquerdo-posterior',
+  'membro-inferior-esquerdo-posterior':       'membro-inferior-direito-posterior',
+  'membro-inferior-direito-circunferencial':  'membro-inferior-esquerdo-circunferencial',
+  'membro-inferior-esquerdo-circunferencial': 'membro-inferior-direito-circunferencial',
 }
 
 /**
@@ -233,15 +233,15 @@ describe('CA40 — abdome-circunferencial → abdome-anterior + lombossacra-post
 
 // ── CA41 — circunferencial de membro não toca o tronco ───────────────────────
 
-describe('CA41 — msd-circunferencial acende msd-anterior e msd-posterior, sem tocar o tronco', () => {
-  it('deve conter msd-anterior e msd-posterior', () => {
-    const ids = computarMapaIds([{ regiao_id: 'msd-circunferencial' }])
-    expect(ids.has('msd-anterior')).toBe(true)
-    expect(ids.has('msd-posterior')).toBe(true)
+describe('CA41 — membro-superior-direito-circunferencial acende membro-superior-direito-anterior e membro-superior-direito-posterior, sem tocar o tronco', () => {
+  it('deve conter membro-superior-direito-anterior e membro-superior-direito-posterior', () => {
+    const ids = computarMapaIds([{ regiao_id: 'membro-superior-direito-circunferencial' }])
+    expect(ids.has('membro-superior-direito-anterior')).toBe(true)
+    expect(ids.has('membro-superior-direito-posterior')).toBe(true)
   })
 
   it('não deve acender nenhum polígono de tronco', () => {
-    const ids = computarMapaIds([{ regiao_id: 'msd-circunferencial' }])
+    const ids = computarMapaIds([{ regiao_id: 'membro-superior-direito-circunferencial' }])
     expect(troncoAcende('Tronco (anterior)', ids)).toBe(false)
     expect(troncoAcende('Tronco (posterior)', ids)).toBe(false)
   })
@@ -249,34 +249,34 @@ describe('CA41 — msd-circunferencial acende msd-anterior e msd-posterior, sem 
 
 // ── CA42 — não-regressão bilateral simples = 2 polígonos ─────────────────────
 
-describe('CA42 — bilateral simples acende 2 polígonos (msd-anterior + mse-anterior)', () => {
-  it('bilateral msd-anterior deve acender o oposto mse-anterior (caminho real, sem injeção externa)', () => {
+describe('CA42 — bilateral simples acende 2 polígonos (membro-superior-direito-anterior + membro-superior-esquerdo-anterior)', () => {
+  it('bilateral membro-superior-direito-anterior deve acender o oposto membro-superior-esquerdo-anterior (caminho real, sem injeção externa)', () => {
     const ids = computarMapaIds([
-      { regiao_id: 'msd-anterior', lateralidade: 'bilateral' },
+      { regiao_id: 'membro-superior-direito-anterior', lateralidade: 'bilateral' },
     ])
-    expect(ids.has('msd-anterior')).toBe(true)
-    expect(ids.has('mse-anterior')).toBe(true)
-    expect(ids.has('msd-posterior')).toBe(false)
-    expect(ids.has('mse-posterior')).toBe(false)
+    expect(ids.has('membro-superior-direito-anterior')).toBe(true)
+    expect(ids.has('membro-superior-esquerdo-anterior')).toBe(true)
+    expect(ids.has('membro-superior-direito-posterior')).toBe(false)
+    expect(ids.has('membro-superior-esquerdo-posterior')).toBe(false)
   })
 })
 
 // ── CA43 — bilateral × circunferencial = 4 polígonos ─────────────────────────
 
-describe('CA43 — bilateral × circunferencial = 4 polígonos (msd/mse × ant/post)', () => {
-  it('1 card msd-circunferencial bilateral deve acender msd-anterior, msd-posterior, mse-anterior, mse-posterior (caminho real)', () => {
+describe('CA43 — bilateral × circunferencial = 4 polígonos (membro-superior-direito/esquerdo × ant/post)', () => {
+  it('1 card membro-superior-direito-circunferencial bilateral deve acender membro-superior-direito-anterior, membro-superior-direito-posterior, membro-superior-esquerdo-anterior, membro-superior-esquerdo-posterior (caminho real)', () => {
     const ids = computarMapaIds([
-      { regiao_id: 'msd-circunferencial', lateralidade: 'bilateral' },
+      { regiao_id: 'membro-superior-direito-circunferencial', lateralidade: 'bilateral' },
     ])
-    expect(ids.has('msd-anterior')).toBe(true)
-    expect(ids.has('msd-posterior')).toBe(true)
-    expect(ids.has('mse-anterior')).toBe(true)
-    expect(ids.has('mse-posterior')).toBe(true)
+    expect(ids.has('membro-superior-direito-anterior')).toBe(true)
+    expect(ids.has('membro-superior-direito-posterior')).toBe(true)
+    expect(ids.has('membro-superior-esquerdo-anterior')).toBe(true)
+    expect(ids.has('membro-superior-esquerdo-posterior')).toBe(true)
   })
 
-  it('não deve acender tronco para msd-circunferencial bilateral', () => {
+  it('não deve acender tronco para membro-superior-direito-circunferencial bilateral', () => {
     const ids = computarMapaIds([
-      { regiao_id: 'msd-circunferencial', lateralidade: 'bilateral' },
+      { regiao_id: 'membro-superior-direito-circunferencial', lateralidade: 'bilateral' },
     ])
     expect(troncoAcende('Tronco (anterior)', ids)).toBe(false)
     expect(troncoAcende('Tronco (posterior)', ids)).toBe(false)
@@ -310,15 +310,15 @@ describe('PARTE_PARA_TRONCO — mapeamento correto das 6 partes', () => {
 
 describe('RAMOS_CIRCUNFERENCIAL — 9 nós circunferenciais mapeados corretamente', () => {
   const esperados = [
-    { id: 'cabeca-circunferencial',  ant: 'cabeca-anterior',  post: 'cabeca-posterior'       },
-    { id: 'pescoco-circunferencial', ant: 'pescoco-anterior', post: 'pescoco-posterior'       },
-    { id: 'torax-circunferencial',   ant: 'torax-anterior',   post: 'torax-posterior'         },
-    { id: 'abdome-circunferencial',  ant: 'abdome-anterior',  post: 'lombossacra-posterior'   }, // exceção clínica
-    { id: 'pelve-circunferencial',   ant: 'pelve-anterior',   post: 'pelve-posterior'         },
-    { id: 'msd-circunferencial',     ant: 'msd-anterior',     post: 'msd-posterior'           },
-    { id: 'mse-circunferencial',     ant: 'mse-anterior',     post: 'mse-posterior'           },
-    { id: 'mid-circunferencial',     ant: 'mid-anterior',     post: 'mid-posterior'           },
-    { id: 'mie-circunferencial',     ant: 'mie-anterior',     post: 'mie-posterior'           },
+    { id: 'cabeca-circunferencial',                    ant: 'cabeca-anterior',                  post: 'cabeca-posterior'                  },
+    { id: 'pescoco-circunferencial',                   ant: 'pescoco-anterior',                  post: 'pescoco-posterior'                  },
+    { id: 'torax-circunferencial',                     ant: 'torax-anterior',                    post: 'torax-posterior'                    },
+    { id: 'abdome-circunferencial',                    ant: 'abdome-anterior',                   post: 'lombossacra-posterior'              }, // exceção clínica
+    { id: 'pelve-circunferencial',                     ant: 'pelve-anterior',                    post: 'pelve-posterior'                    },
+    { id: 'membro-superior-direito-circunferencial',   ant: 'membro-superior-direito-anterior',  post: 'membro-superior-direito-posterior'  },
+    { id: 'membro-superior-esquerdo-circunferencial',  ant: 'membro-superior-esquerdo-anterior', post: 'membro-superior-esquerdo-posterior' },
+    { id: 'membro-inferior-direito-circunferencial',   ant: 'membro-inferior-direito-anterior',  post: 'membro-inferior-direito-posterior'  },
+    { id: 'membro-inferior-esquerdo-circunferencial',  ant: 'membro-inferior-esquerdo-anterior', post: 'membro-inferior-esquerdo-posterior' },
   ]
 
   for (const { id, ant, post } of esperados) {

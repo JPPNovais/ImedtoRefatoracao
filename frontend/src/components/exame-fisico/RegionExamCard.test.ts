@@ -125,7 +125,7 @@ describe("RegionExamCard", () => {
             props: {
                 regiao: {
                     ...regiaoBase,
-                    regiao_id: "msd-circunferencial",
+                    regiao_id: "membro-superior-direito-circunferencial",
                     caminho: "Membro superior direito (circunferencial)",
                     lateralidade: 'D' as const,
                     vista: 'circunferencial' as const,

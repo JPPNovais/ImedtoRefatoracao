@@ -103,7 +103,7 @@ Slot `#perfil` do `AppTopBar` no `AdminLayout` expõe ações de sessão do admi
 O isolamento físico do módulo é mantido: só importa de `@/components/ui/`, `@/composables/` e `@/assets/main.css`. Nenhum import cruzado com outros módulos do app. Decisão consciente para preservar extração futura (briefing 2026-05-30_001 §10).
 
 **Componente exclusivo do módulo admin:**
-- `RegiaoTreeView.vue` em `modules/admin/components/regioes/` — render hierárquico expand/colapse para `regioes_anatomicas_catalogo`. Agrupamento por `vista` (anterior/posterior/circunferencial); aninhamento por `pai_codigo` até nível 3. Sem virtualização (volume baixo — 144 registros). Sem drag-and-drop; reordenação via input `ordem`. Emite eventos: `editar` (lápis, sempre visível), `inativar` (ban, ação primária de remoção — só para nós `ativo=true`), `reativar` (seta-volta, só para nós `ativo=false`), `excluir` (lixeira, ação **secundária** — desabilitada quando o nó tem filhos, com tooltip "Possui sub-regiões — inative ou remova-as primeiro"). Adicionado em Wave 4 (briefing `planejamentos/2026-05-30_004_admin-global-wave4-catalogos-livelink.md`); comportamento de inativar-primário/reativar reconciliado em B3 (briefing `planejamentos/2026-06-08_007_admin-ui-catalogo-regioes-anatomicas.md`).
+- `RegiaoTreeView.vue` em `modules/admin/components/regioes/` — render hierárquico expand/colapse para `regioes_anatomicas_catalogo`. Agrupamento por `vista` (anterior/posterior/circunferencial); aninhamento por `pai_codigo` até nível 3. Sem virtualização (volume baixo — 144 registros). Sem drag-and-drop; reordenação via input `ordem`. Emite eventos: `editar` (lápis, sempre visível), `inativar` (ban, ação primária de remoção — só para nós `ativo=true`), `reativar` (seta-volta, só para nós `ativo=false`), `excluir` (lixeira, ação **secundária** — desabilitada quando o nó tem filhos, com tooltip "Possui sub-regiões — inative ou remova-as primeiro"). Adicionado em Wave 4 (briefing `planejamentos/2026-05-30_004_admin-global-wave4-catalogos-livelink.md`); comportamento de inativar-primário/reativar reconciliado em B3 (briefing `planejamentos/2026-06-08_007_admin-ui-catalogo-regioes-anatomicas.md`). **Proteção do nível 1 (briefing `planejamentos/2026-06-23_001`)**: para nós de `nivel == 1` (raiz), as ações `inativar` e `excluir` ficam **desabilitadas** com tooltip explicativo, porque as regiões de nível 1 sustentam os hotspots do mapa corporal e o exame físico — sem elas o mapeamento quebra. O backend é a fonte da verdade (`ExcluirRegiaoAdminCommandHandler`/`InativarRegiaoAdminCommandHandler` rejeitam nível 1 com `BusinessException` → 422); o front é apenas espelho de UX. Editar e reativar seguem disponíveis; nível ≥ 2 mantém todas as ações.
 
 **Componentes de domínio compartilhados (tenant + admin):**
 - `ModeloProntuarioBuilder.vue` em `components/ui/` — builder visual de modelos de prontuário, compartilhado entre `ModelosProntuarioView` (tenant, `/configuracoes/modelos-prontuario`) e `ModelosGlobaisFormView` (admin global). Aceita `v-model:nome`, `v-model:descricao`, `v-model:estruturaJson` (string JSON, shape array `[{ chave, titulo, tipo, ordem }]`) e emite `update:valido`. A constante exportada `SECOES_MODELO_PRONTUARIO` é a **fonte única de verdade** das 17 seções suportadas pelo prontuário — nenhuma outra cópia desse catálogo deve existir no front. Reordenação via botões ↑/↓ (drag-and-drop é extensão futura). Retrocompatível com JSON manual criado antes do builder: seções com chaves fora das 17 conhecidas são preservadas intactas com aviso visual. Adicionado em Wave 5 (briefing `planejamentos/2026-05-30_005_admin-global-wave5-builder-visual.md`).
@@ -194,6 +194,34 @@ Typeahead de texto livre com sugestões do pool de variáveis. Localização: [`
 - `SecaoHistoriaPregressa.vue`: campos `nome` de alergias, medicações, cirurgias, doenças.
 - `SecaoHistoriaFamiliar.vue`: campo `parentesco` de parentes (tipo RelacaoFamiliar).
 - As listas são carregadas uma vez no `onMounted` da seção via `variavelPoolService.listar(tipo)`.
+
+### `AppSelectCategoriaInline` (briefing 2026-06-22_003)
+
+Seletor de categoria financeira por **nome** (`v-model: string`) com opção de adicionar nova categoria via mini-form inline — sem sair do modal pai. Localização: [`frontend/src/components/ui/AppSelectCategoriaInline.vue`](../frontend/src/components/ui/AppSelectCategoriaInline.vue).
+
+**Diferença dos seletores similares:**
+- `AppSelectComCriacao` — select por **id** (`v-model: number`); emite evento `criar` sem form inline; a view abre o modal e gerencia o POST.
+- `AppSelectCategoriaInline` — select por **string nome** (`v-model: string`); mini-form embutido no próprio componente; ao confirmar emite `criar` com o nome digitado; suporte a opção transitória (valor atual não presente na lista, p/ lançamentos antigos).
+
+**Props:**
+- `modelValue: string` — nome da categoria selecionada.
+- `opcoes: string[]` — lista de nomes de categorias ativas (carregados pela view).
+- `placeholder?: string` — texto do placeholder do select.
+- `desabilitado?: boolean`
+- `salvandoCriar?: boolean` — enquanto verdadeiro, botões do mini-form ficam desabilitados.
+- `erroCriar?: string | null` — mensagem de erro do POST exibida inline no mini-form (ex.: 422 colisão de nome).
+
+**Eventos:**
+- `update:modelValue(nome: string)` — ao selecionar opção no select.
+- `criar(nome: string)` — ao confirmar no mini-form; a view faz o POST e injeta o nome via `:opcoes` + `v-model`.
+
+**Comportamento:**
+- Valor ausente das `opcoes` é exibido como opção transitória selecionada (lançamentos antigos não perdem o texto).
+- Mini-form abre ao clicar "+ Adicionar nova categoria"; Esc ou Cancelar volta ao select sem emitir.
+- Enter no input confirma; Enter com campo vazio não emite.
+
+**Uso:**
+- `VisaoGeralTab.vue` — modal "Novo lançamento", campo Categoria filtrado pelo tipo do lançamento (Receita/Despesa).
 
 ### `AppKpiCard` (briefing 2026-06-11_002)
 
@@ -517,6 +545,22 @@ A expansão é **aditiva** sobre o `Set` que já contém o espelhamento bilatera
 - `PARTE_PARA_TRONCO` — consumido por `BodyMap` (lógica "OU das partes" do tronco fundido).
 
 **Referência técnica:** `Docs/Discoverys/exame-fisico-fusao-poligonos/01_discovery.md`.
+
+### Segundo consumidor: seletor de pai no cadastro de região anatômica (briefing 2026-06-22_004)
+
+O desenho do mapa corporal é **reutilizado** (não recriado) como **atalho visual** no formulário de cadastro do catálogo global de regiões — `RegioesGlobaisFormView.vue` (admin global), **apenas no modo de criação**. Reuso > duplicação: mesmos paths (`bodyMapPaths.ts`), mesmo `viewBox` e mesma imagem de fundo.
+
+- **Ação**: clicar num hotspot de **nível 1** preenche automaticamente os campos "Código do pai" e "Vista" do formulário com o `codigo` e a `vista` daquela região nível 1 (resolvidos na árvore do catálogo `RegiaoAnatomicaNoDto`). É **atalho transitório**: os campos seguem editáveis manualmente.
+- **Tronco**: clicar nos pseudo-hotspots de tronco **abre um seletor inline** com as partes nível-1 daquele lado (addendum 2026-06-22_004 — supera o no-op original):
+  - *Tronco (anterior)* → opções: **Tórax**, **Abdome**, **Pelve** (derivadas de `PARTE_PARA_TRONCO` invertido, ids `torax-anterior`, `abdome-anterior`, `pelve-anterior`).
+  - *Tronco (posterior)* → opções: **Tórax**, **Região lombossacra**, **Pelve** (ids `torax-posterior`, `lombossacra-posterior`, `pelve-posterior`).
+  - Ao escolher uma parte, "Código do pai" recebe o `codigo` da parte e "Vista" é re-derivada pelo watcher existente — idêntico ao clique direto num hotspot (R3).
+  - Fechar sem escolher: nenhum campo muda (R11).
+  - Estado vazio (parte ausente na árvore): seletor exibe mensagem sem erro global.
+  - Implementado em `RegioesGlobaisFormView.vue` (handler `aoClicarTroncoNoMapa`, `aoEscolherParteTronco`, `fecharSeletorTronco`). Espelha o comportamento de `SecaoExameFisico.onTroncoClicado`.
+- **Sem coloração persistente**: o seletor do cadastro **não** passa `vistasPorId` nem `regioesExaminadas` que acendam regiões — não há "estado aceso" persistente como no exame físico.
+- **Somente criação**: não é renderizado na edição (hierarquia imutável pós-criação).
+- `svg_coords` continua **não** sendo fonte de verdade do desenho (paths hardcoded em `bodyMapPaths.ts`); esta feature não lê/grava `svg_coords`.
 
 ## Renderização legível de seções estruturadas de evolução (briefing 2026-06-09_008)
 
