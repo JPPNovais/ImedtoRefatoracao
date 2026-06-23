@@ -7,6 +7,9 @@
 -- getFilhos("{base}-posterior"). Exceção clínica: abdome-circunferencial →
 -- ramo posterior = lombossacra-posterior (não abdome-posterior, inexistente).
 --
+-- Decisão 2026-06-23: códigos de membros expandidos por extenso (membro-*).
+-- Sub-regiões (nível 2/3) NÃO são seedadas — gerenciadas manualmente.
+--
 -- Campo vista: character varying(20) — texto livre sem CHECK constraint.
 -- Aceita 'circunferencial' sem alteração de schema (confirmado via snapshot EF
 -- e RegiaoAnatomicaCatalogoConfiguration.cs — HasMaxLength(20)).
@@ -20,21 +23,21 @@ INSERT INTO public.regioes_anatomicas_catalogo
     (codigo, nome, pai_codigo, nivel, vista, template_texto, svg_coords, ordem, lateralidade, ativo)
 VALUES
     -- Cabeça circunferencial: une cabeca-anterior + cabeca-posterior
-    ('cabeca-circunferencial',   'Cabeça (circunferencial)',                 NULL, 1, 'circunferencial', NULL, NULL, 19, false, true),
+    ('cabeca-circunferencial',                        'Cabeça (circunferencial)',                         NULL, 1, 'circunferencial', NULL, NULL, 19, false, true),
     -- Pescoço circunferencial: une pescoco-anterior + pescoco-posterior
-    ('pescoco-circunferencial',  'Pescoço (circunferencial)',                NULL, 1, 'circunferencial', NULL, NULL, 20, false, true),
+    ('pescoco-circunferencial',                       'Pescoço (circunferencial)',                        NULL, 1, 'circunferencial', NULL, NULL, 20, false, true),
     -- Tórax circunferencial: une torax-anterior + torax-posterior
-    ('torax-circunferencial',    'Tórax (circunferencial)',                  NULL, 1, 'circunferencial', NULL, NULL, 21, false, true),
+    ('torax-circunferencial',                         'Tórax (circunferencial)',                          NULL, 1, 'circunferencial', NULL, NULL, 21, false, true),
     -- Abdome circunferencial: une abdome-anterior + lombossacra-posterior (exceção clínica — não existe abdome-posterior)
-    ('abdome-circunferencial',   'Abdome (circunferencial)',                 NULL, 1, 'circunferencial', NULL, NULL, 22, false, true),
+    ('abdome-circunferencial',                        'Abdome (circunferencial)',                         NULL, 1, 'circunferencial', NULL, NULL, 22, false, true),
     -- Pelve circunferencial: une pelve-anterior + pelve-posterior
-    ('pelve-circunferencial',    'Pelve (circunferencial)',                  NULL, 1, 'circunferencial', NULL, NULL, 23, false, true),
+    ('pelve-circunferencial',                         'Pelve (circunferencial)',                          NULL, 1, 'circunferencial', NULL, NULL, 23, false, true),
     -- Membros superiores
-    ('msd-circunferencial',      'Membro superior direito (circunferencial)',NULL, 1, 'circunferencial', NULL, NULL, 24, false, true),
-    ('mse-circunferencial',      'Membro superior esquerdo (circunferencial)',NULL, 1, 'circunferencial', NULL, NULL, 25, false, true),
+    ('membro-superior-direito-circunferencial',       'Membro superior direito (circunferencial)',        NULL, 1, 'circunferencial', NULL, NULL, 24, false, true),
+    ('membro-superior-esquerdo-circunferencial',      'Membro superior esquerdo (circunferencial)',       NULL, 1, 'circunferencial', NULL, NULL, 25, false, true),
     -- Membros inferiores
-    ('mid-circunferencial',      'Membro inferior direito (circunferencial)',NULL, 1, 'circunferencial', NULL, NULL, 26, false, true),
-    ('mie-circunferencial',      'Membro inferior esquerdo (circunferencial)',NULL, 1, 'circunferencial', NULL, NULL, 27, false, true)
+    ('membro-inferior-direito-circunferencial',       'Membro inferior direito (circunferencial)',        NULL, 1, 'circunferencial', NULL, NULL, 26, false, true),
+    ('membro-inferior-esquerdo-circunferencial',      'Membro inferior esquerdo (circunferencial)',       NULL, 1, 'circunferencial', NULL, NULL, 27, false, true)
 ON CONFLICT (codigo) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────
