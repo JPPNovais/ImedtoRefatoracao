@@ -181,6 +181,17 @@ public class FinanceiroController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("categorias/{id:long}/reativar")]
+    public async Task<ActionResult> ReativarCategoria(long id)
+    {
+        await _cmd.Send(new ReativarCategoriaFinanceiraCommand
+        {
+            CategoriaId = id,
+            EstabelecimentoId = _tenant.EstabelecimentoId
+        });
+        return NoContent();
+    }
+
     // -------------------- Formas de pagamento --------------------
 
     [HttpGet("formas-pagamento")]

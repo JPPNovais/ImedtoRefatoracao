@@ -169,6 +169,44 @@ export const permissoesGlobaisService = {
     },
 }
 
+// ─── Categorias financeiras padrão sistema (briefing 2026-06-22_003) ────────
+
+export type TipoCategoriaFinanceira = "Receita" | "Despesa"
+
+export interface CategoriaFinanceiraPadraoListaItemDto {
+    id: number
+    nome: string
+    tipo: TipoCategoriaFinanceira
+    ativo: boolean
+    criadaEm: string
+    atualizadaEm: string | null
+}
+
+export const categoriasFinanceirasGlobaisService = {
+    async listar(params: {
+        tipo?: TipoCategoriaFinanceira
+        ativas?: boolean
+        pagina?: number
+        tamanhoPagina?: number
+    } = {}): Promise<ListaPaginada<CategoriaFinanceiraPadraoListaItemDto>> {
+        const { data } = await adminApi.get("/catalogos/categorias-financeiras", { params })
+        return data
+    },
+
+    async criar(payload: { nome: string; tipo: TipoCategoriaFinanceira }): Promise<{ id: number; instanciasPropagadas?: number }> {
+        const { data } = await adminApi.post("/catalogos/categorias-financeiras", payload)
+        return data
+    },
+
+    async inativar(id: number): Promise<void> {
+        await adminApi.post(`/catalogos/categorias-financeiras/${id}/inativar`)
+    },
+
+    async reativar(id: number): Promise<void> {
+        await adminApi.post(`/catalogos/categorias-financeiras/${id}/reativar`)
+    },
+}
+
 // ─── Service: Regiões ────────────────────────────────────────────────────────
 
 export const regioesGlobaisService = {

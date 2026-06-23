@@ -65,6 +65,11 @@ public static class AuditLogRetencao
 
         // Briefing 2026-06-16_002 — Troca voluntária de senha (evento de segurança, TTL = ResetSenhaPropria)
         [AcoesAuditAdmin.AlterarSenhaPropria] = 365,
+
+        // Briefing 2026-06-22_003 — Catálogo global de categorias financeiras padrão (M3)
+        [AcoesAuditAdmin.CriarCategoriaFinanceiraPadraoSistema]    = 365,
+        [AcoesAuditAdmin.InativarCategoriaFinanceiraPadraoSistema] = 365,
+        [AcoesAuditAdmin.ReativarCategoriaFinanceiraPadraoSistema] = 365,
     };
 
     /// <summary>

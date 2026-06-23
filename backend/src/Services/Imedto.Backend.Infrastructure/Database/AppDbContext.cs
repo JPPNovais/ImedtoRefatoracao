@@ -175,6 +175,9 @@ public class AppDbContext : DbContext
     // CA10 — Audit LGPD de export do extrato financeiro (briefing 2026-06-11_002).
     public DbSet<FinanceiroExportLog> FinanceiroExportLogs => Set<FinanceiroExportLog>();
 
+    // M1 — Catálogo global de categorias financeiras padrão (briefing 2026-06-22_003).
+    public DbSet<CategoriaFinanceiraPadraoSistema> CategoriasFinanceirasPadraoSistema => Set<CategoriaFinanceiraPadraoSistema>();
+
     // F6 — Convênios (briefing 2026-06-10_016).
     public DbSet<Convenio> Convenios => Set<Convenio>();
     public DbSet<ConvenioPlano> ConvenioPlanos => Set<ConvenioPlano>();

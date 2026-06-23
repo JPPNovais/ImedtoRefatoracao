@@ -128,4 +128,9 @@ public static class AcoesAuditAdmin
     // Briefing 2026-06-16_002 — Troca voluntária da própria senha (admin regular, sem force-reset)
     // Distinto de ResetSenhaPropria (RESET_SENHA_PROPRIA) que é usado no força-reset de primeiro login.
     public const string AlterarSenhaPropria = "ALTERAR_SENHA_PROPRIA";
+
+    // Briefing 2026-06-22_003 — Catálogo global de categorias financeiras padrão (M3)
+    public const string CriarCategoriaFinanceiraPadraoSistema    = "CRIAR_CATEGORIA_FINANCEIRA_PADRAO_SISTEMA";
+    public const string InativarCategoriaFinanceiraPadraoSistema = "INATIVAR_CATEGORIA_FINANCEIRA_PADRAO_SISTEMA";
+    public const string ReativarCategoriaFinanceiraPadraoSistema = "REATIVAR_CATEGORIA_FINANCEIRA_PADRAO_SISTEMA";
 }

@@ -25,12 +25,18 @@ const form = ref({ nome: "", tipo: "Receita" as TipoCategoria })
 const erroForm = ref<string | null>(null)
 
 const filtroTipo = ref<"" | TipoCategoria>("")
+const filtroAtivo = ref<"" | "ativas" | "inativas">("")
 
-const categoriasFiltradas = computed(() =>
-    filtroTipo.value
-        ? categorias.value.filter((c) => c.tipo === filtroTipo.value)
-        : categorias.value,
-)
+// Ação de inativar/reativar em andamento
+const togglingId = ref<number | null>(null)
+
+const categoriasFiltradas = computed(() => {
+    let lista = categorias.value
+    if (filtroTipo.value) lista = lista.filter((c) => c.tipo === filtroTipo.value)
+    if (filtroAtivo.value === "ativas") lista = lista.filter((c) => c.ativo)
+    else if (filtroAtivo.value === "inativas") lista = lista.filter((c) => !c.ativo)
+    return lista
+})
 
 async function carregar() {
     carregando.value = true
@@ -101,6 +107,32 @@ async function excluir(id: number) {
     }
 }
 
+async function inativar(cat: CategoriaFinanceira) {
+    togglingId.value = cat.id
+    try {
+        await categoriaFinanceiraService.inativar(cat.id)
+        cat.ativo = false
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Erro ao inativar categoria."
+        setTimeout(() => (erro.value = null), 4000)
+    } finally {
+        togglingId.value = null
+    }
+}
+
+async function reativar(cat: CategoriaFinanceira) {
+    togglingId.value = cat.id
+    try {
+        await categoriaFinanceiraService.reativar(cat.id)
+        cat.ativo = true
+    } catch (e: any) {
+        erro.value = e?.response?.data?.mensagem ?? "Erro ao reativar categoria."
+        setTimeout(() => (erro.value = null), 4000)
+    } finally {
+        togglingId.value = null
+    }
+}
+
 onMounted(carregar)
 </script>
 
@@ -117,12 +149,17 @@ onMounted(carregar)
             {{ erro }}
         </div>
 
-        <!-- Filtro -->
+        <!-- Filtros -->
         <div class="filtros">
             <select v-model="filtroTipo" class="filtro-select" aria-label="Filtrar por tipo">
                 <option value="">Todos os tipos</option>
                 <option value="Receita">Receitas</option>
                 <option value="Despesa">Despesas</option>
+            </select>
+            <select v-model="filtroAtivo" class="filtro-select" aria-label="Filtrar por status">
+                <option value="">Ativas e inativas</option>
+                <option value="ativas">Somente ativas</option>
+                <option value="inativas">Somente inativas</option>
             </select>
         </div>
 
@@ -147,12 +184,13 @@ onMounted(carregar)
                 <tr>
                     <th>Nome</th>
                     <th>Tipo</th>
+                    <th>Status</th>
                     <th>Padrão</th>
                     <th class="acoes-th">Ações</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="cat in categoriasFiltradas" :key="cat.id">
+                <tr v-for="cat in categoriasFiltradas" :key="cat.id" :class="{ 'linha-inativa': !cat.ativo }">
                     <td>{{ cat.nome }}</td>
                     <td>
                         <AppBadge
@@ -161,9 +199,16 @@ onMounted(carregar)
                         />
                     </td>
                     <td>
+                        <AppBadge
+                            :variant="cat.ativo ? 'success' : 'muted'"
+                            :label="cat.ativo ? 'Ativa' : 'Inativa'"
+                        />
+                    </td>
+                    <td>
                         <span v-if="cat.padrao" class="tag-padrao">Padrão</span>
                     </td>
                     <td class="acoes">
+                        <!-- Editar: visível apenas para não-padrão -->
                         <button
                             v-if="!cat.padrao"
                             class="btn-icon btn-icon-editar"
@@ -172,6 +217,36 @@ onMounted(carregar)
                         >
                             <i class="fa-solid fa-pen" aria-hidden="true"></i>
                         </button>
+                        <button
+                            v-else
+                            class="btn-icon btn-icon-editar"
+                            title="Categoria padrão não pode ser editada"
+                            disabled
+                        >
+                            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+                        </button>
+
+                        <!-- Inativar/Reativar: habilitado para TODOS (padrão e não-padrão) — M5 -->
+                        <button
+                            v-if="cat.ativo"
+                            class="btn-icon btn-icon-excluir"
+                            title="Inativar"
+                            :disabled="togglingId === cat.id"
+                            @click="inativar(cat)"
+                        >
+                            <i class="fa-solid fa-ban" aria-hidden="true"></i>
+                        </button>
+                        <button
+                            v-else
+                            class="btn-icon btn-icon-ver"
+                            title="Reativar"
+                            :disabled="togglingId === cat.id"
+                            @click="reativar(cat)"
+                        >
+                            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                        </button>
+
+                        <!-- Excluir: somente não-padrão -->
                         <button
                             v-if="!cat.padrao"
                             class="btn-icon btn-icon-excluir"
@@ -243,7 +318,7 @@ onMounted(carregar)
     gap: 0.5rem;
     color: hsl(var(--muted-foreground));
     padding: 2rem 0;
-    font-size: 0.9em;
+    font-size: var(--text-sm);
 }
 
 .erro-banner {
@@ -255,11 +330,14 @@ onMounted(carregar)
     border: 1px solid hsl(var(--destructive) / 0.2);
     border-radius: var(--radius);
     color: hsl(var(--destructive));
-    font-size: 0.9em;
+    font-size: var(--text-sm);
     margin-bottom: 1rem;
 }
 
 .filtros {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
     margin-bottom: 1rem;
 }
 
@@ -267,7 +345,7 @@ onMounted(carregar)
     padding: 0.4rem 0.75rem;
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius-sm);
-    font-size: 0.88em;
+    font-size: var(--text-sm);
     background: hsl(var(--background));
     color: hsl(var(--foreground));
     cursor: pointer;
@@ -276,7 +354,7 @@ onMounted(carregar)
 .tabela {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9em;
+    font-size: var(--text-sm);
 }
 .tabela th, .tabela td {
     padding: 0.7rem 0.9rem;
@@ -284,24 +362,25 @@ onMounted(carregar)
     border-bottom: 1px solid hsl(var(--border));
 }
 .tabela th {
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: hsl(var(--muted-foreground));
     background: hsl(var(--muted) / 0.4);
-    font-size: 0.82em;
+    font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 .tabela tbody tr:hover { background: hsl(var(--muted) / 0.3); }
+.linha-inativa { opacity: 0.6; }
 
-.acoes-th { width: 80px; }
+.acoes-th { width: 100px; }
 .acoes { display: flex; gap: 0.25rem; }
 
 .tag-padrao {
     display: inline-block;
     padding: 0.1rem 0.45rem;
     border-radius: 999px;
-    font-size: 0.72em;
-    font-weight: 600;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
     background: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
 }

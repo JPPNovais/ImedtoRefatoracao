@@ -18,17 +18,26 @@ export interface FormaPagamento {
 }
 
 export const categoriaFinanceiraService = {
-    async listar(): Promise<CategoriaFinanceira[]> {
-        const { data } = await httpClient.get<CategoriaFinanceira[]>("/financeiro/categorias")
+    async listar(params: { tipo?: TipoCategoria; ativas?: boolean } = {}): Promise<CategoriaFinanceira[]> {
+        const { data } = await httpClient.get<CategoriaFinanceira[]>("/financeiro/categorias", { params })
         return data
     },
 
-    async criar(payload: { nome: string; tipo: TipoCategoria }): Promise<void> {
-        await httpClient.post("/financeiro/categorias", payload)
+    async criar(payload: { nome: string; tipo: TipoCategoria }): Promise<{ id: number }> {
+        const { data } = await httpClient.post<{ id: number }>("/financeiro/categorias", payload)
+        return data
     },
 
     async atualizar(id: number, payload: { nome: string; tipo: TipoCategoria }): Promise<void> {
         await httpClient.put(`/financeiro/categorias/${id}`, payload)
+    },
+
+    async inativar(id: number): Promise<void> {
+        await httpClient.post(`/financeiro/categorias/${id}/inativar`)
+    },
+
+    async reativar(id: number): Promise<void> {
+        await httpClient.post(`/financeiro/categorias/${id}/reativar`)
     },
 
     async excluir(id: number): Promise<void> {

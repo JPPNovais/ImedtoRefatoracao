@@ -25,14 +25,26 @@ const mocks = vi.hoisted(() => ({
     queryFiltro: { filtro: "vencidos" } as Record<string, string>,
 }))
 
-vi.mock("vue-router", () => ({
-    useRoute: vi.fn(() => ({ query: mocks.queryFiltro })),
-}))
+vi.mock("vue-router", async () => {
+    const actual = await vi.importActual<typeof import("vue-router")>("vue-router")
+    return {
+        ...actual,
+        useRoute: vi.fn(() => ({ query: mocks.queryFiltro })),
+        useRouter: vi.fn(() => ({})),
+    }
+})
 
 vi.mock("@/services/financeiroService", () => ({
     financeiroService: {
         extrato: (...args: unknown[]) => mocks.extratoSpy(...args),
         kpis:    (...args: unknown[]) => mocks.kpisSpy(...args),
+    },
+}))
+
+vi.mock("@/services/categoriaFinanceiraService", () => ({
+    categoriaFinanceiraService: {
+        listar: vi.fn().mockResolvedValue([]),
+        criar:  vi.fn().mockResolvedValue({ id: 99 }),
     },
 }))
 
@@ -61,6 +73,7 @@ vi.mock("@/components/ui", () => {
             template: `<button @click="$emit('click')"><slot /></button>`,
         }),
         AppToast:        stub("AppToast"),
+        AppSelectCategoriaInline: stub("AppSelectCategoriaInline"),
     }
 })
 

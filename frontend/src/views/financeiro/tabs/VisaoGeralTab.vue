@@ -4,8 +4,9 @@ import { useRoute } from "vue-router"
 import { financeiroService, type KpisFinanceiro, type LancamentoExtrato } from "@/services/financeiroService"
 import {
     AppKpiCard, AppFilterPills, AppPagination, AppModal, AppField, AppInput,
-    AppSelect, AppDatePicker, AppButton, AppToast
+    AppSelect, AppDatePicker, AppButton, AppToast, AppSelectCategoriaInline
 } from "@/components/ui"
+import { categoriaFinanceiraService, type TipoCategoria } from "@/services/categoriaFinanceiraService"
 import { useTenantStore } from "@/stores/tenantStore"
 
 const route = useRoute()
@@ -186,9 +187,51 @@ async function exportar() {
 
 // ─── Modal lançamento avulso ──────────────────────────────────────────────────────
 const modalCriar = ref(false)
-const formCriar = ref({ tipo: "Receita", descricao: "", valor: 0, dataVencimento: "", categoria: "" })
+const formCriar = ref({ tipo: "Receita" as TipoCategoria, descricao: "", valor: 0, dataVencimento: "", categoria: "" })
 const erroCriar = ref<string | null>(null)
 const salvando = ref(false)
+
+// ─── Categorias financeiras (lazy load: buscado apenas ao abrir o modal) ────────
+const categoriasDisponiveis = ref<string[]>([])
+const carregandoCategorias = ref(false)
+const salvandoCategoria = ref(false)
+const erroCriarCategoria = ref<string | null>(null)
+
+async function carregarCategoriasPorTipo(tipo: TipoCategoria) {
+    carregandoCategorias.value = true
+    try {
+        const lista = await categoriaFinanceiraService.listar({ tipo, ativas: true })
+        categoriasDisponiveis.value = lista.map((c) => c.nome)
+    } catch {
+        // silencioso: seletor mostrará vazio
+    } finally {
+        carregandoCategorias.value = false
+    }
+}
+
+// Ao trocar tipo no formulário: recarrega lista e limpa seleção se categoria não pertence ao novo tipo
+watch(() => formCriar.value.tipo, (novoTipo) => {
+    formCriar.value.categoria = ""
+    erroCriarCategoria.value = null
+    if (modalCriar.value) {
+        carregarCategoriasPorTipo(novoTipo as TipoCategoria)
+    }
+})
+
+async function aoAdicionarCategoria(nome: string) {
+    salvandoCategoria.value = true
+    erroCriarCategoria.value = null
+    try {
+        await categoriaFinanceiraService.criar({ nome, tipo: formCriar.value.tipo as TipoCategoria })
+        // Recarrega a lista e já seleciona o novo nome
+        await carregarCategoriasPorTipo(formCriar.value.tipo as TipoCategoria)
+        formCriar.value.categoria = nome
+    } catch (e: any) {
+        erroCriarCategoria.value = e?.response?.data?.mensagem ?? "Não foi possível criar a categoria."
+    } finally {
+        salvandoCategoria.value = false
+    }
+}
 
 // Sincroniza com prop externa (botão "+ Lançamento" do header)
 watch(() => props.modalAbertoExterno, (val) => {
@@ -201,7 +244,10 @@ watch(modalCriar, (val) => {
 function abrirModalCriar() {
     formCriar.value = { tipo: "Receita", descricao: "", valor: 0, dataVencimento: "", categoria: "" }
     erroCriar.value = null
+    erroCriarCategoria.value = null
     modalCriar.value = true
+    // Lazy load: só busca categorias ao abrir o modal
+    carregarCategoriasPorTipo("Receita")
 }
 
 async function salvarCriar() {
@@ -405,7 +451,15 @@ function prefixoValor(tipo: "in" | "out" | "refund"): string {
             <AppInput v-model="formCriar.descricao" />
         </AppField>
         <AppField label="Categoria" required>
-            <AppInput v-model="formCriar.categoria" />
+            <AppSelectCategoriaInline
+                v-model="formCriar.categoria"
+                :opcoes="categoriasDisponiveis"
+                placeholder="Selecione…"
+                :desabilitado="carregandoCategorias || salvando"
+                :salvando-criar="salvandoCategoria"
+                :erro-criar="erroCriarCategoria"
+                @criar="aoAdicionarCategoria"
+            />
         </AppField>
         <AppField label="Valor (R$)" required>
             <AppInput v-model="formCriar.valor" type="number" :min="0.01" :step="0.01" />

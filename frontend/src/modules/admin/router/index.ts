@@ -123,6 +123,17 @@ export const adminRoutes: RouteRecordRaw[] = [
                 name: "AdminPermissoesGlobais",
                 component: () => import("../views/PermissoesGlobaisListView.vue"),
             },
+            // Catálogos — Categorias financeiras padrão sistema
+            {
+                path: "catalogos/categorias-financeiras",
+                name: "AdminCategoriasFinanceirasGlobais",
+                component: () => import("../views/CategoriasFinanceirasGlobaisListView.vue"),
+            },
+            {
+                path: "catalogos/categorias-financeiras/novo",
+                name: "AdminCategoriasFinanceirasGlobaisNovo",
+                component: () => import("../views/CategoriasFinanceirasGlobaisFormView.vue"),
+            },
             // Catálogos — Regiões anatômicas
             {
                 path: "catalogos/regioes",

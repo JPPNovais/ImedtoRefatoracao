@@ -60,8 +60,8 @@ public class CategoriaFinanceira : Entity
 
     public virtual void Inativar()
     {
-        if (Padrao)
-            throw new BusinessException("Categoria padrão não pode ser inativada.");
+        // R8 (briefing 2026-06-22_003): Padrao=true pode ser inativado pelo estabelecimento.
+        // Somente Atualizar() e exclusão permanecem bloqueados para Padrao=true.
         if (!Ativo) return;
 
         Ativo = false;

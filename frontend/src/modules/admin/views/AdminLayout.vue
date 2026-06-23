@@ -30,6 +30,7 @@ const menuItems = [
     { name: "AdminVariaveisGlobais",  label: "Variáveis pool",         icon: "fa-solid fa-list-check",     to: { name: "AdminVariaveisGlobais" } },
     { name: "AdminRegioesGlobais",    label: "Regiões anatômicas",     icon: "fa-solid fa-person-rays",    to: { name: "AdminRegioesGlobais" } },
     { name: "AdminPermissoesGlobais", label: "Modelos de permissão",   icon: "fa-solid fa-shield-halved",  to: { name: "AdminPermissoesGlobais" } },
+    { name: "AdminCategoriasFinanceirasGlobais", label: "Categorias financeiras", icon: "fa-solid fa-tags", to: { name: "AdminCategoriasFinanceirasGlobais" } },
     { name: "AdminMigracoesLista",    label: "Migrações",              icon: "fa-solid fa-arrow-right-arrow-left", to: { name: "AdminMigracoesLista" } },
 ]
 

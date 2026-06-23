@@ -395,6 +395,15 @@ public static class Container
         services.AddScoped<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.AtualizarModeloPermissaoPadraoSistemaCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.ModelosPermissaoPadraoSistema.ExcluirModeloPermissaoPadraoSistemaCommandHandler>();
 
+        // Briefing 2026-06-22_003 — Catálogo global de categorias financeiras padrão (M2/M3)
+        services.AddScoped<Imedto.Backend.Domain.Financeiro.ICategoriaFinanceiraPadraoSistemaRepository,
+                           Imedto.Backend.Infrastructure.Database.Repositories.CategoriaFinanceiraPadraoSistemaRepository>();
+        services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.CategoriaFinanceiraPadraoSistemaQueryRepository>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.CategoriasFinanceiras.ListarCategoriasFinanceirasPadraoSistemaQueryHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.CategoriasFinanceiras.CriarCategoriaFinanceiraPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.CategoriasFinanceiras.InativarCategoriaFinanceiraPadraoSistemaCommandHandler>();
+        services.AddScoped<Imedto.Backend.Application.Admin.CategoriasFinanceiras.ReativarCategoriaFinanceiraPadraoSistemaCommandHandler>();
+
         // Wave 6 — Dashboard admin (4 query handlers singleton + repositório Dapper)
         services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.IDashboardAdminQueryRepository,
                               Imedto.Backend.Infrastructure.Admin.QueryRepositories.DashboardAdminQueryRepository>();
@@ -907,6 +916,7 @@ public static class Container
         services.AddScoped<CriarCategoriaFinanceiraCommandHandler>();
         services.AddScoped<AtualizarCategoriaFinanceiraCommandHandler>();
         services.AddScoped<InativarCategoriaFinanceiraCommandHandler>();
+        services.AddScoped<ReativarCategoriaFinanceiraCommandHandler>();
         services.AddScoped<CriarFormaPagamentoCommandHandler>();
         services.AddScoped<AtualizarFormaPagamentoCommandHandler>();
         services.AddScoped<InativarFormaPagamentoCommandHandler>();
@@ -1264,6 +1274,7 @@ public static class Container
             bus.Register<CriarCategoriaFinanceiraCommand, CriarCategoriaFinanceiraCommandHandler>();
             bus.Register<AtualizarCategoriaFinanceiraCommand, AtualizarCategoriaFinanceiraCommandHandler>();
             bus.Register<InativarCategoriaFinanceiraCommand, InativarCategoriaFinanceiraCommandHandler>();
+            bus.Register<ReativarCategoriaFinanceiraCommand, ReativarCategoriaFinanceiraCommandHandler>();
             bus.Register<CriarFormaPagamentoCommand, CriarFormaPagamentoCommandHandler>();
             bus.Register<AtualizarFormaPagamentoCommand, AtualizarFormaPagamentoCommandHandler>();
             bus.Register<InativarFormaPagamentoCommand, InativarFormaPagamentoCommandHandler>();
