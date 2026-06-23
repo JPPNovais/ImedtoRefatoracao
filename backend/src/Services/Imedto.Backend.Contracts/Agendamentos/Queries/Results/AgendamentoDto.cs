@@ -39,4 +39,11 @@ public class AgendamentoDto
     public decimal? CobrancaValorCobrado { get; set; }
     public decimal? CobrancaTotalPago { get; set; }
     public decimal? CobrancaSaldoDevedor { get; set; }
+
+    /// <summary>
+    /// Faixa etária derivada do paciente (D1 briefing 2026-06-23_002).
+    /// Calculado na query Dapper a partir de pacientes.data_nascimento — sem expor a data completa.
+    /// Valores: "idoso" (≥60 anos), "menor" (&lt;18 anos), null (adulto 18-59 ou sem data).
+    /// </summary>
+    public string? PacienteFaixaEtaria { get; set; }
 }

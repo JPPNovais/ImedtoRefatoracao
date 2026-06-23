@@ -40,6 +40,11 @@ export interface Paciente {
     atualizadoEm: string | null
     /** Consentimento do paciente para receber lembretes via WhatsApp (LGPD — opt-in explícito). */
     whatsappLembreteOptIn: boolean
+    // Responsável (briefing 2026-06-23_002) — PII de terceiro: só no detalhe (R7).
+    // Campos opcionais no tipo TS para compatibilidade com mocks existentes em testes.
+    responsavelNome?: string | null
+    responsavelParentesco?: string | null
+    responsavelTelefone?: string | null
 }
 
 export interface PacientePayload {
@@ -57,6 +62,10 @@ export interface PacientePayload {
     // Gestão exclusiva via prontuarioService.atualizarAlertas().
     /** Consentimento para WhatsApp. Null = não alterar em PUT; false é o padrão em POST. */
     whatsappLembreteOptIn?: boolean | null
+    // Responsável (briefing 2026-06-23_002) — PII de terceiro.
+    responsavelNome?: string | null
+    responsavelParentesco?: string | null
+    responsavelTelefone?: string | null
 }
 
 export interface PacienteStats {

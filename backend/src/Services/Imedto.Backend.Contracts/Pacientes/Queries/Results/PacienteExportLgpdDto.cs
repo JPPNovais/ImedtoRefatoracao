@@ -46,4 +46,10 @@ public class PacienteExportPessoalDto
     public Guid? DeletadoPorUsuarioId { get; set; }
     public DateTime? AnonimizadoEm { get; set; }
     public Guid? AnonimizadoPorUsuarioId { get; set; }
+
+    // Responsável (CA21 briefing 2026-06-23_002): dados pessoais do titular relacionado
+    // devem constar na exportação Art. 18.
+    public string ResponsavelNome { get; set; }
+    public string ResponsavelParentesco { get; set; }
+    public string ResponsavelTelefone { get; set; }
 }

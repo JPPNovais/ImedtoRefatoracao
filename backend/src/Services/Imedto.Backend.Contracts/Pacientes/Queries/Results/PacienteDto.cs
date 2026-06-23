@@ -35,6 +35,12 @@ public class PacienteDto
     /// Exibido no form de edição para permitir marcar/desmarcar.
     /// </summary>
     public bool WhatsappLembreteOptIn { get; set; }
+
+    // Responsável (LGPD R7 briefing 2026-06-23_002): PII de terceiro.
+    // Só neste DTO (detalhe); fora de PacienteListaItemDto e PacienteBuscaRapidaDto.
+    public string ResponsavelNome { get; set; }
+    public string ResponsavelParentesco { get; set; }
+    public string ResponsavelTelefone { get; set; }
 }
 
 public class PacienteListaItemDto

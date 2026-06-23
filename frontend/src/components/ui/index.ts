@@ -1,3 +1,4 @@
+export { default as AppAgeTag }        from "./AppAgeTag.vue"
 export { default as AppAutocompleteCriavel } from "./AppAutocompleteCriavel.vue"
 export { default as AppAlertCard }     from "./AppAlertCard.vue"
 export { default as AppKpiCard }       from "./AppKpiCard.vue"

@@ -136,6 +136,9 @@ public class PacienteController : ControllerBase
             Tags = request.Tags ?? Array.Empty<string>(),
             Alertas = Array.Empty<string>(), // Alertas não são definidos no cadastro administrativo (LGPD 2026-06-22_002)
             WhatsappLembreteOptIn = request.WhatsappLembreteOptIn,
+            ResponsavelNome = request.ResponsavelNome,
+            ResponsavelParentesco = request.ResponsavelParentesco,
+            ResponsavelTelefone = request.ResponsavelTelefone,
         });
 
         return Created(string.Empty, null);
@@ -169,6 +172,9 @@ public class PacienteController : ControllerBase
             // o handler ignorará null e preservará o valor existente do aggregate.
             Alertas = null,
             WhatsappLembreteOptIn = request.WhatsappLembreteOptIn,
+            ResponsavelNome = request.ResponsavelNome,
+            ResponsavelParentesco = request.ResponsavelParentesco,
+            ResponsavelTelefone = request.ResponsavelTelefone,
         });
 
         return NoContent();
@@ -348,7 +354,11 @@ public record PacienteRequest(
     /// Consentimento explícito do paciente para receber lembretes via WhatsApp (LGPD — R4).
     /// Null = não alterar (em PUT) ou false (em POST).
     /// </summary>
-    bool? WhatsappLembreteOptIn = null);
+    bool? WhatsappLembreteOptIn = null,
+    // Responsável (briefing 2026-06-23_002). PII de terceiro — R7.
+    string ResponsavelNome = null,
+    string ResponsavelParentesco = null,
+    string ResponsavelTelefone = null);
 
 /// <summary>
 /// Payload de atualização parcial para o app mobile (PATCH /api/paciente/{id}/dados-basicos).

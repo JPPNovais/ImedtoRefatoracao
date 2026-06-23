@@ -18,6 +18,9 @@ public class Paciente : Entity, ISoftDeletable
     public const int AlertaMaxLen = 200;
     public const int TagsMaxCount = 10;
     public const int AlertasMaxCount = 10;
+    public const int ResponsavelNomeMaxLen = 200;
+    public const int ResponsavelParentescoMaxLen = 40;
+    public const int ResponsavelTelefoneMaxLen = 20;
 
     public virtual long EstabelecimentoId { get; protected set; }
     public virtual string NomeCompleto { get; protected set; }
@@ -63,6 +66,12 @@ public class Paciente : Entity, ISoftDeletable
     public virtual DateTime? WhatsappLembreteOptInEm { get; protected set; }
     public virtual Guid? WhatsappLembreteOptInPorUsuarioId { get; protected set; }
 
+    // Responsável (LGPD — PII de terceiro). Obrigatório nome+parentesco quando menor de idade (R3).
+    // Não expor em PacienteListaItemDto nem PacienteBuscaRapidaDto — só em PacienteDto (R7).
+    public virtual string ResponsavelNome { get; protected set; }
+    public virtual string ResponsavelParentesco { get; protected set; }
+    public virtual string ResponsavelTelefone { get; protected set; }
+
     protected Paciente() { }
 
     public static Paciente Cadastrar(
@@ -77,7 +86,10 @@ public class Paciente : Entity, ISoftDeletable
         string observacoes,
         string documentoInternacional = null,
         IReadOnlyList<string> tags = null,
-        IReadOnlyList<string> alertas = null)
+        IReadOnlyList<string> alertas = null,
+        string responsavelNome = null,
+        string responsavelParentesco = null,
+        string responsavelTelefone = null)
     {
         if (estabelecimentoId <= 0)
             throw new BusinessException("Estabelecimento é obrigatório.");
@@ -88,6 +100,9 @@ public class Paciente : Entity, ISoftDeletable
 
         if (dataNascimento.HasValue && dataNascimento.Value > DateTime.UtcNow.Date)
             throw new BusinessException("Data de nascimento não pode estar no futuro.");
+
+        // R3: menor de idade exige nome+parentesco do responsável (fonte da verdade — CA11).
+        ValidarResponsavelParaMenor(dataNascimento, responsavelNome, responsavelParentesco);
 
         return new Paciente
         {
@@ -103,6 +118,9 @@ public class Paciente : Entity, ISoftDeletable
             Observacoes = SanitizeOpt(observacoes, digitsOnly: false),
             Tags = NormalizarLista(tags, TagMaxLen, TagsMaxCount, "Tags"),
             Alertas = NormalizarLista(alertas, AlertaMaxLen, AlertasMaxCount, "Alertas"),
+            ResponsavelNome = NormalizarResponsavel(responsavelNome, ResponsavelNomeMaxLen, "Nome do responsável"),
+            ResponsavelParentesco = NormalizarResponsavel(responsavelParentesco, ResponsavelParentescoMaxLen, "Parentesco do responsável"),
+            ResponsavelTelefone = TextSanitizer.DigitosOuNulo(responsavelTelefone),
             CriadoEm = DateTime.UtcNow
         };
     }
@@ -126,7 +144,10 @@ public class Paciente : Entity, ISoftDeletable
         string observacoes,
         string documentoInternacional = null,
         IReadOnlyList<string> tags = null,
-        IReadOnlyList<string> alertas = null)
+        IReadOnlyList<string> alertas = null,
+        string responsavelNome = null,
+        string responsavelParentesco = null,
+        string responsavelTelefone = null)
     {
         if (EstaDeletado)
             throw new BusinessException("Paciente deletado não pode ser editado.");
@@ -137,6 +158,9 @@ public class Paciente : Entity, ISoftDeletable
 
         if (dataNascimento.HasValue && dataNascimento.Value > DateTime.UtcNow.Date)
             throw new BusinessException("Data de nascimento não pode estar no futuro.");
+
+        // R3: menor de idade exige nome+parentesco do responsável (fonte da verdade — CA11).
+        ValidarResponsavelParaMenor(dataNascimento, responsavelNome, responsavelParentesco);
 
         NomeCompleto = nomeCompleto.Trim();
         Cpf = cpfNormalizado;
@@ -149,6 +173,9 @@ public class Paciente : Entity, ISoftDeletable
         Observacoes = SanitizeOpt(observacoes, digitsOnly: false);
         Tags = NormalizarLista(tags, TagMaxLen, TagsMaxCount, "Tags");
         Alertas = NormalizarLista(alertas, AlertaMaxLen, AlertasMaxCount, "Alertas");
+        ResponsavelNome = NormalizarResponsavel(responsavelNome, ResponsavelNomeMaxLen, "Nome do responsável");
+        ResponsavelParentesco = NormalizarResponsavel(responsavelParentesco, ResponsavelParentescoMaxLen, "Parentesco do responsável");
+        ResponsavelTelefone = TextSanitizer.DigitosOuNulo(responsavelTelefone);
         AtualizadoEm = DateTime.UtcNow;
     }
 
@@ -262,6 +289,10 @@ public class Paciente : Entity, ISoftDeletable
         Observacoes = null;
         Tags = Array.Empty<string>();
         Alertas = Array.Empty<string>();
+        // PII de terceiro (responsável) também é anonimizada (R8 briefing 2026-06-23_002).
+        ResponsavelNome = null;
+        ResponsavelParentesco = null;
+        ResponsavelTelefone = null;
 
         AnonimizadoEm = DateTime.UtcNow;
         AnonimizadoPorUsuarioId = usuarioId;
@@ -316,6 +347,38 @@ public class Paciente : Entity, ISoftDeletable
 
     private static string SanitizeOpt(string valor, bool digitsOnly) =>
         digitsOnly ? TextSanitizer.DigitosOuNulo(valor) : TextSanitizer.TrimOuNulo(valor);
+
+    /// <summary>
+    /// R3 (CA11): quando <paramref name="dataNascimento"/> indica menor de 18 anos,
+    /// exige nome e parentesco do responsável. Borda: no dia em que completa 18 já é adulto.
+    /// </summary>
+    private static void ValidarResponsavelParaMenor(
+        DateTime? dataNascimento,
+        string responsavelNome,
+        string responsavelParentesco)
+    {
+        if (!dataNascimento.HasValue) return;
+
+        var hoje = DateTime.UtcNow.Date;
+        var nasc = dataNascimento.Value.Date;
+        var anos = hoje.Year - nasc.Year;
+        if (nasc.AddYears(anos) > hoje) anos--;
+
+        if (anos >= 18) return;
+
+        if (string.IsNullOrWhiteSpace(responsavelNome) || string.IsNullOrWhiteSpace(responsavelParentesco))
+            throw new BusinessException("Para pacientes menores de idade, informe o nome e o parentesco do responsável.");
+    }
+
+    /// <summary>Trim + limite de tamanho para campos de texto do responsável.</summary>
+    private static string NormalizarResponsavel(string valor, int maxLen, string nomeCampo)
+    {
+        if (string.IsNullOrWhiteSpace(valor)) return null;
+        var trim = valor.Trim();
+        if (trim.Length > maxLen)
+            throw new BusinessException($"{nomeCampo} excede {maxLen} caracteres.");
+        return trim;
+    }
 
     /// <summary>
     /// Normaliza uma lista de strings: trim, remove vazios e duplicados (case-insensitive),

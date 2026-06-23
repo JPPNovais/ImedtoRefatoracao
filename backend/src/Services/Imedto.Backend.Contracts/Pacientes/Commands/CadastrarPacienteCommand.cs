@@ -25,4 +25,9 @@ public class CadastrarPacienteCommand : ICommand
 
     /// <summary>Audit LGPD: quem registrou o consentimento no cadastro.</summary>
     public Guid SolicitanteUsuarioId { get; set; }
+
+    // Responsável (R3/R7 briefing 2026-06-23_002). PII de terceiro — não expor em lista/busca rápida.
+    public string ResponsavelNome { get; set; }
+    public string ResponsavelParentesco { get; set; }
+    public string ResponsavelTelefone { get; set; }
 }

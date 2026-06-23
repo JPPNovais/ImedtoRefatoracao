@@ -49,6 +49,13 @@ export interface Agendamento {
     cobrancaValorCobrado: number | null
     cobrancaTotalPago: number | null
     cobrancaSaldoDevedor: number | null
+    /**
+     * Faixa etária derivada do paciente (D1 briefing 2026-06-23_002).
+     * Calculado na query Dapper a partir de data_nascimento — sem expor a data completa.
+     * "idoso" = 60+ anos; "menor" = < 18 anos; null = adulto ou sem data de nascimento.
+     * Campo opcional no tipo para compatibilidade com mocks existentes em testes.
+     */
+    pacienteFaixaEtaria?: "idoso" | "menor" | null
 }
 
 export interface CriarAgendamentoPayload {
