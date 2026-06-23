@@ -4,12 +4,15 @@
  * Criação: codigo, nome, vista, paiCodigo, nivel, templateTexto, ordem, lateralidade, motivo.
  * Edição: apenas nome, templateTexto, motivo (estrutura não muda).
  * B3 (2026-06-08_007): OPCOES_VISTA corrigido; guard de pai circunferencial (R7/CA6).
+ * 2026-06-22_004: seletor visual (BodyMap) como atalho de pai/vista no modo criação.
  */
 import { ref, onMounted, computed, watch } from "vue"
 import { useRouter } from "vue-router"
 import { AppPageHeader, AppCard, AppField, AppInput, AppTextarea, AppButton, AppSelect } from "@/components/ui"
 import { useRegioesGlobaisStore } from "../stores/regioesGlobaisStore"
-import { regioesGlobaisService } from "../services/catalogosService"
+import { regioesGlobaisService, type RegiaoAnatomicaNoDto } from "../services/catalogosService"
+import BodyMap, { type ExameFisicoRegiao, type TroncoClique } from "@/components/exame-fisico/BodyMap.vue"
+import { PARTE_PARA_TRONCO } from "@/components/exame-fisico/regioesCircunferenciais"
 
 const MSG_CIRCUNFERENCIAL = "Nós circunferenciais são agregadores e não aceitam sub-regiões."
 
@@ -61,6 +64,16 @@ onMounted(async () => {
             ordem.value = store.itemAtual.ordem
             lateralidade.value = store.itemAtual.lateralidade
         }
+    } else {
+        // Pré-carrega a árvore para o seletor visual (R8: já exposta pelo service).
+        // Silencioso: falha não bloqueia o formulário (CA11).
+        if (store.arvore.length === 0) {
+            try {
+                await store.carregarArvore(true)
+            } catch {
+                // no-op silencioso — admin pode digitar manualmente (CA11)
+            }
+        }
     }
 })
 
@@ -98,6 +111,124 @@ function encontrarNaArvore(nos: NoArvore[], codigo: string): NoArvore | null {
         if (filho) return filho
     }
     return null
+}
+
+// ── Seletor visual (BodyMap como atalho) ─────────────────────────────────────
+
+/**
+ * Adapta os nós de nível 1 da árvore do catálogo para o formato ExameFisicoRegiao,
+ * usando `codigo` como `id` para que possamos recuperá-lo no handler do clique.
+ * Passa apenas nível 1 (os únicos com hotspot no BodyMap).
+ */
+const regioesParaMapa = computed<ExameFisicoRegiao[]>(() =>
+    store.arvore
+        .filter((no) => no.nivel === 1)
+        .map((no): ExameFisicoRegiao => ({
+            id: no.codigo,
+            nome: no.nome,
+            nivel: 1,
+            lateralidade: no.lateralidade,
+            pai_id: no.paiCodigo,
+            vista: (no.vista as ExameFisicoRegiao["vista"]) ?? null,
+            template_texto: no.templateTexto ?? null,
+        })),
+)
+
+/**
+ * Clique em hotspot de nível 1 do mapa: preenche paiCodigo e vista.
+ * O preenchimento dispara o watcher existente de paiCodigo, que re-deriva
+ * vista e nivel — exatamente como se o admin tivesse digitado o código (R3).
+ *
+ * CA9: se arvore ainda não carregou (regioesParaMapa vazio), o BodyMap não
+ * renderiza hotspots de catálogo e este handler não é chamado — no-op implícito.
+ */
+function aoClicarRegiaoNoMapa(regiao: ExameFisicoRegiao): void {
+    // id === codigo (adaptador acima). Verifica se é nível 1 explicitamente.
+    if (regiao.nivel !== 1) return
+
+    // Resolve o nó na árvore pelo codigo para garantir dados frescos.
+    const nos = store.arvore as RegiaoAnatomicaNoDto[]
+    const no = encontrarNaArvore(nos, regiao.id)
+    if (!no || no.nivel !== 1) return
+
+    // Preenche o campo paiCodigo; o watcher existente deriva vista e nivel (R3).
+    paiCodigo.value = no.codigo
+}
+
+// ── Seletor de tronco (addendum 2026-06-22_004, R9–R12) ─────────────────────
+
+/**
+ * Mapa de id-base-de-parte → label amigável para o seletor do tronco.
+ * Derivado dos ids do PARTE_PARA_TRONCO — NÃO duplica a lista lógica.
+ * Labels espelham os GRUPOS_TRONCO_* do exame físico (SecaoExameFisico.vue).
+ */
+const LABEL_PARTE_TRONCO: Record<string, string> = {
+    "torax-anterior":        "Tórax",
+    "abdome-anterior":       "Abdome",
+    "pelve-anterior":        "Pelve",
+    "torax-posterior":       "Tórax",
+    "lombossacra-posterior": "Região lombossacra",
+    "pelve-posterior":       "Pelve",
+}
+
+/**
+ * Opção de seleção de parte do tronco: id da parte no catálogo + label de UI.
+ */
+interface OpcaoTronco {
+    regiaoBaseId: string
+    label: string
+}
+
+/**
+ * Estado do seletor inline do tronco.
+ * null = fechado; "tronco-anterior"|"tronco-posterior" = aberto para aquele lado.
+ */
+const seletorTronco = ref<TroncoClique | null>(null)
+
+/**
+ * Opções derivadas de PARTE_PARA_TRONCO (invertido): filtra as partes que
+ * pertencem ao lado clicado e cruza com a árvore para confirmar existência.
+ * CA20: árvore não carregada → lista vazia (no-op), sem erro global.
+ */
+const opcoesSeletorTronco = computed<OpcaoTronco[]>(() => {
+    if (!seletorTronco.value) return []
+    const nomeTronco = seletorTronco.value === "tronco-anterior"
+        ? "Tronco (anterior)"
+        : "Tronco (posterior)"
+    return Object.entries(PARTE_PARA_TRONCO)
+        .filter(([, tronco]) => tronco === nomeTronco)
+        .map(([regiaoBaseId]) => ({ regiaoBaseId, label: LABEL_PARTE_TRONCO[regiaoBaseId] ?? regiaoBaseId }))
+})
+
+/**
+ * Clique no pseudo-hotspot de tronco — R9 (supera R4/CA4 do original).
+ * No modo criação: abre seletor inline com partes nível-1 daquele lado.
+ * R13: só criação (o boneco inteiro só é renderizado na criação via v-if="!editando").
+ * CA9 (árvore não carregada): se a árvore ainda não carregou, o seletor abre mas mostra
+ * lista vazia — estado vazio tratado no template (CA20). Não bloqueia o formulário.
+ */
+function aoClicarTroncoNoMapa(vistaId: TroncoClique): void {
+    seletorTronco.value = vistaId
+}
+
+/**
+ * Escolha de uma parte no seletor do tronco: preenche paiCodigo com o codigo
+ * da parte escolhida (R10). O watcher existente de paiCodigo re-deriva vista e nivel.
+ * Resultado idêntico ao clique direto num hotspot (R3 do original segue válido).
+ */
+function aoEscolherParteTronco(regiaoBaseId: string): void {
+    const no = encontrarNaArvore(store.arvore as RegiaoAnatomicaNoDto[], regiaoBaseId)
+    if (no && no.nivel === 1) {
+        paiCodigo.value = no.codigo
+    }
+    seletorTronco.value = null
+}
+
+/**
+ * Fechar/cancelar o seletor do tronco sem escolher — R11: nenhum campo muda.
+ */
+function fecharSeletorTronco(): void {
+    seletorTronco.value = null
 }
 
 function validar(): boolean {
@@ -176,6 +307,49 @@ async function salvar() {
                             :disabled="salvando"
                         />
                     </AppField>
+
+                    <!-- Seletor visual de pai (atalho): BodyMap clicável (R1/R2/R5 + addendum R9-R13) -->
+                    <div class="seletor-mapa-pai">
+                        <p class="seletor-mapa-rotulo">Selecionar pai pelo mapa <span class="seletor-mapa-opcional">(atalho)</span></p>
+                        <p class="seletor-mapa-dica">Clique numa parte do corpo para preencher "Código do pai" e "Vista" automaticamente.</p>
+                        <BodyMap
+                            :regioes="regioesParaMapa"
+                            :regioes-examinadas="[]"
+                            :sexo="null"
+                            @regiaoClicada="aoClicarRegiaoNoMapa"
+                            @troncoClicado="aoClicarTroncoNoMapa"
+                        />
+                        <!-- Seletor inline do tronco (addendum 2026-06-22_004, R9–R11/CA13–CA16) -->
+                        <div v-if="seletorTronco" class="seletor-tronco" role="dialog" aria-modal="false" :aria-label="`Selecionar parte do ${seletorTronco === 'tronco-anterior' ? 'tronco anterior' : 'tronco posterior'}`">
+                            <div class="seletor-tronco-cabecalho">
+                                <span class="seletor-tronco-titulo">{{ seletorTronco === 'tronco-anterior' ? 'Tronco anterior' : 'Tronco posterior' }}</span>
+                                <button
+                                    type="button"
+                                    class="seletor-tronco-fechar btn-icon"
+                                    aria-label="Fechar seletor"
+                                    @click="fecharSeletorTronco"
+                                ><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <p v-if="opcoesSeletorTronco.length === 0" class="seletor-tronco-vazio">
+                                Nenhuma parte disponível no catálogo.
+                            </p>
+                            <ul v-else class="seletor-tronco-lista" role="listbox">
+                                <li
+                                    v-for="opcao in opcoesSeletorTronco"
+                                    :key="opcao.regiaoBaseId"
+                                    class="seletor-tronco-item"
+                                    role="option"
+                                >
+                                    <button
+                                        type="button"
+                                        class="seletor-tronco-botao"
+                                        :aria-label="`Selecionar ${opcao.label}`"
+                                        @click="aoEscolherParteTronco(opcao.regiaoBaseId)"
+                                    >{{ opcao.label }}</button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
 
                     <AppField label="Vista" hint="Vista corporal onde a região aparece no mapa.">
                         <AppSelect v-model="vista" :options="OPCOES_VISTA" :disabled="salvando || !!paiCodigo.trim()" />
@@ -353,5 +527,108 @@ async function salvar() {
     gap: 0.75rem;
     justify-content: flex-end;
     padding-top: 0.5rem;
+}
+
+/* ── Seletor visual de pai (BodyMap como atalho) ──────────────────────────── */
+.seletor-mapa-pai {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    background: hsl(var(--muted) / 0.35);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+}
+
+.seletor-mapa-rotulo {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+
+.seletor-mapa-opcional {
+    font-weight: var(--font-weight-normal);
+    text-transform: none;
+    letter-spacing: 0;
+    color: hsl(var(--muted-foreground));
+}
+
+.seletor-mapa-dica {
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
+    margin: 0;
+}
+
+/* ── Seletor inline do tronco (addendum 2026-06-22_004) ─────────────────── */
+.seletor-tronco {
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+}
+
+.seletor-tronco-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-2);
+}
+
+.seletor-tronco-titulo {
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    color: hsl(var(--foreground));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.seletor-tronco-fechar {
+    padding: 0.25rem 0.375rem;
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
+}
+
+.seletor-tronco-vazio {
+    font-size: var(--text-xs);
+    color: hsl(var(--muted-foreground));
+    margin: 0;
+    text-align: center;
+    padding: var(--space-2) 0;
+}
+
+.seletor-tronco-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.seletor-tronco-item {
+    display: contents;
+}
+
+.seletor-tronco-botao {
+    width: 100%;
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    background: transparent;
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) - 2px);
+    font-size: var(--text-sm);
+    color: hsl(var(--foreground));
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.seletor-tronco-botao:hover,
+.seletor-tronco-botao:focus-visible {
+    background: hsl(var(--accent) / 0.6);
+    outline: none;
 }
 </style>
