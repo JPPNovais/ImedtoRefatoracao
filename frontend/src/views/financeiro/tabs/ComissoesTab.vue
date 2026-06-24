@@ -5,10 +5,20 @@ import { AppButton, AppFilterPills, AppDatePicker } from "@/components/ui"
 
 defineProps<{ ehDono: boolean }>()
 
-function hojeStr() { return new Date().toISOString().split("T")[0] }
+// Formata Date em YYYY-MM-DD usando getters locais — nunca toISOString() (que devolve UTC
+// e pula para o dia seguinte após as 21h BRT). Padrão: briefing 2026-06-24_001 R3/CA11.
+function formatarDataLocal(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+function hojeStr() { return formatarDataLocal(new Date()) }
 function inicioMes() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`
+}
+function fimMes() {
+    const d = new Date()
+    const ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+    return formatarDataLocal(ultimo)
 }
 
 // ─── Período ──────────────────────────────────────────────────────────────────
@@ -23,23 +33,24 @@ const chipsMes: { valor: Chip; label: string }[] = [
 
 function aplicarChip(c: Chip) {
     chipAtivo.value = c
-    const hoje = new Date()
-    const y = hoje.getFullYear()
-    const m = String(hoje.getMonth() + 1).padStart(2, "0")
+    const agora = new Date()
     if (c === "mes") {
-        dataInicio.value = `${y}-${m}-01`
-        dataFim.value = hojeStr()
+        dataInicio.value = inicioMes()
+        dataFim.value = fimMes()
     } else if (c === "trimestre") {
-        const mesNum = hoje.getMonth()
+        const y = agora.getFullYear()
+        const mesNum = agora.getMonth()
         const inicioTri = new Date(y, Math.floor(mesNum / 3) * 3, 1)
-        dataInicio.value = inicioTri.toISOString().split("T")[0]
-        dataFim.value = hojeStr()
+        // Fim do trimestre = último dia do mês que encerra o trimestre.
+        const fimTri = new Date(y, Math.floor(mesNum / 3) * 3 + 3, 0)
+        dataInicio.value = formatarDataLocal(inicioTri)
+        dataFim.value = formatarDataLocal(fimTri)
     }
     if (c !== "personalizado") carregar()
 }
 
 const dataInicio = ref(inicioMes())
-const dataFim = ref(hojeStr())
+const dataFim = ref(fimMes())
 
 // ─── Dados ────────────────────────────────────────────────────────────────────
 const periodo = ref<ComissaoPeriodo | null>(null)

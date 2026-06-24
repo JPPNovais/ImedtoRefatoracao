@@ -8,6 +8,7 @@ using Imedto.Backend.SharedKernel.Cqrs;
 using Imedto.Backend.SharedKernel.Filters;
 using Imedto.Backend.SharedKernel.Tenancy;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Time;
 
 namespace Imedto.Backend.API.Controllers;
 
@@ -375,7 +376,7 @@ public class FinanceiroController : ControllerBase
             new ObterCaixaDiarioQuery
             {
                 EstabelecimentoId = _tenant.EstabelecimentoId,
-                Data = data ?? DateOnly.FromDateTime(DateTime.Today)
+                Data = data ?? BrasiliaTime.Today
             });
         return Ok(result);
     }
@@ -387,7 +388,7 @@ public class FinanceiroController : ControllerBase
         await _cmd.Send(new AbrirCaixaDiarioCommand
         {
             EstabelecimentoId = _tenant.EstabelecimentoId,
-            Data = dto.Data ?? DateOnly.FromDateTime(DateTime.Today),
+            Data = dto.Data ?? BrasiliaTime.Today,
             UsuarioId = _tenant.UsuarioId
         });
         return NoContent();
@@ -400,7 +401,7 @@ public class FinanceiroController : ControllerBase
         await _cmd.Send(new FecharCaixaDiarioCommand
         {
             EstabelecimentoId = _tenant.EstabelecimentoId,
-            Data = dto.Data ?? DateOnly.FromDateTime(DateTime.Today),
+            Data = dto.Data ?? BrasiliaTime.Today,
             UsuarioId = _tenant.UsuarioId,
             Observacao = dto.Observacao
         });
@@ -414,7 +415,7 @@ public class FinanceiroController : ControllerBase
         await _cmd.Send(new ReabrirCaixaDiarioCommand
         {
             EstabelecimentoId = _tenant.EstabelecimentoId,
-            Data = dto.Data ?? DateOnly.FromDateTime(DateTime.Today),
+            Data = dto.Data ?? BrasiliaTime.Today,
             UsuarioId = _tenant.UsuarioId,
             EhDono = _tenant.EhDono
         });
