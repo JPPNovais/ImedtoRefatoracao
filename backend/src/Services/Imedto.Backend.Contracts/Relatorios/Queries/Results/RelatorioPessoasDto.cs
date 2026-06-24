@@ -34,7 +34,7 @@ public class ProfissionaisResumoDto
 
 public class DesempenhoProfissionalDto
 {
-    public long ProfissionalUsuarioId { get; set; }
+    public Guid ProfissionalUsuarioId { get; set; }
     public string Nome { get; set; } = string.Empty;
     public int Atendimentos { get; set; }
     public int AtendimentosConcluidos { get; set; }
