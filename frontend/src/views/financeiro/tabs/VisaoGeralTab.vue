@@ -37,6 +37,11 @@ function inicioMes(): string {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`
 }
+function fimMes(): string {
+    const d = new Date()
+    const ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+    return `${ultimo.getFullYear()}-${String(ultimo.getMonth() + 1).padStart(2, "0")}-${String(ultimo.getDate()).padStart(2, "0")}`
+}
 function labelMesAno(): string {
     const d = new Date()
     return d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
@@ -44,7 +49,7 @@ function labelMesAno(): string {
 
 const chipAtivo = ref<ChipPeriodo>("mes")
 const dataInicio = ref(inicioMes())
-const dataFim = ref(hoje())
+const dataFim = ref(fimMes())
 
 const chipOpcoes = [
     { valor: "hoje" as ChipPeriodo, label: "Hoje" },
@@ -63,7 +68,7 @@ function aplicarChip(chip: ChipPeriodo) {
         dataFim.value = hoje()
     } else if (chip === "mes") {
         dataInicio.value = inicioMes()
-        dataFim.value = hoje()
+        dataFim.value = fimMes()
     }
     // "personalizado": mantém datas atuais, exibe os pickers
 }
