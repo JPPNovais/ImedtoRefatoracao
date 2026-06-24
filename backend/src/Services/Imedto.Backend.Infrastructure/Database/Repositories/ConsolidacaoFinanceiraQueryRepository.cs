@@ -32,17 +32,26 @@ public class ConsolidacaoFinanceiraQueryRepository
         // Batch único: KPIs primários (lancamentos) + KPIs secundários (cobrancas+pagamentos).
         // Estornos são lançamentos Receita/Pago com categoria 'Estorno: Pagamento' e valor negativo.
         // Recebido = SUM(receitas pagas) inclui os estornos (valor negativo abate — R1/CA157).
+        //
+        // Regime de datas (decisão produto 2026-06-24):
+        //   Recebido / Despesas / Estornos → regime caixa: data_pagamento dentro do período selecionado.
+        //   "A receber" → todas as Receitas Pendentes em aberto do estabelecimento, sem filtro de data.
         const string sql = """
             SELECT
-                COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pago'     THEN valor ELSE 0 END), 0) AS Recebido,
-                COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pendente' THEN valor ELSE 0 END), 0) AS AReceber,
-                COALESCE(SUM(CASE WHEN tipo = 'Despesa' AND status = 'Pago'     THEN valor ELSE 0 END), 0) AS Despesas,
+                COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pago'
+                                       AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+                                  THEN valor ELSE 0 END), 0) AS Recebido,
+                COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pendente'
+                                  THEN valor ELSE 0 END), 0) AS AReceber,
+                COALESCE(SUM(CASE WHEN tipo = 'Despesa' AND status = 'Pago'
+                                       AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+                                  THEN valor ELSE 0 END), 0) AS Despesas,
                 COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pago'
                                        AND categoria = 'Estorno: Pagamento'
-                                  THEN ABS(valor) ELSE 0 END), 0)                                         AS Estornos
+                                       AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+                                  THEN ABS(valor) ELSE 0 END), 0) AS Estornos
             FROM lancamentos
-            WHERE estabelecimento_id = @EstabelecimentoId
-              AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date;
+            WHERE estabelecimento_id = @EstabelecimentoId;
 
             SELECT
                 COALESCE(SUM(c.desconto), 0) AS DescontosConcedidos,
@@ -103,6 +112,8 @@ public class ConsolidacaoFinanceiraQueryRepository
         // Join com cobranca → paciente quando CobrancaId não nulo (R3/LGPD).
         // Forma de pagamento vem do Pagamento quando existe; origem vem da Cobranca.
         // Filtros aplicados no WHERE (R4 — nunca client-side).
+        // data_pagamento usa COALESCE com data_vencimento para incluir lançamentos pendentes
+        // (que ainda não têm data_pagamento) — consistente com o ORDER BY abaixo.
         const string sqlBase = """
             FROM lancamentos l
             LEFT JOIN cobrancas c ON c.id = l.cobranca_id
@@ -111,7 +122,7 @@ public class ConsolidacaoFinanceiraQueryRepository
             LEFT JOIN formas_pagamento fp ON fp.id = pg.forma_pagamento_id
             JOIN usuarios u ON u.id = l.criado_por_usuario_id
             WHERE l.estabelecimento_id = @EstabelecimentoId
-              AND l.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+              AND COALESCE(l.data_pagamento, l.data_vencimento) BETWEEN @DataInicio::date AND @DataFim::date
               AND (@Tipo::text          IS NULL OR l.tipo      = @Tipo)
               AND (@Categoria::text     IS NULL OR l.categoria = @Categoria)
               AND (@FormaPagamento::text IS NULL OR fp.nome    = @FormaPagamento)
@@ -521,6 +532,7 @@ public class ConsolidacaoFinanceiraQueryRepository
         await using var conn = new NpgsqlConnection(_connStr);
 
         // Mesmo predicado FROM+WHERE da ListarExtrato — sem LIMIT/OFFSET.
+        // COALESCE data_pagamento / data_vencimento para incluir lançamentos pendentes.
         const string sqlBase = """
             FROM lancamentos l
             LEFT JOIN cobrancas c ON c.id = l.cobranca_id
@@ -529,7 +541,7 @@ public class ConsolidacaoFinanceiraQueryRepository
             LEFT JOIN formas_pagamento fp ON fp.id = pg.forma_pagamento_id
             JOIN usuarios u ON u.id = l.criado_por_usuario_id
             WHERE l.estabelecimento_id = @EstabelecimentoId
-              AND l.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+              AND COALESCE(l.data_pagamento, l.data_vencimento) BETWEEN @DataInicio::date AND @DataFim::date
               AND (@Tipo::text          IS NULL OR l.tipo      = @Tipo)
               AND (@Categoria::text     IS NULL OR l.categoria = @Categoria)
               AND (@FormaPagamento::text IS NULL OR fp.nome    = @FormaPagamento)
