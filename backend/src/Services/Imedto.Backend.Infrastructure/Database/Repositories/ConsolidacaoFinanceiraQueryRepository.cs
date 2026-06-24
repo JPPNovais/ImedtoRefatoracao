@@ -25,24 +25,29 @@ public class ConsolidacaoFinanceiraQueryRepository
     // KPIs do período (R1/CA156/CA157)
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<KpisFinanceiroDto> ObterKpis(long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
+    public virtual async Task<KpisFinanceiroDto> ObterKpis(long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // Batch único: KPIs primários (lancamentos) + KPIs secundários (cobrancas+pagamentos).
-        // Estornos são lançamentos Receita/Pago com categoria 'Estorno: Pagamento' e valor negativo.
-        // Recebido = SUM(receitas pagas) inclui os estornos (valor negativo abate — R1/CA157).
+        // Batch 3 SELECTs (1 round-trip):
+        //   1) lancamentos — Recebido/Despesas/Estornos (regime caixa: data_pagamento),
+        //      AReceberLancamentos = lançamentos Receita Pendentes avulsos (sem filtro de data).
+        //   2) cobrancas em aberto — saldo a receber não coberto por lançamentos (INV-3: cobrança
+        //      paga vira Lancamento Pago; cobrança em aberto NÃO tem lançamento Receita Pendente,
+        //      portanto somar os dois não duplica — R1/CA3/2026-06-24_002).
+        //      Saldo = valor_cobrado − desconto − SUM(pagamentos líquidos); cobranças Aberta/ParcialmentePaga.
+        //   3) KPIs secundários (descontos/taxas no período).
         //
         // Regime de datas (decisão produto 2026-06-24):
         //   Recebido / Despesas / Estornos → regime caixa: data_pagamento dentro do período selecionado.
-        //   "A receber" → todas as Receitas Pendentes em aberto do estabelecimento, sem filtro de data.
+        //   "A receber" → estoque corrente (sem filtro de data); prazo exibido por data_vencimento na UI.
         const string sql = """
             SELECT
                 COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pago'
                                        AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                                   THEN valor ELSE 0 END), 0) AS Recebido,
                 COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pendente'
-                                  THEN valor ELSE 0 END), 0) AS AReceber,
+                                  THEN valor ELSE 0 END), 0) AS AReceberLancamentos,
                 COALESCE(SUM(CASE WHEN tipo = 'Despesa' AND status = 'Pago'
                                        AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                                   THEN valor ELSE 0 END), 0) AS Despesas,
@@ -52,6 +57,26 @@ public class ConsolidacaoFinanceiraQueryRepository
                                   THEN ABS(valor) ELSE 0 END), 0) AS Estornos
             FROM lancamentos
             WHERE estabelecimento_id = @EstabelecimentoId;
+
+            SELECT
+                COALESCE(SUM(
+                    c.valor_cobrado
+                    - COALESCE(c.desconto, 0)
+                    - COALESCE(pg_agg.total_pago_liquido, 0)
+                ), 0) AS SaldoCobrancasAberto
+            FROM cobrancas c
+            LEFT JOIN (
+                SELECT cobranca_id, SUM(valor) AS total_pago_liquido
+                FROM pagamentos
+                WHERE cobranca_id IN (
+                    SELECT id FROM cobrancas
+                    WHERE estabelecimento_id = @EstabelecimentoId
+                      AND status IN ('Aberta', 'ParcialmentePaga')
+                )
+                GROUP BY cobranca_id
+            ) pg_agg ON pg_agg.cobranca_id = c.id
+            WHERE c.estabelecimento_id = @EstabelecimentoId
+              AND c.status IN ('Aberta', 'ParcialmentePaga');
 
             SELECT
                 COALESCE(SUM(c.desconto), 0) AS DescontosConcedidos,
@@ -71,12 +96,17 @@ public class ConsolidacaoFinanceiraQueryRepository
 
         await using var multi = await conn.QueryMultipleAsync(sql, p);
         var kpis = await multi.ReadSingleAsync<KpisFinanceiroPrimarios>();
+        var cobAberto = await multi.ReadSingleAsync<KpisCobrancasAberto>();
         var sec = await multi.ReadSingleAsync<KpisFinanceiroSecundarios>();
+
+        // A receber = lançamentos Receita Pendentes avulsos + saldo de cobranças em aberto.
+        // Não há dupla contagem: cobrança em aberto não tem lançamento Receita Pendente (INV-3).
+        var aReceber = kpis.AReceberLancamentos + cobAberto.SaldoCobrancasAberto;
 
         return new KpisFinanceiroDto
         {
             Recebido = kpis.Recebido,
-            AReceber = kpis.AReceber,
+            AReceber = aReceber,
             Despesas = kpis.Despesas,
             Saldo = kpis.Recebido - kpis.Despesas,
             Estornos = kpis.Estornos,
@@ -86,7 +116,9 @@ public class ConsolidacaoFinanceiraQueryRepository
     }
 
     private record KpisFinanceiroPrimarios(
-        decimal Recebido, decimal AReceber, decimal Despesas, decimal Estornos);
+        decimal Recebido, decimal AReceberLancamentos, decimal Despesas, decimal Estornos);
+
+    private record KpisCobrancasAberto(decimal SaldoCobrancasAberto);
 
     private record KpisFinanceiroSecundarios(
         decimal DescontosConcedidos, decimal TaxasCartao);
@@ -570,12 +602,17 @@ public class ConsolidacaoFinanceiraQueryRepository
                     TipoBase = l.PercentualConfig.HasValue ? "percentual" : "orcamento_equipe"
                 }).ToList();
 
+                // Atendimentos = cada linha com BaseAtendimento > 0 (R4/CA12 — briefing 2026-06-24_002).
+                // Linhas de abatimento cross-período têm BaseAtendimento < 0 e não representam
+                // um novo atendimento — excluídas da contagem para alinhar com a lista detalhada.
+                var atendimentos = g.Count(l => l.BaseAtendimento > 0);
+
                 return new ComissaoProfissionalDto
                 {
                     ProfissionalUsuarioId = g.Key,
                     Nome = g.First().Nome,
                     Especialidade = g.First().Especialidade,
-                    Atendimentos = g.Select(l => l.PacienteId).Distinct().Count(),
+                    Atendimentos = atendimentos,
                     Faturamento = g.Sum(l => l.BaseAtendimento),
                     PercentualConfig = g.First().PercentualConfig,
                     Comissao = g.Sum(l => l.ComissaoAtendimento),
@@ -747,47 +784,30 @@ public class ConsolidacaoFinanceiraQueryRepository
     // Custo/lucro por paciente para Relatórios (R20/R21/CA179/CA180)
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<List<CustoLucroPacienteDto>> ObterCustoLucroPorPaciente(
+    public virtual async Task<List<CustoLucroPacienteDto>> ObterCustoLucroPorPaciente(
         long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // Join: cobranca → paciente → pagamentos (pago/desconto/taxa) + movimentacoes_estoque (custo via cobranca_id).
-        // LGPD: nome do paciente no DTO minimizado (R22 — só id+nome aqui; drill-down audita no handler de relatório).
-        const string sql = """
-            SELECT
-                pac.id                                                              AS PacienteId,
-                pac.nome_completo                                                   AS PacienteNome,
-                COALESCE(SUM(c.valor_cobrado - COALESCE(c.desconto, 0)), 0)        AS Cobrado,
-                COALESCE(SUM(
-                    SELECT SUM(pg.valor) FROM pagamentos pg
-                    WHERE pg.cobranca_id = c.id
-                ), 0)                                                               AS Pago,
-                COALESCE(SUM(COALESCE(c.desconto, 0)), 0)                          AS Desconto,
-                COALESCE(SUM(
-                    SELECT SUM(pg.taxa) FROM pagamentos pg
-                    WHERE pg.cobranca_id = c.id
-                ), 0)                                                               AS Taxa,
-                COALESCE(SUM(
-                    SELECT SUM(me.custo_total) FROM movimentacoes_estoque me
-                    WHERE me.cobranca_id = c.id AND me.deletado_em IS NULL
-                ), 0)                                                               AS Custo
-            FROM cobrancas c
-            JOIN pacientes pac ON pac.id = c.paciente_id
-            WHERE c.estabelecimento_id = @EstabelecimentoId
-              AND c.criado_em::date BETWEEN @DataInicio::date AND @DataFim::date
-              AND pac.deletado_em IS NULL
-            GROUP BY pac.id, pac.nome_completo
-            ORDER BY pac.nome_completo
-            """;
-
-        // Acima: correlated subqueries — para volumes pequenos (relatório executivo) é aceitável.
-        // O DB agent pode converter para lateral joins se EXPLAIN mostrar seq scan significativo.
-        // Alternativa simplificada sem correlated subqueries (mais eficiente):
+        // Regime caixa (decisão Q3/R3 — briefing 2026-06-24_002): o período filtra pagamentos por
+        // data_pagamento, não por criado_em da cobrança. Um paciente cuja cobrança foi criada fora
+        // do período mas paga dentro dele aparece no relatório; "Cobrado"/"Desconto" são da cobrança
+        // que originou o pagamento (contexto da receita realizada).
+        //
+        // CTE pago: filtra pagamentos no período (data_pagamento) — agrega valor, taxa por cobrança.
+        // CTE custo: custos de insumo atribuídos via cobranca_id (sem filtro de data — custo é da cirurgia).
+        // JOIN em cobrancas: garante multi-tenant (estabelecimento_id) e obtém valor_cobrado/desconto.
+        // LGPD: nome do paciente no DTO minimizado (R22 — só id+nome; drill-down audita no handler).
         const string sqlOtimizado = """
             WITH pago AS (
-                SELECT pg.cobranca_id, SUM(COALESCE(pg.valor, 0)) AS total_pago, SUM(COALESCE(pg.taxa, 0)) AS total_taxa
+                -- Regime caixa: apenas pagamentos com data_pagamento no período.
+                SELECT pg.cobranca_id,
+                       SUM(COALESCE(pg.valor, 0)) AS total_pago,
+                       SUM(COALESCE(pg.taxa, 0))  AS total_taxa
                 FROM pagamentos pg
+                JOIN cobrancas c ON c.id = pg.cobranca_id
+                WHERE c.estabelecimento_id = @EstabelecimentoId
+                  AND pg.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                 GROUP BY pg.cobranca_id
             ),
             custo AS (
@@ -806,12 +826,11 @@ public class ConsolidacaoFinanceiraQueryRepository
                 ROUND(SUM(COALESCE(c.desconto, 0)), 2)                     AS Desconto,
                 ROUND(SUM(COALESCE(pg.total_taxa, 0)), 2)                  AS Taxa,
                 ROUND(SUM(COALESCE(cu.total_custo, 0)), 2)                 AS Custo
-            FROM cobrancas c
+            FROM pago pg
+            JOIN cobrancas c ON c.id = pg.cobranca_id
             JOIN pacientes pac ON pac.id = c.paciente_id
-            LEFT JOIN pago pg ON pg.cobranca_id = c.id
             LEFT JOIN custo cu ON cu.cobranca_id = c.id
             WHERE c.estabelecimento_id = @EstabelecimentoId
-              AND c.criado_em::date BETWEEN @DataInicio::date AND @DataFim::date
               AND pac.deletado_em IS NULL
             GROUP BY pac.id, pac.nome_completo
             ORDER BY pac.nome_completo

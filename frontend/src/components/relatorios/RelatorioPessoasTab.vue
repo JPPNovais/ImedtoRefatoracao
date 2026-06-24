@@ -54,7 +54,6 @@ function moeda(n: number) {
                             <th style="width:40px">#</th>
                             <th>Paciente</th>
                             <th class="r">Consultas</th>
-                            <th class="r">Total gasto</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -62,7 +61,6 @@ function moeda(n: number) {
                             <td class="td-rank">{{ idx + 1 }}</td>
                             <td class="td-nome">{{ p.nome }}</td>
                             <td class="r">{{ p.totalConsultas }}</td>
-                            <td class="r">{{ moeda(p.totalGasto) }}</td>
                         </tr>
                     </tbody>
                 </table>

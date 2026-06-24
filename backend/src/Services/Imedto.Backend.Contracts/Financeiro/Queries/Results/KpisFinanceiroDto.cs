@@ -8,7 +8,7 @@ public class KpisFinanceiroDto
 {
     // KPIs primários
     public decimal Recebido { get; set; }       // receitas pagas (inclui estornos abatendo — R1)
-    public decimal AReceber { get; set; }       // receitas pendentes
+    public decimal AReceber { get; set; }       // saldo cobranças em aberto + lançamentos Receita Pendentes avulsos (R1/CA3 — sem dupla contagem por INV-3)
     public decimal Despesas { get; set; }       // despesas pagas
     public decimal Saldo { get; set; }          // Recebido − Despesas
 

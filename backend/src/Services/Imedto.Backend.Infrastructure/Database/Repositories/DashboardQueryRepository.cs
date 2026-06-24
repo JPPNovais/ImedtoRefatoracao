@@ -20,6 +20,10 @@ public class DashboardQueryRepository
         // CURRENT_DATE usa UTC do servidor — substituído por (now() AT TIME ZONE 'America/Sao_Paulo')::date.
         // Impacto: AgendamentosHoje e LancamentosVencidos/VencidosAReceber/VencidosAPagar usam o dia
         // correto em Brasília, sem pular para o dia seguinte na virada das 21h BRT (CA8/CA10).
+        //
+        // Frente D (briefing 2026-06-24_002): ReceitasMes/DespesasMes usam regime caixa (data_pagamento).
+        // Antes usavam data_vencimento — um "recebido do mês" diferia do KPI "Recebido" da Visão geral.
+        // Agora ambos usam data_pagamento, e o mês é ancorando em Brasília (mesma timezone do 001).
         const string sqlBatch = """
             SELECT
                 (SELECT COUNT(*) FROM pacientes
@@ -35,10 +39,14 @@ public class DashboardQueryRepository
                       AND status NOT IN ('Cancelado'))                                                        AS AgendamentosSemana,
                 (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND tipo = 'Receita' AND status = 'Pago'
-                      AND date_trunc('month', data_vencimento) = date_trunc('month', CURRENT_DATE))           AS ReceitasMes,
+                      AND data_pagamento IS NOT NULL
+                      AND date_trunc('month', data_pagamento AT TIME ZONE 'America/Sao_Paulo')
+                        = date_trunc('month', (now() AT TIME ZONE 'America/Sao_Paulo')))                      AS ReceitasMes,
                 (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND tipo = 'Despesa' AND status = 'Pago'
-                      AND date_trunc('month', data_vencimento) = date_trunc('month', CURRENT_DATE))           AS DespesasMes,
+                      AND data_pagamento IS NOT NULL
+                      AND date_trunc('month', data_pagamento AT TIME ZONE 'America/Sao_Paulo')
+                        = date_trunc('month', (now() AT TIME ZONE 'America/Sao_Paulo')))                      AS DespesasMes,
                 (SELECT COUNT(*) FROM itens_inventario
                     WHERE estabelecimento_id = @EstabId AND ativo = true
                       AND quantidade_atual < quantidade_minima)                                               AS ItensAbaixoMinimo,

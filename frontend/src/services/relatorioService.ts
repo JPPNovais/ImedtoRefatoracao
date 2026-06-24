@@ -49,7 +49,6 @@ export interface RelatorioOperacional {
 export interface LinhaRankingPaciente {
     nome: string
     totalConsultas: number
-    totalGasto: number
 }
 
 export interface LinhaRankingProfissional {
@@ -128,7 +127,6 @@ export const relatorioService = {
             topPacientes: data?.pacientes?.topAtivos?.map((p) => ({
                 nome: p.nome,
                 totalConsultas: p.atendimentos,
-                totalGasto: 0,
             })),
             rankingProfissionais: data?.profissionais?.desempenho?.map((p) => ({
                 nome: p.nome,
