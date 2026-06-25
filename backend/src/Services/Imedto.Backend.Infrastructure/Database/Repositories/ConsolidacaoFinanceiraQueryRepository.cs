@@ -25,24 +25,29 @@ public class ConsolidacaoFinanceiraQueryRepository
     // KPIs do período (R1/CA156/CA157)
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<KpisFinanceiroDto> ObterKpis(long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
+    public virtual async Task<KpisFinanceiroDto> ObterKpis(long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // Batch único: KPIs primários (lancamentos) + KPIs secundários (cobrancas+pagamentos).
-        // Estornos são lançamentos Receita/Pago com categoria 'Estorno: Pagamento' e valor negativo.
-        // Recebido = SUM(receitas pagas) inclui os estornos (valor negativo abate — R1/CA157).
+        // Batch 3 SELECTs (1 round-trip):
+        //   1) lancamentos — Recebido/Despesas/Estornos (regime caixa: data_pagamento),
+        //      AReceberLancamentos = lançamentos Receita Pendentes avulsos (sem filtro de data).
+        //   2) cobrancas em aberto — saldo a receber não coberto por lançamentos (INV-3: cobrança
+        //      paga vira Lancamento Pago; cobrança em aberto NÃO tem lançamento Receita Pendente,
+        //      portanto somar os dois não duplica — R1/CA3/2026-06-24_002).
+        //      Saldo = valor_cobrado − desconto − SUM(pagamentos líquidos); cobranças Aberta/ParcialmentePaga.
+        //   3) KPIs secundários (descontos/taxas no período).
         //
         // Regime de datas (decisão produto 2026-06-24):
         //   Recebido / Despesas / Estornos → regime caixa: data_pagamento dentro do período selecionado.
-        //   "A receber" → todas as Receitas Pendentes em aberto do estabelecimento, sem filtro de data.
+        //   "A receber" → estoque corrente (sem filtro de data); prazo exibido por data_vencimento na UI.
         const string sql = """
             SELECT
                 COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pago'
                                        AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                                   THEN valor ELSE 0 END), 0) AS Recebido,
                 COALESCE(SUM(CASE WHEN tipo = 'Receita' AND status = 'Pendente'
-                                  THEN valor ELSE 0 END), 0) AS AReceber,
+                                  THEN valor ELSE 0 END), 0) AS AReceberLancamentos,
                 COALESCE(SUM(CASE WHEN tipo = 'Despesa' AND status = 'Pago'
                                        AND data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                                   THEN valor ELSE 0 END), 0) AS Despesas,
@@ -52,6 +57,26 @@ public class ConsolidacaoFinanceiraQueryRepository
                                   THEN ABS(valor) ELSE 0 END), 0) AS Estornos
             FROM lancamentos
             WHERE estabelecimento_id = @EstabelecimentoId;
+
+            SELECT
+                COALESCE(SUM(
+                    c.valor_cobrado
+                    - COALESCE(c.desconto, 0)
+                    - COALESCE(pg_agg.total_pago_liquido, 0)
+                ), 0) AS SaldoCobrancasAberto
+            FROM cobrancas c
+            LEFT JOIN (
+                SELECT cobranca_id, SUM(valor) AS total_pago_liquido
+                FROM pagamentos
+                WHERE cobranca_id IN (
+                    SELECT id FROM cobrancas
+                    WHERE estabelecimento_id = @EstabelecimentoId
+                      AND status IN ('Aberta', 'ParcialmentePaga')
+                )
+                GROUP BY cobranca_id
+            ) pg_agg ON pg_agg.cobranca_id = c.id
+            WHERE c.estabelecimento_id = @EstabelecimentoId
+              AND c.status IN ('Aberta', 'ParcialmentePaga');
 
             SELECT
                 COALESCE(SUM(c.desconto), 0) AS DescontosConcedidos,
@@ -71,12 +96,17 @@ public class ConsolidacaoFinanceiraQueryRepository
 
         await using var multi = await conn.QueryMultipleAsync(sql, p);
         var kpis = await multi.ReadSingleAsync<KpisFinanceiroPrimarios>();
+        var cobAberto = await multi.ReadSingleAsync<KpisCobrancasAberto>();
         var sec = await multi.ReadSingleAsync<KpisFinanceiroSecundarios>();
+
+        // A receber = lançamentos Receita Pendentes avulsos + saldo de cobranças em aberto.
+        // Não há dupla contagem: cobrança em aberto não tem lançamento Receita Pendente (INV-3).
+        var aReceber = kpis.AReceberLancamentos + cobAberto.SaldoCobrancasAberto;
 
         return new KpisFinanceiroDto
         {
             Recebido = kpis.Recebido,
-            AReceber = kpis.AReceber,
+            AReceber = aReceber,
             Despesas = kpis.Despesas,
             Saldo = kpis.Recebido - kpis.Despesas,
             Estornos = kpis.Estornos,
@@ -86,7 +116,9 @@ public class ConsolidacaoFinanceiraQueryRepository
     }
 
     private record KpisFinanceiroPrimarios(
-        decimal Recebido, decimal AReceber, decimal Despesas, decimal Estornos);
+        decimal Recebido, decimal AReceberLancamentos, decimal Despesas, decimal Estornos);
+
+    private record KpisCobrancasAberto(decimal SaldoCobrancasAberto);
 
     private record KpisFinanceiroSecundarios(
         decimal DescontosConcedidos, decimal TaxasCartao);
@@ -195,7 +227,8 @@ public class ConsolidacaoFinanceiraQueryRepository
         var offset = (pagina - 1) * tamanhoPagina;
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // WHERE: status=Pendente, data_vencimento < hoje. Ignora período.
+        // WHERE: status=Pendente, data_vencimento < hoje em America/Sao_Paulo (R3/CA10).
+        // CURRENT_DATE usa UTC do servidor — substituído por horário de Brasília (briefing 2026-06-24_001).
         // Multi-tenant: WHERE l.estabelecimento_id = @EstabelecimentoId (falha-fechada).
         const string sqlBase = """
             FROM lancamentos l
@@ -206,7 +239,7 @@ public class ConsolidacaoFinanceiraQueryRepository
             JOIN usuarios u ON u.id = l.criado_por_usuario_id
             WHERE l.estabelecimento_id = @EstabelecimentoId
               AND l.status = 'Pendente'
-              AND l.data_vencimento < CURRENT_DATE
+              AND l.data_vencimento < (now() AT TIME ZONE 'America/Sao_Paulo')::date
               AND (@Tipo::text           IS NULL OR l.tipo      = @Tipo)
               AND (@Categoria::text      IS NULL OR l.categoria = @Categoria)
               AND (@FormaPagamento::text IS NULL OR fp.nome     = @FormaPagamento)
@@ -331,7 +364,7 @@ public class ConsolidacaoFinanceiraQueryRepository
     // Comissões por período — regime caixa (R17/R18/CA171/CA173/CA174)
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<ComissaoPeriodoDto> ObterComissoes(
+    public virtual async Task<ComissaoPeriodoDto> ObterComissoes(
         long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
     {
         await using var conn = new NpgsqlConnection(_connStr);
@@ -347,47 +380,98 @@ public class ConsolidacaoFinanceiraQueryRepository
         // Consulta/Procedimento: pagamentos recebidos no período × percentual config (ou padrão 30%).
         // Cirurgia: OrcamentoEquipe (valor fixo) rateado pelo proporcional recebido/cobrado.
         // Regime caixa: só pagamentos liquidados no período entram (R18/CA174).
+        //
+        // R1 (comissão líquida de estorno — briefing 2026-06-24_001):
+        // Dois casos distintos:
+        //   A) Estorno no mesmo período do pagamento: CTE estornos_mesmo_periodo abate via GREATEST(0,...).
+        //      Pagamento fica com valor_liquido=0 e é excluído pelo WHERE pp.valor_liquido > 0 (CA2/CA15).
+        //   B) Estorno cross-período (pagamento em mês anterior, estorno no período consultado):
+        //      O pagamento não entra em pagamentos_periodo (data_pagamento fora do período).
+        //      CTE abatimentos_cross_periodo captura esses estornos e gera linhas de base negativa.
+        //      Filtro: ep.data_estorno no período E pg.data_pagamento fora do período (evita dupla contagem).
+        // A UNION dos dois CTEs produz o conjunto correto sem duplicação (CA3/CA6).
         const string sqlConsultaProcedimento = """
-            WITH pagamentos_periodo AS (
+            WITH estornos_mesmo_periodo AS (
+                -- Estornos cujo data_estorno E pagamento original caem no mesmo período consultado.
+                -- Usados para abater o pagamento via GREATEST(0,...) no CTE pagamentos_periodo.
+                SELECT
+                    ep.pagamento_id,
+                    ep.valor                                                            AS valor_estornado
+                FROM estorno_pagamentos ep
+                JOIN pagamentos pg ON pg.id = ep.pagamento_id
+                WHERE ep.estabelecimento_id = @EstabelecimentoId
+                  AND ep.data_estorno BETWEEN @DataInicio::date AND @DataFim::date
+                  AND pg.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+            ),
+            pagamentos_periodo AS (
+                -- Pagamentos recebidos no período, com abatimento de estornos do mesmo período.
                 SELECT
                     pg.id                                                               AS pagamento_id,
                     pg.cobranca_id,
                     pg.data_pagamento,
-                    pg.valor - COALESCE(pg.taxa, 0)                                    AS valor_liquido
+                    GREATEST(0,
+                        pg.valor - COALESCE(pg.taxa, 0) - COALESCE(est.valor_estornado, 0)
+                    )                                                                   AS valor_liquido
                 FROM pagamentos pg
                 JOIN cobrancas c ON c.id = pg.cobranca_id
+                LEFT JOIN estornos_mesmo_periodo est ON est.pagamento_id = pg.id
                 WHERE c.estabelecimento_id = @EstabelecimentoId
                   AND pg.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+            ),
+            abatimentos_cross_periodo AS (
+                -- Estornos cujo data_estorno cai no período consultado MAS cujo pagamento original
+                -- NÃO cai no período (cross-período: pagamento em mês anterior, estorno agora).
+                -- Gera base negativa para abater a comissão no período do estorno (R1 — decisão Q1).
+                -- Filtro de tenant obrigatório — falha-fechada (R5).
+                -- ep.valor = pg.valor por invariante do domínio (UNIQUE pagamento_id em estorno_pagamentos).
+                -- Base negativa = -(pg.valor - pg.taxa) espelha o valor_liquido que o pagamento teria gerado.
+                SELECT
+                    ep.pagamento_id,
+                    pg.cobranca_id,
+                    ep.data_estorno                                                     AS data_pagamento,
+                    -(pg.valor - COALESCE(pg.taxa, 0))                                  AS valor_liquido
+                FROM estorno_pagamentos ep
+                JOIN pagamentos pg ON pg.id = ep.pagamento_id
+                WHERE ep.estabelecimento_id = @EstabelecimentoId
+                  AND ep.data_estorno BETWEEN @DataInicio::date AND @DataFim::date
+                  AND pg.data_pagamento NOT BETWEEN @DataInicio::date AND @DataFim::date
             ),
             cobrancas_cp AS (
                 SELECT
                     c.id                                                                AS cobranca_id,
                     c.paciente_id,
                     c.origem,
-                    -- Profissional via agendamento quando presente; senão quem executou o procedimento
-                    -- (criado_por_usuario_id = usuário que chamou MarcarProcedimentoRealizado).
                     COALESCE(a.profissional_usuario_id, c.criado_por_usuario_id)       AS profissional_id
                 FROM cobrancas c
                 LEFT JOIN agendamentos a ON a.id = c.agendamento_id
                 WHERE c.estabelecimento_id = @EstabelecimentoId
                   AND c.origem IN ('Consulta', 'Procedimento')
+            ),
+            todas_linhas AS (
+                -- União: pagamentos do período (exceto zerados) + abatimentos cross-período.
+                SELECT pagamento_id, cobranca_id, data_pagamento, valor_liquido
+                FROM pagamentos_periodo
+                WHERE valor_liquido > 0
+                UNION ALL
+                SELECT pagamento_id, cobranca_id, data_pagamento, valor_liquido
+                FROM abatimentos_cross_periodo
             )
             SELECT
                 cc.profissional_id                                                      AS ProfissionalUsuarioId,
                 COALESCE(u.nome_completo, u.email, cc.profissional_id::text)            AS Nome,
                 v.especialidade_convidada                                               AS Especialidade,
                 COUNT(*)::int                                                            AS Atendimentos,
-                SUM(pp.valor_liquido)                                                   AS Faturamento,
+                SUM(tl.valor_liquido)                                                   AS Faturamento,
                 COALESCE(cfg.percentual, @PercentualPadrao)                             AS PercentualConfig,
-                ROUND(SUM(pp.valor_liquido) * COALESCE(cfg.percentual, @PercentualPadrao) / 100, 2) AS Comissao,
+                ROUND(SUM(tl.valor_liquido) * COALESCE(cfg.percentual, @PercentualPadrao) / 100, 2) AS Comissao,
                 pac.id                                                                  AS PacienteId,
                 pac.nome_completo                                                       AS PacienteNome,
                 cc.origem                                                               AS TipoAtendimento,
-                pp.data_pagamento                                                       AS Data,
-                pp.valor_liquido                                                        AS BaseAtendimento,
-                ROUND(pp.valor_liquido * COALESCE(cfg.percentual, @PercentualPadrao) / 100, 2) AS ComissaoAtendimento
-            FROM pagamentos_periodo pp
-            JOIN cobrancas_cp cc ON cc.cobranca_id = pp.cobranca_id
+                tl.data_pagamento                                                       AS Data,
+                tl.valor_liquido                                                        AS BaseAtendimento,
+                ROUND(tl.valor_liquido * COALESCE(cfg.percentual, @PercentualPadrao) / 100, 2) AS ComissaoAtendimento
+            FROM todas_linhas tl
+            JOIN cobrancas_cp cc ON cc.cobranca_id = tl.cobranca_id
             JOIN usuarios u ON u.id = cc.profissional_id
             LEFT JOIN vinculo_profissional_estabelecimento v
                    ON v.profissional_usuario_id = cc.profissional_id
@@ -400,56 +484,100 @@ public class ConsolidacaoFinanceiraQueryRepository
             LEFT JOIN pacientes pac ON pac.id = cc.paciente_id
             GROUP BY cc.profissional_id, u.nome_completo, u.email, v.especialidade_convidada,
                      cfg.percentual, pac.id, pac.nome_completo,
-                     cc.origem, pp.data_pagamento, pp.valor_liquido
-            ORDER BY cc.profissional_id, pp.data_pagamento
+                     cc.origem, tl.data_pagamento, tl.valor_liquido
+            ORDER BY cc.profissional_id, tl.data_pagamento
             """;
 
         // Cirurgia: OrcamentoEquipe define valor absoluto por profissional.
-        // Rateio proporcional ao recebido/cobrado (R18 — regime caixa).
+        // Rateio proporcional ao recebido_liquido/cobrado (R18/R2 — regime caixa, líquido de estorno).
+        //
+        // R2 cross-período: mesmo princípio da query CP.
+        //   - pag_cirurgia: pagamentos no período, abatidos de estornos do mesmo período.
+        //   - abatimentos_cross_cirurgia: estornos cujo data_estorno cai no período
+        //     mas pagamento original não (cross-período) → geram linhas de total_pago negativo.
+        // UNION garante que cobranças com apenas estorno cross (sem pag no período) também entram.
         const string sqlCirurgia = """
-            WITH pag_cirurgia AS (
+            WITH estornos_mesmo_periodo AS (
+                SELECT
+                    ep.pagamento_id,
+                    ep.valor                                                    AS valor_estornado
+                FROM estorno_pagamentos ep
+                JOIN pagamentos pg ON pg.id = ep.pagamento_id
+                WHERE ep.estabelecimento_id = @EstabelecimentoId
+                  AND ep.data_estorno BETWEEN @DataInicio::date AND @DataFim::date
+                  AND pg.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+            ),
+            pag_cirurgia AS (
                 SELECT
                     c.id                                                        AS cobranca_id,
                     c.orcamento_id,
                     c.paciente_id,
-                    SUM(pg.valor)                                               AS total_pago,
-                    c.valor_cobrado                                             AS total_cobrado
+                    SUM(GREATEST(0, pg.valor - COALESCE(est.valor_estornado, 0)))
+                                                                                AS total_pago,
+                    c.valor_cobrado                                             AS total_cobrado,
+                    MAX(pg.data_pagamento)                                      AS data_ref
                 FROM cobrancas c
                 JOIN pagamentos pg ON pg.cobranca_id = c.id
+                LEFT JOIN estornos_mesmo_periodo est ON est.pagamento_id = pg.id
                 WHERE c.estabelecimento_id = @EstabelecimentoId
                   AND c.origem = 'Cirurgia'
                   AND pg.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                 GROUP BY c.id, c.orcamento_id, c.paciente_id, c.valor_cobrado
+            ),
+            abatimentos_cross_cirurgia AS (
+                -- Estornos cross-período: pagamento original fora do período consultado.
+                -- total_pago negativo → reduz o rateio no período do estorno (R2/R1 cross-período).
+                SELECT
+                    c.id                                                        AS cobranca_id,
+                    c.orcamento_id,
+                    c.paciente_id,
+                    -SUM(ep.valor)                                              AS total_pago,
+                    c.valor_cobrado                                             AS total_cobrado,
+                    MAX(ep.data_estorno)                                        AS data_ref
+                FROM estorno_pagamentos ep
+                JOIN pagamentos pg ON pg.id = ep.pagamento_id
+                JOIN cobrancas c ON c.id = pg.cobranca_id
+                WHERE ep.estabelecimento_id = @EstabelecimentoId
+                  AND ep.data_estorno BETWEEN @DataInicio::date AND @DataFim::date
+                  AND pg.data_pagamento NOT BETWEEN @DataInicio::date AND @DataFim::date
+                  AND c.origem = 'Cirurgia'
+                GROUP BY c.id, c.orcamento_id, c.paciente_id, c.valor_cobrado
+            ),
+            todas_cirurgias AS (
+                SELECT cobranca_id, orcamento_id, paciente_id, total_pago, total_cobrado, data_ref
+                FROM pag_cirurgia
+                UNION ALL
+                SELECT cobranca_id, orcamento_id, paciente_id, total_pago, total_cobrado, data_ref
+                FROM abatimentos_cross_cirurgia
             )
             SELECT
                 oe.profissional_usuario_id                                      AS ProfissionalUsuarioId,
                 COALESCE(u.nome_completo, u.email, oe.profissional_usuario_id::text) AS Nome,
                 v.especialidade_convidada                                        AS Especialidade,
                 COUNT(*)::int                                                     AS Atendimentos,
-                ROUND(SUM(oe.valor * CASE WHEN pc.total_cobrado > 0
-                    THEN pc.total_pago / pc.total_cobrado ELSE 1 END), 2)       AS Faturamento,
+                ROUND(SUM(oe.valor * CASE WHEN tc.total_cobrado > 0
+                    THEN tc.total_pago / tc.total_cobrado ELSE 0 END), 2)       AS Faturamento,
                 NULL::numeric                                                    AS PercentualConfig,
-                ROUND(SUM(oe.valor * CASE WHEN pc.total_cobrado > 0
-                    THEN pc.total_pago / pc.total_cobrado ELSE 1 END), 2)       AS Comissao,
+                ROUND(SUM(oe.valor * CASE WHEN tc.total_cobrado > 0
+                    THEN tc.total_pago / tc.total_cobrado ELSE 0 END), 2)       AS Comissao,
                 pac.id                                                           AS PacienteId,
                 pac.nome_completo                                                AS PacienteNome,
                 'Cirurgia'                                                       AS TipoAtendimento,
-                MAX(pg_max.data_pagamento)                                       AS Data,
+                MAX(tc.data_ref)                                                 AS Data,
                 oe.valor                                                         AS BaseAtendimento,
-                ROUND(oe.valor * CASE WHEN pc.total_cobrado > 0
-                    THEN pc.total_pago / pc.total_cobrado ELSE 1 END, 2)        AS ComissaoAtendimento
-            FROM pag_cirurgia pc
-            JOIN orcamento_equipe oe ON oe.orcamento_id = pc.orcamento_id
+                ROUND(oe.valor * CASE WHEN tc.total_cobrado > 0
+                    THEN tc.total_pago / tc.total_cobrado ELSE 0 END, 2)        AS ComissaoAtendimento
+            FROM todas_cirurgias tc
+            JOIN orcamento_equipe oe ON oe.orcamento_id = tc.orcamento_id
             JOIN usuarios u ON u.id = oe.profissional_usuario_id
             LEFT JOIN vinculo_profissional_estabelecimento v
                    ON v.profissional_usuario_id = oe.profissional_usuario_id
                   AND v.estabelecimento_id = @EstabelecimentoId
                   AND v.status = 'Ativo'
-            LEFT JOIN pacientes pac ON pac.id = pc.paciente_id
-            LEFT JOIN pagamentos pg_max ON pg_max.cobranca_id = pc.cobranca_id
-                  AND pg_max.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
+            LEFT JOIN pacientes pac ON pac.id = tc.paciente_id
             GROUP BY oe.profissional_usuario_id, u.nome_completo, u.email,
-                     v.especialidade_convidada, pac.id, pac.nome_completo, oe.valor, pc.total_cobrado, pc.total_pago
+                     v.especialidade_convidada, pac.id, pac.nome_completo, oe.valor,
+                     tc.total_cobrado, tc.total_pago
             """;
 
         var linhasCP = (await conn.QueryAsync<ComissaoLinhaRaw>(sqlConsultaProcedimento, p)).ToList();
@@ -474,12 +602,17 @@ public class ConsolidacaoFinanceiraQueryRepository
                     TipoBase = l.PercentualConfig.HasValue ? "percentual" : "orcamento_equipe"
                 }).ToList();
 
+                // Atendimentos = cada linha com BaseAtendimento > 0 (R4/CA12 — briefing 2026-06-24_002).
+                // Linhas de abatimento cross-período têm BaseAtendimento < 0 e não representam
+                // um novo atendimento — excluídas da contagem para alinhar com a lista detalhada.
+                var atendimentos = g.Count(l => l.BaseAtendimento > 0);
+
                 return new ComissaoProfissionalDto
                 {
                     ProfissionalUsuarioId = g.Key,
                     Nome = g.First().Nome,
                     Especialidade = g.First().Especialidade,
-                    Atendimentos = g.Select(l => l.PacienteId).Distinct().Count(),
+                    Atendimentos = atendimentos,
                     Faturamento = g.Sum(l => l.BaseAtendimento),
                     PercentualConfig = g.First().PercentualConfig,
                     Comissao = g.Sum(l => l.ComissaoAtendimento),
@@ -651,47 +784,30 @@ public class ConsolidacaoFinanceiraQueryRepository
     // Custo/lucro por paciente para Relatórios (R20/R21/CA179/CA180)
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<List<CustoLucroPacienteDto>> ObterCustoLucroPorPaciente(
+    public virtual async Task<List<CustoLucroPacienteDto>> ObterCustoLucroPorPaciente(
         long estabelecimentoId, DateOnly dataInicio, DateOnly dataFim)
     {
         await using var conn = new NpgsqlConnection(_connStr);
 
-        // Join: cobranca → paciente → pagamentos (pago/desconto/taxa) + movimentacoes_estoque (custo via cobranca_id).
-        // LGPD: nome do paciente no DTO minimizado (R22 — só id+nome aqui; drill-down audita no handler de relatório).
-        const string sql = """
-            SELECT
-                pac.id                                                              AS PacienteId,
-                pac.nome_completo                                                   AS PacienteNome,
-                COALESCE(SUM(c.valor_cobrado - COALESCE(c.desconto, 0)), 0)        AS Cobrado,
-                COALESCE(SUM(
-                    SELECT SUM(pg.valor) FROM pagamentos pg
-                    WHERE pg.cobranca_id = c.id
-                ), 0)                                                               AS Pago,
-                COALESCE(SUM(COALESCE(c.desconto, 0)), 0)                          AS Desconto,
-                COALESCE(SUM(
-                    SELECT SUM(pg.taxa) FROM pagamentos pg
-                    WHERE pg.cobranca_id = c.id
-                ), 0)                                                               AS Taxa,
-                COALESCE(SUM(
-                    SELECT SUM(me.custo_total) FROM movimentacoes_estoque me
-                    WHERE me.cobranca_id = c.id AND me.deletado_em IS NULL
-                ), 0)                                                               AS Custo
-            FROM cobrancas c
-            JOIN pacientes pac ON pac.id = c.paciente_id
-            WHERE c.estabelecimento_id = @EstabelecimentoId
-              AND c.criado_em::date BETWEEN @DataInicio::date AND @DataFim::date
-              AND pac.deletado_em IS NULL
-            GROUP BY pac.id, pac.nome_completo
-            ORDER BY pac.nome_completo
-            """;
-
-        // Acima: correlated subqueries — para volumes pequenos (relatório executivo) é aceitável.
-        // O DB agent pode converter para lateral joins se EXPLAIN mostrar seq scan significativo.
-        // Alternativa simplificada sem correlated subqueries (mais eficiente):
+        // Regime caixa (decisão Q3/R3 — briefing 2026-06-24_002): o período filtra pagamentos por
+        // data_pagamento, não por criado_em da cobrança. Um paciente cuja cobrança foi criada fora
+        // do período mas paga dentro dele aparece no relatório; "Cobrado"/"Desconto" são da cobrança
+        // que originou o pagamento (contexto da receita realizada).
+        //
+        // CTE pago: filtra pagamentos no período (data_pagamento) — agrega valor, taxa por cobrança.
+        // CTE custo: custos de insumo atribuídos via cobranca_id (sem filtro de data — custo é da cirurgia).
+        // JOIN em cobrancas: garante multi-tenant (estabelecimento_id) e obtém valor_cobrado/desconto.
+        // LGPD: nome do paciente no DTO minimizado (R22 — só id+nome; drill-down audita no handler).
         const string sqlOtimizado = """
             WITH pago AS (
-                SELECT pg.cobranca_id, SUM(COALESCE(pg.valor, 0)) AS total_pago, SUM(COALESCE(pg.taxa, 0)) AS total_taxa
+                -- Regime caixa: apenas pagamentos com data_pagamento no período.
+                SELECT pg.cobranca_id,
+                       SUM(COALESCE(pg.valor, 0)) AS total_pago,
+                       SUM(COALESCE(pg.taxa, 0))  AS total_taxa
                 FROM pagamentos pg
+                JOIN cobrancas c ON c.id = pg.cobranca_id
+                WHERE c.estabelecimento_id = @EstabelecimentoId
+                  AND pg.data_pagamento BETWEEN @DataInicio::date AND @DataFim::date
                 GROUP BY pg.cobranca_id
             ),
             custo AS (
@@ -710,12 +826,11 @@ public class ConsolidacaoFinanceiraQueryRepository
                 ROUND(SUM(COALESCE(c.desconto, 0)), 2)                     AS Desconto,
                 ROUND(SUM(COALESCE(pg.total_taxa, 0)), 2)                  AS Taxa,
                 ROUND(SUM(COALESCE(cu.total_custo, 0)), 2)                 AS Custo
-            FROM cobrancas c
+            FROM pago pg
+            JOIN cobrancas c ON c.id = pg.cobranca_id
             JOIN pacientes pac ON pac.id = c.paciente_id
-            LEFT JOIN pago pg ON pg.cobranca_id = c.id
             LEFT JOIN custo cu ON cu.cobranca_id = c.id
             WHERE c.estabelecimento_id = @EstabelecimentoId
-              AND c.criado_em::date BETWEEN @DataInicio::date AND @DataFim::date
               AND pac.deletado_em IS NULL
             GROUP BY pac.id, pac.nome_completo
             ORDER BY pac.nome_completo

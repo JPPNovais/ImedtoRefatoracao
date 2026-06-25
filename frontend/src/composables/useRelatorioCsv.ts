@@ -127,12 +127,11 @@ export function useRelatorioCsv() {
         } else if (dados.tipo === "pacientes" && dados.topPacientes?.length) {
             linhas = [
                 ...cabecalhoPeriodo(periodo.dataInicio, periodo.dataFim),
-                ["#", "Paciente", "Consultas", "Total gasto (R$)"],
+                ["#", "Paciente", "Consultas"],
                 ...dados.topPacientes.map((p, i) => [
                     formatarInteiro(i + 1),
                     p.nome,
                     formatarInteiro(p.totalConsultas),
-                    formatarDecimal(p.totalGasto),
                 ]),
             ]
         } else {

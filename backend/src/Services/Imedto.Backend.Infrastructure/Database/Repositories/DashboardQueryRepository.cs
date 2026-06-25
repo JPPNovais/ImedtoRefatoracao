@@ -15,13 +15,22 @@ public class DashboardQueryRepository
         // Batch único (3 SELECTs separados por ';') executado via QueryMultipleAsync —
         // 1 round-trip ao Postgres em vez de 3. Reduz latência total para latência da
         // pior query individual em vez de soma das três.
+        //
+        // Frente B (briefing 2026-06-24_001): datas "hoje/agora" em America/Sao_Paulo.
+        // CURRENT_DATE usa UTC do servidor — substituído por (now() AT TIME ZONE 'America/Sao_Paulo')::date.
+        // Impacto: AgendamentosHoje e LancamentosVencidos/VencidosAReceber/VencidosAPagar usam o dia
+        // correto em Brasília, sem pular para o dia seguinte na virada das 21h BRT (CA8/CA10).
+        //
+        // Frente D (briefing 2026-06-24_002): ReceitasMes/DespesasMes usam regime caixa (data_pagamento).
+        // Antes usavam data_vencimento — um "recebido do mês" diferia do KPI "Recebido" da Visão geral.
+        // Agora ambos usam data_pagamento, e o mês é ancorando em Brasília (mesma timezone do 001).
         const string sqlBatch = """
             SELECT
                 (SELECT COUNT(*) FROM pacientes
                     WHERE estabelecimento_id = @EstabId AND deletado_em IS NULL)                              AS TotalPacientesAtivos,
                 (SELECT COUNT(*) FROM agendamentos
                     WHERE estabelecimento_id = @EstabId
-                      AND inicio_previsto::date = CURRENT_DATE
+                      AND inicio_previsto::date = (now() AT TIME ZONE 'America/Sao_Paulo')::date
                       AND status NOT IN ('Cancelado'))                                                        AS AgendamentosHoje,
                 (SELECT COUNT(*) FROM agendamentos
                     WHERE estabelecimento_id = @EstabId
@@ -30,10 +39,14 @@ public class DashboardQueryRepository
                       AND status NOT IN ('Cancelado'))                                                        AS AgendamentosSemana,
                 (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND tipo = 'Receita' AND status = 'Pago'
-                      AND date_trunc('month', data_vencimento) = date_trunc('month', CURRENT_DATE))           AS ReceitasMes,
+                      AND data_pagamento IS NOT NULL
+                      AND date_trunc('month', data_pagamento AT TIME ZONE 'America/Sao_Paulo')
+                        = date_trunc('month', (now() AT TIME ZONE 'America/Sao_Paulo')))                      AS ReceitasMes,
                 (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND tipo = 'Despesa' AND status = 'Pago'
-                      AND date_trunc('month', data_vencimento) = date_trunc('month', CURRENT_DATE))           AS DespesasMes,
+                      AND data_pagamento IS NOT NULL
+                      AND date_trunc('month', data_pagamento AT TIME ZONE 'America/Sao_Paulo')
+                        = date_trunc('month', (now() AT TIME ZONE 'America/Sao_Paulo')))                      AS DespesasMes,
                 (SELECT COUNT(*) FROM itens_inventario
                     WHERE estabelecimento_id = @EstabId AND ativo = true
                       AND quantidade_atual < quantidade_minima)                                               AS ItensAbaixoMinimo,
@@ -41,14 +54,16 @@ public class DashboardQueryRepository
                     WHERE estabelecimento_id = @EstabId AND status IN ('Rascunho','Enviado'))               AS OrcamentosPendentes,
                 (SELECT COUNT(*) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND status = 'Pendente'
-                      AND data_vencimento < CURRENT_DATE)                                                    AS LancamentosVencidos,
+                      AND data_vencimento < (now() AT TIME ZONE 'America/Sao_Paulo')::date)                  AS LancamentosVencidos,
                 -- Valores de vencidos por tipo — mesma regra de LancamentosVencidos (paridade CA13).
                 (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND tipo = 'Receita'
-                      AND status = 'Pendente' AND data_vencimento < CURRENT_DATE)                            AS VencidosAReceber,
+                      AND status = 'Pendente'
+                      AND data_vencimento < (now() AT TIME ZONE 'America/Sao_Paulo')::date)                  AS VencidosAReceber,
                 (SELECT COALESCE(SUM(valor), 0) FROM lancamentos
                     WHERE estabelecimento_id = @EstabId AND tipo = 'Despesa'
-                      AND status = 'Pendente' AND data_vencimento < CURRENT_DATE)                            AS VencidosAPagar;
+                      AND status = 'Pendente'
+                      AND data_vencimento < (now() AT TIME ZONE 'America/Sao_Paulo')::date)                  AS VencidosAPagar;
 
             SELECT
                 a.id                    AS Id,

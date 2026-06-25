@@ -23,15 +23,20 @@ const emit = defineEmits<{
 // ─── Período ────────────────────────────────────────────────────────────────────
 type ChipPeriodo = "hoje" | "semana" | "mes" | "personalizado"
 
+// Formata Date em YYYY-MM-DD usando getters locais — nunca toISOString() (que devolve UTC
+// e pula para o dia seguinte após as 21h BRT). Padrão: briefing 2026-06-24_001 R3/CA11.
+function formatarDataLocal(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
 function hoje(): string {
-    return new Date().toISOString().split("T")[0]
+    return formatarDataLocal(new Date())
 }
 function inicioSemana(): string {
     const d = new Date()
     const dia = d.getDay() // 0=dom
     const diff = dia === 0 ? -6 : 1 - dia // ajusta para segunda
     d.setDate(d.getDate() + diff)
-    return d.toISOString().split("T")[0]
+    return formatarDataLocal(d)
 }
 function inicioMes(): string {
     const d = new Date()

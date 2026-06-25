@@ -9,6 +9,9 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue"
 import {
     receitaService,
     FORMAS_FARMACEUTICAS,
+    UNIDADES_QUANTIDADE,
+    montarQuantidade,
+    parseQuantidade,
     VIAS_ADMINISTRACAO,
     TIPOS_NOTIFICACAO,
     type ItemReceita,
@@ -19,7 +22,7 @@ import {
     type TipoReceita,
 } from "@/services/receitaService"
 import {
-    AppButton, AppConfirmDialog, AppInput, AppPagination, AppSelect, AppTextarea, AppToast,
+    AppButton, AppConfirmDialog, AppInput, AppInputDecimal, AppPagination, AppSelect, AppTextarea, AppToast,
 } from "@/components/ui"
 import CancelarReceitaModal from "@/components/prontuario/CancelarReceitaModal.vue"
 import AssinaturaStatusBadge from "@/components/ui/AssinaturaStatusBadge.vue"
@@ -256,21 +259,23 @@ const form = reactive<{
     medicamento: string
     concentracao: string
     formaFarmaceutica: string
-    quantidade: string
+    quantidadeNumero: string
+    quantidadeUnidade: string
     via: string
     posologia: string
     duracao: string
     observacao: string
 }>({
-    medicamento: "", concentracao: "", formaFarmaceutica: "", quantidade: "",
-    via: "", posologia: "", duracao: "", observacao: "",
+    medicamento: "", concentracao: "", formaFarmaceutica: "", quantidadeNumero: "",
+    quantidadeUnidade: "", via: "", posologia: "", duracao: "", observacao: "",
 })
 
 function limparForm() {
     form.medicamento = ""
     form.concentracao = ""
     form.formaFarmaceutica = ""
-    form.quantidade = ""
+    form.quantidadeNumero = ""
+    form.quantidadeUnidade = ""
     form.via = ""
     form.posologia = ""
     form.duracao = ""
@@ -289,7 +294,9 @@ function abrirFormEdicaoItem(item: ItemReceita) {
     form.medicamento = item.medicamento
     form.concentracao = item.concentracao ?? ""
     form.formaFarmaceutica = item.formaFarmaceutica ?? ""
-    form.quantidade = item.quantidade ?? ""
+    const q = parseQuantidade(item.quantidade)
+    form.quantidadeNumero = q.numero
+    form.quantidadeUnidade = q.unidade
     form.via = item.via ?? ""
     form.posologia = item.posologia
     form.duracao = item.duracao ?? ""
@@ -314,7 +321,7 @@ async function salvarItem() {
     const itemNovo: Omit<ItemReceita, "id" | "ordem"> = {
         medicamento: form.medicamento.trim(),
         posologia: form.posologia.trim(),
-        quantidade: form.quantidade.trim() || null,
+        quantidade: montarQuantidade(form.quantidadeNumero, form.quantidadeUnidade),
         via: form.via.trim() || null,
         observacao: form.observacao.trim() || null,
         concentracao: form.concentracao.trim() || null,
@@ -680,9 +687,16 @@ async function atualizarTipoNotificacao(tn: TipoNotificacao) {
                     </div>
                     <div class="campo">
                         <label class="field-label">Quantidade</label>
-                        <AppInput v-model="form.quantidade" placeholder="Ex: 1 caixa" />
+                        <AppInputDecimal v-model="form.quantidadeNumero" :decimals="0" placeholder="Ex: 30" />
                     </div>
                     <div class="campo">
+                        <label class="field-label">Unidade</label>
+                        <AppSelect v-model="form.quantidadeUnidade">
+                            <option value="">Selecione...</option>
+                            <option v-for="u in UNIDADES_QUANTIDADE" :key="u" :value="u">{{ u }}</option>
+                        </AppSelect>
+                    </div>
+                    <div class="campo campo-span-2">
                         <label class="field-label">Via de administração</label>
                         <AppSelect v-model="form.via">
                             <option value="">Selecione...</option>

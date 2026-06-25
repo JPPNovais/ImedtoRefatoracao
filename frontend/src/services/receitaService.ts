@@ -151,6 +151,38 @@ export const FORMAS_FARMACEUTICAS = [
     "Injeção", "Supositório", "Adesivo", "Colírio",
 ]
 
+/**
+ * Unidades para o campo Quantidade. A quantidade é persistida em `quantidade`
+ * como string já formatada (ex.: "30 comprimido(s)") — o número fica numérico
+ * na UI e a unidade vem desta lista fixa.
+ */
+export const UNIDADES_QUANTIDADE = [
+    "comprimido(s)", "cápsula(s)", "drágea(s)", "caixa(s)", "frasco(s)",
+    "ampola(s)", "bisnaga(s)", "tubo(s)", "sachê(s)", "adesivo(s)",
+    "supositório(s)", "óvulo(s)", "gota(s)", "mL", "unidade(s)",
+]
+
+/** Junta número + unidade na string única persistida em `quantidade` (ex.: "30 comprimido(s)"). */
+export function montarQuantidade(numero: string, unidade: string): string | null {
+    const n = numero.trim()
+    if (!n) return null
+    const u = unidade.trim()
+    return u ? `${n} ${u}` : n
+}
+
+/**
+ * Separa uma string de quantidade (incl. dados livres legados como "1 caixa" ou "30")
+ * em número + unidade conhecida. Casa a unidade de forma tolerante a singular/plural;
+ * texto sem número inicial ou unidade desconhecida volta vazio (sem travar a edição).
+ */
+export function parseQuantidade(valor: string | null | undefined): { numero: string; unidade: string } {
+    const m = (valor ?? "").trim().match(/^(\d+)\s*(.*)$/)
+    if (!m) return { numero: "", unidade: "" }
+    const norm = (s: string) => s.toLowerCase().replace(/\(s\)$/, "").replace(/s$/, "")
+    const unidade = UNIDADES_QUANTIDADE.find(u => norm(u) === norm(m[2].trim())) ?? ""
+    return { numero: m[1], unidade }
+}
+
 export const VIAS_ADMINISTRACAO: { valor: string; label: string }[] = [
     { valor: "Oral",       label: "Oral" },
     { valor: "Sublingual", label: "Sublingual" },

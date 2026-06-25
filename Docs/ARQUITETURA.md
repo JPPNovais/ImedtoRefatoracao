@@ -652,7 +652,27 @@ Fase final do épico. Substitui a `FinanceiroView.vue` temporária por uma tela 
 #### Comissões (`ConfigComissaoProfissional`)
 - Config por `(estabelecimento_id, profissional_usuario_id, tipo∈{Consulta,Procedimento})` → `percentual` (só percentual; sem `valor_fixo`). **Default de sistema 30%** quando sem config (fallback no cálculo, não persistido). UI de edição na **Equipe** (`ProfissionalDetalhesModal.vue`, aba Perfil); editar é do **Dono**.
 - **Cálculo regime caixa** (sobre pagamentos **recebidos** no período, coerente com o extrato): consulta/procedimento = `valor_recebido × percentual`; **cirurgia usa `OrcamentoEquipe`** (valor absoluto por profissional, **não** % config) **rateado** pela proporção `recebido_no_periodo / valor_cobrado`. Arredondamento via `ArredondamentoMonetario`.
+- **Comissão líquida de estorno** (briefing 2026-06-24_001): a base é o recebido **líquido de estorno**. A query de comissões cruza `estorno_pagamentos` por `data_estorno` e **abate** a comissão **no período em que o estorno ocorreu** (regime caixa, espelha como o KPI "Recebido" trata o `Lancamento` negativo de estorno). **Não recalcula meses passados** — pagamento recebido em maio e estornado em junho mantém a comissão de maio intocada e abate em junho. Vale para % (Consulta/Procedimento) e para o rateio de Cirurgia (o `recebido_no_periodo` do rateio é líquido de estorno). O cruzamento preserva o filtro `estabelecimento_id` e usa `uq_estorno_pagamentos_pagamento_id`.
+- **Métrica "Atendimentos"** (briefing 2026-06-24_002): conta **cada atendimento** (`COUNT(*)` do SQL), coerente com a lista detalhada que expande — **não** pacientes únicos.
 - **Comissão é visão/relatório — NÃO gera `Lancamento`** de despesa (anti-escopo). O repasse efetivo, se desejado, é lançamento avulso manual.
+
+#### Datas do financeiro em horário de Brasília (briefing 2026-06-24_001)
+Todo conceito de "hoje/agora" do módulo financeiro resolve em **`America/Sao_Paulo`** (diretriz "tudo em horário de Brasília", já aplicada nos Agendamentos via `BrasiliaTime`): backend usa `BrasiliaTime.Today`/`Now` (caixa abrir/fechar/reabrir/consultar); SQL usa `(now() AT TIME ZONE 'America/Sao_Paulo')::date` no lugar de `CURRENT_DATE` (vencidos do extrato e do Dashboard, "hoje" do Dashboard); front deriva `YYYY-MM-DD` de **getters locais** (`getFullYear`/`getMonth`/`getDate`), **nunca** de `toISOString()` (que devolve UTC). Sem isso, à noite (≥21h BRT = 00h UTC) "hoje" pula para o dia seguinte e erra o dia do caixa / classifica como vencido um lançamento que vence hoje.
+
+#### KPI → fonte / regime de data (briefing 2026-06-24_002)
+Regra cross-cutting de coerência entre Visão geral, Home/Dashboard e Relatórios. "Recebido/realizado" = **regime caixa** (`data_pagamento`); "a receber/a pagar" = por **vencimento** (`data_vencimento`).
+
+| KPI / tela | Fonte | Regime de data |
+|---|---|---|
+| Recebido (Visão geral) | `lancamentos` Receita/Pago | caixa — `data_pagamento` |
+| Despesas (Visão geral) | `lancamentos` Despesa/Pago | caixa — `data_pagamento` |
+| A receber | **saldo em aberto** de `cobrancas` Pendentes + `lancamentos` Receita Pendentes (sem dupla contagem) | estoque corrente; prazo por `data_vencimento` |
+| Estornos | `lancamentos` Estorno (valor negativo) | caixa — `data_pagamento` (= `data_estorno`) |
+| Dashboard ReceitasMes/DespesasMes | `lancamentos` Pago | caixa — `data_pagamento` |
+| Custo/lucro por paciente | `cobrancas` + `pagamentos` + `movimentacoes_estoque` | caixa — `data_pagamento` |
+| Vencidos (extrato/dashboard) | `lancamentos` Pendentes | vencimento — `data_vencimento < hoje (BRT)` |
+
+**"A receber" sem dupla contagem:** soma o saldo em aberto das cobranças Pendentes (`valor_cobrado − desconto − SUM(pagamentos líquidos)`) + os lançamentos Receita Pendentes avulsos. A não-duplicação é garantida pela **INV-3**: cobrança paga vira `Lancamento` Receita/Pago (sai do "a receber" das duas pontas); cobrança em aberto **não** tem lançamento Receita Pendente correspondente.
 
 #### Custo/lucro por paciente (Relatórios)
 - A aba Financeiro de `RelatorioFinanceiroTab.vue`/`RelatorioFinanceiroQuery` ganha visão **aditiva** por paciente (cobrado · pago · desconto · taxa · custo · lucro) — KPIs/breakdown atuais inalterados (retrocompat).
