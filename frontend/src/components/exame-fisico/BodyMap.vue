@@ -66,18 +66,19 @@ const currentPaths = computed<Record<string, BodyRegionPath>>(() =>
 /**
  * Hotspots do catálogo — exclui as partes do tronco (deixaram de ser clicáveis).
  * Tronco é renderizado como pseudo-hotspots sintéticos (ver abaixo).
+ * Indexado por CÓDIGO (r.id), não por nome — resistente a renomeações no admin.
  */
-const NOMES_TRONCO = new Set([
-  'Tórax (anterior)', 'Abdome (anterior)', 'Pelve (anterior)',
-  'Tórax (posterior)', 'Região lombossacra (posterior)', 'Pelve (posterior)',
+const CODIGOS_TRONCO = new Set([
+  'torax-anterior', 'abdome-anterior', 'pelve-anterior',
+  'torax-posterior', 'lombossacra-posterior', 'pelve-posterior',
 ])
 
 const regioesComPath = computed(() =>
   props.regioes
-    .filter((r) => r.nivel === 1 && currentPaths.value[r.nome] && !NOMES_TRONCO.has(r.nome))
+    .filter((r) => r.nivel === 1 && currentPaths.value[r.id] && !CODIGOS_TRONCO.has(r.id))
     .map((r) => ({
       ...r,
-      pathData: currentPaths.value[r.nome],
+      pathData: currentPaths.value[r.id],
       isExaminada: props.regioesExaminadas.includes(r.id),
     }))
     .sort((a, b) => a.pathData.zOrder - b.pathData.zOrder),
@@ -94,7 +95,8 @@ const TRONCO_HOTSPOTS: Array<{ nome: 'Tronco (anterior)' | 'Tronco (posterior)';
 
 const troncoHotspots = computed(() =>
   TRONCO_HOTSPOTS.flatMap((t) => {
-    const pathData = currentPaths.value[t.nome]
+    // vistaId ('tronco-anterior'/'tronco-posterior') é a chave em bodyMapPaths para o tronco sintético.
+    const pathData = currentPaths.value[t.vistaId]
     if (!pathData) return []
     // Acende quando qualquer nível-1 daquela vista estiver em regioesExaminadas.
     const isExaminada = props.regioesExaminadas.some(

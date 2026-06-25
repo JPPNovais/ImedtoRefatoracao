@@ -381,11 +381,14 @@ public static class Container
         services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.RegiaoAnatomicaAdminQueryRepository>();
         services.AddSingleton<Imedto.Backend.Application.Admin.Regioes.ListarArvoreRegioesAdminQueryHandler>();
         services.AddSingleton<Imedto.Backend.Application.Admin.Regioes.ObterRegiaoAdminQueryHandler>();
+        // Singleton: compartilhado pelos handlers scoped para garantir invalidação consistente (CA4)
+        services.AddSingleton<Imedto.Backend.Application.Admin.Regioes.CatalogoRegioesCacheInvalidador>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.CriarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.AtualizarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.InativarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ReativarRegiaoAdminCommandHandler>();
         services.AddScoped<Imedto.Backend.Application.Admin.Regioes.ExcluirRegiaoAdminCommandHandler>();
+        services.AddSingleton<Imedto.Backend.Application.Admin.Regioes.InvalidarCacheRegioesAdminCommandHandler>();
 
         // Briefing 2026-06-04_001 — Modelos de permissão padrão sistema (cópias materializadas + propagação cross-tenant)
         services.AddSingleton<Imedto.Backend.Infrastructure.Admin.QueryRepositories.ModeloPermissaoPadraoSistemaQueryRepository>();

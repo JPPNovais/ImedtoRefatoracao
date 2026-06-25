@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
@@ -41,7 +42,9 @@ public class ReativarRegiaoAdminCommandHandlerTests
             httpMock.Object,
             NullLogger<ImedtoAdminAuditWriter>.Instance);
 
-        _handler = new ReativarRegiaoAdminCommandHandler(_repo, _audit);
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var cacheInvalidador = new CatalogoRegioesCacheInvalidador(cache);
+        _handler = new ReativarRegiaoAdminCommandHandler(_repo, _audit, cacheInvalidador);
     }
 
     [TearDown]

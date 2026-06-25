@@ -8,13 +8,16 @@ public class AtualizarRegiaoAdminCommandHandler
 {
     private readonly RegiaoAnatomicaCatalogoRepository _repo;
     private readonly ImedtoAdminAuditWriter _audit;
+    private readonly CatalogoRegioesCacheInvalidador _cacheInvalidador;
 
     public AtualizarRegiaoAdminCommandHandler(
         RegiaoAnatomicaCatalogoRepository repo,
-        ImedtoAdminAuditWriter audit)
+        ImedtoAdminAuditWriter audit,
+        CatalogoRegioesCacheInvalidador cacheInvalidador)
     {
         _repo = repo;
         _audit = audit;
+        _cacheInvalidador = cacheInvalidador;
     }
 
     public async Task Handle(AtualizarRegiaoAdminCommand command, CancellationToken ct = default)
@@ -28,6 +31,8 @@ public class AtualizarRegiaoAdminCommandHandler
 
         regiao.Atualizar(command.Nome, command.TemplateTexto, null);
         await _repo.Salvar();
+
+        _cacheInvalidador.InvalidarTudo();
 
         await _audit.RegistrarAsync(
             AcoesAuditAdmin.AtualizarRegiaoAnatomica,

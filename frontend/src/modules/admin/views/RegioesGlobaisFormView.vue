@@ -231,6 +231,32 @@ function fecharSeletorTronco(): void {
     seletorTronco.value = null
 }
 
+// ── Seletor de pai por dropdown (P2 — nível 3) ──────────────────────────────
+
+interface OpcaoPai {
+    value: string
+    label: string
+}
+
+/**
+ * Opções achatadas de nível 1 e nível 2 da árvore para o AppSelect de pai.
+ * Nós circunferenciais ficam disponíveis no dropdown mas o watcher existente
+ * já rejeita a escolha com erroCircunferencial (R7/CA6).
+ * CA15: guard no watcher dispara mesmo quando preenchido via AppSelect.
+ */
+const opcoesPaiDropdown = computed<OpcaoPai[]>(() => {
+    const lista: OpcaoPai[] = [{ value: "", label: "Sem pai (nó raiz)" }]
+    for (const no1 of store.arvore) {
+        if (!no1.ativo) continue
+        lista.push({ value: no1.codigo, label: `${no1.codigo} — ${no1.nome}` })
+        for (const no2 of no1.filhos ?? []) {
+            if (!no2.ativo) continue
+            lista.push({ value: no2.codigo, label: `  ${no2.codigo} — ${no2.nome}` })
+        }
+    }
+    return lista
+})
+
 function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
@@ -351,19 +377,31 @@ async function salvar() {
                         </div>
                     </div>
 
-                    <AppField label="Vista" hint="Vista corporal onde a região aparece no mapa.">
-                        <AppSelect v-model="vista" :options="OPCOES_VISTA" :disabled="salvando || !!paiCodigo.trim()" />
-                        <p v-if="paiCodigo.trim()" class="hint-derivado">Vista derivada do pai.</p>
+                    <!-- P2: seletor dropdown de pai (nível 1 e 2) para habilitar nível 3 sem digitação -->
+                    <AppField
+                        label="Região pai"
+                        :hint="erros.paiCodigo || 'Selecione o pai no dropdown OU use o mapa acima OU digite abaixo. Nós circunferenciais não aceitam filhos.'"
+                    >
+                        <AppSelect
+                            v-model="paiCodigo"
+                            :options="opcoesPaiDropdown"
+                            :disabled="salvando"
+                        />
+                        <p v-if="erroCircunferencial" class="campo-erro-inline" role="alert">{{ erroCircunferencial }}</p>
                     </AppField>
 
-                    <AppField label="Código do pai" :hint="erros.paiCodigo || 'Código da região pai (deixe em branco para nó raiz). Nós circunferenciais não aceitam filhos.'">
+                    <AppField label="Código do pai" :hint="'Ou digite o código diretamente (alternativa ao dropdown acima).'">
                         <AppInput
                             v-model="paiCodigo"
                             placeholder="Ex.: ABD"
                             maxlength="60"
                             :disabled="salvando"
                         />
-                        <p v-if="erroCircunferencial" class="campo-erro-inline" role="alert">{{ erroCircunferencial }}</p>
+                    </AppField>
+
+                    <AppField label="Vista" hint="Vista corporal onde a região aparece no mapa.">
+                        <AppSelect v-model="vista" :options="OPCOES_VISTA" :disabled="salvando || !!paiCodigo.trim()" />
+                        <p v-if="paiCodigo.trim()" class="hint-derivado">Vista derivada do pai.</p>
                     </AppField>
 
                     <div class="row-2col">

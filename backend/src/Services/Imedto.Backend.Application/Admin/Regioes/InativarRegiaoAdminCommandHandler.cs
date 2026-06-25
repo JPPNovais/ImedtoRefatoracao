@@ -10,15 +10,18 @@ public class InativarRegiaoAdminCommandHandler
     private readonly RegiaoAnatomicaCatalogoRepository _repo;
     private readonly RegiaoAnatomicaAdminQueryRepository _query;
     private readonly ImedtoAdminAuditWriter _audit;
+    private readonly CatalogoRegioesCacheInvalidador _cacheInvalidador;
 
     public InativarRegiaoAdminCommandHandler(
         RegiaoAnatomicaCatalogoRepository repo,
         RegiaoAnatomicaAdminQueryRepository query,
-        ImedtoAdminAuditWriter audit)
+        ImedtoAdminAuditWriter audit,
+        CatalogoRegioesCacheInvalidador cacheInvalidador)
     {
         _repo = repo;
         _query = query;
         _audit = audit;
+        _cacheInvalidador = cacheInvalidador;
     }
 
     public async Task Handle(InativarRegiaoAdminCommand command, CancellationToken ct = default)
@@ -36,6 +39,8 @@ public class InativarRegiaoAdminCommandHandler
 
         regiao.Inativar();
         await _repo.Salvar();
+
+        _cacheInvalidador.InvalidarTudo();
 
         await _audit.RegistrarAsync(
             AcoesAuditAdmin.InativarRegiaoAnatomica,

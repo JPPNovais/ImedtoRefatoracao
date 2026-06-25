@@ -83,14 +83,16 @@ function troncoAcende(nomeTronco: string, mapIds: Set<string>): boolean {
 // ── CA30/CA31 — fusão: hotspots de tronco existem em M e F, sem clipId ────────
 
 describe('CA30 — Tronco (anterior) existe em maleRegionPaths sem clipId', () => {
-  it('deve existir exatamente 1 entrada Tronco (anterior) no maleRegionPaths', () => {
-    const troncoAnt = maleRegionPaths['Tronco (anterior)']
+  // Após P3 (briefing 2026-06-25_001), chaves do bodyMapPaths são por CÓDIGO, não por nome.
+  // Pseudo-hotspot de tronco usa 'tronco-anterior'/'tronco-posterior' como chave.
+  it('deve existir exatamente 1 entrada tronco-anterior no maleRegionPaths', () => {
+    const troncoAnt = maleRegionPaths['tronco-anterior']
     expect(troncoAnt).toBeDefined()
     expect(troncoAnt.clipId).toBeUndefined()
   })
 
-  it('deve existir exatamente 1 entrada Tronco (posterior) no maleRegionPaths', () => {
-    const troncoPost = maleRegionPaths['Tronco (posterior)']
+  it('deve existir exatamente 1 entrada tronco-posterior no maleRegionPaths', () => {
+    const troncoPost = maleRegionPaths['tronco-posterior']
     expect(troncoPost).toBeDefined()
     expect(troncoPost.clipId).toBeUndefined()
   })
@@ -121,14 +123,15 @@ describe('CA30 — Tronco (anterior) existe em maleRegionPaths sem clipId', () =
 })
 
 describe('CA31 — Tronco fundido existe em femaleRegionPaths sem clipId', () => {
-  it('deve existir Tronco (anterior) em femaleRegionPaths sem clipId', () => {
-    const t = femaleRegionPaths['Tronco (anterior)']
+  // Após P3 (briefing 2026-06-25_001), chaves do bodyMapPaths são por CÓDIGO, não por nome.
+  it('deve existir tronco-anterior em femaleRegionPaths sem clipId', () => {
+    const t = femaleRegionPaths['tronco-anterior']
     expect(t).toBeDefined()
     expect(t.clipId).toBeUndefined()
   })
 
-  it('deve existir Tronco (posterior) em femaleRegionPaths sem clipId', () => {
-    const t = femaleRegionPaths['Tronco (posterior)']
+  it('deve existir tronco-posterior em femaleRegionPaths sem clipId', () => {
+    const t = femaleRegionPaths['tronco-posterior']
     expect(t).toBeDefined()
     expect(t.clipId).toBeUndefined()
   })

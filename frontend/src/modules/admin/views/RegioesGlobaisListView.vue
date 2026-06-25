@@ -12,7 +12,7 @@ import {
 } from "@/components/ui"
 import { useRegioesGlobaisStore } from "../stores/regioesGlobaisStore"
 import RegiaoTreeView from "../components/regioes/RegiaoTreeView.vue"
-import type { RegiaoAnatomicaNoDto } from "../services/catalogosService"
+import { regioesGlobaisService, type RegiaoAnatomicaNoDto } from "../services/catalogosService"
 
 const router = useRouter()
 const store = useRegioesGlobaisStore()
@@ -139,6 +139,24 @@ async function confirmarExclusao() {
     }
 }
 
+// ─── Invalidar cache do exame físico (CA1–CA4) ───────────────────────────────
+
+const invalidando = ref(false)
+const msgInvalidacao = ref<{ ok: boolean; texto: string } | null>(null)
+
+async function invalidarCacheExameFisico() {
+    invalidando.value = true
+    msgInvalidacao.value = null
+    try {
+        await regioesGlobaisService.invalidarCache()
+        msgInvalidacao.value = { ok: true, texto: "Cache do exame físico atualizado com sucesso." }
+    } catch {
+        msgInvalidacao.value = { ok: false, texto: "Não foi possível atualizar o cache. Tente novamente." }
+    } finally {
+        invalidando.value = false
+    }
+}
+
 // ─── Listagem ────────────────────────────────────────────────────────────────
 
 onMounted(() => carregar())
@@ -175,7 +193,18 @@ function irParaForm(id?: number) {
                     Incluir inativas
                 </label>
                 <AppButton variant="secondary" @click="carregar">Atualizar</AppButton>
+                <AppButton
+                    variant="secondary"
+                    icon="fa-solid fa-rotate"
+                    :loading="invalidando"
+                    @click="invalidarCacheExameFisico"
+                >
+                    Forçar atualização do exame físico
+                </AppButton>
             </div>
+            <p v-if="msgInvalidacao" :class="['msg-invalidacao', msgInvalidacao.ok ? 'msg-ok' : 'msg-erro']">
+                {{ msgInvalidacao.texto }}
+            </p>
 
             <div v-if="store.carregando" class="estado-info">
                 <i class="fa-solid fa-spinner fa-spin"></i> Carregando...
@@ -359,5 +388,24 @@ function irParaForm(id?: number) {
     color: hsl(var(--destructive));
     font-size: var(--text-xs);
     margin-top: 0.25rem;
+}
+
+.msg-invalidacao {
+    font-size: var(--text-xs);
+    padding: 0.4rem 0.75rem;
+    border-radius: calc(var(--radius) - 2px);
+    margin-bottom: 0.75rem;
+}
+
+.msg-ok {
+    background: hsl(var(--success, 142 76% 36%) / 0.1);
+    color: hsl(var(--success, 142 76% 36%));
+    border: 1px solid hsl(var(--success, 142 76% 36%) / 0.3);
+}
+
+.msg-erro {
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.3);
 }
 </style>

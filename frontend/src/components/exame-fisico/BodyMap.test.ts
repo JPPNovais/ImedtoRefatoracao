@@ -63,7 +63,7 @@ describe("BodyMap", () => {
         const wrapper = mount(BodyMap, {
             props: { regioes: regioesTroncoPartes, regioesExaminadas: [], sexo: "M" },
         })
-        // regioesTroncoPartes são filtradas pelo BodyMap (nomes no NOMES_TRONCO).
+        // regioesTroncoPartes são filtradas pelo BodyMap (ids em CODIGOS_TRONCO).
         // Somente os 2 pseudo-hotspots de tronco devem aparecer.
         const paths = wrapper.findAll("path.region-hotspot")
         expect(paths.length).toBe(2)

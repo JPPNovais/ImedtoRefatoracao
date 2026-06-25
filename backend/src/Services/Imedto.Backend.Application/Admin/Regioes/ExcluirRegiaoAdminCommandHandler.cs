@@ -10,15 +10,18 @@ public class ExcluirRegiaoAdminCommandHandler
     private readonly RegiaoAnatomicaCatalogoRepository _repo;
     private readonly RegiaoAnatomicaAdminQueryRepository _query;
     private readonly ImedtoAdminAuditWriter _audit;
+    private readonly CatalogoRegioesCacheInvalidador _cacheInvalidador;
 
     public ExcluirRegiaoAdminCommandHandler(
         RegiaoAnatomicaCatalogoRepository repo,
         RegiaoAnatomicaAdminQueryRepository query,
-        ImedtoAdminAuditWriter audit)
+        ImedtoAdminAuditWriter audit,
+        CatalogoRegioesCacheInvalidador cacheInvalidador)
     {
         _repo = repo;
         _query = query;
         _audit = audit;
+        _cacheInvalidador = cacheInvalidador;
     }
 
     public async Task Handle(ExcluirRegiaoAdminCommand command, CancellationToken ct = default)
@@ -40,6 +43,8 @@ public class ExcluirRegiaoAdminCommandHandler
         var regiaoId = regiao.Id;
 
         await _repo.Excluir(regiao);
+
+        _cacheInvalidador.InvalidarTudo();
 
         await _audit.RegistrarAsync(
             AcoesAuditAdmin.ExcluirRegiaoAnatomica,
