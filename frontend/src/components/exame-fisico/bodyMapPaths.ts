@@ -3,8 +3,11 @@
 //
 // Indexado por CÓDIGO da região (ex.: "cabeca-anterior"), não por nome.
 // Isso garante que renomear uma região no admin não a remova do boneco (CA9/R4).
-// As entradas "tronco-anterior"/"tronco-posterior" são pseudo-hotspots sintéticos
-// (não existem no catálogo; usados internamente pelo BodyMap).
+//
+// Fusão estrutural do tronco (briefing 2026-06-25_002):
+// "tronco-anterior"/"tronco-posterior" eram pseudo-hotspots sintéticos;
+// agora correspondem a regiões reais nível-1 do catálogo.
+// Não há "tronco-circunferencial" aqui — circunferencial nunca é hotspot direto.
 
 export interface BodyRegionPath {
   d: string
@@ -23,7 +26,7 @@ const F_TORSO_ANT = `M313 206C306.2 206.8 301.167 207.333 299.5 207.5C301.5 208.
 const F_TORSO_POST = `M947 292.5C946.2 287.7 942 268.5 940 259.5C944.333 256 953.6 248.5 956 246.5C959 244 967.5 238.5 971.5 235C974.7 232.2 976.833 227.5 977.5 225.5C958.7 217.9 951.333 211 950 208.5L956 208C960.8 208.8 981 217 990.5 221C995.667 223.667 1010.5 229 1028.5 229C1051 229 1058.5 224.5 1065.5 221C1071.1 218.2 1090.17 211.167 1099 208L1105.5 208.5C1103 213 1099.5 214 1093.5 218C1088.7 221.2 1081.17 224.333 1078 225.5C1079.5 234 1093.5 242 1097 244.5C1099.8 246.5 1110.5 255.333 1115.5 259.5C1114.5 263 1111 280.5 1109 291.5C1107 302.5 1105 309.5 1102.5 320C1100 330.5 1094.5 349.5 1092.5 360C1090.5 370.5 1093 381 1096 389.5C1099 398 1106 415 1107 419.5C1108 424 1112 431.5 1114.5 438C1116.5 443.2 1119.33 455.833 1120.5 461.5C1118.9 467.1 1116.5 477.5 1115.5 482C1115.5 488 1114.5 498 1113 506C1111.5 514 1108.5 520.5 1102.5 526.5C1096.5 532.5 1085 541.5 1066.5 541C1051.7 540.6 1039.33 531.833 1035 527.5L1031.5 524.5C1028.3 525.7 1025.5 525 1024.5 524.5C1022.5 526.5 1022.5 527 1013 534C1003.5 541 984 541.5 973.5 539C963 536.5 949.5 525.5 945 513C941.4 503 940.833 488.167 941 482L935.5 463C936.7 449.4 944.667 429.667 948.5 421.5C949.7 415.5 953.667 404.667 955.5 400C958.167 394.667 963.5 381.6 963.5 372C963.5 360 959.5 339.5 956.5 331C953.5 322.5 948 298.5 947 292.5Z`
 
 // Indexado por CÓDIGO do catálogo (ex.: "cabeca-anterior").
-// As entradas de tronco usam pseudo-IDs sintéticos ("tronco-anterior"/"tronco-posterior").
+// tronco-anterior/tronco-posterior são regiões reais nível-1 desde briefing 2026-06-25_002.
 export const maleRegionPaths: Record<string, BodyRegionPath> = {
   // ─── ANTERIOR ────────────────────────────────────────────
   'cabeca-anterior': {
@@ -34,8 +37,8 @@ export const maleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M343.801 179.5C346.601 175.1 345.967 159.333 345.301 152C348.801 156.167 357.601 164.8 372.801 166C388.001 167.2 398.801 157 403.301 151C401.701 172.6 404.634 180.333 406.301 181.5C415.501 192.7 439.801 202.167 450.801 205.5L444.301 212.5H392.801C383.801 212.5 381.801 219 378.301 222C375.501 224.4 373.134 223 372.301 222C359.801 209 342.801 211.5 321.301 212.5C304.101 213.3 302.301 208.5 298.301 205.5C324.801 197.5 340.301 185 343.801 179.5Z`,
     zOrder: 3,
   },
-  // Tronco anterior fundido — pseudo-hotspot sintético (não existe no catálogo).
-  // As faixas Tórax/Abdome/Pelve (anterior) deixaram de ser hotspots clicáveis (B2).
+  // Tronco anterior — região real nível-1 (briefing 2026-06-25_002).
+  // Substitui as antigas partes torax/abdome/pelve-anterior.
   'tronco-anterior': {
     d: M_TORSO_ANT,
     zOrder: 0,
@@ -66,8 +69,8 @@ export const maleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M1103.3 201C1079.3 193 1062.5 183 1059 177.5C1053.8 173.5 1050.5 167 1050 165C1049.5 163 1047.5 154.5 1043.5 151.5C1039.5 148.5 1032.5 146.5 1028.5 146.5C1024.5 146.5 1019.5 147.5 1015.5 150.5C1011.5 153.5 1009.5 157.5 1006 167C1003.2 174.6 998.701 178.833 996.801 180C984.801 189 966.301 197.667 955.301 201L983.801 218.5L1028.8 227L1073.8 218.5L1103.3 201Z`,
     zOrder: 3,
   },
-  // Tronco posterior fundido — pseudo-hotspot sintético (não existe no catálogo).
-  // As faixas Tórax/Região lombossacra/Pelve (posterior) deixaram de ser hotspots clicáveis (B2).
+  // Tronco posterior — região real nível-1 (briefing 2026-06-25_002).
+  // Substitui as antigas partes torax/lombossacra/pelve-posterior.
   'tronco-posterior': {
     d: M_TORSO_POST,
     zOrder: 0,
@@ -100,7 +103,7 @@ export const femaleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M346 186C348.8 181.6 347.667 166.333 347 159C350.5 163.167 364.007 175.689 374 175C388.5 174 400.5 161 402 158.5C400.4 180.1 402.333 186.333 404 187.5C412.5 197 427.5 202.5 436 205.5L420.5 210.5L405 213C401.5 213.565 389 213 387 214C385 215 386 215.5 381.5 220.5C377 225.5 369 221.5 368.5 220.5C368.1 219.7 363.667 215.833 361.5 214C337.5 213.2 318.833 208.333 312.5 206C332.5 199.5 342.5 191.5 346 186Z`,
     zOrder: 3,
   },
-  // Tronco anterior fundido — pseudo-hotspot sintético (não existe no catálogo).
+  // Tronco anterior — região real nível-1 (briefing 2026-06-25_002).
   'tronco-anterior': {
     d: F_TORSO_ANT,
     zOrder: 0,
@@ -131,7 +134,7 @@ export const femaleRegionPaths: Record<string, BodyRegionPath> = {
     d: `M997.5 187C1000.3 182.6 1001.67 170.834 1001 163.5C1002 158.5 1002 147.773 1009.5 143C1020.5 136 1028 145.5 1028 145.5C1028 145.5 1028.5 144.999 1029 144.5C1030.5 142.5 1035 138.501 1042.5 141.501C1055 146.5 1052.5 157.5 1055 166.5C1055.5 180.5 1055.83 185.833 1057.5 187C1068 197 1091 205 1099.5 208C1095.33 208.5 1083.4 213.3 1063 222.5C1037.5 234 1001 227 991 221.5C985.458 218.452 965.833 211.167 956.5 208C977.5 200 994 192.5 997.5 187Z`,
     zOrder: 3,
   },
-  // Tronco posterior fundido — pseudo-hotspot sintético (não existe no catálogo).
+  // Tronco posterior — região real nível-1 (briefing 2026-06-25_002).
   'tronco-posterior': {
     d: F_TORSO_POST,
     zOrder: 0,

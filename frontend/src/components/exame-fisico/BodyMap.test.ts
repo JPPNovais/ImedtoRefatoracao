@@ -1,83 +1,78 @@
+/**
+ * Testes de BodyMap.vue — atualizado para fusão estrutural do tronco (briefing 2026-06-25_002).
+ * Mudanças:
+ * - Pseudo-hotspots sintéticos removidos; tronco-anterior/tronco-posterior são hotspots reais.
+ * - Evento troncoClicado removido; apenas regiaoClicada.
+ * - CODIGOS_TRONCO e PARTE_PARA_TRONCO removidos.
+ * - tronco-anterior/tronco-posterior passam por regioesComPath como qualquer outro nó.
+ */
 import { describe, it, expect } from "vitest"
 import { mount } from "@vue/test-utils"
-import BodyMap from "./BodyMap.vue"
+import BodyMap, { type ExameFisicoRegiao } from "./BodyMap.vue"
 
-// Regiões mínimas (nível-1) que existem em bodyMapPaths.ts.
-// Nota: Tórax/Abdome/Pelve (anterior/posterior) foram removidos como hotspots (B2 — fusão do tronco).
-// O mapa agora renderiza pseudo-hotspots de tronco internamente ("Tronco (anterior/posterior)").
-const regioesComPath = [
-    {
-        id: "cabeca-anterior",
-        nome: "Cabeça (anterior)",
-        nivel: 1 as const,
-        lateralidade: false,
-        pai_id: null,
-        vista: "anterior" as const,
-        template_texto: null,
-    },
-    {
-        id: "pescoco-anterior",
-        nome: "Pescoço (anterior)",
-        nivel: 1 as const,
-        lateralidade: false,
-        pai_id: null,
-        vista: "anterior" as const,
-        template_texto: null,
-    },
+const fazRegiao = (partial: Partial<ExameFisicoRegiao> & { id: string }): ExameFisicoRegiao => ({
+    nome: partial.id,
+    nivel: 1,
+    lateralidade: false,
+    pai_id: null,
+    vista: "anterior",
+    template_texto: null,
+    ...partial,
+})
+
+// Regiões com path real em bodyMapPaths (maleRegionPaths)
+const regioesComPath: ExameFisicoRegiao[] = [
+    fazRegiao({ id: "cabeca-anterior",  nome: "Cabeça (anterior)",  vista: "anterior" }),
+    fazRegiao({ id: "pescoco-anterior", nome: "Pescoço (anterior)", vista: "anterior" }),
 ]
 
-// Regiões de partes do tronco (ex-hotspots): devem ser filtradas para fora
-// pelo BodyMap (não são mais clicáveis), já que o tronco fundido usa pseudo-hotspots.
-const regioesTroncoPartes = [
-    {
-        id: "torax-anterior",
-        nome: "Tórax (anterior)",
-        nivel: 1 as const,
-        lateralidade: false,
-        pai_id: null,
-        vista: "anterior" as const,
-        template_texto: null,
-    },
-    {
-        id: "abdome-anterior",
-        nome: "Abdome (anterior)",
-        nivel: 1 as const,
-        lateralidade: false,
-        pai_id: null,
-        vista: "anterior" as const,
-        template_texto: null,
-    },
+// tronco-anterior/tronco-posterior agora são hotspots reais (briefing 2026-06-25_002)
+const regioesTronco: ExameFisicoRegiao[] = [
+    fazRegiao({ id: "tronco-anterior",  nome: "Tronco (anterior)",  vista: "anterior"  }),
+    fazRegiao({ id: "tronco-posterior", nome: "Tronco (posterior)", vista: "posterior" }),
 ]
 
 describe("BodyMap", () => {
-    it("renderiza paths de catálogo para regiões com entry em bodyMapPaths (excluindo tronco-partes)", () => {
+    it("renderiza paths de catálogo para regiões com entry em bodyMapPaths", () => {
         const wrapper = mount(BodyMap, {
             props: { regioes: regioesComPath, regioesExaminadas: [], sexo: "M" },
         })
-        // 2 paths do catálogo (cabeça + pescoço) + 2 pseudo-hotspots de tronco
         const paths = wrapper.findAll("path.region-hotspot")
-        expect(paths.length).toBe(4)
-    })
-
-    it("não renderiza hotspots clicáveis para Tórax/Abdome/Pelve (fusão B2 — viraram pseudo-hotspot)", () => {
-        const wrapper = mount(BodyMap, {
-            props: { regioes: regioesTroncoPartes, regioesExaminadas: [], sexo: "M" },
-        })
-        // regioesTroncoPartes são filtradas pelo BodyMap (ids em CODIGOS_TRONCO).
-        // Somente os 2 pseudo-hotspots de tronco devem aparecer.
-        const paths = wrapper.findAll("path.region-hotspot")
+        // cabeça + pescoço = 2 hotspots (sem pseudo-hotspot de tronco)
         expect(paths.length).toBe(2)
     })
 
-    it("emite 'regiaoClicada' ao clicar em hotspot do catálogo (cabeça/pescoço/membro)", async () => {
+    it("renderiza hotspots de tronco-anterior e tronco-posterior quando passados como regiões reais", () => {
+        const wrapper = mount(BodyMap, {
+            props: { regioes: regioesTronco, regioesExaminadas: [], sexo: "M" },
+        })
+        const paths = wrapper.findAll("path.region-hotspot")
+        // Fusão: 2 regiões reais de tronco aparecem como hotspots normais
+        expect(paths.length).toBe(2)
+        const labels = paths.map(p => p.attributes("aria-label") ?? "")
+        expect(labels).toContain("Tronco (anterior)")
+        expect(labels).toContain("Tronco (posterior)")
+    })
+
+    it("não renderiza hotspot para regiões sem path em bodyMapPaths", () => {
+        const wrapper = mount(BodyMap, {
+            props: {
+                regioes: [fazRegiao({ id: "id-sem-path", nome: "Sem path" })],
+                regioesExaminadas: [],
+                sexo: "M",
+            },
+        })
+        const paths = wrapper.findAll("path.region-hotspot")
+        expect(paths.length).toBe(0)
+    })
+
+    it("emite 'regiaoClicada' ao clicar em hotspot do catálogo (cabeça/pescoço)", async () => {
         const wrapper = mount(BodyMap, {
             props: { regioes: regioesComPath, regioesExaminadas: [], sexo: "M" },
         })
-        // Os 2 pseudo-hotspots de tronco vêm antes (zOrder 0); os de catálogo depois.
-        // A ordem no DOM é: [tronco-ant, tronco-post, cabeça, pescoço] (tronco renderizado primeiro).
         const paths = wrapper.findAll("path.region-hotspot")
-        // Clicar no 3º path (índice 2) → cabeça ou pescoço
-        await paths[2]!.trigger("click")
+        expect(paths.length).toBe(2)
+        await paths[0]!.trigger("click")
 
         const eventos = wrapper.emitted("regiaoClicada")
         expect(eventos).toBeTruthy()
@@ -85,34 +80,34 @@ describe("BodyMap", () => {
         expect(["cabeca-anterior", "pescoco-anterior"]).toContain(idEmitido)
     })
 
-    it("emite 'troncoClicado' com 'tronco-anterior' ao clicar no pseudo-hotspot de tronco anterior", async () => {
+    it("emite 'regiaoClicada' ao clicar em hotspot de tronco-anterior (região real)", async () => {
         const wrapper = mount(BodyMap, {
-            props: { regioes: [], regioesExaminadas: [], sexo: "M" },
+            props: { regioes: regioesTronco, regioesExaminadas: [], sexo: "M" },
         })
         const paths = wrapper.findAll("path.region-hotspot")
-        // Com regioes=[], só existem 2 pseudo-hotspots: [tronco-ant, tronco-post]
-        expect(paths.length).toBe(2)
+        const troncoAntPath = paths.find(p => p.attributes("aria-label") === "Tronco (anterior)")
+        expect(troncoAntPath).toBeTruthy()
+        await troncoAntPath!.trigger("click")
+
+        const eventos = wrapper.emitted("regiaoClicada")
+        expect(eventos).toBeTruthy()
+        const emitido = eventos![0]![0] as ExameFisicoRegiao
+        expect(emitido.id).toBe("tronco-anterior")
+    })
+
+    it("não emite evento obsoleto 'troncoClicado' (removido na fusão 2026-06-25_002)", async () => {
+        const wrapper = mount(BodyMap, {
+            props: { regioes: regioesTronco, regioesExaminadas: [], sexo: "M" },
+        })
+        const paths = wrapper.findAll("path.region-hotspot")
         await paths[0]!.trigger("click")
-
-        const eventos = wrapper.emitted("troncoClicado")
-        expect(eventos).toBeTruthy()
-        expect(eventos![0]![0]).toBe("tronco-anterior")
+        // troncoClicado foi removido — só regiaoClicada deve existir
+        expect(wrapper.emitted("troncoClicado")).toBeFalsy()
+        expect(wrapper.emitted("regiaoClicada")).toBeTruthy()
     })
 
-    it("emite 'troncoClicado' com 'tronco-posterior' ao clicar no pseudo-hotspot de tronco posterior", async () => {
-        const wrapper = mount(BodyMap, {
-            props: { regioes: [], regioesExaminadas: [], sexo: "M" },
-        })
-        const paths = wrapper.findAll("path.region-hotspot")
-        await paths[1]!.trigger("click")
-
-        const eventos = wrapper.emitted("troncoClicado")
-        expect(eventos).toBeTruthy()
-        expect(eventos![0]![0]).toBe("tronco-posterior")
-    })
-
-    // CA3/CA4/CA5 — coloração por vista substitui region-selected uniforme
-    it("CA3 — hotspot aceso com vista anterior recebe classe 'region-selected-ant' (não region-selected)", () => {
+    // CA3/CA4/CA5 — coloração por vista
+    it("CA3 — hotspot aceso com vista anterior recebe classe 'region-selected-ant'", () => {
         const wrapper = mount(BodyMap, {
             props: {
                 regioes: regioesComPath,
@@ -121,9 +116,7 @@ describe("BodyMap", () => {
                 sexo: "M",
             },
         })
-        const acesos = wrapper.findAll("path.region-selected-ant")
-        expect(acesos.length).toBeGreaterThan(0)
-        // Não deve haver region-selected uniforme antigo
+        expect(wrapper.findAll("path.region-selected-ant").length).toBeGreaterThan(0)
         expect(wrapper.findAll("path.region-selected").length).toBe(0)
     })
 
@@ -136,8 +129,7 @@ describe("BodyMap", () => {
                 sexo: "M",
             },
         })
-        const acesos = wrapper.findAll("path.region-selected-post")
-        expect(acesos.length).toBeGreaterThan(0)
+        expect(wrapper.findAll("path.region-selected-post").length).toBeGreaterThan(0)
     })
 
     it("CA5 — hotspot aceso com vista circunferencial recebe classe 'region-selected-circ'", () => {
@@ -149,83 +141,35 @@ describe("BodyMap", () => {
                 sexo: "M",
             },
         })
-        const acesos = wrapper.findAll("path.region-selected-circ")
-        expect(acesos.length).toBeGreaterThan(0)
+        expect(wrapper.findAll("path.region-selected-circ").length).toBeGreaterThan(0)
     })
 
-    // Tronco usa classe de vista padrão (anterior/posterior) pelo lado do hotspot
-    it("aplica classe 'region-selected-ant' no pseudo-hotspot de tronco anterior quando parte examinada (OU das partes)", () => {
+    it("CA5 — tronco real: ambos hotspots recebem region-selected-circ quando vistasPorId='circunferencial'", () => {
         const wrapper = mount(BodyMap, {
             props: {
-                regioes: [],
-                // torax-anterior examinada → PARTE_PARA_TRONCO → 'Tronco (anterior)' deve acender
-                regioesExaminadas: ["torax-anterior"],
-                sexo: "M",
-            },
-        })
-        const selecionados = wrapper.findAll("path.region-selected-ant")
-        // Deve haver exatamente 1 path aceso: o tronco anterior
-        expect(selecionados.length).toBe(1)
-        expect(selecionados[0]!.attributes("aria-label")).toBe("Tronco (anterior)")
-    })
-
-    it("aplica classe 'region-selected-post' no pseudo-hotspot posterior quando lombossacra examinada", () => {
-        const wrapper = mount(BodyMap, {
-            props: {
-                regioes: [],
-                regioesExaminadas: ["lombossacra-posterior"],
-                sexo: "M",
-            },
-        })
-        const selecionados = wrapper.findAll("path.region-selected-post")
-        expect(selecionados.length).toBe(1)
-        expect(selecionados[0]!.attributes("aria-label")).toBe("Tronco (posterior)")
-    })
-
-    it("acende ambos os polígonos de tronco quando há examinada em ambos os lados", () => {
-        const wrapper = mount(BodyMap, {
-            props: {
-                regioes: [],
-                regioesExaminadas: ["torax-anterior", "torax-posterior"],
-                sexo: "F",
-            },
-        })
-        // Um tronco anterior + um tronco posterior
-        const acesosAnt  = wrapper.findAll("path.region-selected-ant")
-        const acesosPost = wrapper.findAll("path.region-selected-post")
-        expect(acesosAnt.length + acesosPost.length).toBe(2)
-    })
-
-    // CA5 — tronco circunferencial: ambos os pseudo-hotspots devem acender em âmbar
-    it("CA5 — tronco circunferencial: ambos pseudo-hotspots recebem region-selected-circ quando vistasPorId passa 'circunferencial'", () => {
-        const wrapper = mount(BodyMap, {
-            props: {
-                regioes: [],
-                regioesExaminadas: ["torax-anterior", "torax-posterior"],
+                regioes: regioesTronco,
+                regioesExaminadas: ["tronco-anterior", "tronco-posterior"],
                 vistasPorId: {
-                    "tronco-anterior": "circunferencial",
+                    "tronco-anterior":  "circunferencial",
                     "tronco-posterior": "circunferencial",
                 },
                 sexo: "M",
             },
         })
         const acesosCirc = wrapper.findAll("path.region-selected-circ")
-        // Ambos os pseudo-hotspots devem ser âmbar
         expect(acesosCirc.length).toBe(2)
         const labels = acesosCirc.map(p => p.attributes("aria-label"))
         expect(labels).toContain("Tronco (anterior)")
         expect(labels).toContain("Tronco (posterior)")
-        // Não deve haver ant/post acesos ao mesmo tempo
         expect(wrapper.findAll("path.region-selected-ant").length).toBe(0)
         expect(wrapper.findAll("path.region-selected-post").length).toBe(0)
     })
 
-    // Não-regressão: tronco anterior puro = azul, posterior puro = violeta
-    it("não-regressão CA5 — tronco anterior puro = azul (ant), posterior puro = violeta (post)", () => {
+    it("tronco anterior puro = region-selected-ant, posterior puro = region-selected-post", () => {
         const wrapperAnt = mount(BodyMap, {
             props: {
-                regioes: [],
-                regioesExaminadas: ["torax-anterior"],
+                regioes: regioesTronco,
+                regioesExaminadas: ["tronco-anterior"],
                 vistasPorId: { "tronco-anterior": "anterior" },
                 sexo: "M",
             },
@@ -235,8 +179,8 @@ describe("BodyMap", () => {
 
         const wrapperPost = mount(BodyMap, {
             props: {
-                regioes: [],
-                regioesExaminadas: ["torax-posterior"],
+                regioes: regioesTronco,
+                regioesExaminadas: ["tronco-posterior"],
                 vistasPorId: { "tronco-posterior": "posterior" },
                 sexo: "M",
             },
@@ -263,23 +207,19 @@ describe("BodyMap", () => {
         expect(html).toContain("Anterior")
         expect(html).toContain("Posterior")
         expect(html).toContain("Circunferencial")
-        // Pontos coloridos de cada vista
         expect(wrapper.find(".legenda-dot--ant").exists()).toBe(true)
         expect(wrapper.find(".legenda-dot--post").exists()).toBe(true)
         expect(wrapper.find(".legenda-dot--circ").exists()).toBe(true)
     })
 
-    // vistasPorId ausente → hotspot aceso usa fallback (region-selected-ant)
-    it("fallback — vistasPorId ausente: hotspot aceso usa classe anterior (sem quebrar usos legados)", () => {
+    it("fallback — vistasPorId ausente: hotspot aceso usa classe anterior", () => {
         const wrapper = mount(BodyMap, {
             props: {
                 regioes: regioesComPath,
                 regioesExaminadas: ["cabeca-anterior"],
-                // vistasPorId não passado
                 sexo: "M",
             },
         })
-        // Fallback é anterior
         expect(wrapper.findAll("path.region-selected-ant").length).toBeGreaterThan(0)
     })
 })

@@ -11,8 +11,7 @@ import { useRouter } from "vue-router"
 import { AppPageHeader, AppCard, AppField, AppInput, AppTextarea, AppButton, AppSelect } from "@/components/ui"
 import { useRegioesGlobaisStore } from "../stores/regioesGlobaisStore"
 import { regioesGlobaisService, type RegiaoAnatomicaNoDto } from "../services/catalogosService"
-import BodyMap, { type ExameFisicoRegiao, type TroncoClique } from "@/components/exame-fisico/BodyMap.vue"
-import { PARTE_PARA_TRONCO } from "@/components/exame-fisico/regioesCircunferenciais"
+import BodyMap, { type ExameFisicoRegiao } from "@/components/exame-fisico/BodyMap.vue"
 
 const MSG_CIRCUNFERENCIAL = "Nós circunferenciais são agregadores e não aceitam sub-regiões."
 
@@ -189,82 +188,6 @@ function aoClicarRegiaoNoMapa(regiao: ExameFisicoRegiao): void {
     paiCodigo.value = no.codigo
 }
 
-// ── Seletor de tronco (addendum 2026-06-22_004, R9–R12) ─────────────────────
-
-/**
- * Mapa de id-base-de-parte → label amigável para o seletor do tronco.
- * Derivado dos ids do PARTE_PARA_TRONCO — NÃO duplica a lista lógica.
- * Labels espelham os GRUPOS_TRONCO_* do exame físico (SecaoExameFisico.vue).
- */
-const LABEL_PARTE_TRONCO: Record<string, string> = {
-    "torax-anterior":        "Tórax",
-    "abdome-anterior":       "Abdome",
-    "pelve-anterior":        "Pelve",
-    "torax-posterior":       "Tórax",
-    "lombossacra-posterior": "Região lombossacra",
-    "pelve-posterior":       "Pelve",
-}
-
-/**
- * Opção de seleção de parte do tronco: id da parte no catálogo + label de UI.
- */
-interface OpcaoTronco {
-    regiaoBaseId: string
-    label: string
-}
-
-/**
- * Estado do seletor inline do tronco.
- * null = fechado; "tronco-anterior"|"tronco-posterior" = aberto para aquele lado.
- */
-const seletorTronco = ref<TroncoClique | null>(null)
-
-/**
- * Opções derivadas de PARTE_PARA_TRONCO (invertido): filtra as partes que
- * pertencem ao lado clicado e cruza com a árvore para confirmar existência.
- * CA20: árvore não carregada → lista vazia (no-op), sem erro global.
- */
-const opcoesSeletorTronco = computed<OpcaoTronco[]>(() => {
-    if (!seletorTronco.value) return []
-    const nomeTronco = seletorTronco.value === "tronco-anterior"
-        ? "Tronco (anterior)"
-        : "Tronco (posterior)"
-    return Object.entries(PARTE_PARA_TRONCO)
-        .filter(([, tronco]) => tronco === nomeTronco)
-        .map(([regiaoBaseId]) => ({ regiaoBaseId, label: LABEL_PARTE_TRONCO[regiaoBaseId] ?? regiaoBaseId }))
-})
-
-/**
- * Clique no pseudo-hotspot de tronco — R9 (supera R4/CA4 do original).
- * No modo criação: abre seletor inline com partes nível-1 daquele lado.
- * R13: só criação (o boneco inteiro só é renderizado na criação via v-if="!editando").
- * CA9 (árvore não carregada): se a árvore ainda não carregou, o seletor abre mas mostra
- * lista vazia — estado vazio tratado no template (CA20). Não bloqueia o formulário.
- */
-function aoClicarTroncoNoMapa(vistaId: TroncoClique): void {
-    seletorTronco.value = vistaId
-}
-
-/**
- * Escolha de uma parte no seletor do tronco: preenche paiCodigo com o codigo
- * da parte escolhida (R10). O watcher existente de paiCodigo re-deriva vista e nivel.
- * Resultado idêntico ao clique direto num hotspot (R3 do original segue válido).
- */
-function aoEscolherParteTronco(regiaoBaseId: string): void {
-    const no = encontrarNaArvore(store.arvore as RegiaoAnatomicaNoDto[], regiaoBaseId)
-    if (no && no.nivel === 1) {
-        paiCodigo.value = no.codigo
-    }
-    seletorTronco.value = null
-}
-
-/**
- * Fechar/cancelar o seletor do tronco sem escolher — R11: nenhum campo muda.
- */
-function fecharSeletorTronco(): void {
-    seletorTronco.value = null
-}
-
 // ── Seletor de pai por dropdown (P2 — nível 3) ──────────────────────────────
 
 interface OpcaoPai {
@@ -400,43 +323,14 @@ async function salvar() {
                     <div class="seletor-mapa-pai">
                         <p class="seletor-mapa-rotulo">Selecionar pai pelo mapa <span class="seletor-mapa-opcional">(atalho)</span></p>
                         <p class="seletor-mapa-dica">Clique numa parte do corpo para preencher "Código do pai" e "Vista" automaticamente.</p>
+                        <!-- Fusão estrutural (briefing 2026-06-25_002): tronco-anterior/tronco-posterior
+                             são hotspots reais — clique vai direto para aoClicarRegiaoNoMapa. -->
                         <BodyMap
                             :regioes="regioesParaMapa"
                             :regioes-examinadas="[]"
                             :sexo="null"
                             @regiaoClicada="aoClicarRegiaoNoMapa"
-                            @troncoClicado="aoClicarTroncoNoMapa"
                         />
-                        <!-- Seletor inline do tronco (addendum 2026-06-22_004, R9–R11/CA13–CA16) -->
-                        <div v-if="seletorTronco" class="seletor-tronco" role="dialog" aria-modal="false" :aria-label="`Selecionar parte do ${seletorTronco === 'tronco-anterior' ? 'tronco anterior' : 'tronco posterior'}`">
-                            <div class="seletor-tronco-cabecalho">
-                                <span class="seletor-tronco-titulo">{{ seletorTronco === 'tronco-anterior' ? 'Tronco anterior' : 'Tronco posterior' }}</span>
-                                <button
-                                    type="button"
-                                    class="seletor-tronco-fechar btn-icon"
-                                    aria-label="Fechar seletor"
-                                    @click="fecharSeletorTronco"
-                                ><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                            <p v-if="opcoesSeletorTronco.length === 0" class="seletor-tronco-vazio">
-                                Nenhuma parte disponível no catálogo.
-                            </p>
-                            <ul v-else class="seletor-tronco-lista" role="listbox">
-                                <li
-                                    v-for="opcao in opcoesSeletorTronco"
-                                    :key="opcao.regiaoBaseId"
-                                    class="seletor-tronco-item"
-                                    role="option"
-                                >
-                                    <button
-                                        type="button"
-                                        class="seletor-tronco-botao"
-                                        :aria-label="`Selecionar ${opcao.label}`"
-                                        @click="aoEscolherParteTronco(opcao.regiaoBaseId)"
-                                    >{{ opcao.label }}</button>
-                                </li>
-                            </ul>
-                        </div>
                     </div>
 
                     <!-- P2: seletor dropdown de pai (nível 1 e 2) para habilitar nível 3 sem digitação -->
@@ -660,76 +554,6 @@ async function salvar() {
     font-size: var(--text-xs);
     color: hsl(var(--muted-foreground));
     margin: 0;
-}
-
-/* ── Seletor inline do tronco (addendum 2026-06-22_004) ─────────────────── */
-.seletor-tronco {
-    margin-top: var(--space-2);
-    padding: var(--space-3);
-    background: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-}
-
-.seletor-tronco-cabecalho {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-2);
-}
-
-.seletor-tronco-titulo {
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-semibold);
-    color: hsl(var(--foreground));
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.seletor-tronco-fechar {
-    padding: 0.25rem 0.375rem;
-    font-size: var(--text-xs);
-    color: hsl(var(--muted-foreground));
-}
-
-.seletor-tronco-vazio {
-    font-size: var(--text-xs);
-    color: hsl(var(--muted-foreground));
-    margin: 0;
-    text-align: center;
-    padding: var(--space-2) 0;
-}
-
-.seletor-tronco-lista {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.seletor-tronco-item {
-    display: contents;
-}
-
-.seletor-tronco-botao {
-    width: 100%;
-    text-align: left;
-    padding: var(--space-2) var(--space-3);
-    background: transparent;
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) - 2px);
-    font-size: var(--text-sm);
-    color: hsl(var(--foreground));
-    cursor: pointer;
-    transition: background 0.12s ease;
-}
-
-.seletor-tronco-botao:hover,
-.seletor-tronco-botao:focus-visible {
-    background: hsl(var(--accent) / 0.6);
-    outline: none;
 }
 
 /* ── Código com prefixo fixo (addendum 2026-06-25_001, CA20–CA26) ─────────── */

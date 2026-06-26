@@ -71,42 +71,43 @@ const ombro_esq: ExameFisicoRegiao = regiao({
     vista: "anterior",
 })
 
-// Sub-região não-lateral (para CA5/CA16)
-const toraxAnt: ExameFisicoRegiao = regiao({
-    id: "torax-anterior",
-    nome: "Tórax (anterior)",
+// Sub-região não-lateral para testes de não-membro (CA5/CA16 + CA17/CA18/CA19).
+// Fusão 2026-06-25_002: usa tronco-anterior/tronco-posterior (regiões reais).
+const troncoAnt: ExameFisicoRegiao = regiao({
+    id: "tronco-anterior",
+    nome: "Tronco (anterior)",
     nivel: 1,
     vista: "anterior",
 })
-const toraxPost: ExameFisicoRegiao = regiao({
-    id: "torax-posterior",
-    nome: "Tórax (posterior)",
+const troncoPost: ExameFisicoRegiao = regiao({
+    id: "tronco-posterior",
+    nome: "Tronco (posterior)",
     nivel: 1,
     vista: "posterior",
 })
-const pleura: ExameFisicoRegiao = regiao({
-    id: "pleura",
-    nome: "Pleura",
+const peitoral: ExameFisicoRegiao = regiao({
+    id: "peitoral",
+    nome: "Peitoral",
     lateralidade: true,
-    pai_id: "torax-anterior",
+    pai_id: "tronco-anterior",
     vista: "anterior",
 })
-const intercostal: ExameFisicoRegiao = regiao({
-    id: "intercostal-posterior",
-    nome: "Intercostal posterior",
-    pai_id: "torax-posterior",
+const escapular: ExameFisicoRegiao = regiao({
+    id: "escapular",
+    nome: "Escapular",
+    pai_id: "tronco-posterior",
     vista: "posterior",
 })
 
 const catalogoMembro = [membroSupDirBase, membroSupEsqBase, membroSupDirPost, ombroDireito, cotovelo, deltoideDireito, ombro_esq]
-const catalogoTorax  = [toraxAnt, toraxPost, pleura, intercostal]
+const catalogoTronco  = [troncoAnt, troncoPost, peitoral, escapular]
 
 function getFilhosMembro(regiaoId: string): ExameFisicoRegiao[] {
     return catalogoMembro.filter(r => r.pai_id === regiaoId)
 }
 
-function getFilhosTorax(regiaoId: string): ExameFisicoRegiao[] {
-    return catalogoTorax.filter(r => r.pai_id === regiaoId)
+function getFilhosTronco(regiaoId: string): ExameFisicoRegiao[] {
+    return catalogoTronco.filter(r => r.pai_id === regiaoId)
 }
 
 const membroRegioes: MembroRegioes = {
@@ -148,10 +149,10 @@ function montarPopupNaoMembro(opts: {
     return mount(RegionSelectorPopup, {
         props: {
             aberto: true,
-            regiaoClicada: opts.regiaoClicada ?? toraxAnt,
-            regioes: catalogoTorax,
+            regiaoClicada: opts.regiaoClicada ?? troncoAnt,
+            regioes: catalogoTronco,
             regioesJaSelecionadas: opts.regioesJaSelecionadas ?? [],
-            getFilhos: opts.getFilhos ?? getFilhosTorax,
+            getFilhos: opts.getFilhos ?? getFilhosTronco,
             membroRegioes: null,
         },
         global: {
@@ -260,9 +261,9 @@ describe("CA16 — ordem dos passos — não-membro", () => {
 // ─── CA17: circunferencial lista filhos das 2 vistas agrupados ────────────────
 
 describe("CA17 — circunferencial lista filhos das 2 vistas agrupados", () => {
-    it("lista Anterior (filhos de torax-anterior) + Posterior (filhos de torax-posterior) com cabeçalhos", async () => {
-        // Catálogo com torax-anterior e torax-posterior e seus filhos
-        const catalogoCirc = [...catalogoTorax]
+    it("lista Anterior (filhos de tronco-anterior) + Posterior (filhos de tronco-posterior) com cabeçalhos", async () => {
+        // Fusão 2026-06-25_002: tronco-circunferencial resolve via tronco-anterior + tronco-posterior
+        const catalogoCirc = [...catalogoTronco]
         function getFilhosCirc(id: string) {
             return catalogoCirc.filter(r => r.pai_id === id)
         }
@@ -277,44 +278,32 @@ describe("CA17 — circunferencial lista filhos das 2 vistas agrupados", () => {
         expect(html).toContain("Anterior")
         expect(html).toContain("Posterior")
         // Sub-regiões de ambos os ramos
-        expect(html).toContain("Pleura")          // filho de torax-anterior
-        expect(html).toContain("Intercostal posterior") // filho de torax-posterior
+        expect(html).toContain("Peitoral")   // filho de tronco-anterior
+        expect(html).toContain("Escapular")  // filho de tronco-posterior
     })
 })
 
-// ─── CA18: exceção abdome → lombossacra ──────────────────────────────────────
+// ─── CA18: tronco-circunferencial simétrico (fusão 2026-06-25_002) ───────────
+// Anteriormente testava a exceção abdome↔lombossacra, que foi removida.
+// Agora valida que tronco-circunferencial → tronco-anterior + tronco-posterior (simétrico).
 
-describe("CA18 — exceção abdome → lombossacra-posterior", () => {
-    it("abdome circunferencial: Anterior = filhos de abdome-anterior, Posterior = filhos de lombossacra-posterior", async () => {
-        const abdomeAnt = regiao({ id: "abdome-anterior", nome: "Abdome (anterior)", nivel: 1, vista: "anterior" })
-        const lombossacra = regiao({ id: "lombossacra-posterior", nome: "Lombossacra (posterior)", nivel: 1, vista: "posterior" })
-        const epigastrio = regiao({ id: "epigastrio", nome: "Epigástrio", pai_id: "abdome-anterior", vista: "anterior" })
-        const regLombossacra = regiao({ id: "coluna-lombar", nome: "Coluna lombar", pai_id: "lombossacra-posterior", vista: "posterior" })
-
-        const catalogoAbdome = [abdomeAnt, lombossacra, epigastrio, regLombossacra]
-        function getFilhosAbdome(id: string) {
-            return catalogoAbdome.filter(r => r.pai_id === id)
+describe("CA18 — tronco-circunferencial é simétrico (fusão 2026-06-25_002)", () => {
+    it("tronco circunferencial: Anterior = filhos de tronco-anterior, Posterior = filhos de tronco-posterior", async () => {
+        const catalogoCirc = [...catalogoTronco]
+        function getFilhosCirc(id: string) {
+            return catalogoCirc.filter(r => r.pai_id === id)
         }
 
-        const wrapper = mount(RegionSelectorPopup, {
-            props: {
-                aberto: true,
-                regiaoClicada: abdomeAnt,
-                regioes: catalogoAbdome,
-                regioesJaSelecionadas: [],
-                getFilhos: getFilhosAbdome,
-                membroRegioes: null,
-            },
-            global: { stubs: { AppModal: AppModalStub } },
-        })
-
+        const wrapper = montarPopupNaoMembro({ getFilhos: getFilhosCirc })
         await avancarVistaNaoMembro(wrapper, "circunferencial")
 
         const html = wrapper.html()
         expect(html).toContain("Anterior")
         expect(html).toContain("Posterior")
-        expect(html).toContain("Epigástrio")        // filho de abdome-anterior
-        expect(html).toContain("Coluna lombar")     // filho de lombossacra-posterior (exceção clínica)
+        expect(html).toContain("Peitoral")   // filho de tronco-anterior
+        expect(html).toContain("Escapular")  // filho de tronco-posterior
+        // Não há coluna de "Lombossacra" (exceção clínica removida)
+        expect(html).not.toContain("lombossacra")
     })
 })
 
@@ -322,7 +311,7 @@ describe("CA18 — exceção abdome → lombossacra-posterior", () => {
 
 describe("CA19 — 1 card por confirmação no modo circunferencial", () => {
     it("confirmar sub-regiões de 2 vistas gera exatamente 1 entrada no evento confirmar", async () => {
-        const catalogoCirc = [...catalogoTorax]
+        const catalogoCirc = [...catalogoTronco]
         function getFilhosCirc(id: string) {
             return catalogoCirc.filter(r => r.pai_id === id)
         }
@@ -572,13 +561,13 @@ describe("CA29 — não-regressão do briefing 004 (fluxo de membro anterior/pos
 
 describe("RegionSelectorPopup — fluxo não-lateral (CA5 compatibilidade)", () => {
     it("CA5 — após escolher vista, botões D/E/Bilateral aparecem para sub-regiões com lateralidade:true", async () => {
-        const wrapper = montarPopupNaoMembro({ getFilhos: getFilhosTorax })
+        const wrapper = montarPopupNaoMembro({ getFilhos: getFilhosTronco })
 
         await avancarVistaNaoMembro(wrapper, "anterior")
 
-        // Há dois itens: toraxAnt (geral, lateralidade:false) e pleura (filho, lateralidade:true).
+        // Há dois itens: troncoAnt (geral, lateralidade:false) e peitoral (filho, lateralidade:true).
         const checkboxes = wrapper.findAll('input[type="checkbox"]')
-        // Marcar a Pleura (segundo checkbox, que é o filho com lateralidade:true)
+        // Marcar o Peitoral (segundo checkbox, que é o filho com lateralidade:true)
         await checkboxes[1].trigger("change")
         await wrapper.vm.$nextTick()
 
@@ -590,7 +579,7 @@ describe("RegionSelectorPopup — fluxo não-lateral (CA5 compatibilidade)", () 
     })
 
     it("CA5 — região não-lateral: confirmar emite lateralidade definida por sub-região", async () => {
-        const wrapper = montarPopupNaoMembro({ getFilhos: getFilhosTorax })
+        const wrapper = montarPopupNaoMembro({ getFilhos: getFilhosTronco })
 
         await avancarVistaNaoMembro(wrapper, "anterior")
 
