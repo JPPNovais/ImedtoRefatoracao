@@ -130,6 +130,18 @@ const idCircunferencialNaoMembro = computed<string | null>(() => {
 })
 
 /**
+ * Não-membro: a região base do passo de sub-regiões depende da VISTA escolhida.
+ * Clicar na cabeça e escolher "Posterior" deve usar <base>-posterior (não a vista que
+ * foi clicada no mapa). Fallback para a região clicada se o ramo não existir no catálogo.
+ */
+const regiaoBaseNaoMembro = computed<ExameFisicoRegiao | null>(() => {
+  if (props.membroRegioes || !props.regiaoClicada) return null
+  if (vistaEscolhida.value !== 'anterior' && vistaEscolhida.value !== 'posterior') return props.regiaoClicada
+  const base = props.regiaoClicada.id.replace(/-anterior$/, '').replace(/-posterior$/, '')
+  return props.regioes.find(r => r.id === `${base}-${vistaEscolhida.value}`) ?? props.regiaoClicada
+})
+
+/**
  * No passo de sub-regiões, a região base para navegação depende da vista.
  * No modo circunferencial, não há "região raiz" única — exibimos lista agrupada.
  */
@@ -138,6 +150,8 @@ const regiaoAtual = computed(() => {
     return navegacao.value[navegacao.value.length - 1]
   }
   if (vistaEscolhida.value === 'circunferencial') return null
+  // Não-membro: a região base segue a vista escolhida (anterior/posterior).
+  if (!props.membroRegioes) return regiaoBaseNaoMembro.value
   return baseAtiva.value
 })
 
@@ -176,15 +190,24 @@ const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterio
 })
 
 /**
- * Lista única do modo circunferencial: une as sub-regiões do ramo anterior e do
- * posterior numa lista só, deduplicando por NOME — o que for igual nos dois ramos
- * aparece 1 vez (mantém a 1ª ocorrência: anterior antes de posterior).
+ * Lista única do modo circunferencial: une TODAS as sub-regiões dos ramos anterior e
+ * posterior — incluindo os níveis mais profundos (nível 3 filho de nível 2) — numa lista
+ * achatada, deduplicando por NOME (o que for igual nos dois ramos aparece 1 vez,
+ * mantendo a 1ª ocorrência: anterior antes de posterior).
  */
 const filhosCircunferencialUnificado = computed<ExameFisicoRegiao[]>(() => {
   const { anterior, posterior } = filhosCircunferencial.value
+  // Coleta recursiva: cada sub-região + todos os seus descendentes (nível 3, …), achatado.
+  const coletar = (regioes: ExameFisicoRegiao[]): ExameFisicoRegiao[] => {
+    const out: ExameFisicoRegiao[] = []
+    for (const r of regioes) {
+      out.push(r, ...coletar(props.getFilhos(r.id)))
+    }
+    return out
+  }
   const vistos = new Set<string>()
   const unico: ExameFisicoRegiao[] = []
-  for (const filho of [...anterior, ...posterior]) {
+  for (const filho of [...coletar(anterior), ...coletar(posterior)]) {
     const chave = filho.nome.trim().toLowerCase()
     if (vistos.has(chave)) continue
     vistos.add(chave)
@@ -209,7 +232,7 @@ const regiaoGeralCircunferencial = computed<ExameFisicoRegiao | null>(() => {
 // Breadcrumb usa baseAtiva como raiz (não regiaoClicada fixa)
 const breadcrumb = computed(() => {
   const itens: ExameFisicoRegiao[] = []
-  const raiz = props.membroRegioes ? baseAtiva.value : props.regiaoClicada
+  const raiz = props.membroRegioes ? baseAtiva.value : regiaoBaseNaoMembro.value
   if (raiz && vistaEscolhida.value !== 'circunferencial') itens.push(raiz)
   itens.push(...navegacao.value)
   return itens
