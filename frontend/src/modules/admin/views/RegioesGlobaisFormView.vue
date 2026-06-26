@@ -64,6 +64,10 @@ const maxSufixo = computed(() => 60 - prefixo.value.length)
 
 /** Mensagem de limite efetivo de sufixo (CA25). */
 const erroSufixo = computed((): string => {
+    // Modo edição: o código é imutável (codigoEdicao) — sufixo/prefixo não se aplicam.
+    // Sem isso, editar nível 2/3 (que têm pai, mas sufixo vazio no estado) ficaria
+    // bloqueado por "Sufixo obrigatório", impedindo salvar nome/template.
+    if (editando.value) return ""
     const s = sufixo.value.trim()
     if (!s && paiCodigo.value.trim()) return "Sufixo do código é obrigatório."
     if (!s && !paiCodigo.value.trim()) return "" // validado em validar() como campo obrigatório
