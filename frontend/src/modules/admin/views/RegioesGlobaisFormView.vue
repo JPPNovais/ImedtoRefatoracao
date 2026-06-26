@@ -75,6 +75,13 @@ const erroSufixo = computed((): string => {
     return ""
 })
 
+// Mantém o código no padrão slug (minúsculas, sem espaços, só [a-z0-9-]): espaços viram
+// hífen e caracteres inválidos são descartados — impede espaços que atrapalhariam depois.
+watch(sufixo, (val) => {
+    const limpo = val.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    if (limpo !== val) sufixo.value = limpo
+})
+
 // campos sempre editáveis
 const nome = ref("")
 const templateTexto = ref("")
