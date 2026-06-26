@@ -22,9 +22,9 @@ export interface MembroRegioes {
 }
 
 /**
- * Modo de lista agrupada por parte do tronco.
- * Quando não-null, o passo de sub-regiões exibe grupos Tórax/Abdome/Pelve (ou Tórax/Lombossacra/Pelve)
- * em vez da lista padrão de filhos da região clicada.
+ * TroncoGrupos mantido por compatibilidade de import (SecaoExameFisico.vue legado).
+ * O modo agrupado de tronco foi removido na fusão estrutural (briefing 2026-06-25_002).
+ * @deprecated Remover quando todos os importadores forem atualizados.
  */
 export interface TroncoGrupos {
   grupos: Array<{ label: string; regiaoBaseId: string }>
@@ -54,8 +54,6 @@ const props = defineProps<{
   membroRegioes?: MembroRegioes | null
   /** Quando fornecida, o passo de vista inicia com esse valor pré-selecionado (M3 híbrido — mantém as 3 opções editáveis). */
   vistaInicial?: VistaPasso | null
-  /** Quando fornecida, o passo de sub-regiões opera em modo "lista agrupada por parte do tronco" (DP-3). */
-  troncoGrupos?: TroncoGrupos | null
 }>()
 
 const emit = defineEmits<{
@@ -158,44 +156,15 @@ const filhosAtuais = computed(() => {
 })
 
 /**
- * Modo "lista agrupada por parte do tronco" (DP-3).
- * Ativo quando troncoGrupos está presente e passo === 'subregioes'.
- * Retorna array de { label, filhos } — um por parte do tronco.
- */
-const filhosTroncoGrupos = computed<Array<{ label: string; filhos: ExameFisicoRegiao[] }>>(() => {
-  if (!props.troncoGrupos || vistaEscolhida.value === 'circunferencial') return []
-  return props.troncoGrupos.grupos.map(g => ({
-    label: g.label,
-    filhos: props.getFilhos(g.regiaoBaseId),
-  }))
-})
-
-/**
  * Agrupamento para o modo circunferencial.
  * Retorna { anterior: ExameFisicoRegiao[], posterior: ExameFisicoRegiao[] }.
  *
- * Caso especial do tronco (troncoGrupos presente): agrega filhos de todas as partes
- * anteriores num grupo e todas as posteriores noutro (usando os RAMOS_CIRCUNFERENCIAL de cada parte).
+ * Fusão estrutural do tronco (briefing 2026-06-25_002): o caso especial de
+ * troncoGrupos (Tórax/Abdome/Pelve) foi removido. O tronco agora funciona como
+ * qualquer outra região — seus ramos vêm de RAMOS_CIRCUNFERENCIAL['tronco-circunferencial'].
  */
 const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterior: ExameFisicoRegiao[] }>(() => {
   if (vistaEscolhida.value !== 'circunferencial') return { anterior: [], posterior: [] }
-
-  // Modo tronco circunferencial: agrega filhos de todas as partes por lado.
-  if (props.troncoGrupos) {
-    const anterior: ExameFisicoRegiao[] = []
-    const posterior: ExameFisicoRegiao[] = []
-    for (const grupo of props.troncoGrupos.grupos) {
-      // Deriva o nó circunferencial da parte (ex.: 'torax-anterior' → 'torax-circunferencial')
-      const base = grupo.regiaoBaseId.replace(/-anterior$/, '').replace(/-posterior$/, '')
-      const idCircParte = `${base}-circunferencial`
-      const ramos = RAMOS_CIRCUNFERENCIAL[idCircParte]
-      if (ramos) {
-        anterior.push(...props.getFilhos(ramos.anterior))
-        posterior.push(...props.getFilhos(ramos.posterior))
-      }
-    }
-    return { anterior, posterior }
-  }
 
   const idCirc = props.membroRegioes ? idCircunferencial.value : idCircunferencialNaoMembro.value
   if (!idCirc) return { anterior: [], posterior: [] }
@@ -204,6 +173,19 @@ const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterio
     anterior: props.getFilhos(ramos.anterior),
     posterior: props.getFilhos(ramos.posterior),
   }
+})
+
+/**
+ * Addendum-002 (CA31–CA40): nó "(geral)" do modo circunferencial.
+ * Inclui o tronco (brienfing 2026-06-25_002): tronco-circunferencial agora
+ * funciona exatamente como cabeça/pescoço/membro.
+ * Usa idCircunferencial (membro) ou idCircunferencialNaoMembro (não-membro/tronco).
+ * Retorna null quando o nó não existe no catálogo (guard R15/CA36 → no-op).
+ */
+const regiaoGeralCircunferencial = computed<ExameFisicoRegiao | null>(() => {
+  const idCirc = props.membroRegioes ? idCircunferencial.value : idCircunferencialNaoMembro.value
+  if (!idCirc) return null
+  return props.regioes.find(r => r.id === idCirc) ?? null
 })
 
 // Breadcrumb usa baseAtiva como raiz (não regiaoClicada fixa)
@@ -462,6 +444,53 @@ function fechar() {
         <!-- ── Modo circunferencial: lista agrupada Anterior + Posterior ──── -->
         <template v-if="vistaEscolhida === 'circunferencial'">
           <div class="rsp-sub-list">
+
+            <!--
+              Addendum-002 CA31/CA32 — opção "(geral)" no topo do circunferencial,
+              apenas para região simples (não-tronco). Espelha a semântica do "geral"
+              do anterior/posterior mas usando o nó <base>-circunferencial.
+              R15/CA36: não renderiza se regiaoGeralCircunferencial for null (nó ausente).
+              R17/CA35: já-selecionado → disabled (badge "Selecionado", sem checkbox).
+              R16/CA37: lateralidade espelha o modo circunferencial atual (sem botões D/E novos).
+              TRONCO: troncoGrupos → regiaoGeralCircunferencial é null (guard).
+            -->
+            <template v-if="regiaoGeralCircunferencial">
+              <!-- Estado: já selecionado/disabled (R17/CA35) -->
+              <div
+                v-if="jaFoiSelecionada(regiaoGeralCircunferencial.id)"
+                class="rsp-opt rsp-opt--geral rsp-opt--disabled"
+              >
+                <span class="rsp-opt-box">
+                  <i class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl rsp-opt-lbl--muted">
+                  {{ membroRegioes ? dialogTitle : regiaoGeralCircunferencial.nome }} (geral)
+                </span>
+                <span class="rsp-badge-sel">Selecionado</span>
+              </div>
+
+              <!-- Estado: disponível para seleção -->
+              <label
+                v-else
+                class="rsp-opt rsp-opt--geral"
+              >
+                <input
+                  type="checkbox"
+                  class="rsp-opt-input"
+                  :checked="estaSelecionado(regiaoGeralCircunferencial.id)"
+                  @change="toggleRegiao(regiaoGeralCircunferencial)"
+                />
+                <span class="rsp-opt-box">
+                  <i v-if="estaSelecionado(regiaoGeralCircunferencial.id)" class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl">
+                  {{ membroRegioes ? dialogTitle : regiaoGeralCircunferencial.nome }} (geral)
+                </span>
+              </label>
+
+              <div class="rsp-divider" />
+            </template>
+
             <!-- Grupo Anterior -->
             <template v-if="filhosCircunferencial.anterior.length > 0">
               <div class="rsp-sub-head rsp-sub-head--ant">
@@ -534,44 +563,8 @@ function fechar() {
           </div>
         </template>
 
-        <!-- ── Modo tronco: lista agrupada por parte (DP-3) ───────────────── -->
-        <template v-else-if="troncoGrupos">
-          <div class="rsp-sub-list">
-            <template v-for="(grupo, gi) in filhosTroncoGrupos" :key="grupo.label">
-              <div v-if="gi > 0" class="rsp-divider" />
-              <p class="rsp-grupo-label">{{ grupo.label }}</p>
-              <label
-                v-for="filho in grupo.filhos"
-                :key="filho.id"
-                class="rsp-opt"
-                :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
-              >
-                <input
-                  v-if="!jaFoiSelecionada(filho.id)"
-                  type="checkbox"
-                  class="rsp-opt-input"
-                  :checked="estaSelecionado(filho.id)"
-                  @change="toggleRegiao(filho)"
-                />
-                <span class="rsp-opt-box">
-                  <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
-                </span>
-                <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
-                  {{ filho.nome }}
-                </span>
-                <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
-              </label>
-            </template>
-            <p
-              v-if="filhosTroncoGrupos.every(g => g.filhos.length === 0)"
-              class="rsp-vazio"
-            >
-              Nenhuma sub-região disponível.
-            </p>
-          </div>
-        </template>
-
         <!-- ── Modo anterior/posterior: lista normal ────────────────────── -->
+        <!-- Tronco agora entra aqui como região normal (briefing 2026-06-25_002). -->
         <template v-else>
           <div class="rsp-sub-list">
             <!-- Opção "geral" -->
@@ -911,17 +904,6 @@ function fechar() {
 
 .rsp-sub-head-dot {
   font-size: var(--text-2xs);
-}
-
-/* Label de grupo tronco */
-.rsp-grupo-label {
-  font-size: var(--text-2xs);
-  font-weight: var(--font-weight-extrabold);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: hsl(var(--secondary) / 0.45);
-  margin: 12px 0 4px;
-  padding: 0 8px;
 }
 
 /* ── Item de opção (checkbox custom) ────────────────────────────────────── */

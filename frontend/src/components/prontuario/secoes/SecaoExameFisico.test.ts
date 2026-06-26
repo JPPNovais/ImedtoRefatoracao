@@ -402,11 +402,12 @@ describe("SecaoExameFisico — vistasPorIdMapa (CA3–CA7)", () => {
         expect(vistasPorId["membro-superior-esquerdo-anterior"]).toBe("anterior")
     })
 
-    it("CA5 — torax-circunferencial popula 'tronco-anterior' e 'tronco-posterior' com 'circunferencial' no vistasPorId", async () => {
+    it("CA5 — tronco-circunferencial popula 'tronco-anterior' e 'tronco-posterior' com 'circunferencial' no vistasPorId", async () => {
+        // Fusão 2026-06-25_002: usa tronco-circunferencial (não mais torax-circunferencial)
         const wrapper = await montarParaMapa([
             {
-                regiao_id: "torax-circunferencial",
-                caminho: "Tórax (circunferencial)",
+                regiao_id: "tronco-circunferencial",
+                caminho: "Tronco (circunferencial)",
                 lateralidade: null,
                 vista: "circunferencial",
                 texto_exame: "", achados: "", observacoes: "",
@@ -545,37 +546,39 @@ describe("SecaoExameFisico — layout lateral (CA1, CA10, CA11)", () => {
     })
 })
 
-// ─── Catálogo com nós circunferenciais para testes do B1 ─────────────────────
+// ─── Catálogo com nós circunferenciais para testes (fusão 2026-06-25_002) ────
+// Usa tronco-anterior/tronco-posterior/tronco-circunferencial (regiões reais).
+// torax/abdome/pelve foram removidos do catálogo.
 const catalogoComCircunferencial = [
     {
-        id: "torax-anterior",
-        nome: "Tórax (anterior)",
+        id: "tronco-anterior",
+        nome: "Tronco (anterior)",
         nivel: 1, lateralidade: false, pai_id: null,
         vista: "anterior", template_texto: null, ordem: 1, ativo: true,
     },
     {
-        id: "torax-posterior",
-        nome: "Tórax (posterior)",
+        id: "tronco-posterior",
+        nome: "Tronco (posterior)",
         nivel: 1, lateralidade: false, pai_id: null,
         vista: "posterior", template_texto: null, ordem: 2, ativo: true,
     },
     {
-        id: "torax-circunferencial",
-        nome: "Tórax (circunferencial)",
+        id: "tronco-circunferencial",
+        nome: "Tronco (circunferencial)",
         nivel: 1, lateralidade: false, pai_id: null,
         vista: "circunferencial", template_texto: null, ordem: 3, ativo: true,
     },
     {
-        id: "pleura",
-        nome: "Pleura",
-        nivel: 2, lateralidade: false, pai_id: "torax-anterior",
-        vista: "anterior", template_texto: "Pleura: ___.", ordem: 1, ativo: true,
+        id: "peitoral",
+        nome: "Peitoral",
+        nivel: 2, lateralidade: false, pai_id: "tronco-anterior",
+        vista: "anterior", template_texto: "Peitoral: ___.", ordem: 1, ativo: true,
     },
     {
-        id: "intercostal-posterior",
-        nome: "Intercostal posterior",
-        nivel: 2, lateralidade: false, pai_id: "torax-posterior",
-        vista: "posterior", template_texto: "Intercostal: ___.", ordem: 1, ativo: true,
+        id: "escapular",
+        nome: "Escapular",
+        nivel: 2, lateralidade: false, pai_id: "tronco-posterior",
+        vista: "posterior", template_texto: "Escapular: ___.", ordem: 1, ativo: true,
     },
     ...catalogoMembro,
 ]
@@ -720,14 +723,15 @@ async function montarComCatalogoCirc() {
 describe("SecaoExameFisico — B1 circunferencial", () => {
     beforeEach(() => { vi.clearAllMocks() })
 
-    it("CA19/CA22 — modo circunferencial: 1 confirmação gera 1 card com regiao_id = {base}-circunferencial", async () => {
+    it("CA19/CA22 — modo circunferencial: 1 confirmação gera 1 card com regiao_id = tronco-circunferencial", async () => {
+        // Fusão 2026-06-25_002: sub-regiões são filhos de tronco-anterior/tronco-posterior
         const wrapper = await montarComCatalogoCirc()
 
         const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
         // Simula confirmar 2 sub-regiões de vistas diferentes no modo circunferencial
         await popup.vm.$emit("confirmar", [
-            { regiaoId: "pleura",               lateralidade: null, vista: "circunferencial" },
-            { regiaoId: "intercostal-posterior", lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "peitoral",   lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "escapular",  lateralidade: null, vista: "circunferencial" },
         ])
 
         const eventos = wrapper.emitted("update:modelValue")
@@ -735,8 +739,8 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
         const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
         // Exatamente 1 card criado
         expect(ultimo.regioes).toHaveLength(1)
-        // regiao_id = {base}-circunferencial (CA22)
-        expect(ultimo.regioes[0].regiao_id).toBe("torax-circunferencial")
+        // regiao_id = tronco-circunferencial (CA22)
+        expect(ultimo.regioes[0].regiao_id).toBe("tronco-circunferencial")
     })
 
     it("CA22 — payload não tem campo vista (derivado do codigo do nó)", async () => {
@@ -744,7 +748,7 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
 
         const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
         await popup.vm.$emit("confirmar", [
-            { regiaoId: "pleura", lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "peitoral", lateralidade: null, vista: "circunferencial" },
         ])
 
         const eventos = wrapper.emitted("update:modelValue")
@@ -759,7 +763,7 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
 
         const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
         await popup.vm.$emit("confirmar", [
-            { regiaoId: "pleura", lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "peitoral", lateralidade: null, vista: "circunferencial" },
         ])
 
         const eventos = wrapper.emitted("update:modelValue")
@@ -772,7 +776,7 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
 
         const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
         await popup.vm.$emit("confirmar", [
-            { regiaoId: "pleura", lateralidade: null, vista: "anterior" },
+            { regiaoId: "peitoral", lateralidade: null, vista: "anterior" },
         ])
 
         const eventos = wrapper.emitted("update:modelValue")
@@ -781,20 +785,21 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
     })
 
     it("R9 — texto_exame do card circunferencial concatena templates de ambas as vistas", async () => {
+        // Fusão 2026-06-25_002: peitoral (filho de tronco-anterior) + escapular (filho de tronco-posterior)
         const wrapper = await montarComCatalogoCirc()
 
         const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
         await popup.vm.$emit("confirmar", [
-            { regiaoId: "pleura",               lateralidade: null, vista: "circunferencial" },
-            { regiaoId: "intercostal-posterior", lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "peitoral",  lateralidade: null, vista: "circunferencial" },
+            { regiaoId: "escapular", lateralidade: null, vista: "circunferencial" },
         ])
 
         const eventos = wrapper.emitted("update:modelValue")
         const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
         const texto = ultimo.regioes[0].texto_exame
         // Deve conter templates das duas sub-regiões
-        expect(texto).toContain("Pleura: ___.")
-        expect(texto).toContain("Intercostal: ___.")
+        expect(texto).toContain("Peitoral: ___.")
+        expect(texto).toContain("Escapular: ___.")
     })
 
     it("CA29 (não-regressão) — modo anterior puro ainda gera regiao_id do nível-1 anterior, não circunferencial", async () => {
@@ -802,7 +807,7 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
 
         const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
         await popup.vm.$emit("confirmar", [
-            { regiaoId: "pleura", lateralidade: null, vista: "anterior" },
+            { regiaoId: "peitoral", lateralidade: null, vista: "anterior" },
         ])
 
         const eventos = wrapper.emitted("update:modelValue")

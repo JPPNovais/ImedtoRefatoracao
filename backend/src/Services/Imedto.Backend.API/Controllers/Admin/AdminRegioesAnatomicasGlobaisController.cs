@@ -17,6 +17,7 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
     private readonly InativarRegiaoAdminCommandHandler _inativar;
     private readonly ReativarRegiaoAdminCommandHandler _reativar;
     private readonly ExcluirRegiaoAdminCommandHandler _excluir;
+    private readonly InvalidarCacheRegioesAdminCommandHandler _invalidarCache;
 
     public AdminRegioesAnatomicasGlobaisController(
         ListarArvoreRegioesAdminQueryHandler listar,
@@ -25,7 +26,8 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
         AtualizarRegiaoAdminCommandHandler atualizar,
         InativarRegiaoAdminCommandHandler inativar,
         ReativarRegiaoAdminCommandHandler reativar,
-        ExcluirRegiaoAdminCommandHandler excluir)
+        ExcluirRegiaoAdminCommandHandler excluir,
+        InvalidarCacheRegioesAdminCommandHandler invalidarCache)
     {
         _listar = listar;
         _obter = obter;
@@ -34,6 +36,7 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
         _inativar = inativar;
         _reativar = reativar;
         _excluir = excluir;
+        _invalidarCache = invalidarCache;
     }
 
     [HttpGet("api/admin/catalogos/regioes-anatomicas")]
@@ -105,6 +108,18 @@ public class AdminRegioesAnatomicasGlobaisController : ControllerBase
         var adminId = ObterAdminId();
         await _excluir.Handle(new ExcluirRegiaoAdminCommand(id, request.Motivo, adminId), ct);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Invalida manualmente o cache do catálogo de regiões (todas as variações de chave).
+    /// Uso: quando o admin quer garantir paridade imediata com o exame físico sem aguardar
+    /// a invalidação automática (que já ocorre em toda mutação). Não persiste dados.
+    /// </summary>
+    [HttpPost("api/admin/catalogos/regioes-anatomicas/invalidar-cache")]
+    public IActionResult InvalidarCache()
+    {
+        _invalidarCache.Handle();
+        return Ok(new { mensagem = "Cache do catálogo de regiões atualizado." });
     }
 
     private Guid? ObterAdminId()

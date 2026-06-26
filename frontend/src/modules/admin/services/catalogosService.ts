@@ -244,4 +244,7 @@ export const regioesGlobaisService = {
     async excluir(id: number, motivo: string): Promise<void> {
         await adminApi.delete(`/catalogos/regioes-anatomicas/${id}`, { data: { motivo } })
     },
+    async invalidarCache(): Promise<void> {
+        await adminApi.post("/catalogos/regioes-anatomicas/invalidar-cache")
+    },
 }

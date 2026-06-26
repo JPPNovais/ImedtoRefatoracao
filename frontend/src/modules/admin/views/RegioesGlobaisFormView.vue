@@ -11,8 +11,7 @@ import { useRouter } from "vue-router"
 import { AppPageHeader, AppCard, AppField, AppInput, AppTextarea, AppButton, AppSelect } from "@/components/ui"
 import { useRegioesGlobaisStore } from "../stores/regioesGlobaisStore"
 import { regioesGlobaisService, type RegiaoAnatomicaNoDto } from "../services/catalogosService"
-import BodyMap, { type ExameFisicoRegiao, type TroncoClique } from "@/components/exame-fisico/BodyMap.vue"
-import { PARTE_PARA_TRONCO } from "@/components/exame-fisico/regioesCircunferenciais"
+import BodyMap, { type ExameFisicoRegiao } from "@/components/exame-fisico/BodyMap.vue"
 
 const MSG_CIRCUNFERENCIAL = "Nós circunferenciais são agregadores e não aceitam sub-regiões."
 
@@ -32,7 +31,12 @@ const OPCOES_VISTA = [
 ]
 
 // campos de criação (imutáveis após criar)
-const codigo = ref("")
+// Addendum 2026-06-25_001: sufixo é o estado; codigoFinal é derivado.
+// No modo raiz (sem pai): sufixo = código completo (comportamento original).
+// Com pai: codigoFinal = paiCodigo + "-" + sufixo (R7).
+const sufixo = ref("")
+// Código lido no modo edição (somente leitura após criação)
+const codigoEdicao = ref("")
 const vista = ref("")
 const paiCodigo = ref("")
 const nivel = ref<number>(1)
@@ -41,6 +45,35 @@ const lateralidade = ref(false)
 
 // estado derivado do pai (R2/R3/R7)
 const erroCircunferencial = ref("")
+
+/**
+ * Prefixo ativo (paiCodigo + "-") ou "" quando raiz.
+ * R8: o prefixo é renderizado como segmento não-editável, não compõe o input do sufixo.
+ */
+const prefixo = computed(() => paiCodigo.value.trim() ? `${paiCodigo.value.trim()}-` : "")
+
+/**
+ * Código final derivado — submetido ao backend.
+ * R9: trocar pai troca o prefixo e PRESERVA o sufixo.
+ * R11: sem pai → sufixo é o código livre (raiz).
+ */
+const codigoFinal = computed(() => prefixo.value + sufixo.value.trim())
+
+/** Caracteres restantes para o sufixo antes de estourar 60 chars no código final. */
+const maxSufixo = computed(() => 60 - prefixo.value.length)
+
+/** Mensagem de limite efetivo de sufixo (CA25). */
+const erroSufixo = computed((): string => {
+    const s = sufixo.value.trim()
+    if (!s && paiCodigo.value.trim()) return "Sufixo do código é obrigatório."
+    if (!s && !paiCodigo.value.trim()) return "" // validado em validar() como campo obrigatório
+    if (s.length > maxSufixo.value)
+        return `Código completo excede 60 caracteres — encurte o sufixo (máx. ${maxSufixo.value} caracteres para este pai).`
+    // CA26: não pode começar ou terminar com "-"
+    if (s.startsWith("-") || s.endsWith("-"))
+        return 'Sufixo não pode começar nem terminar com "-".'
+    return ""
+})
 
 // campos sempre editáveis
 const nome = ref("")
@@ -56,8 +89,8 @@ onMounted(async () => {
         if (store.itemAtual) {
             nome.value = store.itemAtual.nome
             templateTexto.value = store.itemAtual.templateTexto ?? ""
-            // somente leitura no modo edição:
-            codigo.value = store.itemAtual.codigo
+            // somente leitura no modo edição (CA29: sem prefixo travado):
+            codigoEdicao.value = store.itemAtual.codigo
             vista.value = store.itemAtual.vista ?? ""
             paiCodigo.value = store.itemAtual.paiCodigo ?? ""
             nivel.value = store.itemAtual.nivel
@@ -155,88 +188,41 @@ function aoClicarRegiaoNoMapa(regiao: ExameFisicoRegiao): void {
     paiCodigo.value = no.codigo
 }
 
-// ── Seletor de tronco (addendum 2026-06-22_004, R9–R12) ─────────────────────
+// ── Seletor de pai por dropdown (P2 — nível 3) ──────────────────────────────
 
-/**
- * Mapa de id-base-de-parte → label amigável para o seletor do tronco.
- * Derivado dos ids do PARTE_PARA_TRONCO — NÃO duplica a lista lógica.
- * Labels espelham os GRUPOS_TRONCO_* do exame físico (SecaoExameFisico.vue).
- */
-const LABEL_PARTE_TRONCO: Record<string, string> = {
-    "torax-anterior":        "Tórax",
-    "abdome-anterior":       "Abdome",
-    "pelve-anterior":        "Pelve",
-    "torax-posterior":       "Tórax",
-    "lombossacra-posterior": "Região lombossacra",
-    "pelve-posterior":       "Pelve",
-}
-
-/**
- * Opção de seleção de parte do tronco: id da parte no catálogo + label de UI.
- */
-interface OpcaoTronco {
-    regiaoBaseId: string
+interface OpcaoPai {
+    value: string
     label: string
 }
 
 /**
- * Estado do seletor inline do tronco.
- * null = fechado; "tronco-anterior"|"tronco-posterior" = aberto para aquele lado.
+ * Opções achatadas de nível 1 e nível 2 da árvore para o AppSelect de pai.
+ * Nós circunferenciais ficam disponíveis no dropdown mas o watcher existente
+ * já rejeita a escolha com erroCircunferencial (R7/CA6).
+ * CA15: guard no watcher dispara mesmo quando preenchido via AppSelect.
  */
-const seletorTronco = ref<TroncoClique | null>(null)
-
-/**
- * Opções derivadas de PARTE_PARA_TRONCO (invertido): filtra as partes que
- * pertencem ao lado clicado e cruza com a árvore para confirmar existência.
- * CA20: árvore não carregada → lista vazia (no-op), sem erro global.
- */
-const opcoesSeletorTronco = computed<OpcaoTronco[]>(() => {
-    if (!seletorTronco.value) return []
-    const nomeTronco = seletorTronco.value === "tronco-anterior"
-        ? "Tronco (anterior)"
-        : "Tronco (posterior)"
-    return Object.entries(PARTE_PARA_TRONCO)
-        .filter(([, tronco]) => tronco === nomeTronco)
-        .map(([regiaoBaseId]) => ({ regiaoBaseId, label: LABEL_PARTE_TRONCO[regiaoBaseId] ?? regiaoBaseId }))
-})
-
-/**
- * Clique no pseudo-hotspot de tronco — R9 (supera R4/CA4 do original).
- * No modo criação: abre seletor inline com partes nível-1 daquele lado.
- * R13: só criação (o boneco inteiro só é renderizado na criação via v-if="!editando").
- * CA9 (árvore não carregada): se a árvore ainda não carregou, o seletor abre mas mostra
- * lista vazia — estado vazio tratado no template (CA20). Não bloqueia o formulário.
- */
-function aoClicarTroncoNoMapa(vistaId: TroncoClique): void {
-    seletorTronco.value = vistaId
-}
-
-/**
- * Escolha de uma parte no seletor do tronco: preenche paiCodigo com o codigo
- * da parte escolhida (R10). O watcher existente de paiCodigo re-deriva vista e nivel.
- * Resultado idêntico ao clique direto num hotspot (R3 do original segue válido).
- */
-function aoEscolherParteTronco(regiaoBaseId: string): void {
-    const no = encontrarNaArvore(store.arvore as RegiaoAnatomicaNoDto[], regiaoBaseId)
-    if (no && no.nivel === 1) {
-        paiCodigo.value = no.codigo
+const opcoesPaiDropdown = computed<OpcaoPai[]>(() => {
+    const lista: OpcaoPai[] = [{ value: "", label: "Sem pai (nó raiz)" }]
+    for (const no1 of store.arvore) {
+        if (!no1.ativo) continue
+        lista.push({ value: no1.codigo, label: `${no1.codigo} — ${no1.nome}` })
+        for (const no2 of no1.filhos ?? []) {
+            if (!no2.ativo) continue
+            lista.push({ value: no2.codigo, label: `  ${no2.codigo} — ${no2.nome}` })
+        }
     }
-    seletorTronco.value = null
-}
-
-/**
- * Fechar/cancelar o seletor do tronco sem escolher — R11: nenhum campo muda.
- */
-function fecharSeletorTronco(): void {
-    seletorTronco.value = null
-}
+    return lista
+})
 
 function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
     if (!editando.value) {
-        if (!codigo.value.trim()) e.codigo = "Código é obrigatório."
-        else if (codigo.value.trim().length > 60) e.codigo = "Código deve ter no máximo 60 caracteres."
+        // Valida código final derivado (codigoFinal = prefixo + sufixo)
+        if (!codigoFinal.value) e.codigo = "Código é obrigatório."
+        else if (codigoFinal.value.length > 60) e.codigo = "Código deve ter no máximo 60 caracteres."
+        // Valida sufixo separadamente quando há pai
+        if (paiCodigo.value.trim() && erroSufixo.value) e.codigo = erroSufixo.value
         if (nivel.value < 1 || nivel.value > 3) e.nivel = "Nível deve ser entre 1 e 3."
         if (erroCircunferencial.value) e.paiCodigo = erroCircunferencial.value
     }
@@ -246,7 +232,7 @@ function validar(): boolean {
 }
 
 const submitBloqueado = computed(() =>
-    motivo.value.trim().length < 10 || !!erroCircunferencial.value
+    motivo.value.trim().length < 10 || !!erroCircunferencial.value || !!erroSufixo.value
 )
 
 async function salvar() {
@@ -262,7 +248,7 @@ async function salvar() {
             })
         } else {
             await store.criar({
-                codigo: codigo.value.trim(),
+                codigo: codigoFinal.value, // sempre código final (prefixo + sufixo ou só sufixo se raiz)
                 nome: nome.value.trim(),
                 paiCodigo: paiCodigo.value.trim() || null,
                 nivel: nivel.value,
@@ -299,71 +285,79 @@ async function salvar() {
 
                 <!-- Campos somente criação -->
                 <template v-if="!editando">
-                    <AppField label="Código" required :hint="erros.codigo || 'Identificador único da região (ex.: ABD-SUP-D). Imutável após criação.'">
+                    <!--
+                        Addendum 2026-06-25_001 — prefixo automático travado (R7/R8/CA20–CA26).
+                        Sem pai: campo livre (sufixo = código completo).
+                        Com pai: prefixo cinza não-editável + input do sufixo ao lado.
+                        Decisão técnica: composição local no form (sem DS — CA30 N/A justificado).
+                    -->
+                    <AppField
+                        label="Código"
+                        required
+                        :hint="erros.codigo || erroSufixo || (paiCodigo.trim() ? `Código final: ${codigoFinal || '…'} (máx. ${maxSufixo} caracteres de sufixo para este pai)` : 'Identificador único da região (ex.: ABD-SUP-D). Imutável após criação.')"
+                    >
+                        <!-- Sem pai: campo único livre (comportamento original) -->
                         <AppInput
-                            v-model="codigo"
+                            v-if="!paiCodigo.trim()"
+                            v-model="sufixo"
                             placeholder="Ex.: ABD-SUP-D"
-                            maxlength="60"
+                            :maxlength="60"
                             :disabled="salvando"
                         />
+                        <!-- Com pai: prefixo travado + input do sufixo (R8/CA21) -->
+                        <div v-else class="codigo-com-prefixo">
+                            <span class="codigo-prefixo" aria-hidden="true">{{ prefixo }}</span>
+                            <AppInput
+                                v-model="sufixo"
+                                :placeholder="`sufixo (máx. ${maxSufixo} chars)`"
+                                :maxlength="maxSufixo"
+                                :disabled="salvando"
+                                class="codigo-sufixo-input"
+                                aria-label="Sufixo do código"
+                            />
+                        </div>
+                        <p v-if="erroSufixo && !erros.codigo" class="campo-erro-inline" role="alert">{{ erroSufixo }}</p>
                     </AppField>
 
                     <!-- Seletor visual de pai (atalho): BodyMap clicável (R1/R2/R5 + addendum R9-R13) -->
                     <div class="seletor-mapa-pai">
                         <p class="seletor-mapa-rotulo">Selecionar pai pelo mapa <span class="seletor-mapa-opcional">(atalho)</span></p>
                         <p class="seletor-mapa-dica">Clique numa parte do corpo para preencher "Código do pai" e "Vista" automaticamente.</p>
+                        <!-- Fusão estrutural (briefing 2026-06-25_002): tronco-anterior/tronco-posterior
+                             são hotspots reais — clique vai direto para aoClicarRegiaoNoMapa. -->
                         <BodyMap
                             :regioes="regioesParaMapa"
                             :regioes-examinadas="[]"
                             :sexo="null"
                             @regiaoClicada="aoClicarRegiaoNoMapa"
-                            @troncoClicado="aoClicarTroncoNoMapa"
                         />
-                        <!-- Seletor inline do tronco (addendum 2026-06-22_004, R9–R11/CA13–CA16) -->
-                        <div v-if="seletorTronco" class="seletor-tronco" role="dialog" aria-modal="false" :aria-label="`Selecionar parte do ${seletorTronco === 'tronco-anterior' ? 'tronco anterior' : 'tronco posterior'}`">
-                            <div class="seletor-tronco-cabecalho">
-                                <span class="seletor-tronco-titulo">{{ seletorTronco === 'tronco-anterior' ? 'Tronco anterior' : 'Tronco posterior' }}</span>
-                                <button
-                                    type="button"
-                                    class="seletor-tronco-fechar btn-icon"
-                                    aria-label="Fechar seletor"
-                                    @click="fecharSeletorTronco"
-                                ><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                            <p v-if="opcoesSeletorTronco.length === 0" class="seletor-tronco-vazio">
-                                Nenhuma parte disponível no catálogo.
-                            </p>
-                            <ul v-else class="seletor-tronco-lista" role="listbox">
-                                <li
-                                    v-for="opcao in opcoesSeletorTronco"
-                                    :key="opcao.regiaoBaseId"
-                                    class="seletor-tronco-item"
-                                    role="option"
-                                >
-                                    <button
-                                        type="button"
-                                        class="seletor-tronco-botao"
-                                        :aria-label="`Selecionar ${opcao.label}`"
-                                        @click="aoEscolherParteTronco(opcao.regiaoBaseId)"
-                                    >{{ opcao.label }}</button>
-                                </li>
-                            </ul>
-                        </div>
                     </div>
 
-                    <AppField label="Vista" hint="Vista corporal onde a região aparece no mapa.">
-                        <AppSelect v-model="vista" :options="OPCOES_VISTA" :disabled="salvando || !!paiCodigo.trim()" />
-                        <p v-if="paiCodigo.trim()" class="hint-derivado">Vista derivada do pai.</p>
+                    <!-- P2: seletor dropdown de pai (nível 1 e 2) para habilitar nível 3 sem digitação -->
+                    <AppField
+                        label="Região pai"
+                        :hint="erros.paiCodigo || 'Selecione o pai no dropdown OU use o mapa acima OU digite abaixo. Nós circunferenciais não aceitam filhos.'"
+                    >
+                        <AppSelect
+                            v-model="paiCodigo"
+                            :options="opcoesPaiDropdown"
+                            :disabled="salvando"
+                        />
+                        <p v-if="erroCircunferencial" class="campo-erro-inline" role="alert">{{ erroCircunferencial }}</p>
                     </AppField>
 
-                    <AppField label="Código do pai" :hint="erros.paiCodigo || 'Código da região pai (deixe em branco para nó raiz). Nós circunferenciais não aceitam filhos.'">
+                    <AppField label="Código do pai" :hint="'Ou digite o código diretamente (alternativa ao dropdown acima).'">
                         <AppInput
                             v-model="paiCodigo"
                             placeholder="Ex.: ABD"
                             maxlength="60"
                             :disabled="salvando"
                         />
-                        <p v-if="erroCircunferencial" class="campo-erro-inline" role="alert">{{ erroCircunferencial }}</p>
+                    </AppField>
+
+                    <AppField label="Vista" hint="Vista corporal onde a região aparece no mapa.">
+                        <AppSelect v-model="vista" :options="OPCOES_VISTA" :disabled="salvando || !!paiCodigo.trim()" />
+                        <p v-if="paiCodigo.trim()" class="hint-derivado">Vista derivada do pai.</p>
                     </AppField>
 
                     <div class="row-2col">
@@ -383,11 +377,11 @@ async function salvar() {
                     </AppField>
                 </template>
 
-                <!-- Campos somente leitura no modo edição -->
+                <!-- Campos somente leitura no modo edição (CA29: sem alteração) -->
                 <template v-else>
                     <div class="info-somente-leitura">
                         <span class="info-label">Código</span>
-                        <code class="info-valor">{{ codigo }}</code>
+                        <code class="info-valor">{{ codigoEdicao }}</code>
                         <span class="info-label">Nível</span>
                         <span class="info-valor">{{ nivel }}</span>
                         <span class="info-label">Vista</span>
@@ -562,73 +556,46 @@ async function salvar() {
     margin: 0;
 }
 
-/* ── Seletor inline do tronco (addendum 2026-06-22_004) ─────────────────── */
-.seletor-tronco {
-    margin-top: var(--space-2);
-    padding: var(--space-3);
-    background: hsl(var(--background));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-}
-
-.seletor-tronco-cabecalho {
+/* ── Código com prefixo fixo (addendum 2026-06-25_001, CA20–CA26) ─────────── */
+.codigo-com-prefixo {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-2);
-}
-
-.seletor-tronco-titulo {
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-semibold);
-    color: hsl(var(--foreground));
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.seletor-tronco-fechar {
-    padding: 0.25rem 0.375rem;
-    font-size: var(--text-xs);
-    color: hsl(var(--muted-foreground));
-}
-
-.seletor-tronco-vazio {
-    font-size: var(--text-xs);
-    color: hsl(var(--muted-foreground));
-    margin: 0;
-    text-align: center;
-    padding: var(--space-2) 0;
-}
-
-.seletor-tronco-lista {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.seletor-tronco-item {
-    display: contents;
-}
-
-.seletor-tronco-botao {
-    width: 100%;
-    text-align: left;
-    padding: var(--space-2) var(--space-3);
-    background: transparent;
+    gap: 0;
     border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) - 2px);
-    font-size: var(--text-sm);
-    color: hsl(var(--foreground));
-    cursor: pointer;
-    transition: background 0.12s ease;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: hsl(var(--background));
 }
 
-.seletor-tronco-botao:hover,
-.seletor-tronco-botao:focus-visible {
-    background: hsl(var(--accent) / 0.6);
+/* Segmento não-editável (prefixo travado) */
+.codigo-prefixo {
+    padding: 0 0.625rem;
+    background: hsl(var(--muted) / 0.6);
+    color: hsl(var(--muted-foreground));
+    font-size: var(--text-sm);
+    font-family: monospace;
+    white-space: nowrap;
+    border-right: 1px solid hsl(var(--border));
+    /* Mesma altura que o form-input */
+    line-height: 2.25rem;
+    user-select: none;
+}
+
+/* O AppInput do sufixo ocupa o restante — remove borda própria para fundir com o container */
+.codigo-com-prefixo :deep(.form-input) {
+    border: none;
+    border-radius: 0;
+    flex: 1;
+    box-shadow: none;
+}
+
+.codigo-com-prefixo :deep(.form-input):focus {
     outline: none;
+}
+
+/* Foco visual no container composto */
+.codigo-com-prefixo:has(:deep(.form-input):focus) {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
 }
 </style>

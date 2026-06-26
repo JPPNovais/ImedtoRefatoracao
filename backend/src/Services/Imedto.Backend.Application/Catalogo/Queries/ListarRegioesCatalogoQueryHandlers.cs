@@ -8,7 +8,9 @@ namespace Imedto.Backend.Application.Catalogo.Queries;
 
 public class ListarRegioesCatalogoQueryHandlers : IRequestHandler<ListarRegioesCatalogoQuery, IEnumerable<RegiaoCatalogoDto>>
 {
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+    // TTL longo: o catálogo raramente muda; a paridade é garantida pela invalidação
+    // automática (CatalogoRegioesCacheInvalidador) e não pelo expirar do TTL.
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(24);
 
     private readonly CatalogoQueryRepository _repo;
     private readonly IMemoryCache _cache;
