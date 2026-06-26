@@ -176,6 +176,24 @@ const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterio
 })
 
 /**
+ * Lista única do modo circunferencial: une as sub-regiões do ramo anterior e do
+ * posterior numa lista só, deduplicando por NOME — o que for igual nos dois ramos
+ * aparece 1 vez (mantém a 1ª ocorrência: anterior antes de posterior).
+ */
+const filhosCircunferencialUnificado = computed<ExameFisicoRegiao[]>(() => {
+  const { anterior, posterior } = filhosCircunferencial.value
+  const vistos = new Set<string>()
+  const unico: ExameFisicoRegiao[] = []
+  for (const filho of [...anterior, ...posterior]) {
+    const chave = filho.nome.trim().toLowerCase()
+    if (vistos.has(chave)) continue
+    vistos.add(chave)
+    unico.push(filho)
+  }
+  return unico
+})
+
+/**
  * Addendum-002 (CA31–CA40): nó "(geral)" do modo circunferencial.
  * Inclui o tronco (brienfing 2026-06-25_002): tronco-circunferencial agora
  * funciona exatamente como cabeça/pescoço/membro.
@@ -491,71 +509,31 @@ function fechar() {
               <div class="rsp-divider" />
             </template>
 
-            <!-- Grupo Anterior -->
-            <template v-if="filhosCircunferencial.anterior.length > 0">
-              <div class="rsp-sub-head rsp-sub-head--ant">
-                <i class="fa-solid fa-circle rsp-sub-head-dot" />
-                Anterior
-              </div>
-              <label
-                v-for="filho in filhosCircunferencial.anterior"
-                :key="filho.id"
-                class="rsp-opt"
-                :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
-              >
-                <input
-                  v-if="!jaFoiSelecionada(filho.id)"
-                  type="checkbox"
-                  class="rsp-opt-input"
-                  :checked="estaSelecionado(filho.id)"
-                  @change="toggleRegiao(filho)"
-                />
-                <span class="rsp-opt-box">
-                  <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
-                </span>
-                <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
-                  {{ nomeExibido(filho) }}
-                </span>
-                <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
-              </label>
-            </template>
-
-            <div
-              v-if="filhosCircunferencial.anterior.length > 0 && filhosCircunferencial.posterior.length > 0"
-              class="rsp-divider"
-            />
-
-            <!-- Grupo Posterior -->
-            <template v-if="filhosCircunferencial.posterior.length > 0">
-              <div class="rsp-sub-head rsp-sub-head--post">
-                <i class="fa-solid fa-circle rsp-sub-head-dot" />
-                Posterior
-              </div>
-              <label
-                v-for="filho in filhosCircunferencial.posterior"
-                :key="filho.id"
-                class="rsp-opt"
-                :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
-              >
-                <input
-                  v-if="!jaFoiSelecionada(filho.id)"
-                  type="checkbox"
-                  class="rsp-opt-input"
-                  :checked="estaSelecionado(filho.id)"
-                  @change="toggleRegiao(filho)"
-                />
-                <span class="rsp-opt-box">
-                  <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
-                </span>
-                <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
-                  {{ nomeExibido(filho) }}
-                </span>
-                <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
-              </label>
-            </template>
+            <!-- Lista única: anterior + posterior unificados e deduplicados por nome. -->
+            <label
+              v-for="filho in filhosCircunferencialUnificado"
+              :key="filho.id"
+              class="rsp-opt"
+              :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
+            >
+              <input
+                v-if="!jaFoiSelecionada(filho.id)"
+                type="checkbox"
+                class="rsp-opt-input"
+                :checked="estaSelecionado(filho.id)"
+                @change="toggleRegiao(filho)"
+              />
+              <span class="rsp-opt-box">
+                <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
+              </span>
+              <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
+                {{ nomeExibido(filho) }}
+              </span>
+              <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
+            </label>
 
             <p
-              v-if="filhosCircunferencial.anterior.length === 0 && filhosCircunferencial.posterior.length === 0"
+              v-if="filhosCircunferencialUnificado.length === 0"
               class="rsp-vazio"
             >
               Nenhuma sub-região disponível.
