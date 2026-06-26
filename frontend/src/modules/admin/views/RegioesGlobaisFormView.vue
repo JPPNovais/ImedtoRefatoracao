@@ -113,7 +113,11 @@ onMounted(async () => {
 // CA6 (R7/R2/R3): ao digitar código do pai, verificar circunferencial e derivar vista/nível
 watch(paiCodigo, async (codigoPai) => {
     erroCircunferencial.value = ""
-    if (!codigoPai.trim()) return
+    if (!codigoPai.trim()) {
+        // "Sem pai" / pai vazio → remove o filtro do dropdown (volta a mostrar todas).
+        raizFiltroMapa.value = null
+        return
+    }
 
     try {
         // Reutiliza árvore já carregada quando possível
@@ -147,6 +151,13 @@ function encontrarNaArvore(nos: NoArvore[], codigo: string): NoArvore | null {
 }
 
 // ── Seletor visual (BodyMap como atalho) ─────────────────────────────────────
+
+/**
+ * Raiz do filtro do dropdown de pai: código da região clicada no mapa.
+ * Quando setada, o dropdown "Região pai" mostra só essa região e suas sub-regiões
+ * (facilita escolher a sub-região para criar nível 3). null = sem filtro (mostra tudo).
+ */
+const raizFiltroMapa = ref<string | null>(null)
 
 /**
  * Adapta os nós de nível 1 da árvore do catálogo para o formato ExameFisicoRegiao,
@@ -186,6 +197,8 @@ function aoClicarRegiaoNoMapa(regiao: ExameFisicoRegiao): void {
 
     // Preenche o campo paiCodigo; o watcher existente deriva vista e nivel (R3).
     paiCodigo.value = no.codigo
+    // Filtra o dropdown de pai para a região clicada + suas sub-regiões (facilita criar nível 3).
+    raizFiltroMapa.value = no.codigo
 }
 
 // ── Seletor de pai por dropdown (P2 — nível 3) ──────────────────────────────
@@ -203,7 +216,12 @@ interface OpcaoPai {
  */
 const opcoesPaiDropdown = computed<OpcaoPai[]>(() => {
     const lista: OpcaoPai[] = [{ value: "", label: "Sem pai (nó raiz)" }]
-    for (const no1 of store.arvore) {
+    // Quando o admin clicou numa região no mapa, filtra para essa região + suas sub-regiões
+    // — facilita escolher a sub-região (nível 2) e criar o nível 3. Sem clique = mostra tudo.
+    const raizes = raizFiltroMapa.value
+        ? store.arvore.filter((no) => no.codigo === raizFiltroMapa.value)
+        : store.arvore
+    for (const no1 of raizes) {
         if (!no1.ativo) continue
         lista.push({ value: no1.codigo, label: `${no1.codigo} — ${no1.nome}` })
         for (const no2 of no1.filhos ?? []) {
@@ -343,6 +361,9 @@ async function salvar() {
                             :options="opcoesPaiDropdown"
                             :disabled="salvando"
                         />
+                        <p v-if="raizFiltroMapa" class="hint-derivado">
+                            Filtrando por <strong>{{ raizFiltroMapa }}</strong> e suas sub-regiões (clique no mapa). Escolha "Sem pai (nó raiz)" para ver todas.
+                        </p>
                         <p v-if="erroCircunferencial" class="campo-erro-inline" role="alert">{{ erroCircunferencial }}</p>
                     </AppField>
 

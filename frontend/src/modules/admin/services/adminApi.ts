@@ -32,11 +32,14 @@ adminApi.interceptors.response.use(
         const originalRequest = error.config
 
         const is401 = error.response?.status === 401
-        const isRefreshEndpoint = originalRequest?.url?.includes("/auth/refresh")
+        // Endpoints de auth (refresh/logout/login) NÃO disparam auto-refresh: senão um 401 no
+        // /auth/logout (sessão ausente) cairia em refresh → catch → logout → 401 → … em loop
+        // infinito, estourando o rate limit (429). Só endpoints de dados disparam o refresh.
+        const isAuthEndpoint = /\/auth\/(refresh|logout|login)/.test(originalRequest?.url ?? "")
         const alreadyRetried = originalRequest?._retry
         const skipAutoRefresh = (originalRequest as { _noAutoRefresh?: boolean })?._noAutoRefresh === true
 
-        if (is401 && !isRefreshEndpoint && !alreadyRetried && !isRefreshing && !skipAutoRefresh) {
+        if (is401 && !isAuthEndpoint && !alreadyRetried && !isRefreshing && !skipAutoRefresh) {
             originalRequest._retry = true
             isRefreshing = true
 
