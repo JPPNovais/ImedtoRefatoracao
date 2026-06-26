@@ -32,7 +32,12 @@ const OPCOES_VISTA = [
 ]
 
 // campos de criação (imutáveis após criar)
-const codigo = ref("")
+// Addendum 2026-06-25_001: sufixo é o estado; codigoFinal é derivado.
+// No modo raiz (sem pai): sufixo = código completo (comportamento original).
+// Com pai: codigoFinal = paiCodigo + "-" + sufixo (R7).
+const sufixo = ref("")
+// Código lido no modo edição (somente leitura após criação)
+const codigoEdicao = ref("")
 const vista = ref("")
 const paiCodigo = ref("")
 const nivel = ref<number>(1)
@@ -41,6 +46,35 @@ const lateralidade = ref(false)
 
 // estado derivado do pai (R2/R3/R7)
 const erroCircunferencial = ref("")
+
+/**
+ * Prefixo ativo (paiCodigo + "-") ou "" quando raiz.
+ * R8: o prefixo é renderizado como segmento não-editável, não compõe o input do sufixo.
+ */
+const prefixo = computed(() => paiCodigo.value.trim() ? `${paiCodigo.value.trim()}-` : "")
+
+/**
+ * Código final derivado — submetido ao backend.
+ * R9: trocar pai troca o prefixo e PRESERVA o sufixo.
+ * R11: sem pai → sufixo é o código livre (raiz).
+ */
+const codigoFinal = computed(() => prefixo.value + sufixo.value.trim())
+
+/** Caracteres restantes para o sufixo antes de estourar 60 chars no código final. */
+const maxSufixo = computed(() => 60 - prefixo.value.length)
+
+/** Mensagem de limite efetivo de sufixo (CA25). */
+const erroSufixo = computed((): string => {
+    const s = sufixo.value.trim()
+    if (!s && paiCodigo.value.trim()) return "Sufixo do código é obrigatório."
+    if (!s && !paiCodigo.value.trim()) return "" // validado em validar() como campo obrigatório
+    if (s.length > maxSufixo.value)
+        return `Código completo excede 60 caracteres — encurte o sufixo (máx. ${maxSufixo.value} caracteres para este pai).`
+    // CA26: não pode começar ou terminar com "-"
+    if (s.startsWith("-") || s.endsWith("-"))
+        return 'Sufixo não pode começar nem terminar com "-".'
+    return ""
+})
 
 // campos sempre editáveis
 const nome = ref("")
@@ -56,8 +90,8 @@ onMounted(async () => {
         if (store.itemAtual) {
             nome.value = store.itemAtual.nome
             templateTexto.value = store.itemAtual.templateTexto ?? ""
-            // somente leitura no modo edição:
-            codigo.value = store.itemAtual.codigo
+            // somente leitura no modo edição (CA29: sem prefixo travado):
+            codigoEdicao.value = store.itemAtual.codigo
             vista.value = store.itemAtual.vista ?? ""
             paiCodigo.value = store.itemAtual.paiCodigo ?? ""
             nivel.value = store.itemAtual.nivel
@@ -261,8 +295,11 @@ function validar(): boolean {
     const e: Record<string, string> = {}
     if (!nome.value.trim()) e.nome = "Nome é obrigatório."
     if (!editando.value) {
-        if (!codigo.value.trim()) e.codigo = "Código é obrigatório."
-        else if (codigo.value.trim().length > 60) e.codigo = "Código deve ter no máximo 60 caracteres."
+        // Valida código final derivado (codigoFinal = prefixo + sufixo)
+        if (!codigoFinal.value) e.codigo = "Código é obrigatório."
+        else if (codigoFinal.value.length > 60) e.codigo = "Código deve ter no máximo 60 caracteres."
+        // Valida sufixo separadamente quando há pai
+        if (paiCodigo.value.trim() && erroSufixo.value) e.codigo = erroSufixo.value
         if (nivel.value < 1 || nivel.value > 3) e.nivel = "Nível deve ser entre 1 e 3."
         if (erroCircunferencial.value) e.paiCodigo = erroCircunferencial.value
     }
@@ -272,7 +309,7 @@ function validar(): boolean {
 }
 
 const submitBloqueado = computed(() =>
-    motivo.value.trim().length < 10 || !!erroCircunferencial.value
+    motivo.value.trim().length < 10 || !!erroCircunferencial.value || !!erroSufixo.value
 )
 
 async function salvar() {
@@ -288,7 +325,7 @@ async function salvar() {
             })
         } else {
             await store.criar({
-                codigo: codigo.value.trim(),
+                codigo: codigoFinal.value, // sempre código final (prefixo + sufixo ou só sufixo se raiz)
                 nome: nome.value.trim(),
                 paiCodigo: paiCodigo.value.trim() || null,
                 nivel: nivel.value,
@@ -325,13 +362,38 @@ async function salvar() {
 
                 <!-- Campos somente criação -->
                 <template v-if="!editando">
-                    <AppField label="Código" required :hint="erros.codigo || 'Identificador único da região (ex.: ABD-SUP-D). Imutável após criação.'">
+                    <!--
+                        Addendum 2026-06-25_001 — prefixo automático travado (R7/R8/CA20–CA26).
+                        Sem pai: campo livre (sufixo = código completo).
+                        Com pai: prefixo cinza não-editável + input do sufixo ao lado.
+                        Decisão técnica: composição local no form (sem DS — CA30 N/A justificado).
+                    -->
+                    <AppField
+                        label="Código"
+                        required
+                        :hint="erros.codigo || erroSufixo || (paiCodigo.trim() ? `Código final: ${codigoFinal || '…'} (máx. ${maxSufixo} caracteres de sufixo para este pai)` : 'Identificador único da região (ex.: ABD-SUP-D). Imutável após criação.')"
+                    >
+                        <!-- Sem pai: campo único livre (comportamento original) -->
                         <AppInput
-                            v-model="codigo"
+                            v-if="!paiCodigo.trim()"
+                            v-model="sufixo"
                             placeholder="Ex.: ABD-SUP-D"
-                            maxlength="60"
+                            :maxlength="60"
                             :disabled="salvando"
                         />
+                        <!-- Com pai: prefixo travado + input do sufixo (R8/CA21) -->
+                        <div v-else class="codigo-com-prefixo">
+                            <span class="codigo-prefixo" aria-hidden="true">{{ prefixo }}</span>
+                            <AppInput
+                                v-model="sufixo"
+                                :placeholder="`sufixo (máx. ${maxSufixo} chars)`"
+                                :maxlength="maxSufixo"
+                                :disabled="salvando"
+                                class="codigo-sufixo-input"
+                                aria-label="Sufixo do código"
+                            />
+                        </div>
+                        <p v-if="erroSufixo && !erros.codigo" class="campo-erro-inline" role="alert">{{ erroSufixo }}</p>
                     </AppField>
 
                     <!-- Seletor visual de pai (atalho): BodyMap clicável (R1/R2/R5 + addendum R9-R13) -->
@@ -421,11 +483,11 @@ async function salvar() {
                     </AppField>
                 </template>
 
-                <!-- Campos somente leitura no modo edição -->
+                <!-- Campos somente leitura no modo edição (CA29: sem alteração) -->
                 <template v-else>
                     <div class="info-somente-leitura">
                         <span class="info-label">Código</span>
-                        <code class="info-valor">{{ codigo }}</code>
+                        <code class="info-valor">{{ codigoEdicao }}</code>
                         <span class="info-label">Nível</span>
                         <span class="info-valor">{{ nivel }}</span>
                         <span class="info-label">Vista</span>
@@ -668,5 +730,48 @@ async function salvar() {
 .seletor-tronco-botao:focus-visible {
     background: hsl(var(--accent) / 0.6);
     outline: none;
+}
+
+/* ── Código com prefixo fixo (addendum 2026-06-25_001, CA20–CA26) ─────────── */
+.codigo-com-prefixo {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: hsl(var(--background));
+}
+
+/* Segmento não-editável (prefixo travado) */
+.codigo-prefixo {
+    padding: 0 0.625rem;
+    background: hsl(var(--muted) / 0.6);
+    color: hsl(var(--muted-foreground));
+    font-size: var(--text-sm);
+    font-family: monospace;
+    white-space: nowrap;
+    border-right: 1px solid hsl(var(--border));
+    /* Mesma altura que o form-input */
+    line-height: 2.25rem;
+    user-select: none;
+}
+
+/* O AppInput do sufixo ocupa o restante — remove borda própria para fundir com o container */
+.codigo-com-prefixo :deep(.form-input) {
+    border: none;
+    border-radius: 0;
+    flex: 1;
+    box-shadow: none;
+}
+
+.codigo-com-prefixo :deep(.form-input):focus {
+    outline: none;
+}
+
+/* Foco visual no container composto */
+.codigo-com-prefixo:has(:deep(.form-input):focus) {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
 }
 </style>
