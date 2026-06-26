@@ -206,6 +206,19 @@ const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterio
   }
 })
 
+/**
+ * Addendum-002 (CA31–CA40 não-tronco): nó "(geral)" do modo circunferencial.
+ * Só para região simples (não-tronco — quando troncoGrupos está ausente).
+ * Usa idCircunferencial (membro) ou idCircunferencialNaoMembro (não-membro).
+ * Retorna null quando o nó não existe no catálogo (guard R15/CA36 → no-op).
+ */
+const regiaoGeralCircunferencial = computed<ExameFisicoRegiao | null>(() => {
+  if (props.troncoGrupos) return null // tronco: suspenso (§0 addendum-002)
+  const idCirc = props.membroRegioes ? idCircunferencial.value : idCircunferencialNaoMembro.value
+  if (!idCirc) return null
+  return props.regioes.find(r => r.id === idCirc) ?? null
+})
+
 // Breadcrumb usa baseAtiva como raiz (não regiaoClicada fixa)
 const breadcrumb = computed(() => {
   const itens: ExameFisicoRegiao[] = []
@@ -462,6 +475,53 @@ function fechar() {
         <!-- ── Modo circunferencial: lista agrupada Anterior + Posterior ──── -->
         <template v-if="vistaEscolhida === 'circunferencial'">
           <div class="rsp-sub-list">
+
+            <!--
+              Addendum-002 CA31/CA32 — opção "(geral)" no topo do circunferencial,
+              apenas para região simples (não-tronco). Espelha a semântica do "geral"
+              do anterior/posterior mas usando o nó <base>-circunferencial.
+              R15/CA36: não renderiza se regiaoGeralCircunferencial for null (nó ausente).
+              R17/CA35: já-selecionado → disabled (badge "Selecionado", sem checkbox).
+              R16/CA37: lateralidade espelha o modo circunferencial atual (sem botões D/E novos).
+              TRONCO: troncoGrupos → regiaoGeralCircunferencial é null (guard).
+            -->
+            <template v-if="regiaoGeralCircunferencial">
+              <!-- Estado: já selecionado/disabled (R17/CA35) -->
+              <div
+                v-if="jaFoiSelecionada(regiaoGeralCircunferencial.id)"
+                class="rsp-opt rsp-opt--geral rsp-opt--disabled"
+              >
+                <span class="rsp-opt-box">
+                  <i class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl rsp-opt-lbl--muted">
+                  {{ membroRegioes ? dialogTitle : regiaoGeralCircunferencial.nome }} (geral)
+                </span>
+                <span class="rsp-badge-sel">Selecionado</span>
+              </div>
+
+              <!-- Estado: disponível para seleção -->
+              <label
+                v-else
+                class="rsp-opt rsp-opt--geral"
+              >
+                <input
+                  type="checkbox"
+                  class="rsp-opt-input"
+                  :checked="estaSelecionado(regiaoGeralCircunferencial.id)"
+                  @change="toggleRegiao(regiaoGeralCircunferencial)"
+                />
+                <span class="rsp-opt-box">
+                  <i v-if="estaSelecionado(regiaoGeralCircunferencial.id)" class="fa-solid fa-check" />
+                </span>
+                <span class="rsp-opt-lbl">
+                  {{ membroRegioes ? dialogTitle : regiaoGeralCircunferencial.nome }} (geral)
+                </span>
+              </label>
+
+              <div class="rsp-divider" />
+            </template>
+
             <!-- Grupo Anterior -->
             <template v-if="filhosCircunferencial.anterior.length > 0">
               <div class="rsp-sub-head rsp-sub-head--ant">
