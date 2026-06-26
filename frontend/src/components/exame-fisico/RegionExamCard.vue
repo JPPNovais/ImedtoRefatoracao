@@ -116,12 +116,12 @@ function getVistaLabel(vista: string | null | undefined): string {
       </div>
       <div class="space-y-1">
         <label class="field-label-compact">Achados</label>
-        <input
+        <textarea
           :value="regiao.achados"
-          class="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+          class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50 min-h-[48px] resize-y"
           placeholder="Ex: Normal, Sem alterações..."
           :readonly="readonly"
-          @input="(e) => atualizarCampo({ achados: (e.target as HTMLInputElement).value })"
+          @input="(e) => atualizarCampo({ achados: (e.target as HTMLTextAreaElement).value })"
         />
       </div>
       <div class="space-y-1">

@@ -36,9 +36,9 @@ describe("RegionExamCard", () => {
             props: { regiao: { ...regiaoBase }, index: 0, open: true },
         })
 
-        const input = wrapper.findAll("input").find(i => i.attributes("placeholder")?.includes("Normal"))
-        expect(input).toBeTruthy()
-        await input!.setValue("Sem alterações")
+        const campo = wrapper.findAll("textarea").find(t => t.attributes("placeholder")?.includes("Normal"))
+        expect(campo).toBeTruthy()
+        await campo!.setValue("Sem alterações")
 
         const eventos = wrapper.emitted("atualizar")
         expect(eventos).toBeTruthy()
