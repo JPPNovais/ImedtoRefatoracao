@@ -84,9 +84,20 @@ watch(() => props.aberto, (abre) => {
 // ── Base ativa depende do lado (R4) ──────────────────────────────────────────
 const baseAtiva = computed<ExameFisicoRegiao | null>(() => {
   if (!props.membroRegioes) return props.regiaoClicada
-  if (ladoEscolhido.value === 'E') return props.membroRegioes.esquBase
-  // Direito e Ambos usam dirBase como base canônica (R4/R5)
-  return props.membroRegioes.dirBase
+  // Direito e Ambos usam dirBase como base canônica (R4/R5); Esquerdo usa esquBase.
+  const ladoBase = ladoEscolhido.value === 'E'
+    ? props.membroRegioes.esquBase
+    : props.membroRegioes.dirBase
+  if (!ladoBase) return ladoBase
+  // A vista vem do passo "Plano de exame", não da face que foi clicada no mapa. Re-resolve o nó
+  // base para a vista escolhida (anterior/posterior) — espelha regiaoBaseNaoMembro. Sem isso, a
+  // lista de sub-regiões, o caminho do card e a cor do boneco ficam presos à face clicada e
+  // divergem da badge de vista (ex.: "Membro inferior X (anterior)" com badge Posterior).
+  if (vistaEscolhida.value === 'anterior' || vistaEscolhida.value === 'posterior') {
+    const base = ladoBase.id.replace(/-anterior$/, '').replace(/-posterior$/, '')
+    return props.regioes.find(r => r.id === `${base}-${vistaEscolhida.value}`) ?? ladoBase
+  }
+  return ladoBase
 })
 
 /**

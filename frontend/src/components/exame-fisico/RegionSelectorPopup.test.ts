@@ -554,6 +554,44 @@ describe("CA29 — não-regressão do briefing 004 (fluxo de membro anterior/pos
     })
 })
 
+// ─── BUGFIX — vista escolhida define a base do membro (não a face clicada) ────
+
+describe("BUGFIX — vista escolhida define a base do membro, não a face clicada no mapa", () => {
+    it("Direito + posterior: lista sub-regiões da base POSTERIOR mesmo tendo clicado na face anterior", async () => {
+        // regiaoClicada/dirBase = membro-superior-direito-anterior (face anterior clicada no mapa)
+        const wrapper = montarPopupMembro({ getFilhos: getFilhosMembro })
+        await avancarLado(wrapper, "D")
+        await avancarVistaMembro(wrapper, "posterior")
+
+        const html = wrapper.html()
+        // Deltóide é filho da base POSTERIOR; Ombro/Cotovelo são filhos da anterior
+        expect(html).toContain("Deltóide")
+        expect(html).not.toContain("Ombro")
+        expect(html).not.toContain("Cotovelo")
+    })
+
+    it("Direito + posterior: confirmar emite regiaoId da base posterior com vista posterior", async () => {
+        const wrapper = montarPopupMembro({ getFilhos: getFilhosMembro })
+        await avancarLado(wrapper, "D")
+        await avancarVistaMembro(wrapper, "posterior")
+
+        // 1º checkbox = "(geral)" da base posterior; último = Deltóide (sub-região posterior)
+        const checkboxes = wrapper.findAll('input[type="checkbox"]')
+        await checkboxes[checkboxes.length - 1].trigger("change")
+
+        const botaoConfirmar = wrapper.findAll("button").find(b => b.text().includes("Confirmar"))
+        await botaoConfirmar!.trigger("click")
+
+        const eventos = wrapper.emitted("confirmar")
+        const selecoes = eventos![0]![0] as Array<{ regiaoId: string; lateralidade: string | null; vista: string | null }>
+        expect(selecoes.every(s => s.vista === "posterior")).toBe(true)
+        // Ids pertencem à base posterior direita — nunca à anterior (que foi a face clicada)
+        const idsPosterior = [deltoideDireito.id, membroSupDirPost.id]
+        expect(selecoes.every(s => idsPosterior.includes(s.regiaoId))).toBe(true)
+        expect(selecoes.some(s => s.regiaoId === ombroDireito.id || s.regiaoId === cotovelo.id)).toBe(false)
+    })
+})
+
 // ─── CA5 (compatibilidade) — região não-lateral: D/E/Bilateral por sub-região ─
 
 describe("RegionSelectorPopup — fluxo não-lateral (CA5 compatibilidade)", () => {

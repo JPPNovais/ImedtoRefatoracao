@@ -233,6 +233,75 @@ describe("ProntuarioView — 2026-06-22_001: empty-state antes de escolher model
 })
 
 // ---------------------------------------------------------------------------
+// Sem tela "Iniciar prontuário": paciente sem prontuário cai direto na aba
+// "Consulta atual" (abas + seletor de modelo). Escolher o modelo cria o
+// prontuário no banco e monta os módulos — sem card intermediário.
+// ---------------------------------------------------------------------------
+
+function montar() {
+    return mount(ProntuarioView, {
+        global: {
+            plugins: [
+                createTestingPinia({
+                    initialState: {
+                        tenant: { ativo: { id: 1, nomeFantasia: "Clínica" }, semEstabelecimento: false },
+                        permissoes: { permissoes: [] },
+                        proximosPasso: { acoes: [] },
+                    },
+                }),
+            ],
+            stubs: STUBS_PESADOS,
+        },
+    })
+}
+
+describe("ProntuarioView — sem tela intermediária 'Iniciar prontuário'", () => {
+    it("paciente SEM prontuário mostra abas + empty-state com seletor (sem o card 'Iniciar prontuário')", async () => {
+        vi.mocked(prontuarioService.obter).mockResolvedValue(null)
+        vi.mocked(prontuarioService.listarModelos).mockResolvedValue(MODELOS_DISPONIVEIS)
+
+        const wrapper = montar()
+        await flushPromises()
+
+        // O antigo card "Iniciar prontuário" não existe mais
+        expect(wrapper.find(".iniciar-card").exists()).toBe(false)
+        // As abas aparecem mesmo sem prontuário iniciado
+        expect(wrapper.findComponent({ name: "ProntuarioTabs" }).exists()).toBe(true)
+        // E a aba "Consulta atual" já mostra o empty-state com o seletor de modelo
+        expect(wrapper.find(".escolher-modelo-wrap").exists()).toBe(true)
+        expect(wrapper.findComponent({ name: "SeletorModeloProntuario" }).exists()).toBe(true)
+        // Sem modelo escolhido, ConsultaAtualTab ainda não monta
+        expect(wrapper.findComponent({ name: "ConsultaAtualTab" }).exists()).toBe(false)
+    })
+
+    it("escolher um modelo SEM prontuário chama iniciar() com o modelo e monta ConsultaAtualTab", async () => {
+        // 1ª carga (onMounted) = null; 2ª carga (após iniciar) = prontuário criado.
+        vi.mocked(prontuarioService.obter)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(PRONT_EXISTENTE as any)
+        vi.mocked(prontuarioService.listarModelos).mockResolvedValue(MODELOS_DISPONIVEIS)
+        ;(prontuarioService as any).iniciar = vi.fn().mockResolvedValue(undefined)
+        ;(prontuarioService as any).contarEvolucoes = vi.fn().mockResolvedValue(0)
+
+        const wrapper = montar()
+        await flushPromises()
+
+        // Empty-state visível (sem prontuário, sem modelo)
+        expect(wrapper.find(".escolher-modelo-wrap").exists()).toBe(true)
+
+        // Médico escolhe o modelo 11 no seletor (evento camelCase do componente)
+        wrapper.findComponent({ name: "SeletorModeloProntuario" }).vm.$emit("update:modeloId", 11)
+        await flushPromises()
+
+        // A escolha do modelo criou o prontuário no banco com o modelo escolhido
+        expect((prontuarioService as any).iniciar).toHaveBeenCalledWith(1, 11)
+        // E os módulos foram montados
+        expect(wrapper.findComponent({ name: "ConsultaAtualTab" }).exists()).toBe(true)
+        expect(wrapper.find(".escolher-modelo-wrap").exists()).toBe(false)
+    })
+})
+
+// ---------------------------------------------------------------------------
 // CA12 — podeGerirAlertas vem do backend, não do papel local
 // ---------------------------------------------------------------------------
 

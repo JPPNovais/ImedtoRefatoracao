@@ -475,10 +475,13 @@ function onConfirmarRegioes(
         // Deriva o nó circunferencial a partir do ancestral nível-1 das sub-regiões.
         // O ancestral nível-1 de uma sub-região anterior (ex.: 'torax-anterior') nos dá
         // o base; trocamos o sufixo '-anterior'/'-posterior' por '-circunferencial'.
+        // Strip de QUALQUER sufixo de vista (-anterior/-posterior/-circunferencial) antes de
+        // reanexar -circunferencial. Sem remover -circunferencial, marcar a opção "(geral)"
+        // (cujo id já é <base>-circunferencial) gerava <base>-circunferencial-circunferencial —
+        // id inexistente no catálogo e fora de RAMOS_CIRCUNFERENCIAL, então o boneco não pintava
+        // e o título vazava o id cru.
         const n1Id = getAncestorNivel1Id(unicas[0].regiaoId)
-        const base = n1Id
-            ? n1Id.replace(/-anterior$/, '').replace(/-posterior$/, '')
-            : unicas[0].regiaoId.replace(/-anterior$/, '').replace(/-posterior$/, '')
+        const base = (n1Id ?? unicas[0].regiaoId).replace(/-(anterior|posterior|circunferencial)$/, '')
         regiaoId = `${base}${SUFIXO_CIRC}`
         // Caminho: nome do nó circunferencial do catálogo (ex.: "Tórax (circunferencial)")
         caminho = getNomeCircunferencial(regiaoId)

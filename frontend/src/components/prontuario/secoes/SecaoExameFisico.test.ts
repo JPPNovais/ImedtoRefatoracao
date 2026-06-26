@@ -816,4 +816,24 @@ describe("SecaoExameFisico — B1 circunferencial", () => {
         expect(ultimo.regioes[0].regiao_id).not.toMatch(/-circunferencial$/)
         expect(ultimo.regioes[0].vista).toBe("anterior")
     })
+
+    it("BUGFIX — marcar a opção '(geral)' circunferencial não duplica o sufixo (regiao_id válido pinta o boneco)", async () => {
+        // Quando o usuário marca a opção "(geral)", o popup emite o PRÓPRIO nó circunferencial
+        // (id já termina em -circunferencial). A derivação não pode reanexar -circunferencial.
+        const wrapper = await montarComCatalogoCirc()
+
+        const popup = wrapper.findComponent({ name: "RegionSelectorPopup" })
+        await popup.vm.$emit("confirmar", [
+            { regiaoId: "tronco-circunferencial", lateralidade: null, vista: "circunferencial" },
+        ])
+
+        const eventos = wrapper.emitted("update:modelValue")
+        const ultimo = eventos![eventos!.length - 1]![0] as { regioes: RegiaoAnatomicaSelecionada[] }
+        // regiao_id é o nó circunferencial real (chave de RAMOS_CIRCUNFERENCIAL → pinta o boneco)
+        expect(ultimo.regioes[0].regiao_id).toBe("tronco-circunferencial")
+        // Sem sufixo duplicado
+        expect(ultimo.regioes[0].regiao_id).not.toContain("circunferencial-circunferencial")
+        // Caminho resolve pelo nome do catálogo (não vaza o id cru)
+        expect(ultimo.regioes[0].caminho).toBe("Tronco (circunferencial)")
+    })
 })

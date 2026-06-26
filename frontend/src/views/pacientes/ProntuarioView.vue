@@ -27,7 +27,7 @@ import { agendaService, type Agendamento } from "@/services/agendaService"
 import { useProntuarioPdf, type PdfSaidaModo } from "@/composables/useProntuarioPdf"
 import { useAtendimentoAtivo } from "@/composables/useAtendimentoAtivo"
 import { usePermissoesStore } from "@/stores/permissoesStore"
-import { AppButton, AppEmptyState, AppToast } from "@/components/ui"
+import { AppEmptyState, AppToast } from "@/components/ui"
 import ProntuarioPacienteHeader    from "@/components/prontuario/ProntuarioPacienteHeader.vue"
 import ProntuarioTabs, { type AbaProntuario } from "@/components/prontuario/ProntuarioTabs.vue"
 import ConsultaAtualTab            from "@/components/prontuario/tabs/ConsultaAtualTab.vue"
@@ -95,7 +95,6 @@ const agendamento = ref<Agendamento | null>(null)
 const pront       = ref<ProntuarioCompleto | null>(null)
 const anexos      = ref<Anexo[]>([])
 const modelosDisponiveis  = ref<ModeloProntuario[]>([])
-const modeloEscolhido     = ref<number | null>(null)
 const modeloConsultaAtual = ref<number | null>(null)
 
 const carregando = ref(true)
@@ -239,8 +238,6 @@ async function carregar() {
             prontuarioService.contarEvolucoes(pacienteId.value)
                 .then(n => { totalEvolucoes.value = n })
                 .catch(() => { /* mantém o cap como aproximação */ })
-        } else {
-            modeloEscolhido.value = modelos.length > 0 ? modelos[0].id : null
         }
     } catch (e: any) {
         erro.value = e?.response?.data?.mensagem ?? "Erro ao carregar prontuário."
@@ -279,14 +276,25 @@ function temConteudo(valor: any): boolean {
     return false
 }
 
-async function iniciarProntuario() {
-    if (!modeloEscolhido.value) return
-    try {
-        await prontuarioService.iniciar(pacienteId.value, modeloEscolhido.value)
-        await carregar()
-    } catch (e: any) {
-        erro.value = e?.response?.data?.mensagem ?? "Erro ao iniciar prontuário."
+/**
+ * Escolha do modelo na aba "Consulta atual".
+ * Se o prontuário ainda não existe, a própria escolha do modelo o cria no banco
+ * (substitui o antigo card "Iniciar prontuário") e em seguida monta os módulos.
+ * Com prontuário já existente, apenas seleciona o modelo da sessão (R5/R6).
+ */
+async function escolherModelo(id: number) {
+    if (id === modeloConsultaAtual.value) return
+    if (!pront.value) {
+        try {
+            await prontuarioService.iniciar(pacienteId.value, id)
+            await carregar()
+        } catch (e: any) {
+            erro.value = e?.response?.data?.mensagem ?? "Erro ao iniciar prontuário."
+            return
+        }
+        if (!pront.value) return
     }
+    modeloConsultaAtual.value = id
 }
 
 // Mapeia lateralidade do modelo local p/ backend (mesmo mapeamento que vivia em ExameFisicoTab).
@@ -517,28 +525,10 @@ async function finalizarAtendimento() {
         <p v-if="carregando" class="estado-msg">Carregando prontuário...</p>
         <p v-if="erro" class="msg-erro">{{ erro }}</p>
 
-        <!-- Prontuário não iniciado: escolher modelo -->
-        <section v-if="!carregando && !pront" class="iniciar-card">
-            <h2 class="iniciar-titulo">
-                <i class="fa-solid fa-stethoscope"></i>
-                Iniciar prontuário
-            </h2>
-            <p class="iniciar-sub">Escolha um modelo para estruturar o prontuário deste paciente.</p>
-            <AppField label="Modelo">
-                <AppSelect v-model.number="modeloEscolhido">
-                    <option :value="null" disabled>Selecione um modelo</option>
-                    <option v-for="m in modelosDisponiveis" :key="m.id" :value="m.id">
-                        {{ m.nome }}{{ m.ehPadraoSistema ? " (sistema)" : "" }}
-                    </option>
-                </AppSelect>
-            </AppField>
-            <AppButton :disabled="!modeloEscolhido" @click="iniciarProntuario">
-                Iniciar prontuário
-            </AppButton>
-        </section>
-
-        <!-- Prontuário iniciado: tabs + conteúdo -->
-        <template v-if="pront">
+        <!-- Abas + conteúdo. Mesmo sem prontuário iniciado, a aba "Consulta atual"
+             já mostra o seletor de modelo (empty-state abaixo); escolher um modelo
+             cria o prontuário e monta os módulos — sem tela intermediária. -->
+        <template v-if="!carregando">
             <ProntuarioTabs
                 v-model="abaAtiva"
                 :contagem-anteriores="totalEvolucoes"
@@ -552,7 +542,7 @@ async function finalizarAtendimento() {
                     <SeletorModeloProntuario
                         :modelo-id="modeloConsultaAtual"
                         :modelos="modelosDisponiveis"
-                        @update:modelo-id="modeloConsultaAtual = $event"
+                        @update:modelo-id="escolherModelo"
                     />
                 </div>
                 <AppEmptyState
@@ -643,23 +633,6 @@ async function finalizarAtendimento() {
 
 <style scoped>
 .pront-shell { gap: 0; }
-
-/* Iniciar prontuário */
-.iniciar-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 2rem;
-    max-width: 500px; margin: 2rem auto;
-    display: flex; flex-direction: column; gap: 1rem;
-}
-.iniciar-titulo {
-    font-size: 1.05rem; font-weight: 700; margin: 0;
-    color: hsl(var(--primary-dark));
-    display: inline-flex; align-items: center; gap: 8px;
-}
-.iniciar-titulo i { color: hsl(var(--primary)); }
-.iniciar-sub { font-size: 0.85em; color: var(--text-muted); margin: 0; }
 
 /* Estados */
 .estado-msg { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: var(--text-sm); }
