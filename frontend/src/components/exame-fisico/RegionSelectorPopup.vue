@@ -159,13 +159,12 @@ const regiaoAtual = computed(() => {
  * Filhos para o modo não-circunferencial — igual ao comportamento original.
  */
 const filhosAtuais = computed(() => {
+  // Drill-down ativo (navegando): filhos da região navegada — vale inclusive no circunferencial.
+  if (navegacao.value.length > 0) {
+    return props.getFilhos(navegacao.value[navegacao.value.length - 1].id)
+  }
   if (vistaEscolhida.value === 'circunferencial') return []
   if (!regiaoAtual.value) return []
-  // No modo anterior/posterior de membro, filtra filhos da vista correta
-  if (props.membroRegioes && vistaEscolhida.value && navegacao.value.length === 0) {
-    // base ativa já é o nó correto da vista (ex.: membro-superior-direito-anterior ou membro-superior-direito-posterior)
-    return props.getFilhos(regiaoAtual.value.id)
-  }
   return props.getFilhos(regiaoAtual.value.id)
 })
 
@@ -190,24 +189,16 @@ const filhosCircunferencial = computed<{ anterior: ExameFisicoRegiao[]; posterio
 })
 
 /**
- * Lista única do modo circunferencial: une TODAS as sub-regiões dos ramos anterior e
- * posterior — incluindo os níveis mais profundos (nível 3 filho de nível 2) — numa lista
- * achatada, deduplicando por NOME (o que for igual nos dois ramos aparece 1 vez,
- * mantendo a 1ª ocorrência: anterior antes de posterior).
+ * Lista do nível 2 do modo circunferencial: une os filhos diretos dos ramos anterior e
+ * posterior, deduplicando por NOME (o que for igual nos dois ramos aparece 1 vez, mantendo
+ * a 1ª ocorrência: anterior antes de posterior). Níveis mais profundos (3+) ficam acessíveis
+ * via drill-down (igual anterior/posterior), não achatados nesta lista.
  */
 const filhosCircunferencialUnificado = computed<ExameFisicoRegiao[]>(() => {
   const { anterior, posterior } = filhosCircunferencial.value
-  // Coleta recursiva: cada sub-região + todos os seus descendentes (nível 3, …), achatado.
-  const coletar = (regioes: ExameFisicoRegiao[]): ExameFisicoRegiao[] => {
-    const out: ExameFisicoRegiao[] = []
-    for (const r of regioes) {
-      out.push(r, ...coletar(props.getFilhos(r.id)))
-    }
-    return out
-  }
   const vistos = new Set<string>()
   const unico: ExameFisicoRegiao[] = []
-  for (const filho of [...coletar(anterior), ...coletar(posterior)]) {
+  for (const filho of [...anterior, ...posterior]) {
     const chave = filho.nome.trim().toLowerCase()
     if (vistos.has(chave)) continue
     vistos.add(chave)
@@ -459,9 +450,9 @@ function fechar() {
           </span>
         </div>
 
-        <!-- Breadcrumb de navegação hierárquica (regiões não-laterais, modo não-circ) -->
+        <!-- Breadcrumb de navegação hierárquica (regiões não-laterais; inclui circ ao navegar) -->
         <div
-          v-if="breadcrumb.length > 0 && !membroRegioes && vistaEscolhida !== 'circunferencial'"
+          v-if="breadcrumb.length > 0 && !membroRegioes"
           class="rsp-breadcrumb"
         >
           <template v-for="(item, idx) in breadcrumb" :key="item.id">
@@ -482,8 +473,8 @@ function fechar() {
 
         <div class="rsp-divider" />
 
-        <!-- ── Modo circunferencial: lista agrupada Anterior + Posterior ──── -->
-        <template v-if="vistaEscolhida === 'circunferencial'">
+        <!-- ── Modo circunferencial (raiz): lista nível 2 unificada; ao navegar usa o template geral ── -->
+        <template v-if="vistaEscolhida === 'circunferencial' && navegacao.length === 0">
           <div class="rsp-sub-list">
 
             <!--
@@ -532,28 +523,41 @@ function fechar() {
               <div class="rsp-divider" />
             </template>
 
-            <!-- Lista única: anterior + posterior unificados e deduplicados por nome. -->
-            <label
-              v-for="filho in filhosCircunferencialUnificado"
-              :key="filho.id"
-              class="rsp-opt"
-              :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
-            >
-              <input
-                v-if="!jaFoiSelecionada(filho.id)"
-                type="checkbox"
-                class="rsp-opt-input"
-                :checked="estaSelecionado(filho.id)"
-                @change="toggleRegiao(filho)"
-              />
-              <span class="rsp-opt-box">
-                <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
-              </span>
-              <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
-                {{ nomeExibido(filho) }}
-              </span>
-              <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
-            </label>
+            <!-- Lista nível 2: anterior + posterior unificados/deduplicados, com drill-down. -->
+            <template v-for="filho in filhosCircunferencialUnificado" :key="filho.id">
+              <div class="rsp-opt-row">
+                <label
+                  class="rsp-opt rsp-opt--flex1"
+                  :class="{ 'rsp-opt--disabled': jaFoiSelecionada(filho.id) }"
+                >
+                  <input
+                    v-if="!jaFoiSelecionada(filho.id)"
+                    type="checkbox"
+                    class="rsp-opt-input"
+                    :checked="estaSelecionado(filho.id)"
+                    @change="toggleRegiao(filho)"
+                  />
+                  <span class="rsp-opt-box">
+                    <i v-if="estaSelecionado(filho.id) || jaFoiSelecionada(filho.id)" class="fa-solid fa-check" />
+                  </span>
+                  <span class="rsp-opt-lbl" :class="{ 'rsp-opt-lbl--muted': jaFoiSelecionada(filho.id) }">
+                    {{ nomeExibido(filho) }}
+                  </span>
+                  <span v-if="jaFoiSelecionada(filho.id)" class="rsp-badge-sel">Selecionado</span>
+                </label>
+
+                <!-- Drill-down: abre as sub-regiões (nível 3) dentro desta. -->
+                <button
+                  v-if="temFilhos(filho.id)"
+                  type="button"
+                  class="rsp-opt-exp"
+                  title="Ver sub-regiões"
+                  @click.stop="navegarPara(filho)"
+                >
+                  <i class="fa-solid fa-chevron-right" />
+                </button>
+              </div>
+            </template>
 
             <p
               v-if="filhosCircunferencialUnificado.length === 0"

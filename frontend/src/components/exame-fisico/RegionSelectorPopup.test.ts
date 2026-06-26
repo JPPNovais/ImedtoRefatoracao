@@ -258,10 +258,10 @@ describe("CA16 — ordem dos passos — não-membro", () => {
     })
 })
 
-// ─── CA17: circunferencial lista filhos das 2 vistas agrupados ────────────────
+// ─── CA17: circunferencial une os filhos das 2 vistas numa lista deduplicada ──
 
-describe("CA17 — circunferencial lista filhos das 2 vistas agrupados", () => {
-    it("lista Anterior (filhos de tronco-anterior) + Posterior (filhos de tronco-posterior) com cabeçalhos", async () => {
+describe("CA17 — circunferencial une os filhos das 2 vistas numa lista única", () => {
+    it("lista filhos de tronco-anterior + tronco-posterior juntos, sem cabeçalhos de grupo", async () => {
         // Fusão 2026-06-25_002: tronco-circunferencial resolve via tronco-anterior + tronco-posterior
         const catalogoCirc = [...catalogoTronco]
         function getFilhosCirc(id: string) {
@@ -274,12 +274,11 @@ describe("CA17 — circunferencial lista filhos das 2 vistas agrupados", () => {
         await avancarVistaNaoMembro(wrapper, "circunferencial")
 
         const html = wrapper.html()
-        // Cabeçalhos "Anterior" e "Posterior"
-        expect(html).toContain("Anterior")
-        expect(html).toContain("Posterior")
-        // Sub-regiões de ambos os ramos
+        // Sub-regiões de ambos os ramos aparecem na lista unificada
         expect(html).toContain("Peitoral")   // filho de tronco-anterior
         expect(html).toContain("Escapular")  // filho de tronco-posterior
+        // Não há mais os cabeçalhos de grupo "Anterior"/"Posterior" (lista única)
+        expect(html).not.toContain("rsp-sub-head")
     })
 })
 
@@ -288,7 +287,7 @@ describe("CA17 — circunferencial lista filhos das 2 vistas agrupados", () => {
 // Agora valida que tronco-circunferencial → tronco-anterior + tronco-posterior (simétrico).
 
 describe("CA18 — tronco-circunferencial é simétrico (fusão 2026-06-25_002)", () => {
-    it("tronco circunferencial: Anterior = filhos de tronco-anterior, Posterior = filhos de tronco-posterior", async () => {
+    it("tronco circunferencial une filhos de tronco-anterior e tronco-posterior, deduplicados", async () => {
         const catalogoCirc = [...catalogoTronco]
         function getFilhosCirc(id: string) {
             return catalogoCirc.filter(r => r.pai_id === id)
@@ -298,11 +297,9 @@ describe("CA18 — tronco-circunferencial é simétrico (fusão 2026-06-25_002)"
         await avancarVistaNaoMembro(wrapper, "circunferencial")
 
         const html = wrapper.html()
-        expect(html).toContain("Anterior")
-        expect(html).toContain("Posterior")
         expect(html).toContain("Peitoral")   // filho de tronco-anterior
         expect(html).toContain("Escapular")  // filho de tronco-posterior
-        // Não há coluna de "Lombossacra" (exceção clínica removida)
+        // Não há "Lombossacra" (exceção clínica removida)
         expect(html).not.toContain("lombossacra")
     })
 })
