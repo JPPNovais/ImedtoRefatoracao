@@ -243,7 +243,7 @@ function renderConteudo(e: Evolucao): Array<{ chave: string; valor: string }> {
       </div>
       <div v-else class="tab-empty">
         <i class="fa-regular fa-file-lines"></i>
-        <p>Nenhuma evolução registrada.<br />Toque em "Nova evolução" para começar.</p>
+        <p>Nenhuma evolução sua registrada para este paciente.<br />Toque em "Nova evolução" para começar.</p>
       </div>
     </div>
 

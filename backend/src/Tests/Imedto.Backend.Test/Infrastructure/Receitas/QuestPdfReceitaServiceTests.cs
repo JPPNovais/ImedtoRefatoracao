@@ -60,7 +60,8 @@ public class QuestPdfReceitaServiceTests
             EstabelecimentoCnpj: comEstabelecimentoCompleto ? "12345678000190" : null,
             EstabelecimentoTelefone: comEstabelecimentoCompleto ? "1130304040" : null,
             EstabelecimentoEndereco: comEstabelecimentoCompleto ? "Av. Paulista, 1842 — São Paulo/SP" : null,
-            EstabelecimentoFotoUrl: comFotoUrl ? "https://imedto.com/logo.png" : null);
+            EstabelecimentoFotoUrl: comFotoUrl ? "https://imedto.com/logo.png" : null,
+            ProfissionalUsuarioId: Guid.NewGuid());
 
     private static ItemRow Item(int ordem, string nome = "Losartana", string posologia = "1 cp 12/12h")
         => new ItemRow(

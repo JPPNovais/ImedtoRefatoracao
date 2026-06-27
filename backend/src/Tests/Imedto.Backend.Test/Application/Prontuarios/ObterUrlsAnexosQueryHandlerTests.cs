@@ -4,6 +4,7 @@ using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.Infrastructure.Storage;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
@@ -55,7 +56,7 @@ public class ObterUrlsAnexosQueryHandlerTests
 
         _repo.Setup(r => r.ObterReferenciasAnexos(
                 It.Is<IReadOnlyList<long>>(l => l.Contains(AnexoId1) && l.Contains(AnexoId2)),
-                PacienteId, EstabelecimentoId))
+                PacienteId, EstabelecimentoId, It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(refs);
 
         _storage.Setup(s => s.GerarUrlAssinadaLeituraAsync("s3://a/img1.jpg", 300))
@@ -68,7 +69,8 @@ public class ObterUrlsAnexosQueryHandlerTests
             AnexoIds = new[] { AnexoId1, AnexoId2 },
             PacienteId = PacienteId,
             EstabelecimentoId = EstabelecimentoId,
-            SolicitanteUsuarioId = _solicitante
+            SolicitanteUsuarioId = _solicitante,
+            SolicitantePapel = TenantPapel.Profissional,
         })).ToList();
 
         Assert.That(resultado, Has.Count.EqualTo(2));
@@ -85,7 +87,8 @@ public class ObterUrlsAnexosQueryHandlerTests
     {
         // Repositório retorna vazio quando os ids não pertencem ao paciente/tenant.
         _repo.Setup(r => r.ObterReferenciasAnexos(
-                It.IsAny<IReadOnlyList<long>>(), PacienteId, EstabelecimentoId))
+                It.IsAny<IReadOnlyList<long>>(), PacienteId, EstabelecimentoId,
+                It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(Enumerable.Empty<(long, long, string, string, string)>());
 
         var resultado = await _sut.Handle(new ObterUrlsAnexosQuery
@@ -93,7 +96,8 @@ public class ObterUrlsAnexosQueryHandlerTests
             AnexoIds = new[] { AnexoIdOutroTenant },
             PacienteId = PacienteId,
             EstabelecimentoId = EstabelecimentoId,
-            SolicitanteUsuarioId = _solicitante
+            SolicitanteUsuarioId = _solicitante,
+            SolicitantePapel = TenantPapel.Profissional,
         });
 
         Assert.That(resultado, Is.Empty, "Ids de outro tenant retornam lista vazia, sem 404 nem 403.");
@@ -111,7 +115,8 @@ public class ObterUrlsAnexosQueryHandlerTests
         };
 
         _repo.Setup(r => r.ObterReferenciasAnexos(
-                It.IsAny<IReadOnlyList<long>>(), PacienteId, EstabelecimentoId))
+                It.IsAny<IReadOnlyList<long>>(), PacienteId, EstabelecimentoId,
+                It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(refs);
 
         _storage.Setup(s => s.GerarUrlAssinadaLeituraAsync("s3://a/img1.jpg", 300))
@@ -122,7 +127,8 @@ public class ObterUrlsAnexosQueryHandlerTests
             AnexoIds = new[] { AnexoId1, AnexoIdOutroTenant },
             PacienteId = PacienteId,
             EstabelecimentoId = EstabelecimentoId,
-            SolicitanteUsuarioId = _solicitante
+            SolicitanteUsuarioId = _solicitante,
+            SolicitantePapel = TenantPapel.Profissional,
         })).ToList();
 
         Assert.That(resultado, Has.Count.EqualTo(1));
@@ -141,6 +147,6 @@ public class ObterUrlsAnexosQueryHandlerTests
         });
 
         Assert.That(resultado, Is.Empty);
-        _repo.Verify(r => r.ObterReferenciasAnexos(It.IsAny<IReadOnlyList<long>>(), It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+        _repo.Verify(r => r.ObterReferenciasAnexos(It.IsAny<IReadOnlyList<long>>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<Guid>(), It.IsAny<TenantPapel>()), Times.Never);
     }
 }

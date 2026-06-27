@@ -159,7 +159,7 @@ function fmtTamanho(bytes: number) {
         <!-- Empty -->
         <AppEmptyState
             v-else-if="total === 0"
-            mensagem="Nenhuma evolução registrada ainda."
+            mensagem="Nenhuma evolução registrada por você para este paciente."
         />
 
         <!-- Timeline -->

@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Receitas.Queries.Results;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -12,7 +13,13 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 /// </summary>
 public interface IReceitaQueryRepository
 {
-    Task<PaginaReceitasDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
+    Task<PaginaReceitasDto> ListarDoPaciente(
+        long pacienteId,
+        long estabelecimentoId,
+        int pagina,
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel);
     Task<ReceitaDto?> ObterCompleta(long receitaId, long estabelecimentoId);
     Task<ConfiguracaoReceitaDto?> ObterConfiguracao(long estabelecimentoId);
     /// <summary>
@@ -45,19 +52,20 @@ public class ReceitaQueryRepository : IReceitaQueryRepository
         long pacienteId,
         long estabelecimentoId,
         int pagina,
-        int tamanhoPagina)
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel)
     {
+        // Gating: @Papel = 'Dono' bypassa; profissional vê só as próprias (R1 briefing 2026-06-27_001).
         const string sqlTotal = """
             SELECT COUNT(*)
             FROM   public.receitas r
             WHERE  r.paciente_id = @PacienteId
               AND  r.estabelecimento_id = @EstabelecimentoId
               AND  r.deletado_em IS NULL
+              AND  (@Papel = 'Dono' OR r.profissional_usuario_id = @UsuarioId)
             """;
 
-        // Ordena rascunhos (emitida_em IS NULL) primeiro pela data de criação, e
-        // emitidas pela data de emissão. NULLS FIRST coloca rascunhos no topo —
-        // o profissional vê o que está em andamento antes do histórico.
         const string sqlItens = """
             SELECT  r.id                        AS Id,
                     r.paciente_id               AS PacienteId,
@@ -76,21 +84,28 @@ public class ReceitaQueryRepository : IReceitaQueryRepository
             WHERE   r.paciente_id = @PacienteId
               AND   r.estabelecimento_id = @EstabelecimentoId
               AND   r.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR r.profissional_usuario_id = @UsuarioId)
             ORDER BY COALESCE(r.emitida_em, r.criada_em) DESC
             LIMIT   @Tamanho OFFSET @Offset
             """;
 
-        await using var conn = new NpgsqlConnection(_connStr);
-        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new
+        var parametros = new
         {
             PacienteId = pacienteId,
-            EstabelecimentoId = estabelecimentoId
-        });
+            EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
+        };
+
+        await using var conn = new NpgsqlConnection(_connStr);
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, parametros);
 
         var itens = await conn.QueryAsync<ReceitaResumoDto>(sqlItens, new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
             Tamanho = tamanhoPagina,
             Offset = (pagina - 1) * tamanhoPagina
         });

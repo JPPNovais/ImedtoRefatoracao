@@ -274,6 +274,34 @@ Os **alertas clínicos** do paciente (`pacientes.alertas text[]` — ex.: "alerg
 
 ---
 
+## Confidencialidade da evolução e do prontuário — leitura autor-ou-dono (briefing 2026-06-27_001)
+
+Cada **evolução de prontuário** e tudo vinculado a ela (documentos clínicos, anexos, fotos) é visível **apenas pelo profissional que a criou** (`AutorUsuarioId` / `profissional_usuario_id`) **ou pelo Dono** do estabelecimento. Médicos autônomos do mesmo estabelecimento **não compartilham** conteúdo clínico entre si.
+
+**Predicado de visibilidade (R1 — fonte única):**
+```
+registro_visível ⟺ (papel == Dono) OU (id_autor_do_registro == solicitante.usuarioId)
+```
+
+**Superfícies cobertas:**
+- Evoluções: timeline gated (`ObterDoPacienteGated`), listagem paginada (`ListarEvolucoesPaginadas`) e contagem (`ContarEvolucoes`).
+- Documentos clínicos: lista unificada (`DocumentoQueryRepository.ListarDoPaciente`), lista de receitas (`ReceitaQueryRepository.ListarDoPaciente`), leitura/PDF individual (`ObterReceitaQuery`, `ObterAtestadoQuery`, `ObterPedidoExameQuery`).
+- Anexos: listagem (`ListarAnexosDoProntuario`), URL individual (`ObterUrlAnexo`) e lote (`ObterUrlsAnexos`). Regra COALESCE de autoria: anexo com evolução → usa `autor_usuario_id` da evolução; anexo órfão (`evolucao_id IS NULL`) → usa `criado_por_usuario_id` do próprio anexo; Dono sempre passa.
+
+**Falha-fechada (R2):** claim ausente, papel não-reconhecido como Dono nem como autor → retorna vazio (lista) ou "não encontrado" genérico (registro individual). Nunca "abre" por falta de informação.
+
+**Mensagem genérica (R5):** acesso negado retorna "não encontrado" (não "sem permissão"). Não vaza a existência do registro nem o nome do colega autor. PII fora de mensagem de erro.
+
+**Contagem coerente (R6):** `ContarEvolucoes` aplica o mesmo predicado que a listagem — senão paginação/contador denuncia a existência de registros de colegas.
+
+**Distinção vs alertas clínicos:** os alertas clínicos têm regra própria **mais ampla** (Dono + profissional que atende/atendeu, inclusive primeira consulta) por razão de segurança do paciente. O gating de evolução é **mais restrito** (só autor ou Dono) por sigilo entre médicos autônomos. As duas regras coexistem sem conflito — não tocar em `ObterDoPacienteGated` no que se refere a `VerificarVinculoAtendimento` / `PodeGerirAlertas`.
+
+**Audit sem PII (R8):** `prontuario_acesso_log` registra `{usuario_id, prontuario_id, estabelecimento_id, acao, timestamp}` — sem nome do colega autor, sem conteúdo clínico. Best-effort: falha de audit não bloqueia o acesso legítimo.
+
+**Multi-tenant:** filtro `estabelecimento_id` precede o gating por autor. Dono de um tenant nunca acessa dados de outro tenant.
+
+---
+
 ## Responsável legal do paciente — PII de terceiro (briefing 2026-06-23_002)
 
 Pacientes menores de 18 anos precisam de um **responsável legal** cadastrado. Os dados do responsável (`responsavelNome`, `responsavelParentesco`, `responsavelTelefone`) são **dados pessoais de terceiro** (Art. 5º, I LGPD) — não dados do próprio titular.

@@ -191,11 +191,13 @@ public class ReceitaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Obter(long id)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelObter);
         var dto = await _requestBus.Query<ObterReceitaQuery, ReceitaDto>(new ObterReceitaQuery
         {
             ReceitaId = id,
             EstabelecimentoId = _tenant.EstabelecimentoId,
-            SolicitanteUsuarioId = _tenant.UsuarioId
+            SolicitanteUsuarioId = _tenant.UsuarioId,
+            SolicitantePapel = papelObter,
         });
         return Ok(dto);
     }
@@ -208,12 +210,14 @@ public class ReceitaController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanho = 10)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelListar);
         var dto = await _requestBus.Query<ListarReceitasDoPacienteQuery, PaginaReceitasDto>(
             new ListarReceitasDoPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelListar,
                 Pagina = pagina,
                 TamanhoPagina = tamanho
             });
@@ -231,7 +235,8 @@ public class ReceitaController : ControllerBase
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> BaixarPdf(long id)
     {
-        var bytes = await _pdfService.GerarAsync(id, _tenant.EstabelecimentoId, _tenant.UsuarioId);
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelPdf);
+        var bytes = await _pdfService.GerarAsync(id, _tenant.EstabelecimentoId, _tenant.UsuarioId, papelPdf);
         return File(bytes, "application/pdf", $"receita-{id}.pdf");
     }
 

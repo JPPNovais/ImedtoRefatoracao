@@ -20,7 +20,11 @@ public class ContarEvolucoesProntuarioPacienteQueryHandlers
 
     public async Task<ContagemEvolucoesDto> Handle(ContarEvolucoesProntuarioPacienteQuery query)
     {
-        var total = await _queryRepository.ContarEvolucoes(query.PacienteId, query.EstabelecimentoId);
+        var total = await _queryRepository.ContarEvolucoes(
+            query.PacienteId,
+            query.EstabelecimentoId,
+            query.SolicitanteUsuarioId,
+            query.SolicitantePapel);
         return new ContagemEvolucoesDto(total);
     }
 }

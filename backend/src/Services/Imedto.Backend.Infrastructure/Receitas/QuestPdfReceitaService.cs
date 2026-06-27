@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using Dapper;
 using Imedto.Backend.Domain.Prontuarios;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using QuestPDF.Drawing;
@@ -18,9 +19,10 @@ public interface IReceitaPdfService
 {
     /// <summary>
     /// Gera o PDF da receita. Lança <see cref="SharedKernel.Domain.BusinessException"/> se não
-    /// encontrada ou se estiver em Rascunho. Registra audit LGPD de Exportacao quando há prontuário.
+    /// encontrada, sem permissão (gating autor-ou-dono) ou se estiver em Rascunho.
+    /// Registra audit LGPD de Exportacao quando há prontuário.
     /// </summary>
-    Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId, Guid solicitanteUsuarioId);
+    Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId, Guid solicitanteUsuarioId, TenantPapel solicitantePapel);
 }
 
 /// <summary>
@@ -105,10 +107,14 @@ public class QuestPdfReceitaService : IReceitaPdfService
         RegistrarFontesNunitoUmaVez();
     }
 
-    public async Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId, Guid solicitanteUsuarioId)
+    public async Task<byte[]> GerarAsync(long receitaId, long estabelecimentoId, Guid solicitanteUsuarioId, TenantPapel solicitantePapel)
     {
         var dados = await CarregarDadosAsync(receitaId, estabelecimentoId);
         if (dados is null)
+            throw new SharedKernel.Domain.BusinessException("Receita não encontrada.");
+
+        // Gating autor-ou-dono (briefing 2026-06-27_001): mensagem genérica — não vaza autoria.
+        if (solicitantePapel != TenantPapel.Dono && dados.Receita.ProfissionalUsuarioId != solicitanteUsuarioId)
             throw new SharedKernel.Domain.BusinessException("Receita não encontrada.");
 
         // CA2: Rascunho não é documento — 422 antes de gerar qualquer byte.
@@ -221,7 +227,8 @@ public class QuestPdfReceitaService : IReceitaPdfService
                     e.cnpj                  AS EstabelecimentoCnpj,
                     e.telefone              AS EstabelecimentoTelefone,
                     e.endereco              AS EstabelecimentoEndereco,
-                    e.foto_url              AS EstabelecimentoFotoUrl
+                    e.foto_url              AS EstabelecimentoFotoUrl,
+                    r.profissional_usuario_id AS ProfissionalUsuarioId
             FROM    public.receitas r
             INNER JOIN public.estabelecimentos e ON e.id = r.estabelecimento_id
             LEFT JOIN public.pacientes pa       ON pa.id = r.paciente_id

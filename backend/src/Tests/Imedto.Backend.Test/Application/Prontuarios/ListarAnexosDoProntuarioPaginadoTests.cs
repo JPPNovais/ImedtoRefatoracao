@@ -4,6 +4,7 @@ using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
 using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Database.Repositories;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Moq;
 using NUnit.Framework;
 
@@ -49,6 +50,7 @@ public class ListarAnexosDoProntuarioPaginadoTests
         PacienteId = PacienteId,
         EstabelecimentoId = EstabelecimentoId,
         SolicitanteUsuarioId = _solicitanteId,
+        SolicitantePapel = TenantPapel.Profissional,
         Pagina = pagina,
         TamanhoPagina = tamanho
     };
@@ -57,7 +59,7 @@ public class ListarAnexosDoProntuarioPaginadoTests
     public async Task Handle_SemParams_RetornaPrimeiraPaginaDefault50()
     {
         var itens = new List<AnexoDto> { new() { Id = 1 }, new() { Id = 2 } };
-        _repo.Setup(r => r.ListarDoProntuario(It.IsAny<long>(), null, 1, 50))
+        _repo.Setup(r => r.ListarDoProntuario(It.IsAny<long>(), null, It.IsAny<Guid>(), It.IsAny<TenantPapel>(), 1, 50))
             .ReturnsAsync((itens, 2));
 
         var resultado = await _sut.Handle(Query());
@@ -71,7 +73,7 @@ public class ListarAnexosDoProntuarioPaginadoTests
     [Test]
     public async Task Handle_Paginacao_PassaParametrosCorretos()
     {
-        _repo.Setup(r => r.ListarDoProntuario(It.IsAny<long>(), null, 3, 20))
+        _repo.Setup(r => r.ListarDoProntuario(It.IsAny<long>(), null, It.IsAny<Guid>(), It.IsAny<TenantPapel>(), 3, 20))
             .ReturnsAsync((new List<AnexoDto>(), 100));
 
         var resultado = await _sut.Handle(Query(pagina: 3, tamanho: 20));
@@ -79,7 +81,7 @@ public class ListarAnexosDoProntuarioPaginadoTests
         Assert.That(resultado.Pagina, Is.EqualTo(3));
         Assert.That(resultado.TamanhoPagina, Is.EqualTo(20));
         Assert.That(resultado.Total, Is.EqualTo(100));
-        _repo.Verify(r => r.ListarDoProntuario(It.IsAny<long>(), null, 3, 20), Times.Once);
+        _repo.Verify(r => r.ListarDoProntuario(It.IsAny<long>(), null, It.IsAny<Guid>(), It.IsAny<TenantPapel>(), 3, 20), Times.Once);
     }
 
     [Test]
@@ -100,7 +102,7 @@ public class ListarAnexosDoProntuarioPaginadoTests
     [Test]
     public async Task Handle_RegistraAuditLgpd()
     {
-        _repo.Setup(r => r.ListarDoProntuario(It.IsAny<long>(), null, 1, 50))
+        _repo.Setup(r => r.ListarDoProntuario(It.IsAny<long>(), null, It.IsAny<Guid>(), It.IsAny<TenantPapel>(), 1, 50))
             .ReturnsAsync((new List<AnexoDto>(), 0));
 
         await _sut.Handle(Query());

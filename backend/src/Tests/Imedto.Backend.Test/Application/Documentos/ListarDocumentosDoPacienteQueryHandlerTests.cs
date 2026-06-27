@@ -5,6 +5,7 @@ using Imedto.Backend.Domain.Pacientes;
 using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Moq;
 using NUnit.Framework;
 
@@ -93,7 +94,8 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         };
         _queryRepo.Setup(r => r.ListarDoPaciente(
             PacienteId, EstabelecimentoId, 1, 10,
-            null, null, null, null))
+            null, null, null, null,
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(paginaEsperada);
 
         var resultado = await _sut.Handle(Query());
@@ -137,7 +139,8 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
                        .ReturnsAsync(ProntuarioJaIniciado());
         _queryRepo.Setup(r => r.ListarDoPaciente(
             It.IsAny<long>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(),
-            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>()))
+            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(PaginaVazia());
 
         await _sut.Handle(Query());
@@ -156,7 +159,8 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
                        .ReturnsAsync((Prontuario)null);
         _queryRepo.Setup(r => r.ListarDoPaciente(
             It.IsAny<long>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(),
-            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>()))
+            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(PaginaVazia());
 
         await _sut.Handle(Query());
@@ -179,8 +183,9 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         string buscaPassada = "NAO_CHAMADO";
         _queryRepo.Setup(r => r.ListarDoPaciente(
             It.IsAny<long>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(),
-            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>()))
-            .Callback((long _, long _, int _, int _, string _, DateTime? _, DateTime? _, string b) =>
+            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
+            .Callback((long _, long _, int _, int _, string _, DateTime? _, DateTime? _, string b, Guid _, TenantPapel _) =>
             {
                 buscaPassada = b;
             })
@@ -202,8 +207,9 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         string buscaPassada = "NAO_CHAMADO";
         _queryRepo.Setup(r => r.ListarDoPaciente(
             It.IsAny<long>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(),
-            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>()))
-            .Callback((long _, long _, int _, int _, string _, DateTime? _, DateTime? _, string b) =>
+            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
+            .Callback((long _, long _, int _, int _, string _, DateTime? _, DateTime? _, string b, Guid _, TenantPapel _) =>
             {
                 buscaPassada = b;
             })
@@ -225,8 +231,9 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         string buscaPassada = null;
         _queryRepo.Setup(r => r.ListarDoPaciente(
             It.IsAny<long>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(),
-            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>()))
-            .Callback((long _, long _, int _, int _, string _, DateTime? _, DateTime? _, string b) =>
+            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
+            .Callback((long _, long _, int _, int _, string _, DateTime? _, DateTime? _, string b, Guid _, TenantPapel _) =>
             {
                 buscaPassada = b;
             })
@@ -250,8 +257,9 @@ public class ListarDocumentosDoPacienteQueryHandlerTests
         string tipoPassado = null;
         _queryRepo.Setup(r => r.ListarDoPaciente(
             It.IsAny<long>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>(),
-            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>()))
-            .Callback((long _, long _, int _, int _, string t, DateTime? _, DateTime? _, string _) =>
+            It.IsAny<string>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string>(),
+            It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
+            .Callback((long _, long _, int _, int _, string t, DateTime? _, DateTime? _, string _, Guid _, TenantPapel _) =>
             {
                 tipoPassado = t;
             })

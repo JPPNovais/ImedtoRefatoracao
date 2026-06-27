@@ -2,6 +2,7 @@ using Imedto.Backend.Domain.Prontuarios;
 using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Receitas;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
@@ -48,7 +49,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
         _sut.DadosFixos = DadosReceita(status: "Rascunho");
 
         var ex = Assert.ThrowsAsync<BusinessException>(
-            () => _sut.GerarAsync(100, EstabId, UsuarioId));
+            () => _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional));
 
         Assert.That(ex!.Message, Does.Contain("rascunho").IgnoreCase);
     }
@@ -59,7 +60,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
         _sut.DadosFixos = DadosReceita(status: "Rascunho");
 
         Assert.ThrowsAsync<BusinessException>(
-            () => _sut.GerarAsync(100, EstabId, UsuarioId));
+            () => _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional));
 
         _acessoLog.Verify(
             s => s.RegistrarAsync(It.IsAny<long>(), It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<TipoAcessoProntuario>()),
@@ -81,7 +82,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
             .Setup(s => s.RegistrarAsync(It.IsAny<long>(), UsuarioId, EstabId, TipoAcessoProntuario.Exportacao))
             .Returns(Task.CompletedTask);
 
-        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId);
+        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional);
 
         Assert.That(bytes, Is.Not.Null.And.Not.Empty);
         _acessoLog.Verify(
@@ -101,7 +102,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
             .Setup(r => r.ObterPorPaciente(PacienteId, EstabId))
             .ReturnsAsync((Prontuario)null);
 
-        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId);
+        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional);
 
         Assert.That(bytes, Is.Not.Null.And.Not.Empty, "PDF deve ser gerado mesmo sem prontuário.");
         _acessoLog.Verify(
@@ -126,7 +127,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
             .ThrowsAsync(new InvalidOperationException("Banco indisponível"));
 
         // Não deve lançar (best-effort — CA6).
-        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId);
+        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional);
 
         Assert.That(bytes, Is.Not.Null.And.Not.Empty);
     }
@@ -139,7 +140,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
         _sut.DadosFixos = null; // simula query sem resultado (outra tenant ou inexistente)
 
         var ex = Assert.ThrowsAsync<BusinessException>(
-            () => _sut.GerarAsync(100, EstabId, UsuarioId));
+            () => _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional));
 
         Assert.That(ex!.Message, Does.Contain("não encontrada").IgnoreCase);
     }
@@ -150,7 +151,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
         _sut.DadosFixos = null;
 
         Assert.ThrowsAsync<BusinessException>(
-            () => _sut.GerarAsync(100, EstabId, UsuarioId));
+            () => _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional));
 
         _acessoLog.Verify(
             s => s.RegistrarAsync(It.IsAny<long>(), It.IsAny<Guid>(), It.IsAny<long>(), It.IsAny<TipoAcessoProntuario>()),
@@ -167,7 +168,7 @@ public class QuestPdfReceitaServiceGerarAsyncTests
             .Setup(r => r.ObterPorPaciente(PacienteId, EstabId))
             .ReturnsAsync(Prontuario.Iniciar(PacienteId, EstabId, 1L));
 
-        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId);
+        var bytes = await _sut.GerarAsync(100, EstabId, UsuarioId, TenantPapel.Profissional);
 
         Assert.That(bytes, Is.Not.Null.And.Not.Empty, "Cancelada deve continuar gerando PDF.");
     }
@@ -201,7 +202,8 @@ public class QuestPdfReceitaServiceGerarAsyncTests
                 EstabelecimentoCnpj: null,
                 EstabelecimentoTelefone: null,
                 EstabelecimentoEndereco: null,
-                EstabelecimentoFotoUrl: null),
+                EstabelecimentoFotoUrl: null,
+                ProfissionalUsuarioId: UsuarioId),
             new List<ItemRow>
             {
                 new(Ordem: 0, Medicamento: "Dipirona", Posologia: "1 cp 8/8h",

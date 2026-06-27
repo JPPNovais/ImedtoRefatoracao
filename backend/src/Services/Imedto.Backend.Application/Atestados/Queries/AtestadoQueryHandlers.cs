@@ -45,7 +45,8 @@ public class ListarAtestadosDoPacienteQueryHandlers
             ?? throw new BusinessException("Paciente não encontrado.");
 
         var resultado = await _queryRepo.ListarDoPaciente(
-            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
+            query.PacienteId, query.EstabelecimentoId, pagina, tamanho,
+            query.SolicitanteUsuarioId, query.SolicitantePapel);
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(paciente.Id, query.EstabelecimentoId);
         if (prontuario is not null && resultado.Total > 0)
@@ -76,7 +77,9 @@ public class ObterAtestadoQueryHandlers : IRequestHandler<ObterAtestadoQuery, At
 
     public async Task<AtestadoDto> Handle(ObterAtestadoQuery query)
     {
-        var atestado = await _queryRepo.ObterPorId(query.AtestadoId, query.EstabelecimentoId)
+        var atestado = await _queryRepo.ObterPorId(
+            query.AtestadoId, query.EstabelecimentoId,
+            query.SolicitanteUsuarioId, query.SolicitantePapel)
             ?? throw new BusinessException("Atestado não encontrado.");
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(atestado.PacienteId, query.EstabelecimentoId);

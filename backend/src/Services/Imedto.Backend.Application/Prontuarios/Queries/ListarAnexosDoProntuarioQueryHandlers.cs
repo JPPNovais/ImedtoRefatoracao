@@ -41,7 +41,9 @@ public class ListarAnexosDoProntuarioQueryHandlers
             prontuario.Id, query.SolicitanteUsuarioId, query.EstabelecimentoId, TipoAcessoProntuario.Leitura);
 
         var (itens, total) = await _queryRepository.ListarDoProntuario(
-            prontuario.Id, query.EvolucaoId, pagina, tamanho);
+            prontuario.Id, query.EvolucaoId,
+            query.SolicitanteUsuarioId, query.SolicitantePapel,
+            pagina, tamanho);
 
         return new PaginaAnexosDto
         {
@@ -78,7 +80,8 @@ public class ObterUrlAnexoQueryHandlers : IRequestHandler<ObterUrlAnexoQuery, An
         // Anexo de outro tenant ou de outro paciente do mesmo tenant retorna null —
         // mesma mensagem generica em todos os casos para nao vazar existencia.
         var referencia = await _queryRepository.ObterReferenciaAnexo(
-            query.AnexoId, query.PacienteId, query.EstabelecimentoId);
+            query.AnexoId, query.PacienteId, query.EstabelecimentoId,
+            query.SolicitanteUsuarioId, query.SolicitantePapel);
         if (referencia is null)
             throw new BusinessException("Anexo não encontrado.");
 

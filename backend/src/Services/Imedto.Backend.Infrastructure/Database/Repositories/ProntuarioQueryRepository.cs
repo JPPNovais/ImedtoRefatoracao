@@ -49,9 +49,12 @@ public class ProntuarioQueryRepository
               AND   p.deletado_em IS NULL
             """;
 
+        // Gating de autoria (R1 briefing 2026-06-27_001): Profissional vê só as próprias evoluções;
+        // Dono vê todas. @Papel = 'Dono' bypassa o predicado de autoria (R4).
         const string sqlEvo = """
             SELECT  e.id                             AS Id,
                     e.prontuario_id                  AS ProntuarioId,
+                    e.autor_usuario_id               AS AutorUsuarioId,
                     u.nome_completo                  AS AutorNome,
                     mdp.nome                         AS ModeloNome,
                     e.conteudo                       AS Conteudo,
@@ -63,6 +66,7 @@ public class ProntuarioQueryRepository
             LEFT JOIN public.modelo_de_prontuario mdp ON mdp.id = e.modelo_de_prontuario_id_origem
             WHERE   e.prontuario_id = @ProntuarioId
               AND   e.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR e.autor_usuario_id = @UsuarioId)
             ORDER BY e.criada_em DESC
             LIMIT   @Tamanho
             """;
@@ -115,7 +119,9 @@ public class ProntuarioQueryRepository
         var evolucoes = await conn.QueryAsync<EvolucaoDto>(sqlEvo, new
         {
             ProntuarioId = prontuario.Id,
-            Tamanho = Math.Clamp(tamanhoTimeline, 1, 500)
+            Tamanho = Math.Clamp(tamanhoTimeline, 1, 500),
+            UsuarioId = solicitanteUsuarioId,
+            Papel = papel.ToString(),
         });
 
         // Gating de alertas: Dono vê sempre; Profissional só com vínculo de atendimento.
@@ -205,12 +211,15 @@ public class ProntuarioQueryRepository
     /// <summary>
     /// Listagem paginada das evoluções do prontuário do paciente. Retorna lista vazia
     /// + total 0 quando o paciente ainda não tem prontuário (o front exibe o CTA).
+    /// Gated por autor-ou-dono (R1/R6 briefing 2026-06-27_001).
     /// </summary>
-    public async Task<PaginaEvolucoesDto> ListarEvolucoesPaginadas(
+    public virtual async Task<PaginaEvolucoesDto> ListarEvolucoesPaginadas(
         long pacienteId,
         long estabelecimentoId,
         int pagina,
-        int tamanhoPagina)
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel papel)
     {
         const string sqlProntId = """
             SELECT  p.id
@@ -220,16 +229,19 @@ public class ProntuarioQueryRepository
               AND   p.deletado_em IS NULL
             """;
 
+        // Gating: @Papel = 'Dono' bypassa; caso contrário filtra por autor.
         const string sqlTotal = """
             SELECT COUNT(*)
             FROM   public.prontuario_evolucoes e
             WHERE  e.prontuario_id = @ProntuarioId
               AND  e.deletado_em IS NULL
+              AND  (@Papel = 'Dono' OR e.autor_usuario_id = @UsuarioId)
             """;
 
         const string sqlItens = """
             SELECT  e.id                             AS Id,
                     e.prontuario_id                  AS ProntuarioId,
+                    e.autor_usuario_id               AS AutorUsuarioId,
                     u.nome_completo                  AS AutorNome,
                     mdp.nome                         AS ModeloNome,
                     e.conteudo                       AS Conteudo,
@@ -241,6 +253,7 @@ public class ProntuarioQueryRepository
             LEFT JOIN public.modelo_de_prontuario mdp ON mdp.id = e.modelo_de_prontuario_id_origem
             WHERE   e.prontuario_id = @ProntuarioId
               AND   e.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR e.autor_usuario_id = @UsuarioId)
             ORDER BY e.criada_em DESC
             LIMIT   @Tamanho OFFSET @Offset
             """;
@@ -263,11 +276,20 @@ public class ProntuarioQueryRepository
             };
         }
 
-        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new { ProntuarioId = prontuarioId.Value });
+        var parametrosGated = new
+        {
+            ProntuarioId = prontuarioId.Value,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = papel.ToString(),
+        };
+
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, parametrosGated);
 
         var itens = await conn.QueryAsync<EvolucaoDto>(sqlItens, new
         {
             ProntuarioId = prontuarioId.Value,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = papel.ToString(),
             Tamanho = tamanhoPagina,
             Offset = (pagina - 1) * tamanhoPagina,
         });
@@ -282,10 +304,15 @@ public class ProntuarioQueryRepository
     }
 
     /// <summary>
-    /// Conta evoluções não-deletadas do prontuário do paciente. 0 se ainda não tem prontuário.
-    /// Filtro multi-tenant via join em <c>prontuarios.estabelecimento_id</c>.
+    /// Conta evoluções não-deletadas do prontuário do paciente visíveis ao solicitante.
+    /// Gated por autor-ou-dono (R1/R6 briefing 2026-06-27_001) — coerente com <see cref="ListarEvolucoesPaginadas"/>.
+    /// 0 se ainda não tem prontuário ou o solicitante não tem evoluções próprias.
     /// </summary>
-    public async Task<int> ContarEvolucoes(long pacienteId, long estabelecimentoId)
+    public virtual async Task<int> ContarEvolucoes(
+        long pacienteId,
+        long estabelecimentoId,
+        Guid solicitanteUsuarioId,
+        TenantPapel papel)
     {
         const string sql = """
             SELECT COUNT(*)::int
@@ -295,13 +322,16 @@ public class ProntuarioQueryRepository
               AND  p.estabelecimento_id = @EstabelecimentoId
               AND  p.deletado_em IS NULL
               AND  pe.deletado_em IS NULL
+              AND  (@Papel = 'Dono' OR pe.autor_usuario_id = @UsuarioId)
             """;
 
         await using var conn = new NpgsqlConnection(_connectionString);
         return await conn.ExecuteScalarAsync<int>(sql, new
         {
             PacienteId = pacienteId,
-            EstabelecimentoId = estabelecimentoId
+            EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = papel.ToString(),
         });
     }
 }

@@ -10,7 +10,7 @@
     reorganiza visualmente o que já existia.
 -->
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, ref, reactive } from "vue"
 import { AppButton } from "@/components/ui"
 import SecaoProntuario from "@/components/prontuario/SecaoProntuario.vue"
 import SeletorTemplateCirurgico from "@/components/prontuario/SeletorTemplateCirurgico.vue"
@@ -27,6 +27,16 @@ const props = defineProps<{
     pacienteSexo?: string | null
     /** Erro de validação do campo "cirurgião" na seção desc-cirurgica (CA20–CA22). */
     erroCirurgiao?: string | null
+    /**
+     * ID do paciente — propagado para SecaoAnexos/SecaoFotosPaciente habilitar
+     * upload e listagem. Sem ele, seções de arquivo ficam em modo aviso.
+     */
+    pacienteId?: number | null
+    /**
+     * ID da evolução corrente (se já salva). Upload de anexo/foto só é habilitado
+     * quando este campo está preenchido — evolução deve existir antes do arquivo.
+     */
+    evolucaoId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -34,7 +44,23 @@ const emit = defineEmits<{
     "update:modeloId": [id: number]
     /** Aplica o corpo do template ao campo da seção desc-cirurgica (CA2/CA3). */
     "aplicar-template": [chave: string, corpo: string]
+    /**
+     * Mapa de pendentes por chave de seção — emitido quando SecaoAnexos ou
+     * SecaoFotosPaciente alteram sua lista de pendentes. O ProntuarioView
+     * usa isto para subir os arquivos ao S3 no salvar (CA24/CA25 addendum).
+     */
+    "pendentes-por-secao": [mapa: Map<string, File[]>]
 }>()
+
+// ─── Coleta de pendentes (addendum upload diferido) ───────────────────────
+// Mapa chaveSecao → File[] — atualizado pelos emits "pendentes" das seções.
+const pendentesPorSecao = reactive<Map<string, File[]>>(new Map())
+
+function atualizarPendentes(chave: string, arquivos: File[]) {
+    if (arquivos.length > 0) pendentesPorSecao.set(chave, arquivos)
+    else pendentesPorSecao.delete(chave)
+    emit("pendentes-por-secao", new Map(pendentesPorSecao))
+}
 
 // ─── Seletor de template cirúrgico (CA15: só abre ao clicar) ─────────────────
 const seletorAberto = ref(false)
@@ -182,6 +208,9 @@ const modeloAtual = computed(() => props.modelos.find(m => m.id === props.modelo
                             :tipo="secao.tipo"
                             :paciente-sexo="pacienteSexo"
                             :erro-cirurgiao="secao.chave === 'desc-cirurgica' ? erroCirurgiao : null"
+                            :paciente-id="pacienteId"
+                            :evolucao-id="evolucaoId"
+                            @pendentes="(arquivos) => atualizarPendentes(secao.chave, arquivos)"
                         />
                     </div>
                 </section>

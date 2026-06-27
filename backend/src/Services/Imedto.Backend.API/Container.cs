@@ -763,6 +763,7 @@ public static class Container
 
         // Anexos de prontuário
         services.AddScoped<AdicionarAnexoCommandHandler>();
+        services.AddScoped<RemoverAnexoCommandHandler>();
         services.AddScoped<ListarAnexosDoProntuarioQueryHandlers>();
         services.AddScoped<ObterUrlAnexoQueryHandlers>();
         services.AddScoped<ObterUrlsAnexosQueryHandler>();
@@ -1190,6 +1191,7 @@ public static class Container
             bus.Register<RegistrarExportacaoProntuarioCommand, RegistrarExportacaoProntuarioCommandHandler>();
             bus.Register<RegistrarExportacaoEvolucaoCommand, RegistrarExportacaoEvolucaoCommandHandler>();
             bus.Register<AdicionarAnexoCommand, AdicionarAnexoCommandHandler>();
+            bus.Register<RemoverAnexoCommand, RemoverAnexoCommandHandler>();
             bus.Register<CriarModeloPermissaoCommand, CriarModeloPermissaoCommandHandler>();
             bus.Register<AtualizarModeloPermissaoCommand, AtualizarModeloPermissaoCommandHandler>();
             bus.Register<ExcluirModeloPermissaoCommand, ExcluirModeloPermissaoCommandHandler>();

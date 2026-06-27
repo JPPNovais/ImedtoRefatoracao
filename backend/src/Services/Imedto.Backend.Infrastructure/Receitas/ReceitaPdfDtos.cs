@@ -34,7 +34,9 @@ internal sealed record ReceitaRow(
     string EstabelecimentoCnpj,
     string EstabelecimentoTelefone,
     string EstabelecimentoEndereco,
-    string EstabelecimentoFotoUrl);
+    string EstabelecimentoFotoUrl,
+    // Gating autor-ou-dono (briefing 2026-06-27_001): usado em GerarAsync para verificar acesso ao PDF.
+    Guid ProfissionalUsuarioId);
 
 internal sealed record ItemRow(
     int Ordem,

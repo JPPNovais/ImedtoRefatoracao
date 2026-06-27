@@ -1,14 +1,25 @@
 using System.Text.Json;
 using Dapper;
 using Imedto.Backend.Contracts.PedidosExame.Queries.Results;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
 
 public interface IPedidoExameQueryRepository
 {
-    Task<PaginaPedidosExameDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
-    Task<PedidoExameDto?> ObterPorId(long pedidoExameId, long estabelecimentoId);
+    Task<PaginaPedidosExameDto> ListarDoPaciente(
+        long pacienteId,
+        long estabelecimentoId,
+        int pagina,
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel);
+    Task<PedidoExameDto?> ObterPorId(
+        long pedidoExameId,
+        long estabelecimentoId,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel);
 }
 
 /// <summary>
@@ -57,14 +68,18 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
         long pacienteId,
         long estabelecimentoId,
         int pagina,
-        int tamanhoPagina)
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel)
     {
+        // Gating: @Papel = 'Dono' bypassa; profissional vê só os próprios (R1 briefing 2026-06-27_001).
         const string sqlTotal = """
             SELECT COUNT(*)
             FROM   public.pedidos_exame p
             WHERE  p.paciente_id = @PacienteId
               AND  p.estabelecimento_id = @EstabelecimentoId
               AND  p.deletado_em IS NULL
+              AND  (@Papel = 'Dono' OR p.profissional_usuario_id = @UsuarioId)
             """;
 
         const string sqlItens = """
@@ -83,21 +98,28 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
             WHERE   p.paciente_id = @PacienteId
               AND   p.estabelecimento_id = @EstabelecimentoId
               AND   p.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR p.profissional_usuario_id = @UsuarioId)
             ORDER BY p.criado_em DESC
             LIMIT   @Tamanho OFFSET @Offset
             """;
 
-        await using var conn = new NpgsqlConnection(_connStr);
-        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new
+        var parametros = new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
-        });
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
+        };
+
+        await using var conn = new NpgsqlConnection(_connStr);
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, parametros);
 
         var rows = await conn.QueryAsync<PedidoExameRaw>(sqlItens, new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
             Tamanho = tamanhoPagina,
             Offset = (pagina - 1) * tamanhoPagina,
         });
@@ -111,8 +133,13 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
         };
     }
 
-    public async Task<PedidoExameDto?> ObterPorId(long pedidoExameId, long estabelecimentoId)
+    public async Task<PedidoExameDto?> ObterPorId(
+        long pedidoExameId,
+        long estabelecimentoId,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel)
     {
+        // Gating: retorna null se o pedido não é do solicitante (e não é Dono) — mensagem genérica no handler (R5).
         const string sql = """
             SELECT  p.id                  AS Id,
                     p.paciente_id         AS PacienteId,
@@ -129,6 +156,7 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
             WHERE   p.id = @Id
               AND   p.estabelecimento_id = @EstabelecimentoId
               AND   p.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR p.profissional_usuario_id = @UsuarioId)
             """;
 
         await using var conn = new NpgsqlConnection(_connStr);
@@ -136,6 +164,8 @@ public class PedidoExameQueryRepository : IPedidoExameQueryRepository
         {
             Id = pedidoExameId,
             EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
         });
         return row?.ToDto();
     }

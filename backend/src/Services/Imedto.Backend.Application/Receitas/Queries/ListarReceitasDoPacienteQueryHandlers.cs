@@ -46,7 +46,8 @@ public class ListarReceitasDoPacienteQueryHandlers
             ?? throw new BusinessException("Paciente não encontrado.");
 
         var resultado = await _queryRepo.ListarDoPaciente(
-            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
+            query.PacienteId, query.EstabelecimentoId, pagina, tamanho,
+            query.SolicitanteUsuarioId, query.SolicitantePapel);
 
         // Registra acesso ao prontuário quando ele existe — listagem de receitas
         // é leitura clínica do histórico do paciente.

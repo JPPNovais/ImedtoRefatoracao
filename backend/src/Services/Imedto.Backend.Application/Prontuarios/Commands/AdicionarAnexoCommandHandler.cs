@@ -43,10 +43,16 @@ public class AdicionarAnexoCommandHandler : ICommandHandler<AdicionarAnexoComman
         var prontuario = await _prontuarioRepo.ObterPorPaciente(command.PacienteId, command.EstabelecimentoId)
             ?? throw new BusinessException("Paciente ainda não tem prontuário.");
 
-        // Validação de tamanho (defense-in-depth; o storage também valida ao subir).
-        var limiteBytes = (long)_storageOptions.TamanhoMaxMb * 1024L * 1024L;
-        if (command.TamanhoBytes <= 0 || command.TamanhoBytes > limiteBytes)
-            throw new BusinessException($"Tamanho do anexo inválido (máx. {_storageOptions.TamanhoMaxMb} MB).");
+        // Validação de tamanho.
+        // Seções de prontuário (anexo / foto-paciente) têm limite menor (2MB).
+        // Outros uploads (migração, exame físico) usam o limite global (50MB).
+        var ehSecaoProntuario = command.Marcador is "anexo" or "foto-paciente";
+        var limiteEfetivo = ehSecaoProntuario
+            ? (long)_storageOptions.TamanhoMaxAnexoMb * 1024L * 1024L
+            : (long)_storageOptions.TamanhoMaxMb * 1024L * 1024L;
+        var limiteMb = ehSecaoProntuario ? _storageOptions.TamanhoMaxAnexoMb : _storageOptions.TamanhoMaxMb;
+        if (command.TamanhoBytes <= 0 || command.TamanhoBytes > limiteEfetivo)
+            throw new BusinessException($"Tamanho do arquivo inválido (máx. {limiteMb} MB).");
 
         // Validação de MIME — falhar cedo, antes de gastar I/O com o upload.
         if (string.IsNullOrWhiteSpace(command.MimeType) ||

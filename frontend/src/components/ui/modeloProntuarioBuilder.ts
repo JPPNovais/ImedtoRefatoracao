@@ -22,8 +22,11 @@ export const EXEMPLOS_SECAO_MODELO: Record<string, unknown> = {
     "procedimento-consultorio": "Realizada curetagem de ceratose seborreica em região dorsal com bisturi elétrico, sob anestesia local com lidocaína 2%. Hemostasia adequada. Peça enviada para anatomopatológico.",
     "ficha-anestesica": "Paciente em bom estado geral, orientada, corada, hidratada, anictérica, acianótica. Mallampati I. Via aérea sem alterações. ASA II por hipertensão arterial controlada.",
     "equipe-cirurgica": "Cirurgião: Dr. Carlos Andrade. 1º auxiliar: Dra. Fernanda Lima. Anestesiologista: Dr. Rodrigo Souza. Instrumentadora: Enf. Mariana Costa.",
-    "fotos-paciente": "Fotografia pré-operatória de frente e perfil realizadas. Imagens armazenadas no prontuário digital.",
-    anexos: "Laudo de ultrassonografia abdominal total anexado. Resultado de hemograma completo e PCR em anexo.",
+    // ── Seções de arquivo — componentes próprios (briefing 2026-06-27_002) ──────
+    // Valor {} sinaliza para o dispatcher renderizar SecaoFotosPaciente/SecaoAnexos
+    // em readOnly (prévia) — os componentes exibem exemplos fictícios sem chamar o backend.
+    "fotos-paciente": {},
+    anexos: {},
     cid10: "K92.1 — Melenas",
 
     // ── HPP — História pregressa ───────────────────────────────────────────────

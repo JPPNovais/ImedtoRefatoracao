@@ -75,10 +75,42 @@ ssh -i ~/.ssh/imedto-deploy.pem ec2-user@56.125.254.136 \
 Backend acessa via `IFotoStorageService` / `IAnexoStorageService` (`Domain.Common` / `Domain.Prontuarios`) → implementações `S3FotoStorageService` / `S3AnexoStorageService`. PDFs assinados são salvos diretamente pelo `BirdIdAssinaturaProvider` via `S3AnexoStorageService`. Credenciais via IAM role da EC2.
 
 Limites configuráveis em `Storage:*` (appsettings):
-- `TamanhoMaxMb` = 50
-- `MimeTypesPermitidos` = pdf, png, jpeg, webp, dicom
+- `TamanhoMaxMb` = 50 (limite global — upload genérico via endpoint anterior)
+- `TamanhoMaxAnexoMb` = 2 (limite para seções prontuário: marcador="anexo" ou "foto-paciente"; briefing 2026-06-27_002)
+- `TtlSignedUrlMinutos` = 5 (URL assinada padrão para download de anexo)
+- `TtlSignedUrlFotosMinutos` = 5 (URL assinada para fotos de paciente, antes era hardcoded 86400s — briefing 2026-06-27_002)
+- `MimeTypesPermitidos` = pdf, png, jpeg, webp, dicom + **Office** (msword, docx, ms-excel, xlsx — adicionados em briefing 2026-06-27_002)
+
+**Estratégia de whitelist MIME Office**: mantida em `appsettings.json` (não em SSM) para que o redeploy aplique automaticamente sem passar por rotações de parâmetros. Mudança no whitelist = PR + deploy.
 
 **CORS (obrigatório):** ambos os buckets têm `AllowedOrigins` = `https://app.imedto.com`, `https://www.imedto.com`, `https://imedto.com`, `http://localhost:3000`, `http://localhost:5173`; `AllowedMethods` = `GET, HEAD`. Sem isso, o frontend não consegue baixar a presigned URL via `fetch()` (necessário para os PDFs gerados pelo `usePdfHeader.ts` — Prontuário, Orçamento, Relatório). A falha é silenciosa: o helper cai no placeholder com iniciais. Config em [`infra/aws-resources.md`](../infra/aws-resources.md) (seção S3).
+
+### Auditoria de segurança dos buckets S3 (2026-06-27)
+
+Inspecionado via MCP AWS API. Estado confirmado:
+
+| Controle | `imedto-fotos` | `imedto-anexos` | Status |
+|---|---|---|---|
+| Block Public ACLs | Sim (`BlockPublicAcls=true`) | Sim | OK |
+| Ignore Public ACLs | Sim (`IgnorePublicAcls=true`) | Sim | OK |
+| Block Public Policy | Sim (`BlockPublicPolicy=true`) | Sim | OK |
+| Restrict Public Buckets | Sim (`RestrictPublicBuckets=true`) | Sim | OK |
+| ACL | Somente owner (`FULL_CONTROL` canonical user) | Somente owner | OK |
+| Bucket Policy | Nenhuma (sem `get-bucket-policy`) | Nenhuma | OK (acesso via IAM role EC2) |
+| Server-Side Encryption | AES256 (SSE-S3) | AES256 (SSE-S3) | OK |
+| SSE-C bloqueado | Sim (`BlockedEncryptionTypes: SSE-C`) | Sim | OK |
+| Versioning | Desabilitado (`{}` vazio) | Desabilitado | Ver nota abaixo |
+| Server Access Logging | Desabilitado | Desabilitado | Ver nota abaixo |
+
+**Pontos OK — sem ação imediata:** Block Public Access está `true` em todos os 4 flags em ambos os buckets (máxima proteção). ACL só tem o owner. Sem bucket policy pública. Criptografia AES256 em repouso habilitada. SSE-C bloqueado (impede upload de cliente com chave própria não controlada).
+
+**Recomendações de hardening (decisão do usuário — DB não altera produção):**
+
+1. **Versioning desabilitado nos dois buckets**: em caso de deleção ou sobrescrita acidental de anexo de prontuário (LGPD Art. 11), não há recuperação sem backup externo. Habilitando `MfaDelete` seria o nível máximo. Custo: duplicação do storage durante janela de retenção. Ação: `aws s3api put-bucket-versioning --bucket imedto-anexos-155684258219 --versioning-configuration Status=Enabled` (decidir junto com política de Lifecycle para expirar versões antigas).
+
+2. **Server Access Logging desabilitado**: sem log de `GetObject` não é possível auditar quais presigned URLs foram de fato usadas para download (log de quem acessou o arquivo clinicamente). Importante para LGPD Art. 37 (rastro de acesso a dado de saúde). Não implica custo de compute — apenas custo de storage de log S3. Ação: criar bucket de log dedicado + `aws s3api put-bucket-logging`.
+
+3. **Encryption AES256 (SSE-S3) vs SSE-KMS**: a chave AES256 é gerenciada pela AWS (sem visibilidade de acesso à chave). SSE-KMS com CMK própria permitiria auditoria de uso da chave via CloudTrail + possibilidade de revogar acesso. Para dado de saúde em escala, SSE-KMS é o nível recomendado. Custo: ~US$1/mês por CMK + US$0.03/10k operações de API KMS. Hoje o volume não justifica, mas registrar para revisão pré-produção real.
 
 ## Segredos (AWS SSM Parameter Store, prefixo `/imedto/dev/`)
 

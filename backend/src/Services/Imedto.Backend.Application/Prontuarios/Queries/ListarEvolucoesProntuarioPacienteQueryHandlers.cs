@@ -44,7 +44,8 @@ public class ListarEvolucoesProntuarioPacienteQueryHandlers
             ?? throw new BusinessException("Paciente não encontrado.");
 
         var resultado = await _queryRepository.ListarEvolucoesPaginadas(
-            paciente.Id, query.EstabelecimentoId, pagina, tamanho);
+            paciente.Id, query.EstabelecimentoId, pagina, tamanho,
+            query.SolicitanteUsuarioId, query.SolicitantePapel);
 
         // Audit só faz sentido quando há prontuário com evoluções acessadas.
         if (resultado.Total > 0 && query.SolicitanteUsuarioId != Guid.Empty)

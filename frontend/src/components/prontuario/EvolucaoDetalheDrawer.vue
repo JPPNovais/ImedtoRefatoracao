@@ -12,7 +12,7 @@
 import { computed, ref, watch } from "vue"
 import { AppButton, AppDrawer, AppEmptyState } from "@/components/ui"
 import { formatarSecaoLegivel } from "@/composables/useEvolucaoResumo"
-import { prontuarioService, type Evolucao } from "@/services/prontuarioService"
+import { prontuarioService, type Evolucao, type Anexo, type AnexoUrl } from "@/services/prontuarioService"
 import { pacienteTermoService, type TermoEmitidoResumo } from "@/services/pacienteTermoService"
 
 const props = defineProps<{
@@ -99,6 +99,75 @@ async function baixarTermo(t: TermoEmitidoResumo) {
 
 function statusLabel(s: TermoEmitidoResumo["status"]): string {
     return { Pendente: "Pendente", Assinado: "Assinado", Revogado: "Revogado", Recusado: "Recusado", Expirado: "Expirado" }[s] ?? s
+}
+
+// ─── Anexos/Fotos da evolução (CA28-CA30 addendum) ──────────────────────────
+// Gating autor-ou-dono feito no backend (briefing 001) — front recebe lista vazia se negado.
+const anexosEvolucao = ref<Anexo[]>([])
+const fotosEvolucao = ref<Anexo[]>([])
+const urlsFotos = ref<Map<number, string>>(new Map())
+const carregandoAnexosEv = ref(false)
+const baixandoAnexoId = ref<number | null>(null)
+const fotoExpandidaUrl = ref<string | null>(null)
+
+watch(
+    () => [props.aberto, props.evolucao?.id, props.pacienteId],
+    ([aberto, evolId, pacId]) => {
+        if (aberto && evolId && pacId) {
+            void carregarAnexosEvolucao(pacId as number, evolId as number)
+        } else {
+            anexosEvolucao.value = []
+            fotosEvolucao.value = []
+            urlsFotos.value = new Map()
+        }
+    },
+    { immediate: true },
+)
+
+async function carregarAnexosEvolucao(pacienteId: number, evolucaoId: number) {
+    carregandoAnexosEv.value = true
+    try {
+        const todos = await prontuarioService.listarAnexos(pacienteId, evolucaoId)
+        anexosEvolucao.value = todos.filter(a => a.marcador === "anexo")
+        fotosEvolucao.value = todos.filter(a => a.marcador === "foto-paciente")
+        // URLs batch para fotos — on-demand, descartáveis (defense-in-depth R6).
+        if (fotosEvolucao.value.length > 0) {
+            const lote: AnexoUrl[] = await prontuarioService.obterUrlsLote(pacienteId, fotosEvolucao.value.map(f => f.id))
+            const m = new Map<number, string>()
+            for (const u of lote) m.set(u.id, u.url)
+            urlsFotos.value = m
+        }
+    } catch {
+        // Falha silenciosa — gating 001: se Dr.B não tem acesso, recebe [] sem erro.
+        anexosEvolucao.value = []
+        fotosEvolucao.value = []
+    } finally {
+        carregandoAnexosEv.value = false
+    }
+}
+
+async function baixarAnexoEvolucao(a: Anexo) {
+    if (baixandoAnexoId.value !== null || !props.pacienteId) return
+    baixandoAnexoId.value = a.id
+    try {
+        const { url } = await prontuarioService.obterUrlAnexo(props.pacienteId, a.id)
+        const el = document.createElement("a")
+        el.href = url
+        el.download = a.nomeOriginal
+        el.rel = "noopener noreferrer"
+        el.click()
+        // URL descartável — não persistida.
+    } catch {
+        // Sem toast — drawer não tem sistema de notificação próprio.
+    } finally {
+        baixandoAnexoId.value = null
+    }
+}
+
+function formatarTamanhoEv(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 </script>
 
@@ -200,7 +269,67 @@ function statusLabel(s: TermoEmitidoResumo["status"]): string {
                     <p v-else class="edd-termos-msg">Nenhum termo vinculado a esta consulta.</p>
                 </div>
             </template>
+
+            <!-- CA28-CA30: Anexos e fotos da evolução (addendum 002) -->
+            <!-- Gating autor-ou-dono no backend (briefing 001) — lista vazia se não autorizado. -->
+            <template v-if="pacienteId && (anexosEvolucao.length > 0 || fotosEvolucao.length > 0 || carregandoAnexosEv)">
+                <hr class="edd-divider" />
+                <div class="edd-arquivos">
+                    <h3 class="ds-card-title edd-arquivos-titulo">
+                        <i class="fa-solid fa-paperclip"></i>
+                        Arquivos da consulta
+                    </h3>
+                    <p v-if="carregandoAnexosEv" class="edd-termos-msg">Carregando arquivos…</p>
+                    <template v-else>
+                        <!-- Anexos (PDF/Office) -->
+                        <ul v-if="anexosEvolucao.length > 0" class="edd-anexos-lista">
+                            <li v-for="a in anexosEvolucao" :key="a.id" class="edd-anexo-item">
+                                <i class="fa-regular fa-file-pdf edd-file-icon"></i>
+                                <div class="edd-file-info">
+                                    <span class="edd-file-nome">{{ a.nomeOriginal }}</span>
+                                    <span class="edd-file-meta">{{ formatarTamanhoEv(a.tamanhoBytes) }}</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn-icon btn-icon-ver"
+                                    :disabled="baixandoAnexoId === a.id"
+                                    title="Baixar"
+                                    @click="baixarAnexoEvolucao(a)"
+                                >
+                                    <i class="fa-solid fa-download"></i>
+                                </button>
+                            </li>
+                        </ul>
+                        <!-- Fotos (thumbnails) -->
+                        <div v-if="fotosEvolucao.length > 0" class="edd-fotos-grade">
+                            <div
+                                v-for="f in fotosEvolucao"
+                                :key="f.id"
+                                class="edd-foto-thumb"
+                                :title="f.nomeOriginal"
+                                @click="fotoExpandidaUrl = urlsFotos.get(f.id) ?? null"
+                            >
+                                <img
+                                    :src="urlsFotos.get(f.id) ?? ''"
+                                    :alt="f.nomeOriginal"
+                                    class="edd-foto-img"
+                                />
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
         </template>
+
+        <!-- Lightbox de foto (CA28) -->
+        <Teleport to="body">
+            <div v-if="fotoExpandidaUrl" class="edd-lightbox" @click.self="fotoExpandidaUrl = null">
+                <button type="button" class="edd-lightbox-fechar" @click="fotoExpandidaUrl = null">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <img :src="fotoExpandidaUrl" alt="Foto ampliada" class="edd-lightbox-img" />
+            </div>
+        </Teleport>
 
         <template #rodape>
             <AppButton
@@ -348,4 +477,59 @@ function statusLabel(s: TermoEmitidoResumo["status"]): string {
     margin: 0;
     font-style: italic;
 }
+
+/* ─── Arquivos da evolução (CA28-CA30 addendum) ────────────────────────────── */
+.edd-arquivos { display: flex; flex-direction: column; gap: 10px; }
+
+.edd-arquivos-titulo {
+    display: inline-flex; align-items: center; gap: 6px; margin: 0;
+}
+.edd-arquivos-titulo i { color: hsl(var(--primary)); font-size: var(--text-xs); }
+
+.edd-anexos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.edd-anexo-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; background: hsl(var(--muted) / 0.4);
+    border-radius: var(--radius-md);
+}
+
+.edd-file-icon { color: hsl(var(--primary)); font-size: var(--text-sm); flex-shrink: 0; }
+
+.edd-file-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+
+.edd-file-nome {
+    font-size: var(--text-sm); font-weight: var(--font-weight-medium);
+    color: hsl(var(--primary-dark)); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+
+.edd-file-meta { font-size: var(--text-xs); color: hsl(var(--secondary) / 0.6); }
+
+.edd-fotos-grade {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px;
+}
+
+.edd-foto-thumb {
+    aspect-ratio: 4/3; border-radius: var(--radius); overflow: hidden;
+    background: var(--bg-muted); cursor: pointer;
+}
+
+.edd-foto-img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.15s; display: block; }
+.edd-foto-img:hover { opacity: 0.85; }
+
+.edd-lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 1.5rem;
+}
+.edd-lightbox-img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius); }
+.edd-lightbox-fechar {
+    position: absolute; top: 1rem; right: 1rem;
+    width: 2.25rem; height: 2.25rem; border-radius: 50%;
+    background: rgba(255,255,255,0.15); color: #fff; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: var(--text-base); transition: background 0.15s;
+}
+.edd-lightbox-fechar:hover { background: rgba(255,255,255,0.3); }
 </style>

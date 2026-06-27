@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Pacientes.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Tenancy;
 
 namespace Imedto.Backend.Contracts.Pacientes.Queries;
 
@@ -7,12 +8,15 @@ namespace Imedto.Backend.Contracts.Pacientes.Queries;
 /// Query agregada de documentos clínicos finalizados de um paciente
 /// (receitas emitidas, atestados e pedidos de exame) com paginação server-side.
 /// Suporta filtro por tipo, período e busca textual por subconsulta antes do UNION.
+/// Gated por autor-ou-dono (R1 briefing 2026-06-27_001).
 /// </summary>
 public class ListarDocumentosDoPacienteQuery : IQuery<PaginaDocumentosDto>
 {
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
+    /// <summary>Papel do solicitante. Dono bypassa o predicado de autoria (R4 briefing 2026-06-27_001).</summary>
+    public TenantPapel SolicitantePapel { get; set; }
     public int Pagina { get; set; } = 1;
     public int TamanhoPagina { get; set; } = 10;
 

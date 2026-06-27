@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Pacientes.Queries.Results;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -18,7 +19,9 @@ public interface IDocumentoQueryRepository
         string? tipo,
         DateTime? dataInicio,
         DateTime? dataFim,
-        string? busca);
+        string? busca,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel);
 }
 
 /// <summary>
@@ -42,7 +45,9 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
         string? tipo,
         DateTime? dataInicio,
         DateTime? dataFim,
-        string? busca)
+        string? busca,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel)
     {
         // Normaliza busca: espaços = no-op (R11)
         var buscaAtiva = !string.IsNullOrWhiteSpace(busca);
@@ -53,8 +58,8 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
         var incluirAtestados = tipo == null || tipo == "Atestado";
         var incluirPedidos   = tipo == null || tipo == "PedidoExame";
 
+        // Gating: @Papel = 'Dono' bypassa; profissional vê só os próprios (R1 briefing 2026-06-27_001).
         // ── Subconsulta de receitas ────────────────────────────────────────
-        // Só emitidas (R1). Busca: EXISTS contra receita_itens.medicamento (R8).
         var sqlReceitas = incluirReceitas ? $"""
             SELECT
                 'Receita'                                              AS Tipo,
@@ -68,6 +73,7 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
               AND r.estabelecimento_id = @EstabelecimentoId
               AND r.deletado_em IS NULL
               AND r.status = 'Emitida'
+              AND (@Papel = 'Dono' OR r.profissional_usuario_id = @UsuarioId)
               {FiltroData("COALESCE(r.emitida_em, r.criada_em)", dataInicio, dataFim)}
               {(buscaAtiva ? """
               AND EXISTS (
@@ -79,7 +85,6 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
             """ : null;
 
         // ── Subconsulta de atestados ───────────────────────────────────────
-        // Sem status (já emitidos por natureza). Busca: tipo + conteudo (R8).
         var sqlAtestados = incluirAtestados ? $"""
             SELECT
                 'Atestado'                                             AS Tipo,
@@ -92,6 +97,7 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
             WHERE a.paciente_id       = @PacienteId
               AND a.estabelecimento_id = @EstabelecimentoId
               AND a.deletado_em IS NULL
+              AND (@Papel = 'Dono' OR a.profissional_usuario_id = @UsuarioId)
               {FiltroData("a.criado_em", dataInicio, dataFim)}
               {(buscaAtiva ? """
               AND (
@@ -102,7 +108,6 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
             """ : null;
 
         // ── Subconsulta de pedidos de exame ───────────────────────────────
-        // Sem status (já emitidos por natureza). Busca: exames (JSONB→text) + indicação (R8).
         var sqlPedidos = incluirPedidos ? $"""
             SELECT
                 'PedidoExame'                                          AS Tipo,
@@ -115,6 +120,7 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
             WHERE p.paciente_id       = @PacienteId
               AND p.estabelecimento_id = @EstabelecimentoId
               AND p.deletado_em IS NULL
+              AND (@Papel = 'Dono' OR p.profissional_usuario_id = @UsuarioId)
               {FiltroData("p.criado_em", dataInicio, dataFim)}
               {(buscaAtiva ? """
               AND (
@@ -161,6 +167,8 @@ public class DocumentoQueryRepository : IDocumentoQueryRepository
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
             DataInicio = dataInicio,
             DataFim = dataFim,
             Busca = buscaNorm,

@@ -74,6 +74,7 @@ export interface Anexo {
     tamanhoBytes: number
     criadoEm: string
     autorNome: string | null
+    marcador?: string | null
 }
 
 export interface AnexoUrl {
@@ -187,6 +188,52 @@ export const prontuarioService = {
             `/paciente/${pacienteId}/prontuario/anexos/${anexoId}/url`,
         )
         return data
+    },
+
+    /**
+     * Batch de URLs assinadas para múltiplos anexos (elimina N+1 ao carregar grid de fotos).
+     * URLs são descartáveis — não persista em store/localStorage (R6 defense-in-depth).
+     */
+    async obterUrlsLote(pacienteId: number, anexoIds: number[]): Promise<AnexoUrl[]> {
+        if (!anexoIds.length) return []
+        const { data } = await httpClient.post<AnexoUrl[]>(
+            `/paciente/${pacienteId}/prontuario/anexos/urls`,
+            { anexoIds },
+        )
+        return data
+    },
+
+    /**
+     * Upload de anexo com marcador de seção (CA1/CA6 do briefing 002).
+     * Marcador distingue a seção de origem: "anexo" (documentos) ou "foto-paciente" (fotos).
+     * A URL assinada gerada é descartável — nunca persista em store (R6 defense-in-depth).
+     */
+    async uploadAnexoComMarcador(
+        pacienteId: number,
+        arquivo: File,
+        marcador: "anexo" | "foto-paciente",
+        evolucaoId?: number,
+    ): Promise<{ anexoId: number }> {
+        const form = new FormData()
+        form.append("arquivo", arquivo)
+        form.append("marcador", marcador)
+        if (evolucaoId) form.append("evolucaoId", String(evolucaoId))
+
+        const { data } = await httpClient.post<{ anexoId: number }>(
+            `/paciente/${pacienteId}/prontuario/anexos`,
+            form,
+            { headers: { "Content-Type": "multipart/form-data" } },
+        )
+        return data
+    },
+
+    /**
+     * Remoção (soft-delete) de anexo do prontuário (CA8 do briefing 002).
+     * Blob S3 retido conforme política LGPD; registro desaparece das listagens.
+     * Gating autor-ou-dono no backend.
+     */
+    async removerAnexo(pacienteId: number, anexoId: number): Promise<void> {
+        await httpClient.delete(`/paciente/${pacienteId}/prontuario/anexos/${anexoId}`)
     },
 
     /**

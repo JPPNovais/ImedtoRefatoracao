@@ -6,14 +6,14 @@ using Imedto.Backend.Domain.Common;
 namespace Imedto.Backend.Infrastructure.Storage;
 
 /// <summary>
-/// Implementação S3 para fotos públicas (avatar de profissional, logo de
-/// estabelecimento). Bucket é privado — entrega via presigned URL com TTL longo
-/// (1 dia) suficiente pra cache de browser sem comprometer LGPD.
+/// Implementação S3 para fotos clínicas (avatar de profissional, logo de
+/// estabelecimento, fotos pré/pós-op do prontuário). Bucket é privado — entrega
+/// via presigned URL com TTL curto (5 min por padrão, configurável via
+/// <see cref="StorageOptions.TtlSignedUrlFotosMinutos"/>) para minimizar janela
+/// de vazamento de dado sensível de saúde (LGPD Art. 11).
 /// </summary>
 public class S3FotoStorageService : IFotoStorageService
 {
-    private const int TtlPresignedUrlSegundos = 86_400; // 24h — cache de browser amigável
-
     private readonly IAmazonS3 _s3;
     private readonly StorageOptions _options;
 
@@ -52,11 +52,12 @@ public class S3FotoStorageService : IFotoStorageService
             || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             return path;
 
+        var ttlSegundos = _options.TtlSignedUrlFotosMinutos * 60;
         var req = new GetPreSignedUrlRequest
         {
             BucketName = _options.BucketFotos,
             Key = NormalizarKey(path),
-            Expires = DateTime.UtcNow.AddSeconds(TtlPresignedUrlSegundos),
+            Expires = DateTime.UtcNow.AddSeconds(ttlSegundos),
             Verb = HttpVerb.GET,
         };
         return _s3.GetPreSignedURL(req);

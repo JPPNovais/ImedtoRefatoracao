@@ -52,12 +52,14 @@ public class ProntuarioAnexoController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanho = 50)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelListar);
         var dto = await _requestBus.Query<ListarAnexosDoProntuarioQuery, PaginaAnexosDto>(
             new ListarAnexosDoProntuarioQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelListar,
                 EvolucaoId = evolucaoId,
                 Pagina = pagina,
                 TamanhoPagina = tamanho
@@ -81,13 +83,15 @@ public class ProntuarioAnexoController : ControllerBase
         if (request?.AnexoIds is null || request.AnexoIds.Count == 0)
             return Ok(Array.Empty<AnexoUrlDto>());
 
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelUrls);
         var dto = await _requestBus.Query<ObterUrlsAnexosQuery, IEnumerable<AnexoUrlDto>>(
             new ObterUrlsAnexosQuery
             {
                 AnexoIds = request.AnexoIds,
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
-                SolicitanteUsuarioId = _tenant.UsuarioId
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelUrls,
             });
         return Ok(dto);
     }
@@ -184,19 +188,43 @@ public class ProntuarioAnexoController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Remove (soft-delete) um anexo do prontuário. Regra autor-ou-dono:
+    /// somente o autor do anexo ou o Dono pode remover. Blob S3 retido (LGPD).
+    /// Negação genérica: "não encontrado" — nunca revela que o anexo pertence a colega.
+    /// </summary>
+    [HttpDelete("{anexoId:long}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> Remover(long pacienteId, long anexoId)
+    {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelRemover);
+        await _commandBus.Send(new RemoverAnexoCommand
+        {
+            AnexoId = anexoId,
+            PacienteId = pacienteId,
+            EstabelecimentoId = _tenant.EstabelecimentoId,
+            SolicitanteUsuarioId = _tenant.UsuarioId,
+            SolicitantePapel = papelRemover,
+        });
+        return NoContent();
+    }
+
     /// <summary>Gera URL assinada para download do anexo (expira em 5min).</summary>
     [HttpGet("{anexoId:long}/url")]
     [ProducesResponseType(typeof(AnexoUrlDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ObterUrl(long pacienteId, long anexoId)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelUrl);
         var dto = await _requestBus.Query<ObterUrlAnexoQuery, AnexoUrlDto>(
             new ObterUrlAnexoQuery
             {
                 AnexoId = anexoId,
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
-                SolicitanteUsuarioId = _tenant.UsuarioId
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelUrl,
             });
         return Ok(dto);
     }

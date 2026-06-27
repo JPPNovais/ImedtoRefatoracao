@@ -80,6 +80,14 @@ async function salvarAlertas(alertas: string[]) {
 const modalTermoEvolucaoAberto = ref(false)
 const evolucaoIdParaTermo = ref<number | null>(null)
 
+// Upload diferido (addendum briefing 2026-06-27_002):
+// Mapa de pendentes recebido do ConsultaAtualTab → persistido no salvarEvolucao.
+const pendentesPorSecao = ref<Map<string, File[]>>(new Map())
+
+function onPendentesPorSecao(mapa: Map<string, File[]>) {
+    pendentesPorSecao.value = mapa
+}
+
 function abrirEmitirTermoEvolucao(evolucaoId: number) {
     evolucaoIdParaTermo.value = evolucaoId
     modalTermoEvolucaoAberto.value = true
@@ -202,6 +210,10 @@ const SECOES_ESTRUTURADAS = new Set([
     "procedimentos-indicados",
     "evolucao-pos-op",
     "desc-cirurgica",
+    // briefing 2026-06-27_002: estado não persiste no JSONB (files ficam no S3),
+    // mas o modelValue deve ser {} para o componente não receber string.
+    "anexos",
+    "fotos-paciente",
 ])
 
 const uploadPendente = ref<File | null>(null)
@@ -261,6 +273,7 @@ async function garantirAba(a: AbaProntuario) {
 watch(abaAtiva, garantirAba, { immediate: true })
 
 function inicializarFormEvolucao() {
+    pendentesPorSecao.value = new Map() // CA25: limpa APÓS subir pendentes no salvar
     for (const k of Object.keys(novaEvolucao)) delete novaEvolucao[k]
     for (const secao of secoesConsultaAtual.value) {
         novaEvolucao[secao.chave] = SECOES_ESTRUTURADAS.has(secao.chave) ? {} : ""
@@ -329,6 +342,28 @@ async function salvarEvolucao() {
         const { evolucaoId } = await prontuarioService.registrarEvolucao(
             pacienteId.value, conteudoNaoVazio, modeloOverride, eventoId.value,
         )
+
+        // CA24/CA25 (addendum briefing 2026-06-27_002): persistir pendentes ANTES de
+        // finalizar/navegar. evolucaoId obtido acima é usado aqui — não pode ser perdido
+        // antes desta etapa (inicializarFormEvolucao() reseta o mapa após o upload).
+        if (evolucaoId && pendentesPorSecao.value.size > 0) {
+            const todosPendentes: Array<{ arquivo: File; marcador: "anexo" | "foto-paciente" }> = []
+            for (const [chave, arquivos] of pendentesPorSecao.value) {
+                const marcador: "anexo" | "foto-paciente" = chave === "fotos-paciente" ? "foto-paciente" : "anexo"
+                for (const arquivo of arquivos) todosPendentes.push({ arquivo, marcador })
+            }
+            // Promise.allSettled: CA26 — falha parcial não regride a evolução.
+            const resultados = await Promise.allSettled(
+                todosPendentes.map(p =>
+                    prontuarioService.uploadAnexoComMarcador(pacienteId.value, p.arquivo, p.marcador, evolucaoId),
+                ),
+            )
+            const falhas = resultados.filter(r => r.status === "rejected").length
+            if (falhas > 0) {
+                // R11: toast "info" genérico, sem PII, sem regredir a evolução já salva.
+                notificar(`Evolução salva. ${falhas} arquivo${falhas > 1 ? 's' : ''} não puderam ser enviados — tente novamente.`, "info")
+            }
+        }
 
         // Se o usuário marcou regiões anatômicas no mapa corporal dentro da
         // seção Exame físico, registra-as no domínio dedicado de exame físico.
@@ -561,7 +596,10 @@ async function finalizarAtendimento() {
                 :salvando="salvandoEvolucao"
                 :paciente-sexo="paciente?.genero ?? null"
                 :erro-cirurgiao="erroCirurgiao"
+                :paciente-id="pacienteId"
+                :evolucao-id="null"
                 @salvar="salvarEvolucao"
+                @pendentes-por-secao="onPendentesPorSecao"
                 @aplicar-template="(chave, corpo) => {
                     if (chave === 'desc-cirurgica') {
                         const atual = novaEvolucao[chave]

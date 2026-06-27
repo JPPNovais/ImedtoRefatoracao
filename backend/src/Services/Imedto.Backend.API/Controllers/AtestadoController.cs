@@ -62,12 +62,14 @@ public class AtestadoController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanho = 10)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelListar);
         var dto = await _requestBus.Query<ListarAtestadosDoPacienteQuery, PaginaAtestadosDto>(
             new ListarAtestadosDoPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelListar,
                 Pagina = pagina,
                 TamanhoPagina = tamanho,
             });
@@ -80,11 +82,13 @@ public class AtestadoController : ControllerBase
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Obter(long id)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelObter);
         var dto = await _requestBus.Query<ObterAtestadoQuery, AtestadoDto>(new ObterAtestadoQuery
         {
             AtestadoId = id,
             EstabelecimentoId = _tenant.EstabelecimentoId,
             SolicitanteUsuarioId = _tenant.UsuarioId,
+            SolicitantePapel = papelObter,
         });
         return Ok(dto);
     }

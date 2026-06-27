@@ -15,6 +15,8 @@ import SecaoProcedimentosIndicados from "./secoes/SecaoProcedimentosIndicados.vu
 import SecaoCondutaChecklist from "./secoes/SecaoCondutaChecklist.vue"
 import SecaoEvolucaoPosOperatoria from "./secoes/SecaoEvolucaoPosOperatoria.vue"
 import SecaoDescricaoCirurgica from "./secoes/SecaoDescricaoCirurgica.vue"
+import SecaoAnexos from "./secoes/SecaoAnexos.vue"
+import SecaoFotosPaciente from "./secoes/SecaoFotosPaciente.vue"
 
 const props = defineProps<{
     chave: string
@@ -26,9 +28,21 @@ const props = defineProps<{
     pacienteSexo?: string | null
     /** Erro de validação do campo "cirurgião" — propagado para SecaoDescricaoCirurgica (CA20–CA22). */
     erroCirurgiao?: string | null
+    /**
+     * ID do paciente — necessário para SecaoAnexos e SecaoFotosPaciente fazerem
+     * chamadas de upload/listagem/remoção. Opcional; sem ele, upload desabilitado.
+     */
+    pacienteId?: number | null
+    /**
+     * ID da evolução atual — presente quando há evolução já salva (modo imediato).
+     * Ausente na consulta atual antes de salvar (modo pendente — upload diferido).
+     */
+    evolucaoId?: number | null
 }>()
 const emit = defineEmits<{
     "update:modelValue": [valor: any]
+    /** Repassa emit das seções de arquivo (addendum upload diferido). */
+    pendentes: [arquivos: File[]]
 }>()
 
 function atualizar(v: any) { emit("update:modelValue", v) }
@@ -136,6 +150,26 @@ const valorTexto = computed({
         v-else-if="ehCondutaChecklist"
         v-model="valorEstrutura"
         :read-only="readOnly"
+    />
+
+    <!-- Seção de anexos clínicos (PDF, imagens, Office) — briefing 2026-06-27_002 + addendum -->
+    <SecaoAnexos
+        v-else-if="chave === 'anexos'"
+        v-model="valorEstrutura"
+        :read-only="readOnly"
+        :paciente-id="pacienteId"
+        :evolucao-id="evolucaoId"
+        @pendentes="(arqs) => emit('pendentes', arqs)"
+    />
+
+    <!-- Seção de fotos do paciente — briefing 2026-06-27_002 + addendum -->
+    <SecaoFotosPaciente
+        v-else-if="chave === 'fotos-paciente'"
+        v-model="valorEstrutura"
+        :read-only="readOnly"
+        :paciente-id="pacienteId"
+        :evolucao-id="evolucaoId"
+        @pendentes="(arqs) => emit('pendentes', arqs)"
     />
 
     <!-- Fallback: texto_longo → textarea, texto → input -->

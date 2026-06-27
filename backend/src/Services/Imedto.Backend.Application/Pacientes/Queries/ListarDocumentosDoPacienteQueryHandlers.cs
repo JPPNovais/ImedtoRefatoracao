@@ -61,7 +61,9 @@ public class ListarDocumentosDoPacienteQueryHandlers
             query.Tipo,
             query.DataInicio,
             query.DataFim,
-            buscaNorm);
+            buscaNorm,
+            query.SolicitanteUsuarioId,
+            query.SolicitantePapel);
 
         // Audit LGPD: listagem de documentos clínicos é leitura de prontuário.
         // Registra 1 acesso por carga (não 1 por resultado — CA12/CA30).

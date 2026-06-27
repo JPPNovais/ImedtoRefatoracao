@@ -18,11 +18,25 @@ public class StorageOptions
     /// <summary>Bucket privado de fotos (servidas via presigned URL — TTL maior, sem cache).</summary>
     public string BucketFotos { get; set; } = "imedto-fotos-155684258219";
 
-    /// <summary>TTL (em minutos) das URLs assinadas de leitura. Default: 5 min.</summary>
+    /// <summary>TTL (em minutos) das URLs assinadas de anexos de prontuário. Default: 5 min.</summary>
     public int TtlSignedUrlMinutos { get; set; } = 5;
 
-    /// <summary>Tamanho máximo (em MB) por anexo. Default: 50 MB.</summary>
+    /// <summary>
+    /// TTL (em minutos) das URLs assinadas de fotos clínicas. Default: 5 min.
+    /// Fotos são dados sensíveis (LGPD Art. 11) — TTL curto para reduzir janela de vazamento.
+    /// Configurável via <c>appsettings.json Storage:TtlSignedUrlFotosMinutos</c>.
+    /// </summary>
+    public int TtlSignedUrlFotosMinutos { get; set; } = 5;
+
+    /// <summary>Tamanho máximo (em MB) por upload geral. Default: 50 MB.</summary>
     public int TamanhoMaxMb { get; set; } = 50;
+
+    /// <summary>
+    /// Tamanho máximo (em MB) por anexo de prontuário (seções Anexos / Fotos).
+    /// Mais restritivo que o global — garante que a seção de anexos do prontuário
+    /// não receba arquivos grandes acidentalmente. Default: 2 MB.
+    /// </summary>
+    public int TamanhoMaxAnexoMb { get; set; } = 2;
 
     /// <summary>
     /// Whitelist de MIME types aceitos. Defense-in-depth — mesmo que o frontend valide,

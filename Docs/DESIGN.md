@@ -653,6 +653,37 @@ As seções `evolucao-pos-op` e `desc-cirurgica` possuem formulários estruturad
 
 **Validação de cirurgião (CA20–CA22):** lógica em `validarCirurgiao()` em `ProntuarioView.vue`. Bloqueia `salvarEvolucao()` se a seção `desc-cirurgica` tem ≥1 campo não-vazio E `cirurgiao` está em branco. Propaga por prop chain: `ProntuarioView → ConsultaAtualTab (prop erroCirurgiao) → SecaoProntuario → SecaoDescricaoCirurgica`. O watch limpa o erro ao preencher o cirurgião.
 
+### `SecaoAnexos.vue` — briefing 2026-06-27_002 + addendum (upload diferido)
+- Localização: `frontend/src/components/prontuario/secoes/SecaoAnexos.vue`
+- Props: `modelValue: Record<string, unknown>`, `readOnly?: boolean`, `pacienteId?: number | null`, `evolucaoId?: number | null`
+- Emits: `"update:modelValue"`, `"pendentes": File[]` — lista de arquivos aguardando salvar.
+- Tipos aceitos: PDF, imagens (JPEG/PNG/WEBP), Office (doc/docx/xls/xlsx). Limite: 2MB.
+- **Modo pendente** (`evolucaoId` ausente — consulta atual antes de salvar): arquivo adicionado entra em fila local (`pendentes[]`); `emit("pendentes", arquivos)` informa o pai; sem upload ao S3. Botão SEMPRE habilitado (CA27/R12 — sem "Salve primeiro").
+- **Modo imediato** (`evolucaoId` presente — evolução já salva, ou drawer): upload direto ao S3 via `uploadAnexoComMarcador`, lista recarregada após. Download on-demand (`obterUrlAnexo`), URL descartável (R6/CA7).
+- `readOnly=true`: exibe 2 exemplos fictícios sem chamar backend — para prévia do builder.
+- Soft-delete: confirmação inline (2 cliques) → `removerAnexo`. Gating autor-ou-dono no backend.
+- Filtragem: lista apenas `marcador === "anexo"` (ignora `foto-paciente`).
+- CA32: `onUnmounted` limpa `pendentes` sem revogação de URL (arquivos File nativos, sem object URL).
+- Orquestração no salvar: `ConsultaAtualTab` agrega mapa de pendentes por chave de seção → `ProntuarioView.salvarEvolucao()` sobe todos com `Promise.allSettled` antes de `inicializarFormEvolucao()`.
+
+### `SecaoFotosPaciente.vue` — briefing 2026-06-27_002 + addendum (upload diferido + resize na seleção)
+- Localização: `frontend/src/components/prontuario/secoes/SecaoFotosPaciente.vue`
+- Props: `modelValue: Record<string, unknown>`, `readOnly?: boolean`, `pacienteId?: number | null`, `evolucaoId?: number | null`
+- Emits: `"update:modelValue"`, `"pendentes": File[]` — lista de arquivos (já redimensionados) aguardando salvar.
+- Tipos aceitos: imagens (JPEG/PNG/WEBP) apenas. Limite: 2MB após redimensionamento.
+- **Redimensionamento NA SELEÇÃO** (CA22): `redimensionarImagem(arquivo, 1600, 0.8)` é executado ao selecionar o arquivo, em ambos os modos. Arquivo redimensionado é armazenado como `File`.
+- **Modo pendente** (`evolucaoId` ausente): foto redimensionada em fila local + preview via `URL.createObjectURL(arquivo)` (CA22). Botão SEMPRE habilitado (CA27/R12). `emit("pendentes", arquivos)` informa o pai.
+- **Modo imediato** (`evolucaoId` presente): upload direto ao S3 via `uploadAnexoComMarcador("foto-paciente")`.
+- `readOnly=true`: exibe 3 placeholders SVG sem chamar backend.
+- URLs de thumbnail (modo imediato): carregadas em batch via `obterUrlsLote` (elimina N+1). `Map<id, url>` descartável.
+- Lightbox: `<Teleport to="body">` com `z-index: 1000` — URL descartada ao fechar.
+- CA32: `onUnmounted` revoga todos os object URLs via `URL.revokeObjectURL` (previne memory leak) + limpa `pendentes`.
+- Filtragem: lista apenas `marcador === "foto-paciente"`.
+
+**Padrão readOnly para seções de arquivo:** exemplos fictícios nos próprios componentes (sem dados reais). S3 NÃO é chamado em modo readOnly — garante que prévia do builder não consume créditos de storage nem expõe dados clínicos.
+
+**Padrão de upload diferido (addendum):** `ConsultaAtualTab` tem `pendentesPorSecao: Map<string, File[]>` reativo. `SecaoProntuario` repassa `@pendentes` das seções de arquivo via `emit("pendentes")`. `ConsultaAtualTab` agrega e emite `@pendentes-por-secao` ao `ProntuarioView`. No `salvarEvolucao()`: (1) `registrarEvolucao` → obtém `evolucaoId`; (2) `Promise.allSettled(todosPendentes.map(uploadAnexoComMarcador))` — fail-soft, toast "info" em falha parcial (R11); (3) `inicializarFormEvolucao()` — limpa mapa de pendentes.
+
 ## Export CSV de relatórios (briefing 2026-06-10_004)
 
 Padrão de exportação CSV gerado **100% no frontend** a partir dos dados já carregados na tela (sem endpoint novo no backend).

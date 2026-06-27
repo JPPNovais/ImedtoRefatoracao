@@ -40,7 +40,8 @@ public class ListarPedidosExameDoPacienteQueryHandlers
             ?? throw new BusinessException("Paciente não encontrado.");
 
         var resultado = await _queryRepo.ListarDoPaciente(
-            query.PacienteId, query.EstabelecimentoId, pagina, tamanho);
+            query.PacienteId, query.EstabelecimentoId, pagina, tamanho,
+            query.SolicitanteUsuarioId, query.SolicitantePapel);
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(paciente.Id, query.EstabelecimentoId);
         if (prontuario is not null && resultado.Total > 0)
@@ -71,7 +72,9 @@ public class ObterPedidoExameQueryHandlers : IRequestHandler<ObterPedidoExameQue
 
     public async Task<PedidoExameDto> Handle(ObterPedidoExameQuery query)
     {
-        var pedido = await _queryRepo.ObterPorId(query.PedidoExameId, query.EstabelecimentoId)
+        var pedido = await _queryRepo.ObterPorId(
+            query.PedidoExameId, query.EstabelecimentoId,
+            query.SolicitanteUsuarioId, query.SolicitantePapel)
             ?? throw new BusinessException("Pedido de exame não encontrado.");
 
         var prontuario = await _prontuarioRepo.ObterPorPaciente(pedido.PacienteId, query.EstabelecimentoId);

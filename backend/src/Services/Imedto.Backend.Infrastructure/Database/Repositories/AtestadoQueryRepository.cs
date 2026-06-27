@@ -1,5 +1,6 @@
 using Dapper;
 using Imedto.Backend.Contracts.Atestados.Queries.Results;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Npgsql;
 
 namespace Imedto.Backend.Infrastructure.Database.Repositories;
@@ -10,8 +11,18 @@ namespace Imedto.Backend.Infrastructure.Database.Repositories;
 /// </summary>
 public interface IAtestadoQueryRepository
 {
-    Task<PaginaAtestadosDto> ListarDoPaciente(long pacienteId, long estabelecimentoId, int pagina, int tamanhoPagina);
-    Task<AtestadoDto?> ObterPorId(long atestadoId, long estabelecimentoId);
+    Task<PaginaAtestadosDto> ListarDoPaciente(
+        long pacienteId,
+        long estabelecimentoId,
+        int pagina,
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel);
+    Task<AtestadoDto?> ObterPorId(
+        long atestadoId,
+        long estabelecimentoId,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel);
     Task<IReadOnlyList<ModeloAtestadoDto>> ListarModelos(long estabelecimentoId);
 }
 
@@ -25,14 +36,18 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
         long pacienteId,
         long estabelecimentoId,
         int pagina,
-        int tamanhoPagina)
+        int tamanhoPagina,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel)
     {
+        // Gating: @Papel = 'Dono' bypassa; profissional vê só os próprios (R1 briefing 2026-06-27_001).
         const string sqlTotal = """
             SELECT COUNT(*)
             FROM   public.atestados a
             WHERE  a.paciente_id = @PacienteId
               AND  a.estabelecimento_id = @EstabelecimentoId
               AND  a.deletado_em IS NULL
+              AND  (@Papel = 'Dono' OR a.profissional_usuario_id = @UsuarioId)
             """;
 
         const string sqlItens = """
@@ -50,21 +65,28 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
             WHERE   a.paciente_id = @PacienteId
               AND   a.estabelecimento_id = @EstabelecimentoId
               AND   a.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR a.profissional_usuario_id = @UsuarioId)
             ORDER BY a.criado_em DESC
             LIMIT   @Tamanho OFFSET @Offset
             """;
 
-        await using var conn = new NpgsqlConnection(_connStr);
-        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, new
+        var parametros = new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
-        });
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
+        };
+
+        await using var conn = new NpgsqlConnection(_connStr);
+        var total = await conn.ExecuteScalarAsync<int>(sqlTotal, parametros);
 
         var itens = await conn.QueryAsync<AtestadoDto>(sqlItens, new
         {
             PacienteId = pacienteId,
             EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
             Tamanho = tamanhoPagina,
             Offset = (pagina - 1) * tamanhoPagina,
         });
@@ -78,8 +100,13 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
         };
     }
 
-    public async Task<AtestadoDto?> ObterPorId(long atestadoId, long estabelecimentoId)
+    public async Task<AtestadoDto?> ObterPorId(
+        long atestadoId,
+        long estabelecimentoId,
+        Guid solicitanteUsuarioId,
+        TenantPapel solicitantePapel)
     {
+        // Gating: retorna null se o atestado não é do solicitante (e não é Dono) — mensagem genérica no handler (R5).
         const string sql = """
             SELECT  a.id                  AS Id,
                     a.paciente_id         AS PacienteId,
@@ -95,6 +122,7 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
             WHERE   a.id = @Id
               AND   a.estabelecimento_id = @EstabelecimentoId
               AND   a.deletado_em IS NULL
+              AND   (@Papel = 'Dono' OR a.profissional_usuario_id = @UsuarioId)
             """;
 
         await using var conn = new NpgsqlConnection(_connStr);
@@ -102,6 +130,8 @@ public class AtestadoQueryRepository : IAtestadoQueryRepository
         {
             Id = atestadoId,
             EstabelecimentoId = estabelecimentoId,
+            UsuarioId = solicitanteUsuarioId,
+            Papel = solicitantePapel.ToString(),
         });
     }
 

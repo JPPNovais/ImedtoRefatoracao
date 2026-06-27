@@ -72,11 +72,14 @@ public class ProntuarioController : ControllerBase
     [ProducesResponseType(typeof(ContagemEvolucoesDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> ContarEvolucoes(long pacienteId)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelContagem);
         var dto = await _requestBus.Query<ContarEvolucoesProntuarioPacienteQuery, ContagemEvolucoesDto>(
             new ContarEvolucoesProntuarioPacienteQuery
             {
                 PacienteId = pacienteId,
-                EstabelecimentoId = _tenant.EstabelecimentoId
+                EstabelecimentoId = _tenant.EstabelecimentoId,
+                SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelContagem,
             });
         return Ok(dto);
     }
@@ -93,12 +96,14 @@ public class ProntuarioController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanho = 10)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelListagem);
         var dto = await _requestBus.Query<ListarEvolucoesProntuarioPacienteQuery, PaginaEvolucoesDto>(
             new ListarEvolucoesProntuarioPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelListagem,
                 Pagina = pagina,
                 TamanhoPagina = tamanho,
             });

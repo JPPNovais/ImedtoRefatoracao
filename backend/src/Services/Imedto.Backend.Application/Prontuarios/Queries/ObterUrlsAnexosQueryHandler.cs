@@ -44,7 +44,8 @@ public class ObterUrlsAnexosQueryHandler
         var ids = query.AnexoIds.Take(50).ToList();
 
         var referencias = await _queryRepository.ObterReferenciasAnexos(
-            ids, query.PacienteId, query.EstabelecimentoId);
+            ids, query.PacienteId, query.EstabelecimentoId,
+            query.SolicitanteUsuarioId, query.SolicitantePapel);
 
         var referenciasList = referencias.ToList();
         if (referenciasList.Count == 0) return Enumerable.Empty<AnexoUrlDto>();

@@ -5,6 +5,7 @@ using Imedto.Backend.Infrastructure;
 using Imedto.Backend.Infrastructure.Database.Repositories;
 using Imedto.Backend.Infrastructure.Storage;
 using Imedto.Backend.SharedKernel.Domain;
+using Imedto.Backend.SharedKernel.Tenancy;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
@@ -48,7 +49,7 @@ public class ObterUrlAnexoQueryHandlersTests
     [Test]
     public async Task Handle_AnexoPertenceAoPaciente_GeraUrlAssinadaERegistraAudit()
     {
-        _repo.Setup(r => r.ObterReferenciaAnexo(AnexoId, PacienteUrl, EstabelecimentoId))
+        _repo.Setup(r => r.ObterReferenciaAnexo(AnexoId, PacienteUrl, EstabelecimentoId, It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync((ProntuarioId, "s3://anexos/abc", "exame.pdf", "application/pdf"));
 
         _storage.Setup(s => s.GerarUrlAssinadaLeituraAsync("s3://anexos/abc", 300))
@@ -59,7 +60,8 @@ public class ObterUrlAnexoQueryHandlersTests
             AnexoId = AnexoId,
             PacienteId = PacienteUrl,
             EstabelecimentoId = EstabelecimentoId,
-            SolicitanteUsuarioId = _solicitanteId
+            SolicitanteUsuarioId = _solicitanteId,
+            SolicitantePapel = TenantPapel.Profissional,
         });
 
         Assert.That(dto.Url, Is.EqualTo("https://signed.example/exame.pdf?sig=xyz"));
@@ -76,7 +78,7 @@ public class ObterUrlAnexoQueryHandlersTests
         // Repositorio devolve null quando o par (paciente, anexo) nao bate —
         // exatamente o caminho que fecha o IDOR. Sem o filtro de paciente no
         // SQL, esse cenario teria devolvido o anexo do outro paciente.
-        _repo.Setup(r => r.ObterReferenciaAnexo(AnexoId, PacienteOutro, EstabelecimentoId))
+        _repo.Setup(r => r.ObterReferenciaAnexo(AnexoId, PacienteOutro, EstabelecimentoId, It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(((long, string, string, string)?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ObterUrlAnexoQuery
@@ -84,7 +86,8 @@ public class ObterUrlAnexoQueryHandlersTests
             AnexoId = AnexoId,
             PacienteId = PacienteOutro,
             EstabelecimentoId = EstabelecimentoId,
-            SolicitanteUsuarioId = _solicitanteId
+            SolicitanteUsuarioId = _solicitanteId,
+            SolicitantePapel = TenantPapel.Profissional,
         }));
         Assert.That(ex.Message, Is.EqualTo("Anexo não encontrado."),
             "Mensagem generica — defense-in-depth nao vaza existencia.");
@@ -100,7 +103,7 @@ public class ObterUrlAnexoQueryHandlersTests
     public void Handle_AnexoDeOutroTenant_LancaBusinessExceptionGenerica()
     {
         const long outroTenant = 2;
-        _repo.Setup(r => r.ObterReferenciaAnexo(AnexoId, PacienteUrl, outroTenant))
+        _repo.Setup(r => r.ObterReferenciaAnexo(AnexoId, PacienteUrl, outroTenant, It.IsAny<Guid>(), It.IsAny<TenantPapel>()))
             .ReturnsAsync(((long, string, string, string)?)null);
 
         var ex = Assert.ThrowsAsync<BusinessException>(() => _sut.Handle(new ObterUrlAnexoQuery
@@ -108,7 +111,8 @@ public class ObterUrlAnexoQueryHandlersTests
             AnexoId = AnexoId,
             PacienteId = PacienteUrl,
             EstabelecimentoId = outroTenant,
-            SolicitanteUsuarioId = _solicitanteId
+            SolicitanteUsuarioId = _solicitanteId,
+            SolicitantePapel = TenantPapel.Profissional,
         }));
         Assert.That(ex.Message, Is.EqualTo("Anexo não encontrado."));
     }

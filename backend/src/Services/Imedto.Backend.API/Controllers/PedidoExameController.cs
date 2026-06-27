@@ -61,12 +61,14 @@ public class PedidoExameController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanho = 10)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelListar);
         var dto = await _requestBus.Query<ListarPedidosExameDoPacienteQuery, PaginaPedidosExameDto>(
             new ListarPedidosExameDoPacienteQuery
             {
                 PacienteId = pacienteId,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelListar,
                 Pagina = pagina,
                 TamanhoPagina = tamanho,
             });
@@ -78,11 +80,13 @@ public class PedidoExameController : ControllerBase
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> Obter(long id)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelObter);
         var dto = await _requestBus.Query<ObterPedidoExameQuery, PedidoExameDto>(new ObterPedidoExameQuery
         {
             PedidoExameId = id,
             EstabelecimentoId = _tenant.EstabelecimentoId,
             SolicitanteUsuarioId = _tenant.UsuarioId,
+            SolicitantePapel = papelObter,
         });
         return Ok(dto);
     }

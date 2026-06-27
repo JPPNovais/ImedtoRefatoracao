@@ -1,5 +1,6 @@
 using Imedto.Backend.Contracts.Prontuarios.Queries.Results;
 using Imedto.Backend.SharedKernel.Cqrs;
+using Imedto.Backend.SharedKernel.Tenancy;
 
 namespace Imedto.Backend.Contracts.Prontuarios.Queries;
 
@@ -9,6 +10,8 @@ public class ListarAnexosDoProntuarioQuery : IQuery<PaginaAnexosDto>
     public long EstabelecimentoId { get; set; }
     /// <summary>Audit LGPD: identificacao do solicitante para registrar o acesso.</summary>
     public Guid SolicitanteUsuarioId { get; set; }
+    /// <summary>Papel do solicitante. Dono bypassa o predicado de autoria (R4/R7 briefing 2026-06-27_001).</summary>
+    public TenantPapel SolicitantePapel { get; set; }
     public long? EvolucaoId { get; set; } // opcional: só os da evolução
 
     /// <summary>Página 1-based. Default 1. Quando não informado, comporta-se como página 1.</summary>
@@ -24,6 +27,8 @@ public class ObterUrlsAnexosQuery : IQuery<IEnumerable<AnexoUrlDto>>
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
+    /// <summary>Papel do solicitante. Dono bypassa o predicado de autoria (R4/R7 briefing 2026-06-27_001).</summary>
+    public TenantPapel SolicitantePapel { get; set; }
 }
 
 public class ObterUrlAnexoQuery : IQuery<AnexoUrlDto>
@@ -38,6 +43,8 @@ public class ObterUrlAnexoQuery : IQuery<AnexoUrlDto>
     public long PacienteId { get; set; }
     public long EstabelecimentoId { get; set; }
     public Guid SolicitanteUsuarioId { get; set; }
+    /// <summary>Papel do solicitante. Dono bypassa o predicado de autoria (R4/R7 briefing 2026-06-27_001).</summary>
+    public TenantPapel SolicitantePapel { get; set; }
 
     /// <summary>
     /// TTL da URL assinada em segundos. Quando 0 (default), o handler usa

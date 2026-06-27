@@ -318,12 +318,14 @@ public class PacienteController : ControllerBase
         [FromQuery] int pagina = 1,
         [FromQuery] int tamanho = 10)
     {
+        Enum.TryParse<TenantPapel>(_tenant.Papel, ignoreCase: true, out var papelDocs);
         var dto = await _requestBus.Query<ListarDocumentosDoPacienteQuery, PaginaDocumentosDto>(
             new ListarDocumentosDoPacienteQuery
             {
                 PacienteId = id,
                 EstabelecimentoId = _tenant.EstabelecimentoId,
                 SolicitanteUsuarioId = _tenant.UsuarioId,
+                SolicitantePapel = papelDocs,
                 Tipo = tipo,
                 DataInicio = dataInicio,
                 DataFim = dataFim,
