@@ -6,10 +6,13 @@
 import { computed, ref, watch } from "vue"
 import AppField from "./AppField.vue"
 import AppInput from "./AppInput.vue"
+import AppModal from "./AppModal.vue"
 import AppTextarea from "./AppTextarea.vue"
+import SecaoProntuario from "@/components/prontuario/SecaoProntuario.vue"
 import type { SecaoModelo } from "@/services/prontuarioService"
 import {
     SECOES_MODELO_PRONTUARIO,
+    EXEMPLOS_SECAO_MODELO,
     parsearEstruturaJson,
     gerarEstruturaJson,
 } from "./modeloProntuarioBuilder"
@@ -46,6 +49,33 @@ const inicializado = ref(false)
 
 const labelDe = (key: string) =>
     SECOES_MODELO_PRONTUARIO.find(s => s.key === key)?.label ?? key
+
+// ─── Prévia de seção (CA1–CA13) ───────────────────────────────────────────────
+// secaoEmPrevia: chave da seção sendo pré-visualizada, ou null quando fechado.
+// Só seções do catálogo têm prévia (R6). O modal usa AppModal + SecaoProntuario.
+const secaoEmPrevia = ref<string | null>(null)
+
+function abrirPrevia(key: string) {
+    // R6: só seções do catálogo
+    if (!EXEMPLOS_SECAO_MODELO[key]) return
+    secaoEmPrevia.value = key
+}
+
+function fecharPrevia() {
+    secaoEmPrevia.value = null
+}
+
+const previaDados = computed(() => {
+    if (!secaoEmPrevia.value) return null
+    const def = SECOES_MODELO_PRONTUARIO.find(s => s.key === secaoEmPrevia.value)
+    if (!def) return null
+    return {
+        key: def.key,
+        label: def.label,
+        tipo: def.tipo,
+        exemplo: EXEMPLOS_SECAO_MODELO[def.key],
+    }
+})
 
 // ─── Parse inicial ────────────────────────────────────────────────────────────
 
@@ -226,6 +256,16 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
                     <span class="mpb-num">{{ pos + 1 }}</span>
                     <span class="mpb-nm">{{ labelDe(secao.chave) }}</span>
                     <button
+                        v-if="EXEMPLOS_SECAO_MODELO[secao.chave]"
+                        type="button"
+                        class="mpb-preview"
+                        :title="`Pré-visualizar seção ${labelDe(secao.chave)}`"
+                        :aria-label="`Pré-visualizar seção ${labelDe(secao.chave)}`"
+                        @click.stop="abrirPrevia(secao.chave)"
+                    >
+                        <i class="fa-regular fa-eye" />
+                    </button>
+                    <button
                         type="button"
                         class="mpb-rm"
                         title="Remover seção"
@@ -246,20 +286,62 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
         <div class="mpb-avail-bloco">
             <div class="mpb-avail-head">Adicionar seção</div>
             <div v-if="secoesDisponiveis.length" class="mpb-avail-chips">
-                <button
+                <span
                     v-for="s in secoesDisponiveis"
                     :key="s.key"
-                    type="button"
-                    class="mpb-chip-add"
-                    :title="s.info"
-                    :disabled="disabled"
-                    @click="adicionarSecao(s.key)"
+                    class="mpb-chip-wrapper"
                 >
-                    <i class="fa-solid fa-plus" /> {{ s.label }}
-                </button>
+                    <button
+                        type="button"
+                        class="mpb-chip-add"
+                        :title="s.info"
+                        :disabled="disabled"
+                        @click="adicionarSecao(s.key)"
+                    >
+                        <i class="fa-solid fa-plus" /> {{ s.label }}
+                    </button>
+                    <button
+                        v-if="EXEMPLOS_SECAO_MODELO[s.key]"
+                        type="button"
+                        class="mpb-chip-preview"
+                        :title="`Pré-visualizar seção ${s.label}`"
+                        :aria-label="`Pré-visualizar seção ${s.label}`"
+                        @click.stop="abrirPrevia(s.key)"
+                    >
+                        <i class="fa-regular fa-eye" />
+                    </button>
+                </span>
             </div>
             <span v-else class="mpb-all-done">Todas as seções já foram adicionadas.</span>
         </div>
+
+        <!-- Modal de prévia de seção (R1/R5/briefing 2026-06-26_001) -->
+        <AppModal
+            :aberto="!!previaDados"
+            :titulo="previaDados ? `Prévia — ${previaDados.label}` : ''"
+            largura="lg"
+            @fechar="fecharPrevia"
+        >
+            <template v-if="previaDados">
+                <p class="mpb-previa-aviso">
+                    <i class="fa-solid fa-circle-info" /> Exemplo somente leitura — não altera o modelo.
+                </p>
+                <SecaoProntuario
+                    :chave="previaDados.key"
+                    :titulo="previaDados.label"
+                    :tipo="previaDados.tipo"
+                    :model-value="previaDados.exemplo"
+                    :read-only="true"
+                    paciente-sexo="F"
+                    @update:model-value="() => {}"
+                />
+            </template>
+            <template #rodape>
+                <button type="button" class="btn btn-secondary" @click="fecharPrevia">
+                    Fechar
+                </button>
+            </template>
+        </AppModal>
     </div>
 </template>
 
@@ -473,5 +555,67 @@ watch(valido, (v) => emit("update:valido", v), { immediate: true })
 .mpb-all-done {
     font-size: 0.78em;
     color: var(--text-muted);
+}
+
+/* ── Botão de prévia na linha de seção adicionada ── */
+.mpb-preview {
+    flex: none;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: color 0.12s, background 0.12s;
+    line-height: 1;
+}
+
+.mpb-preview:hover {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.08);
+}
+
+/* ── Wrapper do chip + botão de prévia ── */
+.mpb-chip-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+/* ── Botão de prévia adjacente ao chip ── */
+.mpb-chip-preview {
+    flex: none;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 0.25rem 0.3rem;
+    border-radius: var(--radius-sm);
+    transition: color 0.12s, background 0.12s;
+    line-height: 1;
+    font-size: var(--text-sm);
+}
+
+.mpb-chip-preview:hover {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.08);
+}
+
+/* ── Aviso no modal de prévia ── */
+.mpb-previa-aviso {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    background: hsl(var(--info) / 0.08);
+    border: 1px solid hsl(var(--info) / 0.25);
+    border-radius: calc(var(--radius) - 2px);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+.mpb-previa-aviso i {
+    color: hsl(var(--info));
+    flex-shrink: 0;
 }
 </style>
